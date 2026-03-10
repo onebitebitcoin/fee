@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "exchange-fee": {
+      "command": "/Users/nsw/Desktop/dev/aicoding-tests/exchange-fee/.venv/bin/python",
+      "args": ["/Users/nsw/Desktop/dev/aicoding-tests/exchange-fee/mcp_server.py"],
+      "env": {}
+    }
+  }
+}

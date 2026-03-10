@@ -5,7 +5,7 @@ mcp_server.py 단위 테스트
 """
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,7 +23,7 @@ from mcp_server import (
     _get_ticker_data,
     _get_withdrawal_data,
 )
-from fee_checker import GROUPS, ALL_EXCHANGES
+from fee_checker import GROUPS
 
 
 # ─────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ class TestGetTicker:
 
 class TestGetWithdrawalData:
     def test_binance_uses_api(self, mocker):
-        mock_fn = mocker.patch.dict(mcp_server.WITHDRAWAL_FETCHERS, {
+        mocker.patch.dict(mcp_server.WITHDRAWAL_FETCHERS, {
             "binance": MagicMock(return_value=[{"label": "BTC", "fee": 0.0001}])
         })
         result = _get_withdrawal_data("binance", "BTC")
@@ -198,7 +198,7 @@ class TestGetWithdrawalData:
     def test_static_exchange_uses_static(self, mocker):
         mock_static = mocker.patch("mcp_server.get_static_withdrawal",
                                    return_value=[{"label": "Bitcoin", "fee": 0.0008}])
-        result = _get_withdrawal_data("upbit", "BTC")
+        _get_withdrawal_data("upbit", "BTC")
         mock_static.assert_called_once_with("upbit", "BTC")
 
 
@@ -472,12 +472,20 @@ class TestFindCheapestPath:
         assert result["total_paths_evaluated"] > 0
         assert result["best_path"] is not None
 
-    def test_top5_sorted_by_btc_received(self, mocker):
+    def test_top5_sorted_by_total_fee_krw(self, mocker):
         self._setup_mocks(mocker)
         result = find_cheapest_path(amount_krw=1000000)
         top5 = result["top5"]
         for i in range(len(top5) - 1):
-            assert top5[i]["btc_received"] >= top5[i + 1]["btc_received"]
+            assert top5[i]["total_fee_krw"] <= top5[i + 1]["total_fee_krw"]
+
+    def test_best_path_uses_lowest_total_fee(self, mocker):
+        self._setup_mocks(mocker)
+        result = find_cheapest_path(amount_krw=1000000)
+        all_paths = result["all_paths"]
+        best_path = result["best_path"]
+        assert best_path is not None
+        assert best_path["total_fee_krw"] == min(path["total_fee_krw"] for path in all_paths)
 
     def test_invalid_global_exchange(self):
         result = find_cheapest_path(global_exchange="upbit")
@@ -504,6 +512,8 @@ class TestFindCheapestPath:
         assert "total_fee_krw" in path
         assert "fee_pct" in path
         assert "breakdown" in path
+        assert "components" in path["breakdown"]
+        assert path["breakdown"]["total_fee_krw"] == path["total_fee_krw"]
 
     def test_maintenance_suspended_paths_excluded(self, mocker):
         self._setup_mocks(mocker)

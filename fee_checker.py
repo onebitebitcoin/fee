@@ -43,69 +43,37 @@ TRADING_FEES = {
     "bitget":   {"maker": 0.0010, "taker": 0.0010},
 }
 
-# ─── 출금 수수료 (문서 기준값 – 공개 API 없는 거래소) ─────────────
-# None = 공개 API로 실시간 조회 / str = 안내 메시지
-# 마지막 Playwright 스크래핑: 2026-03-09
-STATIC_WITHDRAWAL = {
+# ─── 출금 수수료 스크래핑 설정 ───────────────────────────────────
+# 하드코딩 fallback은 사용하지 않는다. 스크래핑/API 실패 시 오류를 반환한다.
+SCRAPED_WITHDRAWAL_LABELS = {
     "upbit": {
-        "btc": [
-            # 공식 공지 #5311 직접 확인: 0.0008 → 0.0002 BTC (2025-07-10 21:00 KST)
-            {"label": "Bitcoin (On-chain)", "fee": 0.0002, "note": "공식 공지 기준 (2025-07-10 인하)"},
-            {"label": "USDT (TRC20)",       "fee": None,   "note": "미지원"},
-        ],
+        "btc": [{"label": "Bitcoin (On-chain)", "cache_key": "upbit_btc", "source_url": "https://upbit.com/service_center/fees?tab=dtw_fees"}],
         "usdt": [
-            {"label": "ERC20",  "fee": 10.0, "note": "공식 문서 기준"},
-            {"label": "TRC20",  "fee": 1.0,  "note": "공식 문서 기준"},
-        ],
-    },
-    "bithumb": {
-        "btc": [
-            # feed.bithumb.com 접근 차단 – 2024-05 인하 공지 기준 0.0008 BTC
-            {"label": "Bitcoin (On-chain)", "fee": 0.0008, "note": "공식 공지 기준 (2024-05, 최신 확인 권장)"},
-        ],
-        "usdt": [
-            {"label": "ERC20",  "fee": 10.0, "note": "공식 문서 기준"},
-            {"label": "TRC20",  "fee": 2.0,  "note": "공식 문서 기준"},
+            {"label": "Aptos", "cache_key": "upbit_usdt_aptos", "source_url": "https://upbit.com/service_center/fees?tab=dtw_fees"},
+            {"label": "ERC20", "cache_key": "upbit_usdt_ethereum", "source_url": "https://upbit.com/service_center/fees?tab=dtw_fees"},
+            {"label": "Kaia", "cache_key": "upbit_usdt_kaia", "source_url": "https://upbit.com/service_center/fees?tab=dtw_fees"},
+            {"label": "TRC20", "cache_key": "upbit_usdt_tron", "source_url": "https://upbit.com/service_center/fees?tab=dtw_fees"},
         ],
     },
     "korbit": {
-        "btc": [
-            # korbit.co.kr FAQ 직접 확인 (업데이트: 2026-02-02)
-            {"label": "Bitcoin (On-chain)", "fee": 0.0008, "note": "공식 FAQ 기준 (2026-02-02 확인)"},
-        ],
-        "usdt": [
-            {"label": "ERC20", "fee": None, "note": "미지원"},
-        ],
+        "btc": [{"label": "Bitcoin (On-chain)", "cache_key": "korbit_btc", "source_url": "https://lightning.korbit.co.kr/info/fee/?tab=transfer"}],
+        "usdt": [{"label": "TRC20", "cache_key": "korbit_usdt_tron", "source_url": "https://lightning.korbit.co.kr/info/fee/?tab=transfer"}],
     },
     "coinone": {
-        "btc": [
-            # coinone.co.kr/support/fee-guide 직접 확인 + 공지 #3588 (2024-11-28 인하)
-            {"label": "Bitcoin (On-chain)", "fee": 0.0008, "note": "공식 수수료 안내 기준 (2024-11-28 인하)"},
-        ],
-        "usdt": [
-            {"label": "ERC20", "fee": 10.0, "note": "공식 문서 기준"},
-            {"label": "TRC20", "fee": 3.0,  "note": "공식 문서 기준"},
-        ],
+        "btc": [{"label": "Bitcoin (On-chain)", "cache_key": "coinone_btc", "source_url": "https://coinone.co.kr/support/fee-guide"}],
+        "usdt": [{"label": "TRC20", "cache_key": "coinone_usdt_tron", "source_url": "https://coinone.co.kr/support/fee-guide"}],
     },
     "kraken": {
-        "btc": [
-            # bitdegree.org Playwright 스크래핑 기준 (2025-12-15 확인)
-            {"label": "Bitcoin (On-chain)", "fee": 0.0002,  "note": "스크래핑 기준 (2025-12-15)"},
-            {"label": "Lightning Network",  "fee": 0.0001,  "note": "공식 문서 기준"},
-        ],
-        "usdt": [
-            {"label": "ERC20",  "fee": 2.5,  "note": "공식 문서 기준"},
-            {"label": "TRC20",  "fee": 2.5,  "note": "공식 문서 기준"},
-        ],
+        "btc": [{"label": "Bitcoin (On-chain)", "cache_key": "kraken_btc", "source_url": "https://www.bitdegree.org/crypto/tutorials/kraken-fees"}],
     },
-    "coinbase": {
-        "btc": [
-            {"label": "Bitcoin (On-chain)", "fee": None, "note": "네트워크 혼잡도에 따라 동적 결정"},
-        ],
-        "usdt": [
-            {"label": "ERC20",  "fee": None, "note": "네트워크 혼잡도에 따라 동적 결정"},
-        ],
-    },
+}
+
+WITHDRAWAL_API_SOURCE_URLS = {
+    "bithumb": "https://gw.bithumb.com/exchange/v1/coin-inout/info",
+    "binance": "https://www.binance.com/bapi/capital/v1/public/capital/getNetworkCoinAll",
+    "okx": "https://www.okx.com/v2/asset/withdraw/fee-amount-infos",
+    "gopax": "https://api.gopax.co.kr/assets",
+    "bitget": "https://api.bitget.com/api/v2/spot/public/coins",
 }
 
 # ─── 거래소 그룹 ────────────────────────────────────────────────
@@ -357,6 +325,43 @@ def fetch_gopax_withdrawal(coin: str) -> list:
     return []
 
 
+def fetch_bithumb_withdrawal(coin: str) -> list:
+    r = _get("https://gw.bithumb.com/exchange/v1/coin-inout/info")
+    d = r.json()
+    if d.get("status") != 200:
+        raise ValueError("Bithumb 출금 API 오류")
+
+    label_map = {
+        "Bitcoin": "Bitcoin (On-chain)",
+        "Tron": "TRC20",
+        "Ethereum": "ERC20",
+    }
+
+    for item in d.get("data", []):
+        if item.get("coinSymbol") != coin:
+            continue
+        result = []
+        for network in item.get("networkInfoList", []):
+            fee_text = network.get("withdrawFeeQuantity")
+            min_text = network.get("withdrawMinimumQuantity")
+            try:
+                fee = float(fee_text) if fee_text not in (None, "", "-") else None
+            except ValueError:
+                fee = None
+            try:
+                min_amount = float(min_text) if min_text not in (None, "", "-") else None
+            except ValueError:
+                min_amount = None
+            result.append({
+                "label": label_map.get(network.get("networkName"), network.get("networkName")),
+                "fee": fee,
+                "min": min_amount,
+                "enabled": bool(network.get("isWithdrawAvailable", False)),
+            })
+        return result
+    return []
+
+
 def fetch_bitget_withdrawal(coin: str) -> list:
     r = _get(f"https://api.bitget.com/api/v2/spot/public/coins?coin={coin}")
     d = r.json()
@@ -413,43 +418,76 @@ def _is_cache_valid(cache: dict) -> bool:
 # ── Playwright 스크래퍼 (async) ──────────────────────────────
 
 async def _pw_scrape_upbit(browser) -> tuple:
-    import re
     page = await browser.new_page()
     try:
         await page.goto(
-            "https://upbit.com/service_center/notice?id=5311",
+            "https://upbit.com/service_center/fees?tab=dtw_fees",
             wait_until="domcontentloaded", timeout=20000,
         )
-        await page.wait_for_timeout(4000)
-        text = await page.inner_text("body")
-        m = re.search(r'변경 출금 수수료.*?([\d.]+)\s*BTC', text)
-        return ("upbit_btc", float(m.group(1))) if m else ("upbit_btc", None)
+        await page.wait_for_timeout(2500)
+        rows = await page.evaluate(
+            """() => Array.from(document.querySelectorAll('table tr'))
+                .map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.innerText.trim()))
+                .filter(row => row.length >= 6)"""
+        )
+        fees = {}
+        for row in rows:
+            asset = row[0]
+            if asset == "BTC":
+                withdrawal_fees = [line.strip() for line in row[5].splitlines() if line.strip()]
+                if withdrawal_fees:
+                    fee_text = withdrawal_fees[0].split()[0].replace(",", "")
+                    fees["upbit_btc"] = float(fee_text)
+            if asset == "USDT":
+                networks = [line.strip() for line in row[1].splitlines() if line.strip()]
+                withdrawal_fees = [line.strip() for line in row[5].splitlines() if line.strip()]
+                network_key_map = {
+                    "Aptos": "upbit_usdt_aptos",
+                    "Ethereum": "upbit_usdt_ethereum",
+                    "Kaia": "upbit_usdt_kaia",
+                    "Tron": "upbit_usdt_tron",
+                }
+                for network_name, fee_text in zip(networks, withdrawal_fees):
+                    cache_key = network_key_map.get(network_name)
+                    if not cache_key:
+                        continue
+                    value_text = fee_text.split()[0].replace(",", "")
+                    fees[cache_key] = float(value_text)
+        return fees
     except Exception:
-        return ("upbit_btc", None)
+        return {}
     finally:
         await page.close()
 
 
 async def _pw_scrape_korbit(browser) -> tuple:
-    import re
     page = await browser.new_page()
     try:
         await page.goto(
-            "https://lightning.korbit.co.kr/faq/list/?article=5SrSC3yggkWhcSL0O1KSz4",
+            "https://lightning.korbit.co.kr/info/fee/?tab=transfer",
             wait_until="domcontentloaded", timeout=20000,
         )
-        await page.wait_for_timeout(5000)
-        text = await page.inner_text("body")
-        m = re.search(r'BTC\(비트코인\).*?무료\s+([\d.]+)', text, re.DOTALL)
-        return ("korbit_btc", float(m.group(1))) if m else ("korbit_btc", None)
+        await page.wait_for_timeout(2500)
+        rows = await page.evaluate(
+            """() => Array.from(document.querySelectorAll('table tr'))
+                .map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.innerText.trim()))
+                .filter(row => row.length >= 6)"""
+        )
+        fees = {}
+        for row in rows:
+            asset = row[0]
+            if asset.startswith("BTC("):
+                fees["korbit_btc"] = float(row[5].split()[0].replace(",", ""))
+            if asset.startswith("USDT(") and "Tron" in row[1]:
+                fees["korbit_usdt_tron"] = float(row[5].split()[0].replace(",", ""))
+        return fees
     except Exception:
-        return ("korbit_btc", None)
+        return {}
     finally:
         await page.close()
 
 
 async def _pw_scrape_coinone(browser) -> tuple:
-    import re
     page = await browser.new_page()
     try:
         await page.goto(
@@ -457,14 +495,21 @@ async def _pw_scrape_coinone(browser) -> tuple:
             wait_until="domcontentloaded", timeout=20000,
         )
         await page.wait_for_timeout(5000)
-        text = await page.inner_text("body")
-        # 실제 행 형식: "BTC\tBitcoin\t0.00000001\t0 BTC\t0.0001\t0.0008 BTC"
-        m = re.search(r'^BTC\tBitcoin\t[\d.]+\t0 BTC\t[\d.]+\t([\d.]+)\s*BTC', text, re.MULTILINE)
-        if m:
-            return ("coinone_btc", float(m.group(1)))
-        return ("coinone_btc", None)
+        rows = await page.evaluate(
+            """() => Array.from(document.querySelectorAll('table tr'))
+                .map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.innerText.trim()))
+                .filter(row => row.length >= 6)"""
+        )
+        fees = {}
+        for row in rows:
+            asset = row[0]
+            if asset == "BTC":
+                fees["coinone_btc"] = float(row[5].split()[0].replace(",", ""))
+            if asset == "USDT" and "Tron" in row[1]:
+                fees["coinone_usdt_tron"] = float(row[5].split()[0].replace(",", ""))
+        return fees
     except Exception:
-        return ("coinone_btc", None)
+        return {}
     finally:
         await page.close()
 
@@ -517,6 +562,8 @@ async def _scrape_all_async() -> dict:
     for result in results:
         if isinstance(result, tuple) and result[1] is not None:
             fees[result[0]] = result[1]
+        elif isinstance(result, dict):
+            fees.update({key: value for key, value in result.items() if value is not None})
     return fees
 
 
@@ -559,6 +606,21 @@ def _get_cached_btc_fee(exchange: str) -> Optional[float]:
     if not _is_cache_valid(cache):
         cache = refresh_withdrawal_cache()
     return cache.get("fees", {}).get(f"{exchange}_btc")
+
+
+def _get_cached_fee_with_meta(cache_key: str) -> tuple[Optional[float], Optional[str]]:
+    cache = _load_cache()
+    if not _is_cache_valid(cache) or cache_key not in cache.get("fees", {}):
+        cache = refresh_withdrawal_cache()
+    return cache.get("fees", {}).get(cache_key), cache.get("last_updated")
+
+
+def _get_cache_with_required_keys(cache_keys: list[str]) -> dict:
+    cache = _load_cache()
+    fees = cache.get("fees", {})
+    if not _is_cache_valid(cache) or any(cache_key not in fees for cache_key in cache_keys):
+        cache = refresh_withdrawal_cache()
+    return cache
 
 
 # ══════════════════════════════════════════════════════════════
@@ -799,47 +861,51 @@ def check_maintenance_status(exchanges=None) -> dict:
         return {}
 
 
-def get_static_withdrawal(exchange: str, coin: str) -> list:
-    """출금 수수료 반환: BTC는 캐시(Playwright) 우선, 만료 시 재스크래핑, fallback은 정적 데이터"""
+def get_scraped_withdrawal(exchange: str, coin: str) -> list:
+    """출금 수수료 반환: 공개 API 또는 스크래핑 결과만 사용. fallback 없음."""
+    exchange = exchange.lower()
     coin_lower = coin.lower()
 
-    # BTC + 스크래핑 가능 거래소: 캐시 우선
-    if coin_lower == "btc" and exchange in SCRAPE_EXCHANGES:
-        cached_fee = _get_cached_btc_fee(exchange)
-        if cached_fee is not None:
-            last_updated = _load_cache().get("last_updated", "")[:10]
-            static_data = STATIC_WITHDRAWAL.get(exchange, {}).get(coin_lower, [])
-            result = []
-            for item in static_data:
-                entry = {"label": item["label"], "enabled": True}
-                if item["label"] == "Bitcoin (On-chain)":
-                    entry["fee"] = cached_fee
-                    entry["min"] = None
-                    entry["note"] = f"Playwright 스크래핑 ({last_updated})"
-                elif item["fee"] is None:
-                    entry["fee"] = None
-                    entry["note"] = item.get("note", "N/A")
-                else:
-                    entry["fee"] = item["fee"]
-                    entry["min"] = None
-                    entry["note"] = item.get("note", "")
-                result.append(entry)
-            return result
+    config = SCRAPED_WITHDRAWAL_LABELS.get(exchange, {}).get(coin_lower)
+    if not config:
+        raise ValueError(f"{exchange} {coin.upper()} 출금 수수료는 스크래핑/API 미지원")
 
-    # 정적 데이터 fallback
-    data = STATIC_WITHDRAWAL.get(exchange, {}).get(coin_lower, [])
+    cache = _get_cache_with_required_keys([item["cache_key"] for item in config])
+    fees = cache.get("fees", {})
+    scraped_at = cache.get("last_updated")
     result = []
-    for item in data:
-        entry = {"label": item["label"], "enabled": True}
-        if item["fee"] is None:
-            entry["fee"] = None
-            entry["note"] = item.get("note", "N/A")
-        else:
-            entry["fee"] = item["fee"]
-            entry["min"] = None
-            entry["note"] = item.get("note", "")
-        result.append(entry)
+    for item in config:
+        fee = fees.get(item["cache_key"])
+        if fee is None:
+            continue
+        result.append({
+            "label": item["label"],
+            "fee": fee,
+            "min": None,
+            "enabled": True,
+            "note": "Playwright 스크래핑",
+            "scraped_at": scraped_at,
+            "source_url": item.get("source_url"),
+        })
+    if not result:
+        raise ValueError(f"{exchange} {coin.upper()} 출금 수수료 스크래핑 실패")
     return result
+
+
+def get_withdrawal_source_url(exchange: str, coin: str, network_label: str | None = None) -> str | None:
+    api_source_url = WITHDRAWAL_API_SOURCE_URLS.get(exchange.lower())
+    if api_source_url:
+        return api_source_url
+    config = SCRAPED_WITHDRAWAL_LABELS.get(exchange.lower(), {}).get(coin.lower(), [])
+    for item in config:
+        if network_label is None or item["label"].lower() == network_label.lower():
+            return item.get("source_url")
+    return None
+
+
+def get_static_withdrawal(exchange: str, coin: str) -> list:
+    """하위 호환용 래퍼. 더 이상 정적 fallback을 사용하지 않는다."""
+    return get_scraped_withdrawal(exchange, coin)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -933,8 +999,12 @@ def run_korea_exchange(name: str, show_withdrawal: bool) -> bool:
                     has_error = True
         else:
             for coin in ["BTC", "USDT"]:
-                nets = get_static_withdrawal(name, coin)
-                print_withdrawal(label, coin, nets)
+                try:
+                    nets = get_scraped_withdrawal(name, coin)
+                    print_withdrawal(label, coin, nets)
+                except Exception as e:
+                    print(f"\n[{label.upper()}] {coin} 출금 수수료 오류: {e}", file=sys.stderr)
+                    has_error = True
 
     return has_error
 
@@ -1018,8 +1088,12 @@ def run_global_exchange(name: str, show_withdrawal: bool) -> bool:
                     has_error = True
         else:
             for coin in ["BTC", "USDT"]:
-                nets = get_static_withdrawal(name, coin)
-                print_withdrawal(label, coin, nets)
+                try:
+                    nets = get_scraped_withdrawal(name, coin)
+                    print_withdrawal(label, coin, nets)
+                except Exception as e:
+                    print(f"\n[{label.upper()}] {coin} 출금 수수료 오류: {e}", file=sys.stderr)
+                    has_error = True
 
     return has_error
 

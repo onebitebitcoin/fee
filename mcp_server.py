@@ -18,13 +18,15 @@ from fee_checker import (
     fetch_binance_spot, fetch_binance_perp,
     fetch_okx_spot, fetch_okx_perp,
     fetch_coinbase, fetch_kraken, fetch_bitget,
-    fetch_binance_withdrawal, fetch_okx_withdrawal,
+    fetch_binance_withdrawal, fetch_bithumb_withdrawal, fetch_okx_withdrawal,
     fetch_gopax_withdrawal, fetch_bitget_withdrawal,
-    get_static_withdrawal,
+    get_scraped_withdrawal,
     fetch_usd_krw_rate,
     TRADING_FEES, GROUPS, ALL_EXCHANGES,
     check_maintenance_status,
 )
+
+get_static_withdrawal = get_scraped_withdrawal
 
 from fastmcp import FastMCP
 
@@ -55,6 +57,7 @@ GLOBAL_FETCHERS = {
 }
 
 WITHDRAWAL_FETCHERS = {
+    "bithumb":  fetch_bithumb_withdrawal,
     "binance":  fetch_binance_withdrawal,
     "okx":      fetch_okx_withdrawal,
     "gopax":    fetch_gopax_withdrawal,
@@ -205,7 +208,7 @@ def get_withdrawal_fees(exchange: str, coin: str = "BTC") -> dict:
         result = {
             "exchange": exchange,
             "coin": coin,
-            "source": "realtime_api" if exchange in WITHDRAWAL_FETCHERS else "official_docs",
+            "source": "realtime_api" if exchange in WITHDRAWAL_FETCHERS else "scraped_page",
             "networks": networks,
         }
         if coin == "BTC":
@@ -656,9 +659,21 @@ def find_cheapest_path(
                         "total_fee_krw": total_fee_krw,
                         "fee_pct": round(total_fee_krw / amount_krw * 100, 4),
                         "breakdown": {
-                            "step1": f"{ex} KRW → BTC 매수 (수수료 {korean_taker*100:.4f}%): -{trading_fee_krw:,}원",
-                            "step2": f"BTC 출금 [{net['label']}] (수수료 {withdrawal_fee_btc} BTC): -{withdrawal_fee_krw:,}원",
-                            "step3": f"{global_exchange} 도착 (BTC 그대로)",
+                            "components": [
+                                {
+                                    "label": "국내 매수 수수료",
+                                    "amount_krw": trading_fee_krw,
+                                    "rate_pct": round(korean_taker * 100, 4),
+                                    "amount_text": None,
+                                },
+                                {
+                                    "label": "BTC 출금 수수료",
+                                    "amount_krw": withdrawal_fee_krw,
+                                    "rate_pct": None,
+                                    "amount_text": f"{withdrawal_fee_btc} BTC",
+                                },
+                            ],
+                            "total_fee_krw": total_fee_krw,
                         },
                     })
             except Exception:
@@ -700,16 +715,34 @@ def find_cheapest_path(
                         "total_fee_krw": total_fee_krw,
                         "fee_pct": round(total_fee_krw / amount_krw * 100, 4),
                         "breakdown": {
-                            "step1": f"{ex} KRW → USDT 매수 (수수료 {korean_taker*100:.4f}%): -{trading_fee_krw:,}원",
-                            "step2": f"USDT 출금 [{net['label']}] (수수료 {withdrawal_fee_usdt} USDT): -{withdrawal_fee_krw:,}원",
-                            "step3": f"{global_exchange} USDT → BTC 매수 (수수료 {global_taker*100:.4f}%): -{global_trading_fee_krw:,}원",
+                            "components": [
+                                {
+                                    "label": "국내 매수 수수료",
+                                    "amount_krw": trading_fee_krw,
+                                    "rate_pct": round(korean_taker * 100, 4),
+                                    "amount_text": None,
+                                },
+                                {
+                                    "label": "USDT 출금 수수료",
+                                    "amount_krw": withdrawal_fee_krw,
+                                    "rate_pct": None,
+                                    "amount_text": f"{withdrawal_fee_usdt} USDT",
+                                },
+                                {
+                                    "label": "해외 BTC 매수 수수료",
+                                    "amount_krw": global_trading_fee_krw,
+                                    "rate_pct": round(global_taker * 100, 4),
+                                    "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT",
+                                },
+                            ],
+                            "total_fee_krw": total_fee_krw,
                         },
                     })
             except Exception:
                 pass
 
-        # ── 3. 수령 BTC 내림차순 정렬 ────────────────────────────────
-        paths.sort(key=lambda x: x["btc_received"], reverse=True)
+        # ── 3. 총 수수료 오름차순 정렬 (동률이면 수령 BTC 많은 순) ───
+        paths.sort(key=lambda x: (x["total_fee_krw"], -x["btc_received"]))
 
         return {
             "amount_krw": amount_krw,

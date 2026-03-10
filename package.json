@@ -1,0 +1,15 @@
+{
+  "name": "exchange-fee-tools",
+  "private": true,
+  "scripts": {
+    "browser": "./scripts/browser.sh",
+    "browser:install": "agent-browser install",
+    "browser:open": "./scripts/browser.sh open",
+    "browser:open:dev": "./scripts/browser.sh open http://127.0.0.1:5173",
+    "browser:open:backend": "./scripts/browser.sh open http://127.0.0.1:8000",
+    "browser:snapshot": "./scripts/browser.sh snapshot -i"
+  },
+  "devDependencies": {
+    "agent-browser": "0.17.1"
+  }
+}

@@ -1,0 +1,25 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+import { Layout } from './components/Layout';
+import { CheapestPathPage } from './pages/CheapestPathPage';
+import { NetworkStatusPage } from './pages/NetworkStatusPage';
+import { OverviewPage } from './pages/OverviewPage';
+import { RunsPage } from './pages/RunsPage';
+import { TickersPage } from './pages/TickersPage';
+import { WithdrawalsPage } from './pages/WithdrawalsPage';
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/cheapest-path" element={<CheapestPathPage />} />
+        <Route path="/tickers" element={<TickersPage />} />
+        <Route path="/withdrawals" element={<WithdrawalsPage />} />
+        <Route path="/network-status" element={<NetworkStatusPage />} />
+        <Route path="/runs" element={<RunsPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}

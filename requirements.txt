@@ -1,2 +1,1 @@
-requests
-fastmcp
+-r backend/requirements.txt

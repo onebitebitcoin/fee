@@ -5,11 +5,11 @@ fee_checker.py 단위 테스트
 - 캐시 함수: 임시 파일/mock 사용
 """
 import json
+import inspect
 import os
 import sys
-import tempfile
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,8 +19,9 @@ from fee_checker import (
     GROUPS,
     ALL_EXCHANGES,
     TRADING_FEES,
-    STATIC_WITHDRAWAL,
+    SCRAPED_WITHDRAWAL_LABELS,
     SCRAPE_EXCHANGES,
+    _get_cached_fee_with_meta,
     _fmt_price,
     _fmt_volume,
     _is_cache_valid,
@@ -28,7 +29,8 @@ from fee_checker import (
     _detect_suspension,
     _load_cache,
     _save_cache,
-    get_static_withdrawal,
+    get_scraped_withdrawal,
+    get_withdrawal_source_url,
 )
 
 
@@ -65,9 +67,9 @@ class TestConstants:
         assert "maker" in fees["spot"]
         assert "taker" in fees["perpetual"]
 
-    def test_static_withdrawal_btc_keys(self):
-        expected = {"upbit", "bithumb", "korbit", "coinone", "kraken", "coinbase"}
-        assert set(STATIC_WITHDRAWAL.keys()) == expected
+    def test_scraped_withdrawal_btc_keys(self):
+        expected = {"upbit", "korbit", "coinone", "kraken"}
+        assert set(SCRAPED_WITHDRAWAL_LABELS.keys()) == expected
 
     def test_scrape_exchanges(self):
         assert SCRAPE_EXCHANGES == {"upbit", "korbit", "coinone", "kraken"}
@@ -211,35 +213,28 @@ class TestDetectSuspension:
 
 
 # ─────────────────────────────────────────────────────────────
-# 정적 출금 수수료 조회 테스트
+# 스크래핑 기반 출금 수수료 조회 테스트
 # ─────────────────────────────────────────────────────────────
 
-class TestGetStaticWithdrawal:
-    def test_upbit_usdt(self):
-        result = get_static_withdrawal("upbit", "USDT")
-        assert isinstance(result, list)
-        assert len(result) > 0
-        labels = [r["label"] for r in result]
-        assert "ERC20" in labels or "TRC20" in labels
+class TestGetScrapedWithdrawal:
+    def test_unknown_exchange_raises(self):
+        with pytest.raises(ValueError, match="스크래핑/API 미지원"):
+            get_scraped_withdrawal("unknown_exchange", "BTC")
 
-    def test_bithumb_btc_static(self, monkeypatch):
-        # bithumb은 SCRAPE_EXCHANGES에 없으므로 항상 정적 데이터
-        monkeypatch.setattr(fee_checker, "_get_cached_btc_fee", lambda ex: None)
-        result = get_static_withdrawal("bithumb", "BTC")
-        assert isinstance(result, list)
-        assert len(result) > 0
-        assert result[0]["fee"] == 0.0008
-
-    def test_unknown_exchange(self):
-        result = get_static_withdrawal("unknown_exchange", "BTC")
-        assert result == []
-
-    def test_result_structure(self):
-        result = get_static_withdrawal("upbit", "USDT")
+    def test_result_structure(self, tmp_path, monkeypatch):
+        cache_data = {
+            "last_updated": datetime.now().isoformat(),
+            "fees": {"upbit_btc": 0.0002},
+        }
+        cache_file = tmp_path / "cache.json"
+        cache_file.write_text(json.dumps(cache_data))
+        monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
+        result = get_scraped_withdrawal("upbit", "BTC")
         for item in result:
             assert "label" in item
             assert "enabled" in item
-            assert "fee" in item or item.get("note")
+            assert "fee" in item
+            assert "scraped_at" in item
 
     def test_cache_fee_used_when_valid(self, tmp_path, monkeypatch):
         """캐시에 유효한 BTC 수수료가 있으면 사용한다"""
@@ -251,10 +246,137 @@ class TestGetStaticWithdrawal:
         cache_file.write_text(json.dumps(cache_data))
         monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
 
-        result = get_static_withdrawal("upbit", "BTC")
+        result = get_scraped_withdrawal("upbit", "BTC")
         btc_entry = next((r for r in result if "Bitcoin" in r.get("label", "")), None)
         assert btc_entry is not None
         assert btc_entry["fee"] == 0.0002
+
+    def test_upbit_usdt_uses_official_fee_page_cache(self, tmp_path, monkeypatch):
+        cache_data = {
+            "last_updated": datetime.now().isoformat(),
+            "fees": {
+                "upbit_usdt_aptos": 0.1,
+                "upbit_usdt_ethereum": 4.0,
+                "upbit_usdt_kaia": 0.1,
+                "upbit_usdt_tron": 0.0,
+            },
+        }
+        cache_file = tmp_path / "cache.json"
+        cache_file.write_text(json.dumps(cache_data))
+        monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
+
+        result = get_scraped_withdrawal("upbit", "USDT")
+        labels = {row["label"]: row["fee"] for row in result}
+        assert labels["TRC20"] == 0.0
+        assert labels["ERC20"] == 4.0
+
+    def test_coinone_usdt_uses_official_fee_page_cache(self, tmp_path, monkeypatch):
+        cache_data = {
+            "last_updated": datetime.now().isoformat(),
+            "fees": {"coinone_usdt_tron": 2.0},
+        }
+        cache_file = tmp_path / "cache.json"
+        cache_file.write_text(json.dumps(cache_data))
+        monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
+
+        result = get_scraped_withdrawal("coinone", "USDT")
+        assert result == [
+            {
+                "label": "TRC20",
+                "fee": 2.0,
+                "min": None,
+                "enabled": True,
+                "note": "Playwright 스크래핑",
+                "scraped_at": cache_data["last_updated"],
+                "source_url": "https://coinone.co.kr/support/fee-guide",
+            }
+        ]
+
+    def test_korbit_usdt_uses_official_fee_page_cache(self, tmp_path, monkeypatch):
+        cache_data = {
+            "last_updated": datetime.now().isoformat(),
+            "fees": {"korbit_usdt_tron": 1.0},
+        }
+        cache_file = tmp_path / "cache.json"
+        cache_file.write_text(json.dumps(cache_data))
+        monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
+
+        result = get_scraped_withdrawal("korbit", "USDT")
+        assert result == [
+            {
+                "label": "TRC20",
+                "fee": 1.0,
+                "min": None,
+                "enabled": True,
+                "note": "Playwright 스크래핑",
+                "scraped_at": cache_data["last_updated"],
+                "source_url": "https://lightning.korbit.co.kr/info/fee/?tab=transfer",
+            }
+        ]
+
+    def test_missing_cache_key_triggers_refresh(self, monkeypatch):
+        monkeypatch.setattr(
+            fee_checker,
+            "_load_cache",
+            lambda: {"last_updated": datetime.now().isoformat(), "fees": {"upbit_btc": 0.0002}},
+        )
+        monkeypatch.setattr(
+            fee_checker,
+            "refresh_withdrawal_cache",
+            lambda: {"last_updated": "2026-03-10T00:00:00", "fees": {"upbit_usdt_tron": 0.0}},
+        )
+        fee, scraped_at = _get_cached_fee_with_meta("upbit_usdt_tron")
+        assert fee == 0.0
+        assert scraped_at == "2026-03-10T00:00:00"
+
+    def test_upbit_usdt_missing_multi_keys_refreshes_once(self, monkeypatch):
+        refresh_calls = []
+        monkeypatch.setattr(
+            fee_checker,
+            "_load_cache",
+            lambda: {"last_updated": datetime.now().isoformat(), "fees": {"upbit_usdt_tron": 0.0}},
+        )
+
+        def fake_refresh():
+            refresh_calls.append(True)
+            return {
+                "last_updated": "2026-03-10T00:00:00",
+                "fees": {
+                    "upbit_usdt_aptos": 0.1,
+                    "upbit_usdt_ethereum": 4.0,
+                    "upbit_usdt_kaia": 0.1,
+                    "upbit_usdt_tron": 0.0,
+                },
+            }
+
+        monkeypatch.setattr(fee_checker, "refresh_withdrawal_cache", fake_refresh)
+        result = get_scraped_withdrawal("upbit", "USDT")
+        assert len(refresh_calls) == 1
+        assert {row["label"] for row in result} == {"Aptos", "ERC20", "Kaia", "TRC20"}
+
+    def test_upbit_usdt_source_url_matches_actual_scrape_entrypoint(self, tmp_path, monkeypatch):
+        cache_data = {
+            "last_updated": datetime.now().isoformat(),
+            "fees": {
+                "upbit_usdt_aptos": 0.1,
+                "upbit_usdt_ethereum": 4.0,
+                "upbit_usdt_kaia": 0.1,
+                "upbit_usdt_tron": 0.0,
+            },
+        }
+        cache_file = tmp_path / "cache.json"
+        cache_file.write_text(json.dumps(cache_data))
+        monkeypatch.setattr(fee_checker, "CACHE_FILE", str(cache_file))
+
+        result = get_scraped_withdrawal("upbit", "USDT")
+        assert {row["source_url"] for row in result} == {"https://upbit.com/service_center/fees?tab=dtw_fees"}
+
+    def test_korbit_source_url_matches_actual_scrape_entrypoint(self):
+        source = inspect.getsource(fee_checker._pw_scrape_korbit)
+        assert "https://lightning.korbit.co.kr/info/fee/?tab=transfer" in source
+
+    def test_bithumb_api_source_url_is_exposed(self):
+        assert get_withdrawal_source_url("bithumb", "USDT", "TRC20") == "https://gw.bithumb.com/exchange/v1/coin-inout/info"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -660,6 +782,61 @@ class TestFetchGopaxWithdrawal:
 
         result = fee_checker.fetch_gopax_withdrawal("BTC")
         assert result == []
+
+
+class TestFetchBithumbWithdrawal:
+    def test_success_btc_and_usdt(self, mocker):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": 200,
+            "data": [
+                {
+                    "coinSymbol": "BTC",
+                    "networkInfoList": [
+                        {
+                            "networkName": "Bitcoin",
+                            "withdrawFeeQuantity": "0.0002",
+                            "withdrawMinimumQuantity": "0.001",
+                            "isWithdrawAvailable": True,
+                        }
+                    ],
+                },
+                {
+                    "coinSymbol": "USDT",
+                    "networkInfoList": [
+                        {
+                            "networkName": "Tron",
+                            "withdrawFeeQuantity": "0",
+                            "withdrawMinimumQuantity": "0.000001",
+                            "isWithdrawAvailable": True,
+                        },
+                        {
+                            "networkName": "Ethereum",
+                            "withdrawFeeQuantity": "4",
+                            "withdrawMinimumQuantity": "4",
+                            "isWithdrawAvailable": True,
+                        },
+                    ],
+                },
+            ],
+        }
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+
+        btc = fee_checker.fetch_bithumb_withdrawal("BTC")
+        usdt = fee_checker.fetch_bithumb_withdrawal("USDT")
+        assert btc == [{"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.001, "enabled": True}]
+        assert usdt[0]["label"] == "TRC20"
+        assert usdt[0]["fee"] == 0.0
+        assert usdt[1]["label"] == "ERC20"
+        assert usdt[1]["fee"] == 4.0
+
+    def test_api_error(self, mocker):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"status": 500}
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+
+        with pytest.raises(ValueError, match="Bithumb 출금 API 오류"):
+            fee_checker.fetch_bithumb_withdrawal("BTC")
 
 
 class TestFetchBitgetWithdrawal:

@@ -1,0 +1,166 @@
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from backend.app.db import repositories
+from backend.app.db.session import get_db
+from backend.app.services.dashboard_service import build_overview
+from backend.app.services.live_market import find_cheapest_path_from_snapshot_rows
+from fee_checker import get_withdrawal_source_url
+
+router = APIRouter()
+
+
+@router.get('/overview')
+def get_overview(db: Session = Depends(get_db)) -> dict:
+    return build_overview(db)
+
+
+@router.get('/tickers/latest')
+def get_latest_tickers(db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'items': []}
+    rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id)
+    return {
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'items': [
+            {
+                'exchange': row.exchange,
+                'pair': row.pair,
+                'market_type': row.market_type,
+                'currency': row.currency,
+                'price': row.price,
+                'high_24h': row.high_24h,
+                'low_24h': row.low_24h,
+                'volume_24h_btc': row.volume_24h_btc,
+                'maker_fee_pct': row.maker_fee_pct,
+                'taker_fee_pct': row.taker_fee_pct,
+                'maker_fee_usd': row.maker_fee_usd,
+                'maker_fee_krw': row.maker_fee_krw,
+                'taker_fee_usd': row.taker_fee_usd,
+                'taker_fee_krw': row.taker_fee_krw,
+                'usd_krw_rate': row.usd_krw_rate,
+            }
+            for row in rows
+        ],
+    }
+
+
+@router.get('/withdrawal-fees/latest')
+def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None, db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'latest_scraping_time': None, 'items': [], 'errors': []}
+    rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id)
+    errors = repositories.list_crawl_errors_for_run(db, latest_run.id, stage='withdrawal')
+    if exchange:
+        rows = [row for row in rows if row.exchange == exchange.lower()]
+        errors = [row for row in errors if row.exchange == exchange.lower()]
+    if coin:
+        rows = [row for row in rows if row.coin == coin.upper()]
+        errors = [row for row in errors if row.coin == coin.upper()]
+    legacy_rows = [row for row in rows if row.source == 'official_docs']
+    return {
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+        'items': [
+            {
+                'exchange': row.exchange,
+                'coin': row.coin,
+                'source': row.source,
+                'network_label': row.network_label,
+                'fee': row.fee,
+                'fee_usd': row.fee_usd,
+                'fee_krw': row.fee_krw,
+                'enabled': row.enabled,
+                'note': row.note,
+                'source_url': get_withdrawal_source_url(row.exchange, row.coin, row.network_label),
+                'recorded_at': row.recorded_at.isoformat() if row.recorded_at else None,
+            }
+            for row in rows
+        ],
+        'errors': [
+            {
+                'exchange': row.exchange,
+                'coin': row.coin,
+                'stage': row.stage,
+                'error_message': row.error_message,
+                'created_at': row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in errors
+        ] + [
+            {
+                'exchange': row.exchange,
+                'coin': row.coin,
+                'stage': 'withdrawal',
+                'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
+                'created_at': row.recorded_at.isoformat() if row.recorded_at else None,
+            }
+            for row in legacy_rows
+        ],
+    }
+
+
+@router.get('/network-status/latest')
+def get_latest_network_status(db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'exchanges': {}, 'total_suspended': 0}
+    rows = repositories.list_network_status_for_run(db, latest_run.id)
+    grouped = repositories.group_network_status(rows)
+    return {
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'exchanges': grouped,
+        'total_suspended': sum(len(item['suspended_networks']) for item in grouped.values()),
+    }
+
+
+@router.get('/path-finder/cheapest')
+def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchange: str = Query('binance'), db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
+    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
+    network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
+    crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
+    blocking_errors = []
+    if latest_run:
+        blocking_errors = [
+            {
+                'exchange': row.exchange,
+                'coin': row.coin,
+                'stage': row.stage,
+                'error_message': row.error_message,
+                'created_at': row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in crawl_errors
+            if row.stage in {'withdrawal', 'ticker'} and (
+                row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', global_exchange.lower()} or row.exchange is None
+            )
+        ]
+        legacy_rows = [row for row in withdrawal_rows if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs']
+        if legacy_rows:
+            blocking_errors.extend([
+                {
+                    'exchange': row.exchange,
+                    'coin': row.coin,
+                    'stage': 'withdrawal',
+                    'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
+                    'created_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                }
+                for row in legacy_rows
+            ])
+    if blocking_errors:
+        return {
+            'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
+            'errors': blocking_errors,
+            'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run and latest_run.completed_at else None} if latest_run else None,
+            'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run and latest_run.completed_at else None,
+        }
+    return find_cheapest_path_from_snapshot_rows(
+        amount_krw=amount_krw,
+        global_exchange=global_exchange,
+        latest_run=latest_run,
+        ticker_rows=ticker_rows,
+        withdrawal_rows=withdrawal_rows,
+        network_rows=network_rows,
+    )
