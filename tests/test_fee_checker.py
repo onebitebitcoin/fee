@@ -373,7 +373,7 @@ class TestGetScrapedWithdrawal:
 
     def test_korbit_source_url_matches_actual_scrape_entrypoint(self):
         source = inspect.getsource(fee_checker._pw_scrape_korbit)
-        assert "https://lightning.korbit.co.kr/info/fee/?tab=transfer" in source
+        assert "https://lightning.korbit.co.kr/info/fee/" in source
 
     def test_bithumb_api_source_url_is_exposed(self):
         assert get_withdrawal_source_url("bithumb", "USDT", "TRC20") == "https://gw.bithumb.com/exchange/v1/coin-inout/info"

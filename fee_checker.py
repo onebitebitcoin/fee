@@ -464,10 +464,15 @@ async def _pw_scrape_korbit(browser) -> tuple:
     page = await browser.new_page()
     try:
         await page.goto(
-            "https://lightning.korbit.co.kr/info/fee/?tab=transfer",
+            "https://lightning.korbit.co.kr/info/fee/",
             wait_until="domcontentloaded", timeout=20000,
         )
-        await page.wait_for_timeout(2500)
+        await page.wait_for_timeout(2000)
+        try:
+            await page.click("button:has-text('입출금 수수료')", timeout=5000)
+            await page.wait_for_timeout(2000)
+        except Exception:
+            pass
         rows = await page.evaluate(
             """() => Array.from(document.querySelectorAll('table tr'))
                 .map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.innerText.trim()))
