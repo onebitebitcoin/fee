@@ -5,30 +5,43 @@ Binance, OKX, Coinbase, Kraken, Bitget + Upbit, Bithumb, Korbit, Coinone, Gopax
 실시간 BTC/USDT 시세 및 네트워크별 출금 수수료를 MCP 도구로 제공
 """
 
-import sys
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+
+from fastmcp import FastMCP
 
 # fee_checker.py의 함수들을 재사용
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fee_checker import (
-    fetch_upbit, fetch_bithumb, fetch_korbit, fetch_coinone, fetch_gopax,
-    fetch_binance_spot, fetch_binance_perp,
-    fetch_okx_spot, fetch_okx_perp,
-    fetch_coinbase, fetch_kraken, fetch_bitget,
-    fetch_binance_withdrawal, fetch_bithumb_withdrawal, fetch_okx_withdrawal,
-    fetch_gopax_withdrawal, fetch_bitget_withdrawal,
-    get_scraped_withdrawal,
-    fetch_usd_krw_rate,
-    TRADING_FEES, GROUPS, ALL_EXCHANGES,
+from fee_checker import (  # noqa: E402
+    ALL_EXCHANGES,
+    GROUPS,
+    TRADING_FEES,
     check_maintenance_status,
+    fetch_binance_perp,
+    fetch_binance_spot,
+    fetch_binance_withdrawal,
+    fetch_bitget,
+    fetch_bitget_withdrawal,
+    fetch_bithumb,
+    fetch_bithumb_withdrawal,
+    fetch_coinbase,
+    fetch_coinone,
+    fetch_gopax,
+    fetch_gopax_withdrawal,
+    fetch_korbit,
+    fetch_kraken,
+    fetch_okx_perp,
+    fetch_okx_spot,
+    fetch_okx_withdrawal,
+    fetch_upbit,
+    fetch_usd_krw_rate,
+    get_scraped_withdrawal,
 )
 
 get_static_withdrawal = get_scraped_withdrawal
-
-from fastmcp import FastMCP
 
 mcp = FastMCP(
     name="exchange-fee",
