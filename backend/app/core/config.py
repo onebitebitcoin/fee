@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     api_v1_prefix: str = '/api/v1'
     environment: Literal['development', 'test', 'production'] = 'development'
     database_url: str = 'sqlite:///./exchange_fee.db'
+
+    @field_validator('database_url', mode='before')
+    @classmethod
+    def fix_postgres_scheme(cls, v: str) -> str:
+        if isinstance(v, str) and v.startswith('postgres://'):
+            return v.replace('postgres://', 'postgresql://', 1)
+        return v
     port: int = 8000
     cors_origins: str = '*'
     crawl_interval_minutes: int = 60
