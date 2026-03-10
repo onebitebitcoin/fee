@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -10,10 +14,23 @@ from backend.app.api.router import api_router
 from backend.app.core.config import get_settings
 from backend.app.db.bootstrap import init_db
 
+logger = logging.getLogger(__name__)
+
+
+def _warm_withdrawal_cache() -> None:
+    try:
+        from fee_checker import refresh_withdrawal_cache
+        refresh_withdrawal_cache()
+        logger.info('Withdrawal cache warmed up successfully')
+    except Exception as exc:
+        logger.warning('Withdrawal cache warmup failed: %s', exc)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(ThreadPoolExecutor(max_workers=1), _warm_withdrawal_cache)
     yield
 
 
