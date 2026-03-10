@@ -123,9 +123,9 @@ export function CheapestPathPage() {
     void load({ amountKrw: DEFAULT_AMOUNT_KRW, globalExchange: 'binance' });
   }, [load]);
 
-  const topPaths = useMemo(() => (data ? sortTopPaths(data.all_paths, topPathSort) : []), [data, topPathSort]);
+  const topPaths = useMemo(() => (data ? sortTopPaths(data.all_paths ?? [], topPathSort) : []), [data, topPathSort]);
   const availableKoreanExchanges = useMemo(
-    () => (data ? Array.from(new Set(data.all_paths.map((item) => item.korean_exchange))) : []),
+    () => (data ? Array.from(new Set((data.all_paths ?? []).map((item) => item.korean_exchange))) : []),
     [data],
   );
   const selectedRoute = useMemo(() => {
