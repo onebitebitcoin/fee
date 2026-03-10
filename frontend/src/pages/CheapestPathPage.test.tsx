@@ -40,13 +40,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 940,
           total_fee_krw: 9000,
           fee_pct: 0.9,
-          breakdown: {
-            total_fee_krw: 9000,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 3000, rate_pct: 0.3 },
-              { label: 'BTC 출금 수수료', amount_krw: 6000, amount_text: '0.00006 BTC' },
-            ],
-          },
+          breakdown: { total_fee_krw: 9000, components: [{ label: '국내 매수 수수료', amount_krw: 3000, rate_pct: 0.3 }] },
         },
         {
           korean_exchange: 'cheap1',
@@ -56,14 +50,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 836,
           total_fee_krw: 2000,
           fee_pct: 0.2,
-          breakdown: {
-            total_fee_krw: 2000,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 },
-              { label: 'USDT 출금 수수료', amount_krw: 1000, amount_text: '1 USDT' },
-              { label: '해외 BTC 매수 수수료', amount_krw: 500, rate_pct: 0.05, amount_text: '0.4 USDT' },
-            ],
-          },
+          breakdown: { total_fee_krw: 2000, components: [{ label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 }] },
         },
         {
           korean_exchange: 'cheap2',
@@ -73,14 +60,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 827,
           total_fee_krw: 2500,
           fee_pct: 0.25,
-          breakdown: {
-            total_fee_krw: 2500,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 700, rate_pct: 0.07 },
-              { label: 'USDT 출금 수수료', amount_krw: 1100, amount_text: '1.1 USDT' },
-              { label: '해외 BTC 매수 수수료', amount_krw: 700, rate_pct: 0.07, amount_text: '0.5 USDT' },
-            ],
-          },
+          breakdown: { total_fee_krw: 2500, components: [{ label: '국내 매수 수수료', amount_krw: 700, rate_pct: 0.07 }] },
         },
         {
           korean_exchange: 'mid1',
@@ -90,13 +70,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 864,
           total_fee_krw: 5000,
           fee_pct: 0.5,
-          breakdown: {
-            total_fee_krw: 5000,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 2000, rate_pct: 0.2 },
-              { label: 'BTC 출금 수수료', amount_krw: 3000, amount_text: '0.00003 BTC' },
-            ],
-          },
+          breakdown: { total_fee_krw: 5000, components: [{ label: '국내 매수 수수료', amount_krw: 2000, rate_pct: 0.2 }] },
         },
         {
           korean_exchange: 'mid2',
@@ -106,13 +80,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 855,
           total_fee_krw: 6000,
           fee_pct: 0.6,
-          breakdown: {
-            total_fee_krw: 6000,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 2500, rate_pct: 0.25 },
-              { label: 'BTC 출금 수수료', amount_krw: 3500, amount_text: '0.000035 BTC' },
-            ],
-          },
+          breakdown: { total_fee_krw: 6000, components: [{ label: '국내 매수 수수료', amount_krw: 2500, rate_pct: 0.25 }] },
         },
         {
           korean_exchange: 'expensive',
@@ -122,13 +90,7 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 760,
           total_fee_krw: 12000,
           fee_pct: 1.2,
-          breakdown: {
-            total_fee_krw: 12000,
-            components: [
-              { label: '국내 매수 수수료', amount_krw: 4000, rate_pct: 0.4 },
-              { label: 'BTC 출금 수수료', amount_krw: 8000, amount_text: '0.00008 BTC' },
-            ],
-          },
+          breakdown: { total_fee_krw: 12000, components: [{ label: '국내 매수 수수료', amount_krw: 4000, rate_pct: 0.4 }] },
         },
       ],
       disabled_paths: [],
@@ -137,7 +99,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('CheapestPathPage', () => {
-  it('renders best path summary after loading', async () => {
+  it('renders best path as single inline row after loading', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
@@ -145,12 +107,65 @@ describe('CheapestPathPage', () => {
     );
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    // 새 UI: upbit과 binance가 별도 span 요소에 렌더링됨
+    // 최적 경로가 한 줄로 표시됨: upbit, binance 별도 요소
     expect(screen.getByText('upbit')).toBeInTheDocument();
     expect(screen.getAllByText('binance').length).toBeGreaterThan(0);
   });
 
-  it('sorts the top paths by lowest total fee by default and can switch sorting', async () => {
+  it('shows inline summary stats (no MetricCards)', async () => {
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('최적 경로');
+    // MetricCard 없이 인라인 텍스트로 평가 경로 수 표시
+    expect(screen.getByText('평가 경로')).toBeInTheDocument();
+    expect(screen.getByText('USD/KRW')).toBeInTheDocument();
+    expect(screen.getByText('BTC/USD')).toBeInTheDocument();
+  });
+
+  it('renders top paths as a table with correct columns', async () => {
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('최적 경로');
+
+    // 테이블 헤더 확인 (테이블 스코프)
+    const table = screen.getByRole('table');
+    const header = within(table).getAllByRole('columnheader');
+    const headerTexts = header.map((h) => h.textContent);
+    expect(headerTexts).toContain('경로');
+    expect(headerTexts).toContain('코인/네트워크');
+    expect(headerTexts).toContain('받는 BTC');
+    expect(headerTexts).toContain('수수료');
+    expect(headerTexts).toContain('비율');
+  });
+
+  it('sorts the top paths by lowest total fee by default', async () => {
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('최적 경로');
+
+    // 기본 정렬(lowest_fee_krw): cheap1(2000) → cheap2(2500) 순
+    // 테이블 내 행 텍스트 순서 확인
+    const table = screen.getByRole('table');
+    const tableText = table.textContent ?? '';
+    const cheap1Pos = tableText.indexOf('cheap1');
+    const cheap2Pos = tableText.indexOf('cheap2');
+    expect(cheap1Pos).toBeGreaterThan(-1);
+    expect(cheap1Pos).toBeLessThan(cheap2Pos);
+  });
+
+  it('can switch sort order to highest_btc', async () => {
     const user = userEvent.setup();
 
     render(
@@ -161,32 +176,15 @@ describe('CheapestPathPage', () => {
 
     await screen.findByText('최적 경로');
 
-    // 기본 정렬(lowest_fee_krw): cheap1(2000), cheap2(2500), mid1(5000), ...
-    // 상위 경로 섹션에서 첫 번째 항목이 cheap1이어야 함
-    const topSection = screen.getByText('상위 경로').closest('div')!.parentElement!;
-    const pathItems = within(topSection).getAllByText(/cheap1|cheap2|mid1|mid2|highbtc|expensive/);
-    expect(pathItems[0].textContent).toContain('cheap1');
+    await user.selectOptions(screen.getByDisplayValue('총 수수료 낮은 순'), 'highest_btc');
 
-    // highest_btc 정렬로 변경: highbtc(0.0099)가 1위
-    const sortSelect = screen.getByDisplayValue('총 수수료 낮은 순');
-    await user.selectOptions(sortSelect, 'highest_btc');
-
-    const pathItemsAfter = within(topSection).getAllByText(/cheap1|cheap2|mid1|mid2|highbtc|expensive/);
-    expect(pathItemsAfter[0].textContent).toContain('highbtc');
-  });
-
-  it('shows rank number badges for the top paths', async () => {
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
-
-    await screen.findByText('최적 경로');
-    // 새 UI: 이모지 대신 숫자 배지 사용 - 1, 2, 3 숫자가 배지로 표시됨
-    const topSection = screen.getByText('상위 경로').closest('div')!.parentElement!;
-    const badges = within(topSection).getAllByText(/^[1-5]$/);
-    expect(badges.length).toBeGreaterThanOrEqual(3);
+    // highest_btc 정렬: highbtc(0.0099)가 가장 먼저 나타나야 함
+    const table = screen.getByRole('table');
+    const tableText = table.textContent ?? '';
+    const highbtcPos = tableText.indexOf('highbtc');
+    const cheap1Pos = tableText.indexOf('cheap1');
+    expect(highbtcPos).toBeGreaterThan(-1);
+    expect(highbtcPos).toBeLessThan(cheap1Pos);
   });
 
   it('shows selected route details when a korean exchange is selected', async () => {
@@ -200,25 +198,9 @@ describe('CheapestPathPage', () => {
 
     await screen.findByText('최적 경로');
 
-    // 거래소 선택 드롭다운 찾기
     const exchangeSelect = screen.getByDisplayValue('거래소 선택');
     await user.selectOptions(exchangeSelect, 'cheap2');
 
-    // cheap2 선택 후 상세 정보가 표시됨
     expect(screen.getByText('#3위')).toBeInTheDocument();
-  });
-
-  it('shows fee breakdown toggle button for best path', async () => {
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
-
-    await screen.findByText('최적 경로');
-
-    // 계산 근거 토글 버튼이 있어야 함
-    const toggleBtns = screen.getAllByText(/계산 근거/);
-    expect(toggleBtns.length).toBeGreaterThan(0);
   });
 });
