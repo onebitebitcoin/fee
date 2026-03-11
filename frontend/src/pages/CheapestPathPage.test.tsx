@@ -153,9 +153,7 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: '최적 경로 대시보드' })).toBeInTheDocument();
-    expect(screen.getByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByText('운영 정보')).toBeInTheDocument();
+    expect(await screen.findByText('최적 경로')).toBeInTheDocument();
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
@@ -170,16 +168,16 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByRole('heading', { name: '최적 경로 대시보드' });
+    await screen.findByText('최적 경로');
 
     await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    expect(screen.getByText('4/6개')).toBeInTheDocument();
+    expect(screen.getByText('4/6')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    expect(screen.getByText('6/6개')).toBeInTheDocument();
+    expect(screen.getByText('6/6')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Lightning · Lightning Network/i }));
-    expect(screen.getByText('5/6개')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Lightning Network/i }));
+    expect(screen.getByText('5/6')).toBeInTheDocument();
   });
 
   it('updates the selected route detail when a route is chosen', async () => {
@@ -191,12 +189,12 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByRole('heading', { name: '최적 경로 대시보드' });
+    await screen.findByText('최적 경로');
     await user.click(screen.getAllByRole('button', { name: 'mid2 경로 선택' })[0]);
 
     const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
-    expect(within(detailRegion).getByText('mid2')).toBeInTheDocument();
-    expect(within(detailRegion).getByText('900,000 sats')).toBeInTheDocument();
+    expect(within(detailRegion).getAllByText('mid2').length).toBeGreaterThan(0);
+    expect(within(detailRegion).getAllByText('900,000 sats').length).toBeGreaterThan(0);
   });
 
   it('opens a mobile route detail popup and shows sats-converted values', async () => {
@@ -208,7 +206,7 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByRole('heading', { name: '최적 경로 대시보드' });
+    await screen.findByText('최적 경로');
     await user.click(screen.getByRole('button', { name: 'cheap1 경로 상세 열기' }));
 
     const dialog = screen.getByRole('dialog', { name: '경로 상세 팝업' });
