@@ -1,10 +1,8 @@
-import { BarChart2, Globe, History, Network, Route, TrendingUp } from 'lucide-react';
+import { Globe, History, Network, Route } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/', label: '개요', icon: BarChart2 },
   { to: '/cheapest-path', label: '최적 경로', icon: Route },
-  { to: '/tickers', label: '시세', icon: TrendingUp },
   { to: '/withdrawals', label: '출금 수수료', icon: Globe },
   { to: '/network-status', label: '네트워크', icon: Network },
   { to: '/runs', label: '수집 이력', icon: History },

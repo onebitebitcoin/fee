@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def _warm_withdrawal_cache() -> None:
     try:
-        from fee_checker import refresh_withdrawal_cache
+        from backend.app.domain.market_core import refresh_withdrawal_cache
         refresh_withdrawal_cache()
         logger.info('Withdrawal cache warmed up successfully')
     except Exception as exc:

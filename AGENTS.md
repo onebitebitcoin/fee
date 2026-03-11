@@ -194,6 +194,10 @@ Sizing guidance:
 <!-- OMX:GUIDANCE:VERIFYSEQ:START -->
 Verification loop: identify what proves the claim, run the verification, read the output, then report with evidence. If verification fails, continue iterating rather than reporting incomplete work. Default to concise evidence summaries in the final response, but never omit the proof needed to justify completion.
 
+- When development is complete, run the **full repository verification suite** (`bash scripts/test.sh lint` and `bash scripts/test.sh`, plus any required build/typecheck checks) instead of only targeted checks.
+- If any full-test verification fails, stay in the Ralph/fix loop: keep correcting issues and re-running the full suite until everything passes.
+- Once the full suite passes, treat commit as the default completion step: stage changes and create a commit unless a higher-priority instruction explicitly forbids committing.
+
 - Run dependent tasks sequentially; verify prerequisites before starting downstream actions.
 - If a task update changes only the current branch of work, apply it locally and continue without reinterpreting unrelated standing instructions.
 - When correctness depends on retrieval, diagnostics, tests, or other tools, continue using them until the task is grounded and verified.
@@ -223,6 +227,9 @@ Visual iteration gate:
 
 Continuation:
 Before concluding, confirm: no pending work, features working, tests passing, zero known errors, verification evidence collected. If not, continue.
+
+Ralph completion rule:
+When implementation is finished, Ralph must continue through full-repo test execution and fixes until the entire test suite passes; only then may it conclude, and the passing state should be committed.
 
 Ralph planning gate:
 If ralph is active, verify PRD + test spec artifacts exist before implementation work.
