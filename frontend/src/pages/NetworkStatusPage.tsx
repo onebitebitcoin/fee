@@ -80,11 +80,11 @@ export function NetworkStatusPage() {
         <h2 className="text-lg font-semibold text-bnb-text">스크래핑 페이지 상태</h2>
         {scrapeLoading ? (
           <PageSkeletonBlocks blocks={3} className="h-12 bg-dark-300" />
-        ) : scrapeData.items.length === 0 ? (
+        ) : scrapeData.items.filter(i => i.category !== 'network_status').length === 0 ? (
           <p className="text-sm text-bnb-muted">스크래핑 데이터 없음</p>
         ) : (
           <div className="space-y-2">
-            {scrapeData.items.map((item, index) => (
+            {scrapeData.items.filter(i => i.category !== 'network_status').map((item, index) => (
               <div
                 key={`${item.label}-${index}`}
                 className="flex items-start gap-3 border border-dark-200 bg-dark-300 px-4 py-3"
