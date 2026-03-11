@@ -9,7 +9,7 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, helper, trend }: MetricCardProps) {
   return (
-    <article className="rounded-xl border border-dark-200 bg-dark-300 p-4">
+    <article className="border border-dark-200 bg-dark-300 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-bnb-muted">{label}</p>
       <div className="mt-2 flex items-end gap-2">
         <p className="text-2xl font-semibold text-bnb-text">{value}</p>

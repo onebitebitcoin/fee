@@ -1,22 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
+import { PageErrorMessage } from '../components/PageErrorMessage';
+import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
+import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
 import type { TickerRow } from '../types';
 
 export function TickersPage() {
-  const [items, setItems] = useState<TickerRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getTickers()
-      .then((response) => setItems(response.items))
-      .catch((err) => setError(err instanceof Error ? err.message : '불러오기 실패'))
-      .finally(() => setLoading(false));
+  const loadTickers = useCallback(async (): Promise<TickerRow[]> => {
+    const response = await api.getTickers();
+    return response.items;
   }, []);
+  const { data: items, error, loading } = useAsyncData(loadTickers, {
+    initialData: [],
+  });
 
-  if (error) return <div className="rounded-xl border border-bnb-red/30 bg-bnb-red/10 p-4 text-bnb-red">{error}</div>;
-  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-dark-300" />;
+  if (error) return <PageErrorMessage message={error} />;
+  if (loading) return <PageSkeletonBlocks />;
 
   return (
     <div className="space-y-4">
@@ -24,7 +24,7 @@ export function TickersPage() {
         <h2 className="text-lg font-semibold text-bnb-text">거래소 시세</h2>
         <span className="text-sm text-bnb-muted">{items.length}개 항목</span>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-dark-200">
+      <div className="overflow-x-auto border border-dark-200">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>

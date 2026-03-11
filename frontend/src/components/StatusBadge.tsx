@@ -13,7 +13,7 @@ const colorMap: Record<string, string> = {
 
 export function StatusBadge({ status }: StatusBadgeProps) {
   return (
-    <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${colorMap[status] ?? 'bg-dark-200 text-bnb-muted border border-dark-100'}`}>
+    <span className={`px-2 py-0.5 text-xs font-medium ${colorMap[status] ?? 'bg-dark-200 text-bnb-muted border border-dark-100'}`}>
       {status}
     </span>
   );

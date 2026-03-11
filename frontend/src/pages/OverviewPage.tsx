@@ -1,42 +1,27 @@
 import { Activity, ArrowDown, ArrowUp, DollarSign, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { MetricCard } from '../components/MetricCard';
+import { PageErrorMessage } from '../components/PageErrorMessage';
+import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
 
-type OverviewData = Awaited<ReturnType<typeof api.getOverview>>;
-
 export function OverviewPage() {
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const load = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getOverview();
-      setData(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '알 수 없는 오류');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
+  const loadOverview = useCallback(() => api.getOverview(), []);
+  const { data, error, loading, reload } = useAsyncData(loadOverview, {
+    initialData: null,
+  });
 
   const handleManualRun = async () => {
     try {
       setSubmitting(true);
       const result = await api.triggerCrawl();
       setActionMessage(`수동 크롤링 완료: ${result.status}`);
-      await load();
+      await reload('알 수 없는 오류');
     } catch (err) {
       setActionMessage(err instanceof Error ? err.message : '수동 실행 실패');
     } finally {
@@ -46,20 +31,12 @@ export function OverviewPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-dark-300" />
-          ))}
-        </div>
-      </div>
+      <PageSkeletonBlocks blocks={4} className="h-24 bg-dark-300" containerClassName="grid gap-4 md:grid-cols-4" />
     );
   }
 
   if (error) {
-    return (
-      <div className="rounded-xl border border-bnb-red/30 bg-bnb-red/10 p-4 text-bnb-red">{error}</div>
-    );
+    return <PageErrorMessage message={error} />;
   }
 
   return (
@@ -71,7 +48,7 @@ export function OverviewPage() {
         <MetricCard label="Suspended Networks" value={data?.counts.suspended_networks ?? 0} />
       </div>
 
-      <div className="rounded-xl border border-dark-200 bg-dark-300 p-4">
+      <div className="border border-dark-200 bg-dark-300 p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-base font-semibold text-bnb-text">
@@ -93,7 +70,7 @@ export function OverviewPage() {
               type="button"
               onClick={handleManualRun}
               disabled={submitting}
-              className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
+              className="flex items-center gap-2 bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
             >
               <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
               {submitting ? '실행 중...' : '수동 크롤링 실행'}
@@ -104,7 +81,7 @@ export function OverviewPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-dark-200 bg-dark-300 p-4">
+        <div className="border border-dark-200 bg-dark-300 p-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-bnb-text">
             <DollarSign size={16} className="text-brand-500" />
             가격 하이라이트
@@ -136,7 +113,7 @@ export function OverviewPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-dark-200 bg-dark-300 p-4">
+        <div className="border border-dark-200 bg-dark-300 p-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-bnb-text">
             <Activity size={16} className="text-brand-500" />
             환경 정보
@@ -160,7 +137,7 @@ export function OverviewPage() {
               <p className="mb-2 text-xs text-bnb-muted">한국 거래소</p>
               <div className="flex flex-wrap gap-1">
                 {data.available_exchanges.korea.map((ex) => (
-                  <span key={ex} className="rounded-md border border-dark-200 bg-dark-400 px-2 py-0.5 text-xs text-bnb-muted">{ex}</span>
+                  <span key={ex} className="border border-dark-200 bg-dark-400 px-2 py-0.5 text-xs text-bnb-muted">{ex}</span>
                 ))}
               </div>
             </div>

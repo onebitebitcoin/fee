@@ -16,7 +16,7 @@ export function Layout() {
       <header className="border-b border-dark-200 bg-dark-400">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
+            <div className="flex h-8 w-8 items-center justify-center bg-brand-500">
               <span className="text-sm font-bold text-dark-500">B</span>
             </div>
             <div>
