@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import { PageErrorMessage } from '../components/PageErrorMessage';
+import { fmtEx } from '../lib/exchangeNames';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
@@ -39,7 +40,7 @@ export function TickersPage() {
           <tbody className="bg-dark-300">
             {items.map((item) => (
               <tr key={`${item.exchange}-${item.market_type}`} className="border-t border-dark-200 transition-colors hover:bg-dark-400">
-                <td className="px-4 py-3 font-medium text-bnb-text">{item.exchange}</td>
+                <td className="px-4 py-3 font-medium text-bnb-text">{fmtEx(item.exchange)}</td>
                 <td className="px-4 py-3 text-bnb-muted">{item.market_type}</td>
                 <td className="px-4 py-3 text-right font-semibold text-brand-500">{item.price.toLocaleString()}</td>
                 <td className="px-4 py-3 text-bnb-muted">{item.currency}</td>

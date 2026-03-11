@@ -1,6 +1,8 @@
 import { Activity, ArrowDown, ArrowUp, DollarSign, RefreshCw } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
+import { fmtEx } from '../lib/exchangeNames';
+
 import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
@@ -86,7 +88,7 @@ export function OverviewPage() {
                   {item ? (
                     <>
                       <p className="text-sm font-semibold text-brand-500">{item.price.toLocaleString()}</p>
-                      <p className="text-xs text-bnb-muted">{item.exchange}</p>
+                      <p className="text-xs text-bnb-muted">{fmtEx(item.exchange)}</p>
                     </>
                   ) : (
                     <p className="text-sm text-bnb-muted">N/A</p>
@@ -121,7 +123,7 @@ export function OverviewPage() {
               <p className="mb-2 text-xs text-bnb-muted">한국 거래소</p>
               <div className="flex flex-wrap gap-1">
                 {data.available_exchanges.korea.map((ex) => (
-                  <span key={ex} className="border border-dark-200 bg-dark-400 px-2 py-0.5 text-xs text-bnb-muted">{ex}</span>
+                  <span key={ex} className="border border-dark-200 bg-dark-400 px-2 py-0.5 text-xs text-bnb-muted">{fmtEx(ex)}</span>
                 ))}
               </div>
             </div>

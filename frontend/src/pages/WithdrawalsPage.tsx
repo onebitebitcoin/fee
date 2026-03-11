@@ -1,6 +1,8 @@
 import { AlertTriangle, CheckCircle, ExternalLink, XCircle } from 'lucide-react';
 import { useCallback } from 'react';
 
+import { fmtEx } from '../lib/exchangeNames';
+
 import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { useAsyncData } from '../hooks/useAsyncData';
@@ -53,7 +55,7 @@ export function WithdrawalsPage() {
             <ul className="mt-2 space-y-1">
               {data.errors.map((item, index) => (
                 <li key={`${item.stage}-${item.exchange}-${item.coin}-${index}`} className="text-bnb-muted">
-                  {[item.exchange, item.coin].filter(Boolean).join(' / ')}: {item.error_message}
+                  {[item.exchange ? fmtEx(item.exchange) : null, item.coin].filter(Boolean).join(' / ')}: {item.error_message}
                 </li>
               ))}
             </ul>
@@ -78,7 +80,7 @@ export function WithdrawalsPage() {
           <tbody className="bg-dark-300">
             {data.items.map((item) => (
               <tr key={`${item.exchange}-${item.coin}-${item.network_label}`} className="border-t border-dark-200 transition-colors hover:bg-dark-400">
-                <td className="px-4 py-3 font-medium text-bnb-text">{item.exchange}</td>
+                <td className="px-4 py-3 font-medium text-bnb-text">{fmtEx(item.exchange)}</td>
                 <td className="px-4 py-3 text-bnb-text">{item.coin}</td>
                 <td className="px-4 py-3 text-bnb-muted">{item.network_label}</td>
                 <td className="px-4 py-3 text-right font-semibold text-brand-500">{item.fee ?? '-'}</td>

@@ -1,6 +1,8 @@
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useCallback } from 'react';
 
+import { fmtEx } from '../lib/exchangeNames';
+
 import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
@@ -27,7 +29,7 @@ export function NetworkStatusPage() {
         {Object.entries(items).map(([exchange, value]) => (
           <div key={exchange} className="border border-dark-200 bg-dark-300 p-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-bnb-text">{exchange}</h3>
+              <h3 className="font-semibold text-bnb-text">{fmtEx(exchange)}</h3>
               <StatusBadge status={value.status} />
             </div>
             {value.checked_at && (

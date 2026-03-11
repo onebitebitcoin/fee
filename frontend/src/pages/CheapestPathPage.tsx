@@ -2,6 +2,7 @@ import { ArrowRight, ChevronDown, ChevronUp, Info, Search, ShieldAlert, Trending
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { api } from '../lib/api';
+import { fmtEx } from '../lib/exchangeNames';
 import type { CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } from '../types';
 
 const DEFAULT_AMOUNT_KRW = 1000000;
@@ -161,7 +162,7 @@ export function CheapestPathPage() {
     ? [
         { label: '분석 경로', value: `${formatNumber(data.total_paths_evaluated)}개`, helper: '현재 계산에 포함된 후보 수' },
         { label: '최저 수수료', value: data.best_path ? formatCurrency(data.best_path.total_fee_krw) : 'N/A', helper: '최저 총 수수료 기준' },
-        { label: '최적 거래소', value: data.best_path ? data.best_path.korean_exchange.toUpperCase() : 'N/A', helper: data.best_path ? `${data.best_path.transfer_coin} / ${data.best_path.network}` : '활성 경로 없음' },
+        { label: '최적 거래소', value: data.best_path ? fmtEx(data.best_path.korean_exchange) : 'N/A', helper: data.best_path ? `${data.best_path.transfer_coin} / ${data.best_path.network}` : '활성 경로 없음' },
         { label: '비활성 경로', value: `${formatNumber(data.disabled_paths.length)}개`, helper: data.disabled_paths.length ? '점검/정지 경로 제외' : '비활성 경로 없음' },
       ]
     : [];
@@ -212,7 +213,7 @@ export function CheapestPathPage() {
               className="mt-2 w-full appearance-none border-0 bg-transparent p-0 text-base font-semibold uppercase tracking-[0.18em] text-bnb-text outline-none"
             >
               {GLOBAL_EXCHANGE_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-dark-400 text-bnb-text">{option}</option>
+                <option key={option} value={option} className="bg-dark-400 text-bnb-text">{fmtEx(option)}</option>
               ))}
             </select>
             <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">도착 해외 거래소</p>
@@ -227,7 +228,7 @@ export function CheapestPathPage() {
             >
               <option value="" className="bg-dark-400 text-bnb-text">거래소 선택</option>
               {availableKoreanExchanges.map((exchange) => (
-                <option key={exchange} value={exchange} className="bg-dark-400 text-bnb-text">{exchange}</option>
+                <option key={exchange} value={exchange} className="bg-dark-400 text-bnb-text">{fmtEx(exchange)}</option>
               ))}
             </select>
             <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">거래소별 상세 보기</p>
@@ -289,7 +290,7 @@ export function CheapestPathPage() {
                 <ul className="mt-3 space-y-1 text-sm text-bnb-muted">
                   {data.errors.map((item, index) => (
                     <li key={`${item.stage}-${item.exchange}-${item.coin}-${index}`}>
-                      {[item.exchange, item.coin].filter(Boolean).join(' / ')}: {item.error_message}
+                      {[item.exchange ? fmtEx(item.exchange) : null, item.coin].filter(Boolean).join(' / ')}: {item.error_message}
                     </li>
                   ))}
                 </ul>
@@ -310,9 +311,9 @@ export function CheapestPathPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-3 text-bnb-text">
                       <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
-                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.best_path.korean_exchange}</span>
+                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{fmtEx(data.best_path.korean_exchange)}</span>
                       <ArrowRight size={16} className="text-bnb-muted" />
-                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.global_exchange}</span>
+                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{fmtEx(data.global_exchange)}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
                       <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.transfer_coin}</span>
@@ -394,7 +395,7 @@ export function CheapestPathPage() {
                           <span className="font-mono text-xs text-bnb-muted">#{String(index + 1).padStart(3, '0')}</span>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="font-semibold uppercase tracking-[0.08em] text-bnb-text">{path.korean_exchange}</p>
+                          <p className="font-semibold text-bnb-text">{fmtEx(path.korean_exchange)}</p>
                           <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{path.transfer_coin} / {path.network}</p>
                         </td>
                         <td className={`px-5 py-4 text-right font-semibold ${getFeeTone(path.fee_pct)}`}>
@@ -434,9 +435,9 @@ export function CheapestPathPage() {
                   <div className="space-y-5">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="border border-dark-200 bg-dark-400 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">{selectedRoute.rank}위</span>
-                      <span className="text-lg font-semibold uppercase tracking-[0.08em] text-bnb-text">{selectedRoute.path.korean_exchange}</span>
+                      <span className="text-lg font-semibold text-bnb-text">{fmtEx(selectedRoute.path.korean_exchange)}</span>
                       <ArrowRight size={14} className="text-bnb-muted" />
-                      <span className="text-lg font-semibold uppercase tracking-[0.08em] text-bnb-text">{data.global_exchange}</span>
+                      <span className="text-lg font-semibold text-bnb-text">{fmtEx(data.global_exchange)}</span>
                     </div>
 
                     <div className="grid gap-0 border border-dark-200 md:grid-cols-3">
@@ -478,7 +479,7 @@ export function CheapestPathPage() {
                   {topPaths.map((path) => (
                     <div key={`velocity-${path.korean_exchange}-${path.network}`}>
                       <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
-                        <span>{path.korean_exchange}</span>
+                        <span>{fmtEx(path.korean_exchange)}</span>
                         <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span>
                       </div>
                       <div className="h-2 bg-dark-200">
@@ -497,7 +498,7 @@ export function CheapestPathPage() {
                     <ul className="mt-3 space-y-2 text-sm text-bnb-muted">
                       {data.disabled_paths.slice(0, 4).map((path, index) => (
                         <li key={`${path.korean_exchange}-${path.transfer_coin}-${index}`}>
-                          {path.korean_exchange} · {path.transfer_coin} / {path.network}
+                          {fmtEx(path.korean_exchange)} · {path.transfer_coin} / {path.network}
                           {path.reason ? ` — ${path.reason}` : ''}
                         </li>
                       ))}
