@@ -254,3 +254,122 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
         },
         'items': items,
     }
+
+
+@router.get('/exchange-status')
+def get_exchange_status(db: Session = Depends(get_db)) -> dict:
+    """출금 수수료 + 네트워크 상태 + 공지사항 통합 뷰"""
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'exchanges': [], 'lightning_services': []}
+
+    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id)
+    network_rows = repositories.list_network_status_for_run(db, latest_run.id)
+    lightning_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id)
+    crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id)
+    notices_by_exchange = repositories.get_latest_notices_per_exchange(db, latest_run.id)
+
+    # Scrape status lookup by exchange
+    error_stages = {(e.exchange, e.stage): e.error_message for e in crawl_errors}
+
+    # --- Build exchange nodes ---
+    exchange_map: dict[str, dict] = {}
+
+    # Group withdrawal rows by exchange
+    for row in withdrawal_rows:
+        ex = row.exchange
+        if ex not in exchange_map:
+            exchange_map[ex] = {
+                'exchange': ex,
+                'type': 'exchange',
+                'withdrawal_rows': [],
+                'network_status': {'status': 'ok', 'suspended_networks': [], 'checked_at': None},
+                'scrape_status': None,
+                'notices': notices_by_exchange.get(ex, []),
+            }
+        exchange_map[ex]['withdrawal_rows'].append({
+            'coin': row.coin,
+            'network_label': row.network_label,
+            'fee': row.fee,
+            'fee_krw': row.fee_krw,
+            'enabled': row.enabled,
+            'source': row.source,
+            'note': row.note,
+        })
+
+    # Populate scrape_status for each exchange
+    seen_exchanges_for_scrape: set[str] = set()
+    for row in withdrawal_rows:
+        ex = row.exchange
+        if ex not in seen_exchanges_for_scrape:
+            seen_exchanges_for_scrape.add(ex)
+            source_url = get_withdrawal_source_url(ex, row.coin, row.network_label)
+            if source_url and ex in exchange_map:
+                has_error = (ex, 'withdrawal') in error_stages
+                exchange_map[ex]['scrape_status'] = {
+                    'url': source_url,
+                    'status': 'error' if has_error else 'ok',
+                    'last_crawled_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                    'error_message': error_stages.get((ex, 'withdrawal')),
+                }
+
+    # Merge network status
+    network_grouped = repositories.group_network_status(network_rows)
+    for ex, status in network_grouped.items():
+        if ex not in exchange_map:
+            exchange_map[ex] = {
+                'exchange': ex,
+                'type': 'exchange',
+                'withdrawal_rows': [],
+                'network_status': status,
+                'scrape_status': None,
+                'notices': notices_by_exchange.get(ex, []),
+            }
+        else:
+            exchange_map[ex]['network_status'] = status
+
+        # network_status scrape_status
+        network_source_rows = [r for r in network_rows if r.exchange == ex and r.source_url]
+        if network_source_rows:
+            source_url = network_source_rows[0].source_url
+            has_error = (ex, 'network_status') in error_stages
+            if exchange_map[ex]['scrape_status'] is None:
+                exchange_map[ex]['scrape_status'] = {
+                    'url': source_url,
+                    'status': 'error' if has_error else 'ok',
+                    'last_crawled_at': int(network_source_rows[0].recorded_at.timestamp()) if network_source_rows[0].recorded_at else None,
+                    'error_message': error_stages.get((ex, 'network_status')),
+                }
+
+    # --- Build lightning service nodes ---
+    lightning_services = []
+    for row in lightning_rows:
+        has_error = not row.enabled or bool(row.error_message)
+        lightning_services.append({
+            'exchange': row.service_name,
+            'type': 'lightning',
+            'withdrawal_rows': [{
+                'coin': 'BTC',
+                'network_label': 'Lightning Network',
+                'fee_pct': row.fee_pct,
+                'fee_fixed_sat': row.fee_fixed_sat,
+                'min_amount_sat': row.min_amount_sat,
+                'max_amount_sat': row.max_amount_sat,
+                'enabled': row.enabled,
+                'source': 'realtime_api',
+                'note': row.error_message,
+            }],
+            'network_status': {'status': 'ok' if not has_error else 'error', 'suspended_networks': [], 'checked_at': None},
+            'scrape_status': {
+                'url': row.source_url,
+                'status': 'error' if has_error else 'ok',
+                'last_crawled_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                'error_message': row.error_message,
+            } if row.source_url else None,
+            'notices': [],
+        })
+
+    return {
+        'exchanges': list(exchange_map.values()),
+        'lightning_services': lightning_services,
+    }

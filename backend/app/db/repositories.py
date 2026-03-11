@@ -8,7 +8,7 @@ from sqlalchemy import desc, func as sqlfunc, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
-from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog
+from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -86,3 +86,29 @@ def get_access_count(db: Session) -> dict:
     today = db.query(sqlfunc.count(AccessLog.id)).filter(AccessLog.accessed_at >= today_start).scalar() or 0
 
     return {'total': total, 'today': today}
+
+
+def list_notices_for_run(db: Session, crawl_run_id: int) -> list[ExchangeNotice]:
+    stmt = select(ExchangeNotice).where(ExchangeNotice.crawl_run_id == crawl_run_id).order_by(ExchangeNotice.exchange, ExchangeNotice.noticed_at.desc())
+    return list(db.scalars(stmt))
+
+
+def get_latest_notices_per_exchange(db: Session, crawl_run_id: int) -> dict[str, list]:
+    """exchange별 최신 공지 최대 5개 반환"""
+    rows = list_notices_for_run(db, crawl_run_id)
+    result: dict[str, list] = {}
+    counts: dict[str, int] = {}
+    for row in rows:
+        ex = row.exchange
+        if ex not in counts:
+            counts[ex] = 0
+        if counts[ex] < 5:
+            if ex not in result:
+                result[ex] = []
+            result[ex].append({
+                'title': row.title,
+                'url': row.url,
+                'published_at': int(row.published_at.timestamp()) if row.published_at else None,
+            })
+            counts[ex] += 1
+    return result

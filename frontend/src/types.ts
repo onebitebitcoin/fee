@@ -157,3 +157,44 @@ export type LightningSwapFeeRow = {
   error_message: string | null;
   recorded_at: number | null;
 };
+
+export type ExchangeStatusWithdrawalRow = {
+  coin: string;
+  network_label: string;
+  fee?: number | null;
+  fee_krw?: number | null;
+  fee_pct?: number | null;
+  fee_fixed_sat?: number | null;
+  min_amount_sat?: number | null;
+  max_amount_sat?: number | null;
+  enabled: boolean;
+  source: string;
+  note?: string | null;
+};
+
+export type ExchangeStatusNode = {
+  exchange: string;
+  type: 'exchange' | 'lightning';
+  withdrawal_rows: ExchangeStatusWithdrawalRow[];
+  network_status: {
+    status: string;
+    suspended_networks: SuspendedNetwork[];
+    checked_at?: number | null;
+  };
+  scrape_status: {
+    url: string;
+    status: 'ok' | 'error';
+    last_crawled_at: number | null;
+    error_message: string | null;
+  } | null;
+  notices: Array<{
+    title: string;
+    url: string | null;
+    published_at: number | null;
+  }>;
+};
+
+export type ExchangeStatusResponse = {
+  exchanges: ExchangeStatusNode[];
+  lightning_services: ExchangeStatusNode[];
+};

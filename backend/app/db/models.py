@@ -25,6 +25,7 @@ class CrawlRun(Base):
     network_status_snapshots: Mapped[list['NetworkStatusSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     crawl_errors: Mapped[list['CrawlError']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     lightning_swap_fee_snapshots: Mapped[list['LightningSwapFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    exchange_notices: Mapped[list['ExchangeNotice']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
 
 class TickerSnapshot(Base):
@@ -125,3 +126,17 @@ class AccessLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class ExchangeNotice(Base):
+    __tablename__ = 'exchange_notices'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    exchange: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_notices')

@@ -4,9 +4,14 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import CrawlError, CrawlRun, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+import logging
+
+from backend.app.db.models import CrawlError, CrawlRun, ExchangeNotice, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
+from backend.app.services.notice_scraper import get_all_notices
+
+logger = logging.getLogger(__name__)
 
 
 class CrawlService:
@@ -113,6 +118,20 @@ class CrawlService:
                     error_message=fee_data.get('error'),
                 ))
                 lightning_count += 1
+
+            # 공지사항 스크래핑 (오류가 나도 전체 크롤링 성공에 영향 없음)
+            try:
+                notices = get_all_notices()
+                for notice in notices:
+                    self.db.add(ExchangeNotice(
+                        crawl_run_id=crawl_run.id,
+                        exchange=notice.get('exchange', 'unknown'),
+                        title=notice.get('title', ''),
+                        url=notice.get('url'),
+                        published_at=notice.get('published_at'),
+                    ))
+            except Exception as exc:
+                logger.warning('Notice scraping failed: %s', exc)
 
             crawl_run.status = 'partial_success' if error_count else 'success'
             crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, errors={error_count}'
