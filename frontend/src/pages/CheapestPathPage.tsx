@@ -258,23 +258,21 @@ export function CheapestPathPage() {
         </form>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Strip */}
       {loading ? (
-        <div className="grid gap-0 border-b border-dark-200 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse border-r border-dark-200 bg-dark-300 last:border-r-0" />
-          ))}
+        <div className="border-b border-dark-200 bg-dark-400 px-5 py-3">
+          <div className="h-4 w-72 animate-pulse bg-dark-200" />
         </div>
       ) : null}
 
       {!loading && summaryCards.length > 0 ? (
-        <div className="grid gap-0 border-b border-dark-200 md:grid-cols-2 xl:grid-cols-4">
+        <div className="flex flex-wrap items-center border-b border-dark-200 bg-dark-400 px-5 py-3 text-sm">
           {summaryCards.map((card, idx) => (
-            <article key={card.label} className={`bg-dark-400 px-5 py-4 ${idx < summaryCards.length - 1 ? 'border-r border-dark-200' : ''}`}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-bnb-muted">{card.label}</p>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-bnb-text">{card.value}</p>
-              <p className="mt-1 text-xs text-bnb-muted">{card.helper}</p>
-            </article>
+            <span key={card.label} className="flex items-center">
+              {idx > 0 && <span className="mx-4 text-dark-100 select-none">·</span>}
+              <span className="text-bnb-muted">{card.label}</span>
+              <span className="ml-1.5 font-semibold text-brand-400">{card.value}</span>
+            </span>
           ))}
         </div>
       ) : null}

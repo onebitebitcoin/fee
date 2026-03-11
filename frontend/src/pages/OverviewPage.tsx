@@ -1,7 +1,6 @@
 import { Activity, ArrowDown, ArrowUp, DollarSign, RefreshCw } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
-import { MetricCard } from '../components/MetricCard';
 import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
@@ -31,7 +30,7 @@ export function OverviewPage() {
 
   if (loading) {
     return (
-      <PageSkeletonBlocks blocks={4} className="h-24 bg-dark-300" containerClassName="grid gap-4 md:grid-cols-4" />
+      <PageSkeletonBlocks blocks={1} className="h-10 bg-dark-300" />
     );
   }
 
@@ -41,42 +40,27 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard label="최근 수집 상태" value={data?.last_run?.status ?? 'no-data'} helper={data?.last_run?.completed_at ?? '아직 수집 없음'} />
-        <MetricCard label="시세 데이터" value={data?.counts.tickers ?? 0} />
-        <MetricCard label="출금 수수료" value={data?.counts.withdrawal_rows ?? 0} />
-        <MetricCard label="점검 네트워크" value={data?.counts.suspended_networks ?? 0} />
-      </div>
-
-      <div className="border border-dark-200 bg-dark-300 p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-bnb-text">
-              <Activity size={16} className="text-brand-500" />
-              최근 실행
-            </h2>
-            {data?.last_run ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-bnb-muted">
-                <StatusBadge status={data.last_run.status} />
-                <span>ID {data.last_run.id}</span>
-                <span>{data.last_run.completed_at}</span>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-bnb-muted">아직 저장된 수집 결과가 없습니다.</p>
-            )}
-          </div>
-          <div className="flex flex-col items-stretch gap-2 md:items-end">
-            <button
-              type="button"
-              onClick={handleManualRun}
-              disabled={submitting}
-              className="flex items-center gap-2 bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
-              {submitting ? '실행 중...' : '수동 크롤링 실행'}
-            </button>
-            {actionMessage ? <p className="text-xs text-bnb-muted">{actionMessage}</p> : null}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-dark-200 bg-dark-300 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          {data?.last_run ? <StatusBadge status={data.last_run.status} /> : null}
+          {data?.last_run?.completed_at ? (
+            <span className="text-xs text-bnb-muted">{data.last_run.completed_at}</span>
+          ) : null}
+          <span className="text-bnb-muted">시세 <span className="font-semibold text-bnb-text">{data?.counts.tickers ?? 0}</span></span>
+          <span className="text-bnb-muted">출금 수수료 <span className="font-semibold text-bnb-text">{data?.counts.withdrawal_rows ?? 0}</span></span>
+          <span className="text-bnb-muted">점검 <span className={`font-semibold ${(data?.counts.suspended_networks ?? 0) > 0 ? 'text-bnb-red' : 'text-bnb-text'}`}>{data?.counts.suspended_networks ?? 0}</span></span>
+        </div>
+        <div className="flex items-center gap-3">
+          {actionMessage ? <p className="text-xs text-bnb-muted">{actionMessage}</p> : null}
+          <button
+            type="button"
+            onClick={handleManualRun}
+            disabled={submitting}
+            className="flex items-center gap-2 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={submitting ? 'animate-spin' : ''} />
+            {submitting ? '실행 중...' : '수동 크롤링'}
+          </button>
         </div>
       </div>
 
