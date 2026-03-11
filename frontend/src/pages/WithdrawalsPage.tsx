@@ -37,7 +37,7 @@ export function WithdrawalsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-bnb-text">출금 수수료 현황</h2>
           {data.latestScrapingTime && (
@@ -63,7 +63,47 @@ export function WithdrawalsPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto border border-dark-200">
+      <div className="space-y-3 md:hidden">
+        {data.items.map((item) => (
+          <article key={`mobile-${item.exchange}-${item.coin}-${item.network_label}`} className="border border-dark-200 bg-dark-300 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-bnb-text">{fmtEx(item.exchange)}</p>
+                <p className="mt-1 text-sm text-bnb-muted">{item.coin} · {item.network_label}</p>
+              </div>
+              {item.enabled ? (
+                <CheckCircle size={16} className="shrink-0 text-bnb-green" />
+              ) : (
+                <XCircle size={16} className="shrink-0 text-bnb-red" />
+              )}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수수료</p>
+                <p className="mt-1 font-semibold text-brand-500">{item.fee ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">USD</p>
+                <p className="mt-1 text-bnb-text">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">출처</p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <span className="text-bnb-text">{item.source}</span>
+                  {item.source_url ? (
+                    <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-500 hover:text-brand-400">
+                      <ExternalLink size={12} />
+                      보기
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto border border-dark-200 md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>

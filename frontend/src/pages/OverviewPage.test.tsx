@@ -18,12 +18,15 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('OverviewPage', () => {
-  it('renders dashboard title', async () => {
+  it('renders overview sections', async () => {
     render(
       <BrowserRouter>
         <OverviewPage />
       </BrowserRouter>,
     );
-    expect(await screen.findByText('최근 수집 상태')).toBeInTheDocument();
+
+    expect(await screen.findByText('가격 하이라이트')).toBeInTheDocument();
+    expect(screen.getByText('환경 정보')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '수동 크롤링' })).toBeInTheDocument();
   });
 });

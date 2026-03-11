@@ -34,8 +34,8 @@ describe('RunsPage', () => {
     );
 
     expect(await screen.findByText('수집 실행 이력')).toBeInTheDocument();
-    expect(screen.getByText('manual')).toBeInTheDocument();
-    expect(screen.getByText('success')).toBeInTheDocument();
+    expect(screen.getAllByText('manual').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('success').length).toBeGreaterThan(0);
   });
 
   it('renders shared error state on load failure', async () => {

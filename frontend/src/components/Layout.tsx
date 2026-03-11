@@ -1,7 +1,8 @@
-import { Globe, History, Network, Route } from 'lucide-react';
+import { Globe, History, Home, Network, Route } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
+  { to: '/overview', label: '개요', icon: Home },
   { to: '/cheapest-path', label: '최적 경로', icon: Route },
   { to: '/withdrawals', label: '출금 수수료', icon: Globe },
   { to: '/network-status', label: '네트워크', icon: Network },
@@ -12,8 +13,8 @@ export function Layout() {
   return (
     <div className="flex min-h-screen flex-col bg-dark-500">
       <header className="border-b border-dark-200 bg-dark-400">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <NavLink to="/cheapest-path" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center bg-brand-500">
               <span className="text-sm font-bold text-dark-500">B</span>
             </div>
@@ -21,17 +22,16 @@ export function Layout() {
               <p className="text-sm font-bold text-bnb-text">BTC 경로 탐색기</p>
               <p className="text-xs text-bnb-muted">실시간 수수료 비교</p>
             </div>
-          </div>
+          </NavLink>
         </div>
-        <nav className="mx-auto max-w-7xl overflow-x-auto px-4">
-          <div className="flex gap-0">
+        <nav className="mx-auto hidden max-w-7xl overflow-x-auto px-4 md:block">
+          <div className="flex gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === '/'}
                   className={({ isActive }) =>
                     `flex items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
                       isActive
@@ -48,9 +48,30 @@ export function Layout() {
           </div>
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:py-6 md:pb-6">
         <Outlet />
       </main>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-dark-200 bg-dark-400/95 backdrop-blur md:hidden">
+        <div className="mx-auto grid max-w-7xl grid-cols-5">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors ${
+                    isActive ? 'text-brand-500' : 'text-bnb-muted'
+                  }`
+                }
+              >
+                <Icon size={16} />
+                <span className="text-center leading-tight">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

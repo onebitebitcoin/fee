@@ -21,11 +21,35 @@ export function RunsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold text-bnb-text">수집 실행 이력</h2>
         <span className="text-sm text-bnb-muted">{items.length}건</span>
       </div>
-      <div className="overflow-x-auto border border-dark-200">
+      <div className="space-y-3 md:hidden">
+        {items.map((item) => (
+          <article key={`mobile-${item.id}`} className="border border-dark-200 bg-dark-300 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-xs text-bnb-muted">#{item.id}</p>
+                <p className="mt-1 text-base font-semibold text-bnb-text">{item.trigger}</p>
+              </div>
+              <StatusBadge status={item.status} />
+            </div>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-bnb-muted">시작</span>
+                <span className="text-right text-bnb-text">{item.started_at ?? '-'}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-bnb-muted">완료</span>
+                <span className="text-right text-bnb-text">{item.completed_at ?? '-'}</span>
+              </div>
+              <div className="border-t border-dark-200 pt-2 text-bnb-muted">{item.message ?? '-'}</div>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto border border-dark-200 md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>

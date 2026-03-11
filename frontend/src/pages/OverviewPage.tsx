@@ -42,7 +42,7 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-dark-200 bg-dark-300 px-4 py-3">
+      <div className="flex flex-col gap-3 border border-dark-200 bg-dark-300 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           {data?.last_run ? <StatusBadge status={data.last_run.status} /> : null}
           {data?.last_run?.completed_at ? (
@@ -52,13 +52,13 @@ export function OverviewPage() {
           <span className="text-bnb-muted">출금 수수료 <span className="font-semibold text-bnb-text">{data?.counts.withdrawal_rows ?? 0}</span></span>
           <span className="text-bnb-muted">점검 <span className={`font-semibold ${(data?.counts.suspended_networks ?? 0) > 0 ? 'text-bnb-red' : 'text-bnb-text'}`}>{data?.counts.suspended_networks ?? 0}</span></span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
           {actionMessage ? <p className="text-xs text-bnb-muted">{actionMessage}</p> : null}
           <button
             type="button"
             onClick={handleManualRun}
             disabled={submitting}
-            className="flex items-center gap-2 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-brand-500 px-3 py-2 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50"
           >
             <RefreshCw size={13} className={submitting ? 'animate-spin' : ''} />
             {submitting ? '실행 중...' : '수동 크롤링'}
