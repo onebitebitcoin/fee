@@ -99,51 +99,50 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('CheapestPathPage', () => {
-  it('renders best path as single inline row after loading', async () => {
+  it('renders dashboard-style hero and best route summary after loading', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
       </BrowserRouter>,
     );
 
-    expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    // 최적 경로가 한 줄로 표시됨: upbit, binance 별도 요소
-    expect(screen.getByText('upbit')).toBeInTheDocument();
+    expect(await screen.findByText('Dark route optimization dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Primary Route Recommendation')).toBeInTheDocument();
+    expect(screen.getAllByText('upbit').length).toBeGreaterThan(0);
     expect(screen.getAllByText('binance').length).toBeGreaterThan(0);
   });
 
-  it('shows inline summary stats (no MetricCards)', async () => {
+  it('shows reference-inspired summary cards and analysis sections', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
       </BrowserRouter>,
     );
 
-    await screen.findByText('최적 경로');
-    // MetricCard 없이 인라인 텍스트로 평가 경로 수 표시
-    expect(screen.getByText('평가 경로')).toBeInTheDocument();
-    expect(screen.getByText('USD/KRW')).toBeInTheDocument();
-    expect(screen.getByText('BTC/USD')).toBeInTheDocument();
+    await screen.findByText('Dark route optimization dashboard');
+    expect(screen.getByText('Evaluated Paths')).toBeInTheDocument();
+    expect(screen.getByText('Best Total Fee')).toBeInTheDocument();
+    expect(screen.getByText('Route Optimization Analysis')).toBeInTheDocument();
+    expect(screen.getByText('Fee Rate Velocity (Live Snapshot)')).toBeInTheDocument();
   });
 
-  it('renders top paths as a table with correct columns', async () => {
+  it('renders top paths as a dashboard table with route columns', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
       </BrowserRouter>,
     );
 
-    await screen.findByText('최적 경로');
+    await screen.findByText('Dark route optimization dashboard');
 
-    // 테이블 헤더 확인 (테이블 스코프)
     const table = screen.getByRole('table');
-    const header = within(table).getAllByRole('columnheader');
-    const headerTexts = header.map((h) => h.textContent);
-    expect(headerTexts).toContain('경로');
-    expect(headerTexts).toContain('코인/네트워크');
-    expect(headerTexts).toContain('받는 BTC');
-    expect(headerTexts).toContain('수수료');
-    expect(headerTexts).toContain('비율');
+    const headerTexts = within(table).getAllByRole('columnheader').map((header) => header.textContent);
+    expect(headerTexts).toContain('Path');
+    expect(headerTexts).toContain('Lane');
+    expect(headerTexts).toContain('Received BTC');
+    expect(headerTexts).toContain('Fee Cost');
+    expect(headerTexts).toContain('Fee Ratio');
+    expect(headerTexts).toContain('Status');
   });
 
   it('sorts the top paths by lowest total fee by default', async () => {
@@ -153,10 +152,8 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('최적 경로');
+    await screen.findByText('Dark route optimization dashboard');
 
-    // 기본 정렬(lowest_fee_krw): cheap1(2000) → cheap2(2500) 순
-    // 테이블 내 행 텍스트 순서 확인
     const table = screen.getByRole('table');
     const tableText = table.textContent ?? '';
     const cheap1Pos = tableText.indexOf('cheap1');
@@ -174,11 +171,10 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('최적 경로');
+    await screen.findByText('Dark route optimization dashboard');
 
-    await user.selectOptions(screen.getByDisplayValue('총 수수료 낮은 순'), 'highest_btc');
+    await user.selectOptions(screen.getByDisplayValue('TOTAL FEE ASC'), 'highest_btc');
 
-    // highest_btc 정렬: highbtc(0.0099)가 가장 먼저 나타나야 함
     const table = screen.getByRole('table');
     const tableText = table.textContent ?? '';
     const highbtcPos = tableText.indexOf('highbtc');
@@ -196,11 +192,12 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('최적 경로');
+    await screen.findByText('Dark route optimization dashboard');
 
     const exchangeSelect = screen.getByDisplayValue('거래소 선택');
     await user.selectOptions(exchangeSelect, 'cheap2');
 
-    expect(screen.getByText('#3위')).toBeInTheDocument();
+    expect(screen.getByText('#3 rank')).toBeInTheDocument();
+    expect(screen.getByText('Focused Route Inspector')).toBeInTheDocument();
   });
 });
