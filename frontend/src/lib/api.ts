@@ -23,7 +23,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   getTickers: (): Promise<{ last_run: CrawlRun | null; items: TickerRow[] }> => request('/api/v1/market/tickers/latest'),
-  getWithdrawals: (): Promise<{ last_run: CrawlRun | null; latest_scraping_time?: string | null; items: WithdrawalRow[]; errors?: CrawlErrorRow[] }> =>
+  getWithdrawals: (): Promise<{ last_run: CrawlRun | null; latest_scraping_time?: number | null; items: WithdrawalRow[]; errors?: CrawlErrorRow[] }> =>
     request('/api/v1/market/withdrawal-fees/latest'),
   getNetworkStatus: (): Promise<{ last_run: CrawlRun | null; exchanges: NetworkStatusMap; total_suspended: number }> => request('/api/v1/market/network-status/latest'),
   getRuns: (): Promise<{ items: CrawlRun[] }> => request('/api/v1/crawl-runs'),

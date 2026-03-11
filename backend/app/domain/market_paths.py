@@ -300,7 +300,7 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
 
         try:
             maintenance_status = check_maintenance_status(list(GROUPS['korea']))
-            maintenance_checked_at = datetime.now().isoformat()
+            maintenance_checked_at = int(datetime.now().timestamp())
         except Exception:
             maintenance_status = {}
             maintenance_checked_at = None
@@ -532,7 +532,7 @@ def find_cheapest_path_from_snapshot_rows(
             'reason': row.reason or row.status,
         })
 
-    maintenance_checked_at = latest_run.completed_at.isoformat() if latest_run.completed_at else None
+    maintenance_checked_at = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     paths = []
     disabled_paths = []
 
@@ -843,12 +843,12 @@ def find_cheapest_path_from_snapshot_rows(
         'available_filters': _build_available_filters(paths),
         'maintenance_checked_at': maintenance_checked_at,
         'data_source': 'latest_snapshot',
-        'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+        'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
         'lightning_swap_services': lightning_services,
         'last_run': {
             'id': latest_run.id,
             'status': latest_run.status,
-            'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+            'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
         },
     }
 
@@ -863,7 +863,7 @@ def get_network_status(exchange: str = 'all') -> dict:
 
     try:
         maintenance = check_maintenance_status(targets)
-        checked_at = datetime.now().isoformat()
+        checked_at = int(datetime.now().timestamp())
         exchanges = {}
         for target in targets:
             suspended = maintenance.get(target, [])

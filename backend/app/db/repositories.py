@@ -57,7 +57,7 @@ def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
     grouped: dict[str, dict] = defaultdict(lambda: {'status': 'ok', 'suspended_networks': [], 'checked_at': None})
     for row in rows:
         item = grouped[row.exchange]
-        item['checked_at'] = row.recorded_at.isoformat() if row.recorded_at else None
+        item['checked_at'] = int(row.recorded_at.timestamp()) if row.recorded_at else None
         if row.status != 'ok':
             item['status'] = row.status
             item['suspended_networks'].append({

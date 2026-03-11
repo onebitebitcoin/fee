@@ -6,6 +6,7 @@ import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
+import { formatTs } from '../lib/formatTs';
 import type { CrawlRun } from '../types';
 
 export function RunsPage() {
@@ -66,11 +67,11 @@ export function RunsPage() {
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex items-start justify-between gap-3">
                 <span className="text-bnb-muted">시작</span>
-                <span className="text-right text-bnb-text">{item.started_at ?? '-'}</span>
+                <span className="text-right text-bnb-text">{formatTs(item.started_at)}</span>
               </div>
               <div className="flex items-start justify-between gap-3">
                 <span className="text-bnb-muted">완료</span>
-                <span className="text-right text-bnb-text">{item.completed_at ?? '-'}</span>
+                <span className="text-right text-bnb-text">{formatTs(item.completed_at)}</span>
               </div>
               <div className="border-t border-dark-200 pt-2 text-bnb-muted">{item.message ?? '-'}</div>
             </div>
@@ -95,8 +96,8 @@ export function RunsPage() {
                 <td className="px-4 py-3 font-mono text-xs text-bnb-muted">#{item.id}</td>
                 <td className="px-4 py-3 text-bnb-text">{item.trigger}</td>
                 <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
-                <td className="px-4 py-3 text-xs text-bnb-muted">{item.started_at ?? '-'}</td>
-                <td className="px-4 py-3 text-xs text-bnb-muted">{item.completed_at ?? '-'}</td>
+                <td className="px-4 py-3 text-xs text-bnb-muted">{formatTs(item.started_at)}</td>
+                <td className="px-4 py-3 text-xs text-bnb-muted">{formatTs(item.completed_at)}</td>
                 <td className="px-4 py-3 max-w-xs truncate text-xs text-bnb-muted" title={item.message ?? undefined}>{item.message ?? '-'}</td>
               </tr>
             ))}

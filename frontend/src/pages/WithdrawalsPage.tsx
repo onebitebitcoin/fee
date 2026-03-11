@@ -7,12 +7,13 @@ import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
+import { formatTs } from '../lib/formatTs';
 import type { CrawlErrorRow, LightningSwapFeeRow, WithdrawalRow } from '../types';
 
 type WithdrawalsPageData = {
   items: WithdrawalRow[];
   errors: CrawlErrorRow[];
-  latestScrapingTime: string | null;
+  latestScrapingTime: number | null;
 };
 
 type NodeGroup = {
@@ -111,7 +112,7 @@ export function WithdrawalsPage() {
         <div>
           <h2 className="text-lg font-semibold text-bnb-text">출금 수수료 현황</h2>
           {data.latestScrapingTime && (
-            <p className="mt-1 text-xs text-bnb-muted">최신 스크래핑: {data.latestScrapingTime}</p>
+            <p className="mt-1 text-xs text-bnb-muted">최신 스크래핑: {formatTs(data.latestScrapingTime)}</p>
           )}
         </div>
         <span className="text-sm text-bnb-muted">{filteredGroups.length}개 노드</span>

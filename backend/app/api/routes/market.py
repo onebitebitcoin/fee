@@ -16,7 +16,7 @@ def get_latest_tickers(db: Session = Depends(get_db)) -> dict:
         return {'last_run': None, 'items': []}
     rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id)
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
         'items': [
             {
                 'exchange': row.exchange,
@@ -55,8 +55,8 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
         errors = [row for row in errors if row.coin == coin.upper()]
     legacy_rows = [row for row in rows if row.source == 'official_docs']
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
-        'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
+        'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
         'items': [
             {
                 'exchange': row.exchange,
@@ -69,7 +69,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'enabled': row.enabled,
                 'note': row.note,
                 'source_url': get_withdrawal_source_url(row.exchange, row.coin, row.network_label),
-                'recorded_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'recorded_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
             }
             for row in rows
         ],
@@ -79,7 +79,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'coin': row.coin,
                 'stage': row.stage,
                 'error_message': row.error_message,
-                'created_at': row.created_at.isoformat() if row.created_at else None,
+                'created_at': int(row.created_at.timestamp()) if row.created_at else None,
             }
             for row in errors
         ] + [
@@ -88,7 +88,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'coin': row.coin,
                 'stage': 'withdrawal',
                 'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                'created_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
             }
             for row in legacy_rows
         ],
@@ -103,7 +103,7 @@ def get_latest_network_status(db: Session = Depends(get_db)) -> dict:
     rows = repositories.list_network_status_for_run(db, latest_run.id)
     grouped = repositories.group_network_status(rows)
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
         'exchanges': grouped,
         'total_suspended': sum(len(item['suspended_networks']) for item in grouped.values()),
     }
@@ -116,7 +116,7 @@ def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
         return {'last_run': None, 'items': []}
     rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id)
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
         'items': [
             {
                 'service_name': row.service_name,
@@ -127,7 +127,7 @@ def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
                 'enabled': row.enabled,
                 'source_url': row.source_url,
                 'error_message': row.error_message,
-                'recorded_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'recorded_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
             }
             for row in rows
         ],
@@ -151,7 +151,7 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
                 'coin': row.coin,
                 'stage': row.stage,
                 'error_message': row.error_message,
-                'created_at': row.created_at.isoformat() if row.created_at else None,
+                'created_at': int(row.created_at.timestamp()) if row.created_at else None,
             }
             for row in crawl_errors
             if row.stage in {'withdrawal', 'ticker'} and (
@@ -166,7 +166,7 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
                     'coin': row.coin,
                     'stage': 'withdrawal',
                     'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                    'created_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                    'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
                 }
                 for row in legacy_rows
             ])
@@ -174,8 +174,8 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
         return {
             'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
             'errors': blocking_errors,
-            'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run and latest_run.completed_at else None} if latest_run else None,
-            'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run and latest_run.completed_at else None,
+            'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
+            'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
         }
     return find_cheapest_path_from_snapshot_rows(
         amount_krw=amount_krw,
@@ -210,7 +210,7 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
                 'url': row.source_url,
                 'category': 'network_status',
                 'status': 'error' if has_error else 'ok',
-                'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'last_crawled_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
                 'error_message': error_stages.get((row.exchange, 'network_status')),
             })
 
@@ -224,7 +224,7 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
                 'url': row.source_url,
                 'category': 'lightning',
                 'status': 'error' if has_error else 'ok',
-                'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'last_crawled_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
                 'error_message': row.error_message,
             })
 
@@ -242,7 +242,7 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
                     'url': source_url,
                     'category': 'withdrawal',
                     'status': 'error' if has_error else 'ok',
-                    'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                    'last_crawled_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
                     'error_message': error_stages.get((row.exchange, 'withdrawal')),
                 })
 
@@ -250,7 +250,7 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
         'last_run': {
             'id': latest_run.id,
             'status': latest_run.status,
-            'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+            'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
         },
         'items': items,
     }

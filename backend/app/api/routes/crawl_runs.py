@@ -20,8 +20,8 @@ def list_runs(limit: int = 20, db: Session = Depends(get_db)) -> dict:
                 'status': row.status,
                 'message': row.message,
                 'usd_krw_rate': row.usd_krw_rate,
-                'started_at': row.started_at.isoformat() if row.started_at else None,
-                'completed_at': row.completed_at.isoformat() if row.completed_at else None,
+                'started_at': int(row.started_at.timestamp()) if row.started_at else None,
+                'completed_at': int(row.completed_at.timestamp()) if row.completed_at else None,
             }
             for row in runs
         ]
@@ -40,6 +40,6 @@ def trigger_crawl(db: Session = Depends(get_db)) -> dict:
         'status': result.status,
         'message': result.message,
         'usd_krw_rate': result.usd_krw_rate,
-        'started_at': result.started_at.isoformat() if result.started_at else None,
-        'completed_at': result.completed_at.isoformat() if result.completed_at else None,
+        'started_at': int(result.started_at.timestamp()) if result.started_at else None,
+        'completed_at': int(result.completed_at.timestamp()) if result.completed_at else None,
     }

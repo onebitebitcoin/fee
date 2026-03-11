@@ -4,8 +4,8 @@ export type CrawlRun = {
   status: string;
   message: string | null;
   usd_krw_rate?: number | null;
-  started_at: string | null;
-  completed_at: string | null;
+  started_at: number | null;
+  completed_at: number | null;
 };
 
 export type TickerRow = {
@@ -37,7 +37,7 @@ export type WithdrawalRow = {
   fee_krw?: number | null;
   enabled: boolean;
   note?: string | null;
-  recorded_at?: string | null;
+  recorded_at?: number | null;
 };
 
 export type CrawlErrorRow = {
@@ -60,7 +60,7 @@ export type SuspendedNetwork = {
 export type NetworkStatusMap = Record<string, {
   status: string;
   suspended_networks: SuspendedNetwork[];
-  checked_at?: string | null;
+  checked_at?: number | null;
 }>;
 
 export type CheapestPathFeeComponent = {
@@ -118,9 +118,9 @@ export type CheapestPathResponse = {
     global_exit_options: Array<{ mode: 'onchain' | 'lightning'; network: string }>;
     lightning_exit_providers: string[];
   };
-  maintenance_checked_at?: string | null;
+  maintenance_checked_at?: number | null;
   data_source?: string;
-  latest_scraping_time?: string | null;
+  latest_scraping_time?: number | null;
   last_run?: CrawlRun | null;
   lightning_swap_services?: string[];
   errors?: CrawlErrorRow[];
@@ -137,12 +137,12 @@ export type ScrapedPageStatus = {
   url: string;
   category: 'network_status' | 'withdrawal' | 'lightning';
   status: 'ok' | 'error';
-  last_crawled_at: string | null;
+  last_crawled_at: number | null;
   error_message: string | null;
 };
 
 export type ScrapeStatusResponse = {
-  last_run: { id: number; status: string; completed_at: string | null } | null;
+  last_run: { id: number; status: string; completed_at: number | null } | null;
   items: ScrapedPageStatus[];
 };
 
@@ -155,5 +155,5 @@ export type LightningSwapFeeRow = {
   enabled: boolean;
   source_url: string | null;
   error_message: string | null;
-  recorded_at: string | null;
+  recorded_at: number | null;
 };

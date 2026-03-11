@@ -8,6 +8,7 @@ import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
+import { formatTs } from '../lib/formatTs';
 import type { NetworkStatusMap, ScrapeStatusResponse } from '../types';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -48,7 +49,7 @@ export function NetworkStatusPage() {
                 <StatusBadge status={value.status} />
               </div>
               {value.checked_at && (
-                <p className="mt-1 text-xs text-bnb-muted">확인 시각: {value.checked_at}</p>
+                <p className="mt-1 text-xs text-bnb-muted">확인 시각: {formatTs(value.checked_at)}</p>
               )}
               {value.suspended_networks.length === 0 ? (
                 <div className="mt-3 flex items-center gap-2 text-sm text-bnb-green">
@@ -114,7 +115,7 @@ export function NetworkStatusPage() {
                   )}
                   {item.last_crawled_at && (
                     <p className="mt-0.5 text-xs text-bnb-muted">
-                      마지막 크롤링: {new Date(item.last_crawled_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+                      마지막 크롤링: {formatTs(item.last_crawled_at)}
                     </p>
                   )}
                   {item.error_message && (
