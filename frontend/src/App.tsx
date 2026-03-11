@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CheapestPathPage } from './pages/CheapestPathPage';
 import { NetworkStatusPage } from './pages/NetworkStatusPage';
-import { OverviewPage } from './pages/OverviewPage';
 import { RunsPage } from './pages/RunsPage';
 import { TickersPage } from './pages/TickersPage';
 import { WithdrawalsPage } from './pages/WithdrawalsPage';
@@ -15,7 +14,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
-        <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/overview" element={<Navigate to={DEFAULT_ROUTE} replace />} />
         <Route path="/cheapest-path" element={<CheapestPathPage />} />
         <Route path="/tickers" element={<TickersPage />} />
         <Route path="/withdrawals" element={<WithdrawalsPage />} />

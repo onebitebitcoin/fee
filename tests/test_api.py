@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.app.db.base import Base
-from backend.app.db.models import CrawlRun, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlRun, LightningSwapFeeSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.session import get_db
 from backend.app.main import app
 
@@ -89,6 +89,18 @@ def test_cheapest_path_uses_latest_snapshot_data():
         WithdrawalFeeSnapshot(
             crawl_run_id=crawl_run.id,
             exchange='upbit',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Bitcoin',
+            fee=0.0001,
+            fee_usd=7.0,
+            fee_krw=10000.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
             coin='USDT',
             source='scraped_page',
             network_label='TRC20',
@@ -97,6 +109,40 @@ def test_cheapest_path_uses_latest_snapshot_data():
             fee_krw=12600.0,
             enabled=True,
             note='snapshot value',
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Bitcoin',
+            fee=0.00001,
+            fee_usd=0.7,
+            fee_krw=1000.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Lightning Network',
+            fee=0.000001,
+            fee_usd=0.07,
+            fee_krw=100.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+        LightningSwapFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            service_name='Bitfreezer',
+            fee_pct=0.39,
+            fee_fixed_sat=0,
+            min_amount_sat=1,
+            max_amount_sat=1_000_000_000,
+            enabled=True,
+            source_url='https://bitfreezer.com',
         ),
     ])
     db.commit()
@@ -108,9 +154,20 @@ def test_cheapest_path_uses_latest_snapshot_data():
     assert response.status_code == 200
     payload = response.json()
     assert payload['data_source'] == 'latest_snapshot'
-    assert payload['best_path']['network'] == 'TRC20'
-    assert payload['best_path']['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
-    assert payload['best_path']['breakdown']['components'][1]['amount_krw'] == 12600
+    assert payload['best_path']['path_id']
+    assert payload['best_path']['domestic_withdrawal_network'] == 'Bitcoin'
+    assert payload['best_path']['global_exit_mode'] == 'onchain'
+    assert payload['best_path']['global_exit_network'] == 'Bitcoin'
+    assert payload['available_filters']['domestic_withdrawal_networks'] == ['Bitcoin', 'TRC20']
+    assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
+    assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
+    assert 'Bitfreezer' in payload['available_filters']['lightning_exit_providers']
+    usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
+    assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
+    assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
+    lightning_paths = [path for path in payload['all_paths'] if path.get('path_type') == 'lightning_exit']
+    assert lightning_paths
+    assert all(path.get('lightning_exit_provider') for path in lightning_paths)
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)

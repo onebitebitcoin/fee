@@ -7,6 +7,7 @@ Lightning Network 스왑 서비스 실시간 수수료 스크래퍼
   - Bitfreezer (bitfreezer.com): 웹 스크래핑
   - Wallet of Satoshi (walletofsatoshi.com): 웹 스크래핑 / 고정 수수료
   - Strike (strike.me): 공개 API 사용
+  - Oksusu / Corn Wallet (team.oksu.su): 공식 사이트 스크래핑 / 고정 수수료
 
 각 함수 반환 형식:
   {
@@ -23,6 +24,7 @@ Lightning Network 스왑 서비스 실시간 수수료 스크래퍼
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
@@ -311,6 +313,49 @@ def fetch_strike_fees() -> dict:
     }
 
 
+def fetch_oksusu_fees() -> dict:
+    """
+    Oksusu / Corn Wallet Lightning → on-chain 출금 수수료 조회.
+    공식 사이트(team.oksu.su/ko)의 공개 안내 문구를 스크래핑한다.
+    2026-03 기준 공개 페이지에는 온체인 스왑/출금 수수료 0.49%가 표기되어 있고,
+    fee 전용 공개 API는 확인되지 않았다.
+    """
+    service_name = 'Oksusu'
+    source_url = 'https://team.oksu.su/ko'
+    static_fee_pct = 0.49
+    static_error = '공식 사이트 정적 검증값 (공개 fee API 미확인, team.oksu.su/ko 기준 0.49%)'
+    try:
+        resp = requests.get(source_url, headers={**_HEADERS, 'Accept': 'text/html'}, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        text = resp.text
+        match = re.search(r'온체인[^\d]{0,40}(\d+(?:\.\d+)?)\s*%', text)
+        if not match:
+            match = re.search(r'(\d+(?:\.\d+)?)\s*%[^\n<]{0,80}온체인', text)
+        fee_pct = float(match.group(1)) if match else static_fee_pct
+        return {
+            'service_name': service_name,
+            'fee_pct': fee_pct,
+            'fee_fixed_sat': 0,
+            'min_amount_sat': 1_000,
+            'max_amount_sat': 100_000_000,
+            'enabled': True,
+            'source_url': source_url,
+            'error': None if match else static_error,
+        }
+    except Exception as exc:
+        logger.warning('Oksusu 수수료 조회 실패: %s', exc)
+        return {
+            'service_name': service_name,
+            'fee_pct': static_fee_pct,
+            'fee_fixed_sat': 0,
+            'min_amount_sat': 1_000,
+            'max_amount_sat': 100_000_000,
+            'enabled': True,
+            'source_url': source_url,
+            'error': static_error,
+        }
+
+
 def fetch_boltz_submarine_fees() -> dict:
     """
     Boltz Exchange 잠수함 스왑(submarine swap) 수수료 조회.
@@ -373,6 +418,7 @@ def get_all_lightning_swap_fees() -> list[dict]:
         fetch_bitfreezer_fees,
         fetch_wos_fees,
         fetch_strike_fees,
+        fetch_oksusu_fees,
     ]
 
     results = []

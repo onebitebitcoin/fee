@@ -12,10 +12,6 @@ vi.mock('./pages/CheapestPathPage', () => ({
   CheapestPathPage: () => <h1>최적 경로 페이지</h1>,
 }));
 
-vi.mock('./pages/OverviewPage', () => ({
-  OverviewPage: () => <h1>개요 페이지</h1>,
-}));
-
 vi.mock('./pages/TickersPage', () => ({
   TickersPage: () => <h1>시세 페이지</h1>,
 }));
@@ -46,6 +42,16 @@ describe('App routing', () => {
   it('redirects unknown paths to /cheapest-path', async () => {
     render(
       <MemoryRouter initialEntries={['/missing']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: '최적 경로 페이지' })).toBeInTheDocument();
+  });
+
+  it('redirects legacy /overview to /cheapest-path', async () => {
+    render(
+      <MemoryRouter initialEntries={['/overview']}>
         <App />
       </MemoryRouter>,
     );

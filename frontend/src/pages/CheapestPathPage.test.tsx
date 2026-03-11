@@ -16,10 +16,22 @@ vi.mock('../lib/api', () => ({
       data_source: 'test-fixture',
       latest_scraping_time: '2026-03-10T00:00:00',
       maintenance_checked_at: '2026-03-10T00:00:00',
+      available_filters: {
+        domestic_withdrawal_networks: ['Bitcoin', 'TRC20'],
+        global_exit_options: [
+          { mode: 'onchain', network: 'Bitcoin' },
+          { mode: 'lightning', network: 'Lightning Network' },
+        ],
+        lightning_exit_providers: ['Bitfreezer'],
+      },
       best_path: {
+        path_id: 'cheap1-trc20-onchain',
         korean_exchange: 'cheap1',
         transfer_coin: 'USDT',
         network: 'TRC20',
+        domestic_withdrawal_network: 'TRC20',
+        global_exit_mode: 'onchain',
+        global_exit_network: 'Bitcoin',
         btc_received: 0.0088,
         btc_received_usd: 836,
         total_fee_krw: 2000,
@@ -35,9 +47,13 @@ vi.mock('../lib/api', () => ({
       top5: [],
       all_paths: [
         {
+          path_id: 'highbtc-bitcoin-onchain',
           korean_exchange: 'highbtc',
           transfer_coin: 'BTC',
           network: 'Bitcoin',
+          domestic_withdrawal_network: 'Bitcoin',
+          global_exit_mode: 'onchain',
+          global_exit_network: 'Bitcoin',
           btc_received: 0.0099,
           btc_received_usd: 940,
           total_fee_krw: 9000,
@@ -45,9 +61,13 @@ vi.mock('../lib/api', () => ({
           breakdown: { total_fee_krw: 9000, components: [{ label: '국내 매수 수수료', amount_krw: 3000, rate_pct: 0.3 }] },
         },
         {
+          path_id: 'cheap1-trc20-onchain',
           korean_exchange: 'cheap1',
           transfer_coin: 'USDT',
           network: 'TRC20',
+          domestic_withdrawal_network: 'TRC20',
+          global_exit_mode: 'onchain',
+          global_exit_network: 'Bitcoin',
           btc_received: 0.0088,
           btc_received_usd: 836,
           total_fee_krw: 2000,
@@ -61,9 +81,15 @@ vi.mock('../lib/api', () => ({
           },
         },
         {
+          path_id: 'cheap2-trc20-lightning',
           korean_exchange: 'cheap2',
           transfer_coin: 'USDT',
           network: 'TRC20',
+          domestic_withdrawal_network: 'TRC20',
+          global_exit_mode: 'lightning',
+          global_exit_network: 'Lightning Network',
+          lightning_exit_provider: 'Bitfreezer',
+          path_type: 'lightning_exit',
           btc_received: 0.0087,
           btc_received_usd: 827,
           total_fee_krw: 2500,
@@ -71,9 +97,13 @@ vi.mock('../lib/api', () => ({
           breakdown: { total_fee_krw: 2500, components: [{ label: '국내 매수 수수료', amount_krw: 700, rate_pct: 0.07 }] },
         },
         {
+          path_id: 'mid1-bitcoin-onchain',
           korean_exchange: 'mid1',
           transfer_coin: 'BTC',
           network: 'Bitcoin',
+          domestic_withdrawal_network: 'Bitcoin',
+          global_exit_mode: 'onchain',
+          global_exit_network: 'Bitcoin',
           btc_received: 0.0091,
           btc_received_usd: 864,
           total_fee_krw: 5000,
@@ -81,9 +111,13 @@ vi.mock('../lib/api', () => ({
           breakdown: { total_fee_krw: 5000, components: [{ label: '국내 매수 수수료', amount_krw: 2000, rate_pct: 0.2 }] },
         },
         {
+          path_id: 'mid2-bitcoin-onchain',
           korean_exchange: 'mid2',
           transfer_coin: 'BTC',
           network: 'Bitcoin',
+          domestic_withdrawal_network: 'Bitcoin',
+          global_exit_mode: 'onchain',
+          global_exit_network: 'Bitcoin',
           btc_received: 0.009,
           btc_received_usd: 855,
           total_fee_krw: 6000,
@@ -91,9 +125,13 @@ vi.mock('../lib/api', () => ({
           breakdown: { total_fee_krw: 6000, components: [{ label: '국내 매수 수수료', amount_krw: 2500, rate_pct: 0.25 }] },
         },
         {
+          path_id: 'expensive-bitcoin-onchain',
           korean_exchange: 'expensive',
           transfer_coin: 'BTC',
           network: 'Bitcoin',
+          domestic_withdrawal_network: 'Bitcoin',
+          global_exit_mode: 'onchain',
+          global_exit_network: 'Bitcoin',
           btc_received: 0.008,
           btc_received_usd: 760,
           total_fee_krw: 12000,
@@ -122,7 +160,7 @@ describe('CheapestPathPage', () => {
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
   });
 
-  it('filters routes by network on mobile-friendly controls', async () => {
+  it('filters routes by explicit path dimensions', async () => {
     const user = userEvent.setup();
 
     render(
@@ -138,6 +176,9 @@ describe('CheapestPathPage', () => {
 
     await user.click(screen.getByRole('button', { name: /TRC20/i }));
     expect(screen.getByText('6/6개')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Lightning · Lightning Network/i }));
+    expect(screen.getByText('5/6개')).toBeInTheDocument();
   });
 
   it('updates the selected route detail when a route is chosen', async () => {

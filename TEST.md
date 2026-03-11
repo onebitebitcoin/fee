@@ -8,9 +8,9 @@
 - `fee_checker.py` exported functions/constants used by tests remain import-compatible
 
 ## Frontend 회귀 기준
-- `/` overview page renders metrics and manual crawl action states
-- `/cheapest-path` renders best path, table, and sorting behavior
-- existing routes keep rendering without URL changes
+- `/` and `/overview` converge to `/cheapest-path`
+- `/cheapest-path` renders best path, multi-filter controls, and route detail behavior
+- existing non-overview routes keep rendering without URL changes
 - loading / error / success UI behavior remains intact
 
 ## Build / Quality 기준

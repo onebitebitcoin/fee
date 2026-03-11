@@ -77,9 +77,14 @@ export type CheapestPathBreakdown = {
 };
 
 export type CheapestPathEntry = {
+  path_id: string;
   korean_exchange: string;
   transfer_coin: string;
   network: string;
+  domestic_withdrawal_network: string;
+  global_exit_mode: 'onchain' | 'lightning';
+  global_exit_network: string;
+  lightning_exit_provider?: string | null;
   path_type?: 'lightning_exit' | null;
   swap_service?: string | null;
   btc_received: number;
@@ -108,10 +113,16 @@ export type CheapestPathResponse = {
   top5: CheapestPathEntry[];
   all_paths: CheapestPathEntry[];
   disabled_paths: DisabledCheapestPathEntry[];
+  available_filters: {
+    domestic_withdrawal_networks: string[];
+    global_exit_options: Array<{ mode: 'onchain' | 'lightning'; network: string }>;
+    lightning_exit_providers: string[];
+  };
   maintenance_checked_at?: string | null;
   data_source?: string;
   latest_scraping_time?: string | null;
   last_run?: CrawlRun | null;
+  lightning_swap_services?: string[];
   errors?: CrawlErrorRow[];
   error?: string;
 };

@@ -7,26 +7,6 @@ import type {
   WithdrawalRow,
 } from '../types';
 
-export type OverviewResponse = {
-  last_run: CrawlRun | null;
-  counts: {
-    tickers: number;
-    withdrawal_rows: number;
-    suspended_networks: number;
-  };
-  usd_krw_rate: number | null;
-  ticker_highlights: {
-    krw_lowest?: { exchange: string; price: number } | null;
-    krw_highest?: { exchange: string; price: number } | null;
-    usd_lowest?: { exchange: string; price: number } | null;
-    usd_highest?: { exchange: string; price: number } | null;
-  };
-  available_exchanges?: {
-    korea?: string[];
-    global?: string[];
-  };
-};
-
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -39,7 +19,6 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getOverview: (): Promise<OverviewResponse> => request('/api/v1/market/overview'),
   getTickers: (): Promise<{ last_run: CrawlRun | null; items: TickerRow[] }> => request('/api/v1/market/tickers/latest'),
   getWithdrawals: (): Promise<{ last_run: CrawlRun | null; latest_scraping_time?: string | null; items: WithdrawalRow[]; errors?: CrawlErrorRow[] }> =>
     request('/api/v1/market/withdrawal-fees/latest'),

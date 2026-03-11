@@ -1,8 +1,7 @@
-import { Globe, History, Home, Network, Route } from 'lucide-react';
+import { Globe, History, Network, Route } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/overview', label: '개요', icon: Home },
   { to: '/cheapest-path', label: '최적 경로', icon: Route },
   { to: '/withdrawals', label: '출금 수수료', icon: Globe },
   { to: '/network-status', label: '네트워크', icon: Network },
@@ -52,7 +51,7 @@ export function Layout() {
         <Outlet />
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-dark-200 bg-dark-400/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-7xl grid-cols-5">
+        <div className="mx-auto grid max-w-7xl grid-cols-4">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

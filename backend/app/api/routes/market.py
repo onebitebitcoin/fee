@@ -3,16 +3,10 @@ from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
 from backend.app.db.session import get_db
-from backend.app.services.dashboard_service import build_overview
 from backend.app.services.live_market import find_cheapest_path_from_snapshot_rows
 from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
-
-
-@router.get('/overview')
-def get_overview(db: Session = Depends(get_db)) -> dict:
-    return build_overview(db)
 
 
 @router.get('/tickers/latest')

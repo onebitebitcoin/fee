@@ -16,6 +16,73 @@ from backend.app.domain.market_core import (
 )
 
 
+def _slug_path_part(value: str | None) -> str:
+    raw = (value or 'na').strip().lower()
+    parts = []
+    prev_dash = False
+    for char in raw:
+        if char.isalnum():
+            parts.append(char)
+            prev_dash = False
+        elif not prev_dash:
+            parts.append('-')
+            prev_dash = True
+    return ''.join(parts).strip('-') or 'na'
+
+
+def _build_path_id(
+    *,
+    global_exchange: str,
+    korean_exchange: str,
+    transfer_coin: str,
+    domestic_withdrawal_network: str | None,
+    global_exit_mode: str | None,
+    global_exit_network: str | None,
+    lightning_exit_provider: str | None,
+) -> str:
+    return '__'.join([
+        _slug_path_part(global_exchange),
+        _slug_path_part(korean_exchange),
+        _slug_path_part(transfer_coin),
+        _slug_path_part(domestic_withdrawal_network),
+        _slug_path_part(global_exit_mode),
+        _slug_path_part(global_exit_network),
+        _slug_path_part(lightning_exit_provider or 'none'),
+    ])
+
+
+def _build_available_filters(paths: list[dict]) -> dict:
+    domestic_networks = sorted({
+        path['domestic_withdrawal_network']
+        for path in paths
+        if path.get('domestic_withdrawal_network')
+    })
+    global_exit_options = sorted(
+        {
+            (
+                path.get('global_exit_mode'),
+                path.get('global_exit_network'),
+            )
+            for path in paths
+            if path.get('global_exit_mode') and path.get('global_exit_network')
+        },
+        key=lambda item: (item[0] or '', item[1] or ''),
+    )
+    lightning_exit_providers = sorted({
+        path['lightning_exit_provider']
+        for path in paths
+        if path.get('lightning_exit_provider')
+    })
+    return {
+        'domestic_withdrawal_networks': domestic_networks,
+        'global_exit_options': [
+            {'mode': mode, 'network': network}
+            for mode, network in global_exit_options
+        ],
+        'lightning_exit_providers': lightning_exit_providers,
+    }
+
+
 def compare_btc_prices(exchanges: str = 'all') -> dict:
     if exchanges == 'all':
         targets = GROUPS['korea'] + GROUPS['global']
@@ -285,6 +352,19 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                         'korean_exchange': exchange,
                         'transfer_coin': 'BTC',
                         'network': network['label'],
+                        'domestic_withdrawal_network': network['label'],
+                        'global_exit_mode': 'onchain',
+                        'global_exit_network': network['label'],
+                        'lightning_exit_provider': None,
+                        'path_id': _build_path_id(
+                            global_exchange=global_exchange,
+                            korean_exchange=exchange,
+                            transfer_coin='BTC',
+                            domestic_withdrawal_network=network['label'],
+                            global_exit_mode='onchain',
+                            global_exit_network=network['label'],
+                            lightning_exit_provider=None,
+                        ),
                         'btc_received': round(btc_received, 8),
                         'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                         'total_fee_krw': total_fee_krw,
@@ -326,6 +406,19 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                         'korean_exchange': exchange,
                         'transfer_coin': 'USDT',
                         'network': network['label'],
+                        'domestic_withdrawal_network': network['label'],
+                        'global_exit_mode': 'onchain',
+                        'global_exit_network': 'Bitcoin',
+                        'lightning_exit_provider': None,
+                        'path_id': _build_path_id(
+                            global_exchange=global_exchange,
+                            korean_exchange=exchange,
+                            transfer_coin='USDT',
+                            domestic_withdrawal_network=network['label'],
+                            global_exit_mode='onchain',
+                            global_exit_network='Bitcoin',
+                            lightning_exit_provider=None,
+                        ),
                         'btc_received': round(btc_received, 8),
                         'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                         'total_fee_krw': total_fee_krw,
@@ -354,6 +447,7 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
             'all_paths': paths,
             'disabled_paths': disabled_paths,
             'maintenance_checked_at': maintenance_checked_at,
+            'available_filters': _build_available_filters(paths),
         }
     except Exception as exc:
         return {'error': str(exc)}
@@ -417,6 +511,7 @@ def find_cheapest_path_from_snapshot_rows(
     _global_btc_wds = withdrawals_by_key.get((global_exchange, 'BTC'), [])
     global_onchain_wd_fee: float | None = None
     global_onchain_wd_fee_krw: int = 0
+    global_onchain_network_label: str | None = None
     for _wd in _global_btc_wds:
         label_lower = (_wd.network_label or '').lower()
         is_bitcoin_native = ('bitcoin' in label_lower or 'btc' in label_lower) and 'lightning' not in label_lower
@@ -424,6 +519,7 @@ def find_cheapest_path_from_snapshot_rows(
         if _wd.enabled and _wd.fee is not None and is_bitcoin_native and not is_non_btc_chain:
             global_onchain_wd_fee = _wd.fee
             global_onchain_wd_fee_krw = int(round(_wd.fee_krw)) if _wd.fee_krw is not None else round(_wd.fee * global_btc_price_usd * float(usd_krw_rate))
+            global_onchain_network_label = _wd.network_label
             break
 
     maintenance_status: dict[str, list[dict]] = {}
@@ -468,6 +564,19 @@ def find_cheapest_path_from_snapshot_rows(
                 'korean_exchange': exchange,
                 'transfer_coin': 'BTC',
                 'network': row.network_label,
+                'domestic_withdrawal_network': row.network_label,
+                'global_exit_mode': 'onchain',
+                'global_exit_network': row.network_label,
+                'lightning_exit_provider': None,
+                'path_id': _build_path_id(
+                    global_exchange=global_exchange,
+                    korean_exchange=exchange,
+                    transfer_coin='BTC',
+                    domestic_withdrawal_network=row.network_label,
+                    global_exit_mode='onchain',
+                    global_exit_network=row.network_label,
+                    lightning_exit_provider=None,
+                ),
                 'btc_received': round(btc_received, 8),
                 'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                 'total_fee_krw': total_fee_krw,
@@ -524,6 +633,19 @@ def find_cheapest_path_from_snapshot_rows(
                 'korean_exchange': exchange,
                 'transfer_coin': 'USDT',
                 'network': row.network_label,
+                'domestic_withdrawal_network': row.network_label,
+                'global_exit_mode': 'onchain',
+                'global_exit_network': global_onchain_network_label or 'Bitcoin',
+                'lightning_exit_provider': None,
+                'path_id': _build_path_id(
+                    global_exchange=global_exchange,
+                    korean_exchange=exchange,
+                    transfer_coin='USDT',
+                    domestic_withdrawal_network=row.network_label,
+                    global_exit_mode='onchain',
+                    global_exit_network=global_onchain_network_label or 'Bitcoin',
+                    lightning_exit_provider=None,
+                ),
                 'btc_received': round(btc_received, 8),
                 'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                 'total_fee_krw': total_fee_krw,
@@ -601,6 +723,19 @@ def find_cheapest_path_from_snapshot_rows(
                         'network': row.network_label,
                         'path_type': 'lightning_exit',
                         'swap_service': swap.service_name,
+                        'domestic_withdrawal_network': row.network_label,
+                        'global_exit_mode': 'lightning',
+                        'global_exit_network': 'Lightning Network',
+                        'lightning_exit_provider': swap.service_name,
+                        'path_id': _build_path_id(
+                            global_exchange=global_exchange,
+                            korean_exchange=exchange,
+                            transfer_coin='BTC',
+                            domestic_withdrawal_network=row.network_label,
+                            global_exit_mode='lightning',
+                            global_exit_network='Lightning Network',
+                            lightning_exit_provider=swap.service_name,
+                        ),
                         'btc_received': round(btc_received, 8),
                         'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                         'total_fee_krw': total_fee_krw,
@@ -668,6 +803,19 @@ def find_cheapest_path_from_snapshot_rows(
                         'network': row.network_label,
                         'path_type': 'lightning_exit',
                         'swap_service': swap.service_name,
+                        'domestic_withdrawal_network': row.network_label,
+                        'global_exit_mode': 'lightning',
+                        'global_exit_network': global_ln_wd_row.network_label if global_ln_wd_row else 'Lightning Network',
+                        'lightning_exit_provider': swap.service_name,
+                        'path_id': _build_path_id(
+                            global_exchange=global_exchange,
+                            korean_exchange=exchange,
+                            transfer_coin='USDT',
+                            domestic_withdrawal_network=row.network_label,
+                            global_exit_mode='lightning',
+                            global_exit_network=global_ln_wd_row.network_label if global_ln_wd_row else 'Lightning Network',
+                            lightning_exit_provider=swap.service_name,
+                        ),
                         'btc_received': round(btc_received, 8),
                         'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                         'total_fee_krw': total_fee_krw,
@@ -692,6 +840,7 @@ def find_cheapest_path_from_snapshot_rows(
         'top5': paths[:5],
         'all_paths': paths,
         'disabled_paths': disabled_paths,
+        'available_filters': _build_available_filters(paths),
         'maintenance_checked_at': maintenance_checked_at,
         'data_source': 'latest_snapshot',
         'latest_scraping_time': latest_run.completed_at.isoformat() if latest_run.completed_at else None,

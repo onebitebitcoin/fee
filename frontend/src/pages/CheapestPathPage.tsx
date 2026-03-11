@@ -162,7 +162,13 @@ function RouteDetailPopup({
             <div className="border-b border-dark-200 p-4">
               <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
               <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
-              <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.network}</p>
+              <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.domestic_withdrawal_network}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">
+                {selectedRoute.path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {selectedRoute.path.global_exit_network}
+              </p>
+              {selectedRoute.path.lightning_exit_provider ? (
+                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.lightning_exit_provider}</p>
+              ) : null}
             </div>
             <div className="border-b border-dark-200 p-4">
               <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
@@ -228,7 +234,7 @@ function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | nu
 export function CheapestPathPage() {
   const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
   const [globalExchange] = useState('binance');
-  const [selectedKoreanExchange, setSelectedKoreanExchange] = useState('');
+  const [selectedPathId, setSelectedPathId] = useState('');
   const [data, setData] = useState<CheapestPathResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -236,7 +242,9 @@ export function CheapestPathPage() {
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
 
   // Table filters
-  const [excludedNetworks, setExcludedNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
+  const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
+  const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
+  const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
 
   const load = useCallback(async (requestParams: { amountKrw: number; globalExchange: string }) => {
     try {
@@ -264,43 +272,51 @@ export function CheapestPathPage() {
 
   const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? []) : []), [data]);
 
-  const availableKoreanExchanges = useMemo(
-    () => (data ? Array.from(new Set((data.all_paths ?? []).map((item) => item.korean_exchange))) : []),
-    [data],
+  const allDomesticNetworks = useMemo(
+    () => data?.available_filters?.domestic_withdrawal_networks ?? Array.from(new Set(rankedPaths.map((p) => p.domestic_withdrawal_network))).sort(),
+    [data?.available_filters?.domestic_withdrawal_networks, rankedPaths],
   );
-
-  const allNetworks = useMemo(
-    () => Array.from(new Set(rankedPaths.map((p) => p.network))).sort(),
-    [rankedPaths],
+  const allGlobalExitOptions = useMemo(
+    () => data?.available_filters?.global_exit_options ?? Array.from(new Set(rankedPaths.map((p) => `${p.global_exit_mode}::${p.global_exit_network}`))).sort().map((value) => {
+      const [mode, network] = value.split('::');
+      return { mode: mode as 'onchain' | 'lightning', network };
+    }),
+    [data?.available_filters?.global_exit_options, rankedPaths],
+  );
+  const allLightningProviders = useMemo(
+    () => data?.available_filters?.lightning_exit_providers ?? Array.from(new Set(rankedPaths.map((p) => p.lightning_exit_provider).filter(Boolean))).sort() as string[],
+    [data?.available_filters?.lightning_exit_providers, rankedPaths],
   );
 
   const filteredPaths = useMemo(() => {
-    return rankedPaths.filter((path) => !excludedNetworks.includes(path.network));
-  }, [rankedPaths, excludedNetworks]);
+    return rankedPaths.filter((path) => {
+      const globalExitKey = `${path.global_exit_mode}::${path.global_exit_network}`;
+      if (excludedDomesticNetworks.includes(path.domestic_withdrawal_network)) return false;
+      if (excludedGlobalExitOptions.includes(globalExitKey)) return false;
+      if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
+      return true;
+    });
+  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, rankedPaths]);
 
   const selectedRoute = useMemo(() => {
-    if (!data || !selectedKoreanExchange) return null;
-    const found = rankedPaths.find((item) => item.korean_exchange === selectedKoreanExchange);
+    if (!data || !selectedPathId) return null;
+    const found = filteredPaths.find((item) => item.path_id === selectedPathId) ?? rankedPaths.find((item) => item.path_id === selectedPathId);
     if (!found) return null;
     return { rank: found.rank, path: found };
-  }, [data, rankedPaths, selectedKoreanExchange]);
+  }, [data, filteredPaths, rankedPaths, selectedPathId]);
 
   useEffect(() => {
-    if (!selectedKoreanExchange) return;
-    if (!availableKoreanExchanges.includes(selectedKoreanExchange)) {
-      setSelectedKoreanExchange('');
+    if (!selectedPathId) return;
+    if (!filteredPaths.some((path) => path.path_id === selectedPathId)) {
+      setSelectedPathId('');
     }
-  }, [availableKoreanExchanges, selectedKoreanExchange]);
+  }, [filteredPaths, selectedPathId]);
 
   useEffect(() => {
-    if (availableKoreanExchanges.length === 0) return;
-    if (selectedKoreanExchange && availableKoreanExchanges.includes(selectedKoreanExchange)) return;
-    const preferredExchange =
-      data?.best_path?.korean_exchange && availableKoreanExchanges.includes(data.best_path.korean_exchange)
-        ? data.best_path.korean_exchange
-        : availableKoreanExchanges[0];
-    setSelectedKoreanExchange(preferredExchange);
-  }, [availableKoreanExchanges, data?.best_path?.korean_exchange, selectedKoreanExchange]);
+    if (filteredPaths.length === 0) return;
+    if (selectedPathId && filteredPaths.some((path) => path.path_id === selectedPathId)) return;
+    setSelectedPathId(filteredPaths.some((path) => path.path_id === data?.best_path?.path_id) ? data!.best_path!.path_id : filteredPaths[0].path_id);
+  }, [data, filteredPaths, selectedPathId]);
 
   useEffect(() => {
     if (mobileRouteDetailOpen && !selectedRoute) {
@@ -317,14 +333,27 @@ export function CheapestPathPage() {
     });
   };
 
-  const toggleNetwork = (network: string) => {
-    setExcludedNetworks((prev) =>
+  const toggleDomesticNetwork = (network: string) => {
+    setExcludedDomesticNetworks((prev) =>
       prev.includes(network) ? prev.filter((n) => n !== network) : [...prev, network],
     );
   };
 
-  const openMobileRouteDetail = (exchange: string) => {
-    setSelectedKoreanExchange(exchange);
+  const toggleGlobalExitOption = (mode: 'onchain' | 'lightning', network: string) => {
+    const key = `${mode}::${network}`;
+    setExcludedGlobalExitOptions((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    );
+  };
+
+  const toggleLightningProvider = (provider: string) => {
+    setExcludedLightningProviders((prev) =>
+      prev.includes(provider) ? prev.filter((item) => item !== provider) : [...prev, provider],
+    );
+  };
+
+  const openMobileRouteDetail = (pathId: string) => {
+    setSelectedPathId(pathId);
     setMobileRouteDetailOpen(true);
   };
 
@@ -438,7 +467,13 @@ export function CheapestPathPage() {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
                       <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.transfer_coin}</span>
-                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.network}</span>
+                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.domestic_withdrawal_network}</span>
+                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">
+                        {data.best_path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {data.best_path.global_exit_network}
+                      </span>
+                      {data.best_path.lightning_exit_provider ? (
+                        <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.lightning_exit_provider}</span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -487,17 +522,17 @@ export function CheapestPathPage() {
             {/* Filter Bar */}
             <div className="space-y-3 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-                {/* 네트워크 토글 */}
+                {/* 국내 출금 네트워크 토글 */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">네트워크</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">국내 출금</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {allNetworks.map((network) => {
-                      const excluded = excludedNetworks.includes(network);
+                    {allDomesticNetworks.map((network) => {
+                      const excluded = excludedDomesticNetworks.includes(network);
                       return (
                         <button
                           key={network}
                           type="button"
-                          onClick={() => toggleNetwork(network)}
+                          onClick={() => toggleDomesticNetwork(network)}
                           className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
                             excluded
                               ? 'border-bnb-red/30 bg-bnb-red/5 text-bnb-red/50 hover:bg-bnb-red/10'
@@ -512,6 +547,57 @@ export function CheapestPathPage() {
                   </div>
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">글로벌 출금</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allGlobalExitOptions.map((option) => {
+                      const key = `${option.mode}::${option.network}`;
+                      const excluded = excludedGlobalExitOptions.includes(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => toggleGlobalExitOption(option.mode, option.network)}
+                          className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
+                            excluded
+                              ? 'border-bnb-red/30 bg-bnb-red/5 text-bnb-red/50 hover:bg-bnb-red/10'
+                              : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
+                          }`}
+                        >
+                          {option.mode === 'lightning' ? 'Lightning' : 'On-chain'} · {option.network}
+                          {excluded && <span className="ml-1 normal-case tracking-normal opacity-60">비활성</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {allLightningProviders.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">LN 제공자</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allLightningProviders.map((provider) => {
+                        const excluded = excludedLightningProviders.includes(provider);
+                        return (
+                          <button
+                            key={provider}
+                            type="button"
+                            onClick={() => toggleLightningProvider(provider)}
+                            className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
+                              excluded
+                                ? 'border-bnb-red/30 bg-bnb-red/5 text-bnb-red/50 hover:bg-bnb-red/10'
+                                : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
+                            }`}
+                          >
+                            {provider}
+                            {excluded && <span className="ml-1 normal-case tracking-normal opacity-60">비활성</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* 결과 수 */}
                 <div className="text-[11px] uppercase tracking-[0.2em] text-bnb-muted sm:ml-auto">
                   {filteredPaths.length}/{rankedPaths.length}개
@@ -522,10 +608,10 @@ export function CheapestPathPage() {
             <div className="divide-y divide-dark-200 md:hidden">
               {filteredPaths.map((path) => {
                 const status = getRouteStatus(path.rank, path.fee_pct);
-                const isHighlighted = selectedKoreanExchange === path.korean_exchange;
+                const isHighlighted = selectedPathId === path.path_id;
                 return (
                   <article
-                    key={`mobile-${path.korean_exchange}-${path.transfer_coin}-${path.network}`}
+                    key={`mobile-${path.path_id}`}
                     className={`space-y-4 p-4 ${isHighlighted ? 'bg-brand-500/10' : 'bg-dark-500'}`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -536,7 +622,7 @@ export function CheapestPathPage() {
                           </span>
                           <button
                             type="button"
-                            onClick={() => setSelectedKoreanExchange(path.korean_exchange)}
+                            onClick={() => setSelectedPathId(path.path_id)}
                             className="text-left text-base font-semibold text-bnb-text"
                             aria-label={`${fmtEx(path.korean_exchange)} 경로 선택`}
                           >
@@ -549,13 +635,16 @@ export function CheapestPathPage() {
                         <div className="flex flex-wrap items-center gap-1.5 text-sm text-bnb-muted">
                           <span>{path.transfer_coin}</span>
                           <span>·</span>
-                          <span>{path.network}</span>
+                          <span>{path.domestic_withdrawal_network}</span>
+                          <span>→</span>
+                          <span>{path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {path.global_exit_network}</span>
                           {path.path_type === 'lightning_exit' ? (
                             <span className="inline-flex items-center gap-0.5 border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-400">
                               <Zap size={9} />
                               LN
                             </span>
                           ) : null}
+                          {path.lightning_exit_provider ? <span>· {path.lightning_exit_provider}</span> : null}
                         </div>
                       </div>
                       <div className="text-right">
@@ -577,7 +666,7 @@ export function CheapestPathPage() {
                       <FeeBreakdownRow breakdown={path.breakdown} />
                       <button
                         type="button"
-                        onClick={() => openMobileRouteDetail(path.korean_exchange)}
+                        onClick={() => openMobileRouteDetail(path.path_id)}
                         className="inline-flex items-center justify-center border border-brand-500/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-400 transition-colors hover:bg-brand-500/10"
                         aria-label={`${fmtEx(path.korean_exchange)} 경로 상세 열기`}
                       >
@@ -609,10 +698,10 @@ export function CheapestPathPage() {
                 <tbody>
                   {filteredPaths.map((path) => {
                     const status = getRouteStatus(path.rank, path.fee_pct);
-                    const isHighlighted = selectedKoreanExchange === path.korean_exchange;
+                    const isHighlighted = selectedPathId === path.path_id;
                     return (
                       <tr
-                        key={`${path.korean_exchange}-${path.transfer_coin}-${path.network}`}
+                        key={path.path_id}
                         className={`border-b border-dark-200 transition-colors last:border-b-0 ${isHighlighted ? 'bg-brand-500/10 hover:bg-brand-500/20' : 'bg-dark-500 hover:bg-dark-400'}`}
                       >
                         <td className="px-5 py-4">
@@ -623,7 +712,7 @@ export function CheapestPathPage() {
                         <td className="px-5 py-4 font-semibold text-bnb-text">
                           <button
                             type="button"
-                            onClick={() => setSelectedKoreanExchange(path.korean_exchange)}
+                            onClick={() => setSelectedPathId(path.path_id)}
                             className={`text-left transition-colors ${
                               isHighlighted ? 'text-brand-400' : 'text-bnb-text hover:text-brand-400'
                             }`}
@@ -634,15 +723,16 @@ export function CheapestPathPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{path.network}</span></p>
+                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{path.domestic_withdrawal_network}</span></p>
+                            <span className="text-[10px] text-bnb-muted">→ {path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {path.global_exit_network}</span>
                             {path.path_type === 'lightning_exit' && (
                               <span className="inline-flex items-center gap-0.5 border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-400">
                                 <Zap size={9} />
                                 LN
                               </span>
                             )}
-                            {path.swap_service && path.path_type === 'lightning_exit' && (
-                              <span className="text-[10px] text-bnb-muted">{path.swap_service}</span>
+                            {(path.lightning_exit_provider || path.swap_service) && path.path_type === 'lightning_exit' && (
+                              <span className="text-[10px] text-bnb-muted">{path.lightning_exit_provider ?? path.swap_service}</span>
                             )}
                           </div>
                         </td>
@@ -699,7 +789,13 @@ export function CheapestPathPage() {
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
                         <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
-                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.network}</p>
+                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.domestic_withdrawal_network}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">
+                          {selectedRoute.path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {selectedRoute.path.global_exit_network}
+                        </p>
+                        {selectedRoute.path.lightning_exit_provider ? (
+                          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.lightning_exit_provider}</p>
+                        ) : null}
                       </div>
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
@@ -715,7 +811,7 @@ export function CheapestPathPage() {
                   </div>
                 ) : (
                   <div className="border border-dashed border-dark-200 bg-dark-400 p-5 text-sm text-bnb-muted">
-                    거래소를 선택하면 해당 경로의 순위, 수수료, 세부 계산 근거를 이 영역에서 확인할 수 있습니다.
+                    경로를 선택하면 해당 경로의 순위, 수수료, 세부 계산 근거를 이 영역에서 확인할 수 있습니다.
                   </div>
                 )}
               </div>
@@ -732,7 +828,7 @@ export function CheapestPathPage() {
               <div className="p-4 sm:p-5">
                 <div className="space-y-4">
                   {topFivePaths.map((path) => (
-                    <div key={`velocity-${path.korean_exchange}-${path.network}`}>
+                    <div key={`velocity-${path.path_id}`}>
                       <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
                         <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
                         <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span>
