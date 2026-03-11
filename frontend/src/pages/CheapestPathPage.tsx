@@ -1,10 +1,10 @@
-import { ArrowRight, Info, Search, ShieldAlert, TrendingUp, X, Zap } from 'lucide-react';
+import { ArrowRight, Info, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
-import type { CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } from '../types';
+import type { AccessStats, CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } from '../types';
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
@@ -240,6 +240,11 @@ export function CheapestPathPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
+  const [accessStats, setAccessStats] = useState<AccessStats | null>(null);
+
+  useEffect(() => {
+    api.getAccessCount().then(setAccessStats).catch(() => setAccessStats(null));
+  }, []);
 
   // Table filters
   const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
@@ -369,6 +374,12 @@ export function CheapestPathPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.38em] text-bnb-muted">BTC 경로 탐색기</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight text-bnb-text">최적 경로 대시보드</h1>
+            <div className="mt-1 flex items-center gap-3 text-xs text-bnb-muted">
+              <Users size={13} />
+              <span>누적 {accessStats ? accessStats.total.toLocaleString('ko-KR') : '-'}회</span>
+              <span className="text-dark-100">|</span>
+              <span>오늘 {accessStats ? accessStats.today.toLocaleString('ko-KR') : '-'}회</span>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
             <div>

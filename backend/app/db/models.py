@@ -118,3 +118,10 @@ class LightningSwapFeeSnapshot(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='lightning_swap_fee_snapshots')
+
+
+class AccessLog(Base):
+    __tablename__ = 'access_logs'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

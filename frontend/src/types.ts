@@ -126,3 +126,22 @@ export type CheapestPathResponse = {
   errors?: CrawlErrorRow[];
   error?: string;
 };
+
+export type AccessStats = {
+  total: number;
+  today: number;
+};
+
+export type ScrapedPageStatus = {
+  label: string;
+  url: string;
+  category: 'network_status' | 'withdrawal' | 'lightning';
+  status: 'ok' | 'error';
+  last_crawled_at: string | null;
+  error_message: string | null;
+};
+
+export type ScrapeStatusResponse = {
+  last_run: { id: number; status: string; completed_at: string | null } | null;
+  items: ScrapedPageStatus[];
+};

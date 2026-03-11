@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import datetime as dt
 from collections import defaultdict
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func as sqlfunc, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
-from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot
+from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -67,3 +69,20 @@ def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
                 'detected_at': row.detected_at,
             })
     return dict(grouped)
+
+
+def record_access(db: Session) -> None:
+    log = AccessLog()
+    db.add(log)
+    db.commit()
+
+
+def get_access_count(db: Session) -> dict:
+    kst = ZoneInfo('Asia/Seoul')
+    now_kst = dt.datetime.now(kst)
+    today_start = dt.datetime(now_kst.year, now_kst.month, now_kst.day, tzinfo=kst)
+
+    total = db.query(sqlfunc.count(AccessLog.id)).scalar() or 0
+    today = db.query(sqlfunc.count(AccessLog.id)).filter(AccessLog.accessed_at >= today_start).scalar() or 0
+
+    return {'total': total, 'today': today}

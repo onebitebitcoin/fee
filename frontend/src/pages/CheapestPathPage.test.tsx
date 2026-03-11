@@ -7,6 +7,7 @@ import { CheapestPathPage } from './CheapestPathPage';
 
 vi.mock('../lib/api', () => ({
   api: {
+    getAccessCount: vi.fn().mockResolvedValue({ total: 42, today: 3 }),
     getCheapestPath: vi.fn().mockResolvedValue({
       amount_krw: 1000000,
       global_exchange: 'binance',

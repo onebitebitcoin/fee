@@ -1,8 +1,10 @@
 import type {
+  AccessStats,
   CheapestPathResponse,
   CrawlErrorRow,
   CrawlRun,
   NetworkStatusMap,
+  ScrapeStatusResponse,
   TickerRow,
   WithdrawalRow,
 } from '../types';
@@ -27,4 +29,6 @@ export const api = {
   getCheapestPath: (params: { amountKrw: number; globalExchange: string }): Promise<CheapestPathResponse> =>
     request(`/api/v1/market/path-finder/cheapest?amount_krw=${params.amountKrw}&global_exchange=${params.globalExchange}`),
   triggerCrawl: (): Promise<CrawlRun> => request('/api/v1/crawl-runs', { method: 'POST' }),
+  getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
+  getScrapeStatus: (): Promise<ScrapeStatusResponse> => request('/api/v1/market/scrape-status'),
 };

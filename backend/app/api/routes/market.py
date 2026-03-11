@@ -136,6 +136,7 @@ def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
 
 @router.get('/path-finder/cheapest')
 def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchange: str = Query('binance'), db: Session = Depends(get_db)) -> dict:
+    repositories.record_access(db)
     latest_run = repositories.get_latest_successful_run(db)
     ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
     withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
@@ -185,3 +186,71 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
         network_rows=network_rows,
         lightning_swap_rows=lightning_swap_rows,
     )
+
+
+@router.get('/scrape-status')
+def get_scrape_status(db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'items': []}
+
+    items = []
+    crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id)
+    error_stages = {(e.exchange, e.stage): e.error_message for e in crawl_errors}
+
+    # 1. NetworkStatusSnapshot source_url
+    network_rows = repositories.list_network_status_for_run(db, latest_run.id)
+    seen_urls: set[str] = set()
+    for row in network_rows:
+        if row.source_url and row.source_url not in seen_urls:
+            seen_urls.add(row.source_url)
+            has_error = (row.exchange, 'network_status') in error_stages
+            items.append({
+                'label': f'{row.exchange} 네트워크 상태',
+                'url': row.source_url,
+                'category': 'network_status',
+                'status': 'error' if has_error else 'ok',
+                'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'error_message': error_stages.get((row.exchange, 'network_status')),
+            })
+
+    # 2. LightningSwapFeeSnapshot source_url
+    lightning_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id)
+    for row in lightning_rows:
+        if row.source_url:
+            has_error = not row.enabled or bool(row.error_message)
+            items.append({
+                'label': row.service_name,
+                'url': row.source_url,
+                'category': 'lightning',
+                'status': 'error' if has_error else 'ok',
+                'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                'error_message': row.error_message,
+            })
+
+    # 3. WithdrawalFeeSnapshot - 거래소별 소스 URL
+    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id)
+    seen_exchanges: set[str] = set()
+    for row in withdrawal_rows:
+        if row.exchange not in seen_exchanges:
+            seen_exchanges.add(row.exchange)
+            source_url = get_withdrawal_source_url(row.exchange, row.coin, row.network_label)
+            if source_url:
+                has_error = (row.exchange, 'withdrawal') in error_stages
+                items.append({
+                    'label': f'{row.exchange} 출금 수수료',
+                    'url': source_url,
+                    'category': 'withdrawal',
+                    'status': 'error' if has_error else 'ok',
+                    'last_crawled_at': row.recorded_at.isoformat() if row.recorded_at else None,
+                    'error_message': error_stages.get((row.exchange, 'withdrawal')),
+                })
+
+    return {
+        'last_run': {
+            'id': latest_run.id,
+            'status': latest_run.status,
+            'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None,
+        },
+        'items': items,
+    }
