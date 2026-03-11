@@ -16,9 +16,9 @@ export default function App() {
         <Route path="/overview" element={<Navigate to={DEFAULT_ROUTE} replace />} />
         <Route path="/cheapest-path" element={<CheapestPathPage />} />
         <Route path="/tickers" element={<TickersPage />} />
-        <Route path="/withdrawals" element={<Navigate to="/exchange-status" replace />} />
-        <Route path="/network-status" element={<Navigate to="/exchange-status" replace />} />
-        <Route path="/exchange-status" element={<ExchangeStatusPage />} />
+        <Route path="/withdrawals" element={<Navigate to="/status" replace />} />
+        <Route path="/network-status" element={<Navigate to="/status" replace />} />
+        <Route path="/status" element={<ExchangeStatusPage />} />
         <Route path="/runs" element={<RunsPage />} />
       </Route>
       <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />

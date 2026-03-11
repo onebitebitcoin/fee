@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
   { to: '/cheapest-path', label: '최적 경로', icon: Route },
-  { to: '/exchange-status', label: '거래소 현황', icon: Building2 },
+  { to: '/status', label: '거래소 현황', icon: Building2 },
   { to: '/runs', label: '수집 이력', icon: History },
 ];
 

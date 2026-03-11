@@ -256,7 +256,7 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
     }
 
 
-@router.get('/exchange-status')
+@router.get('/status')
 def get_exchange_status(db: Session = Depends(get_db)) -> dict:
     """출금 수수료 + 네트워크 상태 + 공지사항 통합 뷰"""
     latest_run = repositories.get_latest_successful_run(db)
