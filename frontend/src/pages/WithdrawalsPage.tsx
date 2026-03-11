@@ -15,6 +15,22 @@ type WithdrawalsPageData = {
   latestScrapingTime: string | null;
 };
 
+const SATS_PER_BTC = 100_000_000;
+
+function formatNumber(value: number, maximumFractionDigits = 8) {
+  return new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(value);
+}
+
+function formatWithdrawalFee(item: WithdrawalRow) {
+  if (item.fee == null) {
+    return '-';
+  }
+  if (item.coin.toUpperCase() === 'BTC') {
+    return `${formatNumber(Math.round(item.fee * SATS_PER_BTC), 0)} sats`;
+  }
+  return formatNumber(item.fee);
+}
+
 export function WithdrawalsPage() {
   const loadWithdrawals = useCallback(async (): Promise<WithdrawalsPageData> => {
     const response = await api.getWithdrawals();
@@ -80,7 +96,7 @@ export function WithdrawalsPage() {
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수수료</p>
-                <p className="mt-1 font-semibold text-brand-500">{item.fee ?? '-'}</p>
+                <p className="mt-1 font-semibold text-brand-500">{formatWithdrawalFee(item)}</p>
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">USD</p>
@@ -123,7 +139,7 @@ export function WithdrawalsPage() {
                 <td className="px-4 py-3 font-medium text-bnb-text">{fmtEx(item.exchange)}</td>
                 <td className="px-4 py-3 text-bnb-text">{item.coin}</td>
                 <td className="px-4 py-3 text-bnb-muted">{item.network_label}</td>
-                <td className="px-4 py-3 text-right font-semibold text-brand-500">{item.fee ?? '-'}</td>
+                <td className="px-4 py-3 text-right font-semibold text-brand-500">{formatWithdrawalFee(item)}</td>
                 <td className="px-4 py-3 text-right text-bnb-muted">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</td>
                 <td className="px-4 py-3 text-bnb-muted">{item.source}</td>
                 <td className="px-4 py-3">
