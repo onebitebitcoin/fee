@@ -32,13 +32,13 @@ function formatPercent(value: number) {
 
 function getFeeTone(feePct: number) {
   if (feePct <= 0.5) return 'text-bnb-green';
-  if (feePct <= 1.0) return 'text-sky-300';
+  if (feePct <= 1.0) return 'text-brand-400';
   return 'text-bnb-red';
 }
 
 function getRouteStatus(index: number, feePct: number) {
   if (index === 0) return { label: '최적', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
-  if (feePct <= 1.0) return { label: '안정', className: 'border-sky-400/40 bg-sky-400/10 text-sky-300' };
+  if (feePct <= 1.0) return { label: '안정', className: 'border-brand-400/40 bg-brand-400/10 text-brand-400' };
   return { label: '고비용', className: 'border-bnb-red/30 bg-bnb-red/10 text-bnb-red' };
 }
 
@@ -68,7 +68,7 @@ function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | nu
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-300 transition-colors hover:text-sky-200"
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-400 transition-colors hover:text-brand-300"
       >
         <Info size={11} />
         수수료 내역 {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
@@ -84,7 +84,7 @@ function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | nu
                     {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
                     {component.amount_text ? ` · ${component.amount_text}` : ''}
                   </td>
-                  <td className="py-2 text-right font-semibold text-sky-300">{formatCurrency(component.amount_krw)}</td>
+                  <td className="py-2 text-right font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</td>
                 </tr>
               ))}
             </tbody>
@@ -250,7 +250,7 @@ export function CheapestPathPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center justify-center gap-2 border border-sky-600 bg-sky-700 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white transition-colors hover:bg-sky-600 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 border border-brand-600 bg-brand-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors hover:bg-brand-500 disabled:opacity-50"
           >
             <Search size={15} />
             {submitting ? '검색 중...' : '최적 경로 검색'}
@@ -307,11 +307,11 @@ export function CheapestPathPage() {
           {data.best_path ? (
             <div className="grid gap-0 border-b border-dark-200 xl:grid-cols-[minmax(0,1.55fr)_380px]">
               <div className="border-b border-dark-200 bg-dark-400 p-5 xl:border-b-0 xl:border-r">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-400">최적 경로</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-3 text-bnb-text">
-                      <span className="border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">1위</span>
+                      <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
                       <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.best_path.korean_exchange}</span>
                       <ArrowRight size={16} className="text-bnb-muted" />
                       <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.global_exchange}</span>
@@ -329,7 +329,7 @@ export function CheapestPathPage() {
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
-                      <p className="mt-1 text-xl font-semibold text-sky-300">{formatCurrency(data.best_path.total_fee_krw)}</p>
+                      <p className="mt-1 text-xl font-semibold text-brand-400">{formatCurrency(data.best_path.total_fee_krw)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
@@ -405,7 +405,7 @@ export function CheapestPathPage() {
                         <td className="px-5 py-4 text-right font-medium text-bnb-text">
                           {formatBtc(path.btc_received)}
                         </td>
-                        <td className="px-5 py-4 text-right font-semibold text-sky-300">
+                        <td className="px-5 py-4 text-right font-semibold text-brand-400">
                           {formatCurrency(path.total_fee_krw)}
                         </td>
                         <td className="px-5 py-4">
@@ -485,7 +485,7 @@ export function CheapestPathPage() {
                       </div>
                       <div className="h-2 bg-dark-200">
                         <div
-                          className="h-2 bg-sky-600"
+                          className="h-2 bg-brand-500"
                           style={{ width: `${Math.max((path.fee_pct / maxFeePct) * 100, 8)}%` }}
                         />
                       </div>
