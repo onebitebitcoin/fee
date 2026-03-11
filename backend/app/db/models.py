@@ -24,6 +24,7 @@ class CrawlRun(Base):
     withdrawal_fee_snapshots: Mapped[list['WithdrawalFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     network_status_snapshots: Mapped[list['NetworkStatusSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     crawl_errors: Mapped[list['CrawlError']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    lightning_swap_fee_snapshots: Mapped[list['LightningSwapFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
 
 class TickerSnapshot(Base):
@@ -99,3 +100,21 @@ class CrawlError(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='crawl_errors')
+
+
+class LightningSwapFeeSnapshot(Base):
+    __tablename__ = 'lightning_swap_fee_snapshots'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    service_name: Mapped[str] = mapped_column(String(64), index=True)
+    fee_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fee_fixed_sat: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    min_amount_sat: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    max_amount_sat: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='lightning_swap_fee_snapshots')

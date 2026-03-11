@@ -5,7 +5,7 @@ from backend.app.db import repositories
 from backend.app.db.session import get_db
 from backend.app.services.dashboard_service import build_overview
 from backend.app.services.live_market import find_cheapest_path_from_snapshot_rows
-from fee_checker import get_withdrawal_source_url
+from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
 
@@ -115,12 +115,38 @@ def get_latest_network_status(db: Session = Depends(get_db)) -> dict:
     }
 
 
+@router.get('/lightning-swap-fees/latest')
+def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'items': []}
+    rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id)
+    return {
+        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': latest_run.completed_at.isoformat() if latest_run.completed_at else None},
+        'items': [
+            {
+                'service_name': row.service_name,
+                'fee_pct': row.fee_pct,
+                'fee_fixed_sat': row.fee_fixed_sat,
+                'min_amount_sat': row.min_amount_sat,
+                'max_amount_sat': row.max_amount_sat,
+                'enabled': row.enabled,
+                'source_url': row.source_url,
+                'error_message': row.error_message,
+                'recorded_at': row.recorded_at.isoformat() if row.recorded_at else None,
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.get('/path-finder/cheapest')
 def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchange: str = Query('binance'), db: Session = Depends(get_db)) -> dict:
     latest_run = repositories.get_latest_successful_run(db)
     ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
     withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
     network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
+    lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
     crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
     blocking_errors = []
     if latest_run:
@@ -163,4 +189,5 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
         ticker_rows=ticker_rows,
         withdrawal_rows=withdrawal_rows,
         network_rows=network_rows,
+        lightning_swap_rows=lightning_swap_rows,
     )

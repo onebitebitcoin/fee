@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import CrawlError, CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlError, CrawlRun, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.services import live_market
+from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 
 
 class CrawlService:
@@ -21,6 +22,7 @@ class CrawlService:
         ticker_count = 0
         withdrawal_count = 0
         network_count = 0
+        lightning_count = 0
         error_count = 0
 
         try:
@@ -93,8 +95,27 @@ class CrawlService:
                         detected_at=item.get('detected_at'),
                     ))
                     network_count += 1
+            # Lightning 스왑 수수료 수집 (오류가 나도 전체 크롤링 성공에 영향 없음)
+            lightning_fees = get_all_lightning_swap_fees()
+            for fee_data in lightning_fees:
+                if fee_data.get('error') and not fee_data.get('enabled', True):
+                    self._add_error(crawl_run.id, None, None, 'lightning_swap', f"{fee_data.get('service_name', 'unknown')}: {fee_data['error']}")
+                    # lightning_swap 오류는 error_count에 포함하지 않음 (부가 정보)
+                self.db.add(LightningSwapFeeSnapshot(
+                    crawl_run_id=crawl_run.id,
+                    service_name=fee_data.get('service_name', 'unknown'),
+                    fee_pct=fee_data.get('fee_pct'),
+                    fee_fixed_sat=fee_data.get('fee_fixed_sat'),
+                    min_amount_sat=fee_data.get('min_amount_sat'),
+                    max_amount_sat=fee_data.get('max_amount_sat'),
+                    enabled=fee_data.get('enabled', True),
+                    source_url=fee_data.get('source_url'),
+                    error_message=fee_data.get('error'),
+                ))
+                lightning_count += 1
+
             crawl_run.status = 'partial_success' if error_count else 'success'
-            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, errors={error_count}'
+            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, errors={error_count}'
         except Exception as exc:
             self._add_error(crawl_run.id, None, None, 'crawl', str(exc))
             crawl_run.status = 'failed'

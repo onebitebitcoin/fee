@@ -80,10 +80,14 @@ export type CheapestPathEntry = {
   korean_exchange: string;
   transfer_coin: string;
   network: string;
+  path_type?: 'lightning_exit' | null;
+  swap_service?: string | null;
   btc_received: number;
   btc_received_usd?: number | null;
   total_fee_krw: number;
   fee_pct: number;
+  lightning_swap_fee_krw?: number | null;
+  global_withdrawal_fee_krw?: number | null;
   breakdown?: CheapestPathBreakdown | null;
 };
 

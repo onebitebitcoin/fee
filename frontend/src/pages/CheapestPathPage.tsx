@@ -1,19 +1,13 @@
-import { ArrowRight, ChevronDown, ChevronUp, Info, Search, ShieldAlert, TrendingUp } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ArrowRight, Info, Search, ShieldAlert, TrendingUp, X, Zap } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import type { CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } from '../types';
 
-const DEFAULT_AMOUNT_KRW = 1000000;
-const GLOBAL_EXCHANGE_OPTIONS = ['binance', 'okx', 'coinbase', 'kraken', 'bitget'];
-const TOP_PATH_SORT_OPTIONS = [
-  { value: 'lowest_fee_krw', label: '수수료 낮은 순' },
-  { value: 'lowest_fee_pct', label: '수수료율 낮은 순' },
-  { value: 'highest_btc', label: 'BTC 최대 순' },
-] as const;
-
-type TopPathSortOption = (typeof TOP_PATH_SORT_OPTIONS)[number]['value'];
+const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
+const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
 
 function formatNumber(value: number, maximumFractionDigits = 0) {
   return new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(value);
@@ -37,74 +31,97 @@ function getFeeTone(feePct: number) {
   return 'text-bnb-red';
 }
 
-function getRouteStatus(index: number, feePct: number) {
-  if (index === 0) return { label: '최적', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
+function getRouteStatus(rank: number, feePct: number) {
+  if (rank === 1) return { label: '최적', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
   if (feePct <= 1.0) return { label: '안정', className: 'border-brand-400/40 bg-brand-400/10 text-brand-400' };
   return { label: '고비용', className: 'border-bnb-red/30 bg-bnb-red/10 text-bnb-red' };
 }
 
-function sortTopPaths(paths: CheapestPathEntry[], sortBy: TopPathSortOption) {
-  const sorted = [...paths];
-  sorted.sort((left, right) => {
-    if (sortBy === 'lowest_fee_krw') {
-      if (left.total_fee_krw !== right.total_fee_krw) return left.total_fee_krw - right.total_fee_krw;
-      return right.btc_received - left.btc_received;
-    }
-    if (sortBy === 'lowest_fee_pct') {
-      if (left.fee_pct !== right.fee_pct) return left.fee_pct - right.fee_pct;
-      return left.total_fee_krw - right.total_fee_krw;
-    }
-    if (left.btc_received !== right.btc_received) return right.btc_received - left.btc_received;
-    return left.total_fee_krw - right.total_fee_krw;
-  });
-  return sorted.slice(0, 5);
+type RankedPath = CheapestPathEntry & { rank: number };
+
+function sortAllPaths(paths: CheapestPathEntry[]): RankedPath[] {
+  return [...paths]
+    .sort((a, b) => {
+      if (a.total_fee_krw !== b.total_fee_krw) return a.total_fee_krw - b.total_fee_krw;
+      return b.btc_received - a.btc_received;
+    })
+    .map((path, i) => ({ ...path, rank: i + 1 }));
 }
 
-function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | null }) {
-  const [open, setOpen] = useState(false);
-  if (!breakdown?.components?.length) return <span className="text-[11px] text-bnb-muted">상세 없음</span>;
+function FeeBreakdownPopup({ breakdown, onClose }: { breakdown: CheapestPathBreakdown; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
 
-  return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-400 transition-colors hover:text-brand-300"
-      >
-        <Info size={11} />
-        수수료 내역 {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-      </button>
-      {open && (
-        <div className="border border-dark-200 bg-dark-400 p-3">
-          <table className="min-w-full text-xs">
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', keyHandler); };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div ref={ref} className="w-full max-w-md border border-dark-200 bg-dark-400 shadow-xl">
+        <div className="flex items-center justify-between border-b border-dark-200 px-5 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-bnb-muted">수수료 내역</p>
+          <button type="button" onClick={onClose} className="text-bnb-muted hover:text-bnb-text">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="p-5">
+          <table className="min-w-full text-sm">
             <tbody>
               {breakdown.components.map((component, index) => (
                 <tr key={`${component.label}-${index}`} className="border-t border-dark-200 first:border-t-0">
-                  <td className="py-2 pr-4 text-bnb-text">{component.label}</td>
-                  <td className="py-2 pr-4 text-bnb-muted">
+                  <td className="py-2.5 pr-4 text-bnb-text">{component.label}</td>
+                  <td className="py-2.5 pr-4 text-bnb-muted text-xs">
                     {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
                     {component.amount_text ? ` · ${component.amount_text}` : ''}
                   </td>
-                  <td className="py-2 text-right font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</td>
+                  <td className="py-2.5 text-right font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-    </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | null }) {
+  const [open, setOpen] = useState(false);
+  if (!breakdown?.components?.length) return <span className="text-[11px] text-bnb-muted">—</span>;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-400 transition-colors hover:text-brand-300"
+      >
+        <Info size={11} />
+        자세히 보기
+      </button>
+      {open && <FeeBreakdownPopup breakdown={breakdown} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
 export function CheapestPathPage() {
-  const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_KRW));
-  const [globalExchange, setGlobalExchange] = useState('binance');
+  const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
+  const [globalExchange] = useState('binance');
   const [selectedKoreanExchange, setSelectedKoreanExchange] = useState('');
-  const [topPathSort, setTopPathSort] = useState<TopPathSortOption>('lowest_fee_krw');
   const [data, setData] = useState<CheapestPathResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Table filters
+  const [excludedNetworks, setExcludedNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
 
   const load = useCallback(async (requestParams: { amountKrw: number; globalExchange: string }) => {
     try {
@@ -127,20 +144,31 @@ export function CheapestPathPage() {
   }, []);
 
   useEffect(() => {
-    void load({ amountKrw: DEFAULT_AMOUNT_KRW, globalExchange: 'binance' });
+    void load({ amountKrw: DEFAULT_AMOUNT_MANWON * 10000, globalExchange: 'binance' });
   }, [load]);
 
-  const topPaths = useMemo(() => (data ? sortTopPaths(data.all_paths ?? [], topPathSort) : []), [data, topPathSort]);
+  const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? []) : []), [data]);
+
   const availableKoreanExchanges = useMemo(
     () => (data ? Array.from(new Set((data.all_paths ?? []).map((item) => item.korean_exchange))) : []),
     [data],
   );
+
+  const allNetworks = useMemo(
+    () => Array.from(new Set(rankedPaths.map((p) => p.network))).sort(),
+    [rankedPaths],
+  );
+
+  const filteredPaths = useMemo(() => {
+    return rankedPaths.filter((path) => !excludedNetworks.includes(path.network));
+  }, [rankedPaths, excludedNetworks]);
+
   const selectedRoute = useMemo(() => {
     if (!data || !selectedKoreanExchange) return null;
-    const rankIndex = data.all_paths.findIndex((item) => item.korean_exchange === selectedKoreanExchange);
-    if (rankIndex < 0) return null;
-    return { rank: rankIndex + 1, path: data.all_paths[rankIndex] };
-  }, [data, selectedKoreanExchange]);
+    const found = rankedPaths.find((item) => item.korean_exchange === selectedKoreanExchange);
+    if (!found) return null;
+    return { rank: found.rank, path: found };
+  }, [data, rankedPaths, selectedKoreanExchange]);
 
   useEffect(() => {
     if (!selectedKoreanExchange) return;
@@ -153,21 +181,20 @@ export function CheapestPathPage() {
     event.preventDefault();
     setSubmitting(true);
     await load({
-      amountKrw: Math.max(Number(amountKrwInput) || DEFAULT_AMOUNT_KRW, 10000),
+      amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * 10000, 10000),
       globalExchange,
     });
   };
 
-  const summaryCards = data && !error
-    ? [
-        { label: '분석 경로', value: `${formatNumber(data.total_paths_evaluated)}개`, helper: '현재 계산에 포함된 후보 수' },
-        { label: '최저 수수료', value: data.best_path ? formatCurrency(data.best_path.total_fee_krw) : 'N/A', helper: '최저 총 수수료 기준' },
-        { label: '최적 거래소', value: data.best_path ? fmtEx(data.best_path.korean_exchange) : 'N/A', helper: data.best_path ? `${data.best_path.transfer_coin} / ${data.best_path.network}` : '활성 경로 없음' },
-        { label: '비활성 경로', value: `${formatNumber(data.disabled_paths.length)}개`, helper: data.disabled_paths.length ? '점검/정지 경로 제외' : '비활성 경로 없음' },
-      ]
-    : [];
+  const toggleNetwork = (network: string) => {
+    setExcludedNetworks((prev) =>
+      prev.includes(network) ? prev.filter((n) => n !== network) : [...prev, network],
+    );
+  };
 
-  const maxFeePct = Math.max(...topPaths.map((path) => path.fee_pct), 1);
+
+  const topFivePaths = filteredPaths.slice(0, 5);
+  const maxFeePct = Math.max(...topFivePaths.map((p) => p.fee_pct), 1);
 
   return (
     <div className="space-y-0 border border-dark-200">
@@ -190,72 +217,28 @@ export function CheapestPathPage() {
       </div>
 
       {/* Form */}
-      <div className="border-b border-dark-200 bg-dark-500 px-5 py-4">
-        <form className="grid gap-0 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_220px_auto]" onSubmit={handleSubmit}>
-          <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            거래 금액 (KRW)
+      <div className="border-b border-dark-200 bg-dark-500 px-5 py-5">
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-3">
             <input
               type="number"
-              min={10000}
-              step={10000}
+              min={1}
+              step={1}
               value={amountKrwInput}
               onChange={(event) => setAmountKrwInput(event.target.value)}
-              className="mt-2 w-full border-0 bg-transparent p-0 text-xl font-semibold tracking-tight text-bnb-text outline-none placeholder:text-bnb-muted"
+              className="w-24 border-b-2 border-brand-500 bg-transparent pb-0.5 text-center text-xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted"
+              placeholder="100"
             />
-            <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">최소 10,000 KRW</p>
-          </label>
-
-          <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            목적지 거래소
-            <select
-              value={globalExchange}
-              onChange={(event) => setGlobalExchange(event.target.value)}
-              className="mt-2 w-full appearance-none border-0 bg-transparent p-0 text-base font-semibold uppercase tracking-[0.18em] text-bnb-text outline-none"
+            <span className="text-lg font-medium text-bnb-muted">만원으로 비트코인 살 때 수수료가 얼마나 들까?</span>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 border border-brand-600 bg-brand-600 px-5 py-1.5 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors hover:bg-brand-500 disabled:opacity-50"
             >
-              {GLOBAL_EXCHANGE_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-dark-400 text-bnb-text">{fmtEx(option)}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">도착 해외 거래소</p>
-          </label>
-
-          <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            경로 필터
-            <select
-              value={selectedKoreanExchange}
-              onChange={(event) => setSelectedKoreanExchange(event.target.value)}
-              className="mt-2 w-full appearance-none border-0 bg-transparent p-0 text-base font-semibold uppercase tracking-[0.18em] text-bnb-text outline-none"
-            >
-              <option value="" className="bg-dark-400 text-bnb-text">거래소 선택</option>
-              {availableKoreanExchanges.map((exchange) => (
-                <option key={exchange} value={exchange} className="bg-dark-400 text-bnb-text">{fmtEx(exchange)}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">거래소별 상세 보기</p>
-          </label>
-
-          <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            정렬 기준
-            <select
-              value={topPathSort}
-              onChange={(event) => setTopPathSort(event.target.value as TopPathSortOption)}
-              className="mt-2 w-full appearance-none border-0 bg-transparent p-0 text-base font-semibold uppercase tracking-[0.18em] text-bnb-text outline-none"
-            >
-              {TOP_PATH_SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-dark-400 text-bnb-text">{option.label}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-[10px] normal-case tracking-normal text-bnb-muted">정렬 우선순위</p>
-          </label>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex items-center justify-center gap-2 border border-brand-600 bg-brand-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors hover:bg-brand-500 disabled:opacity-50"
-          >
-            <Search size={15} />
-            {submitting ? '검색 중...' : '최적 경로 검색'}
-          </button>
+              <Search size={13} />
+              {submitting ? '검색 중...' : '검색'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -266,17 +249,6 @@ export function CheapestPathPage() {
         </div>
       ) : null}
 
-      {!loading && summaryCards.length > 0 ? (
-        <div className="flex flex-wrap items-center border-b border-dark-200 bg-dark-400 px-5 py-3 text-sm">
-          {summaryCards.map((card, idx) => (
-            <span key={card.label} className="flex items-center">
-              {idx > 0 && <span className="mx-4 text-dark-100 select-none">·</span>}
-              <span className="text-bnb-muted">{card.label}</span>
-              <span className="ml-1.5 font-semibold text-brand-400">{card.value}</span>
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       {/* Error */}
       {error ? (
@@ -306,7 +278,15 @@ export function CheapestPathPage() {
           {data.best_path ? (
             <div className="grid gap-0 border-b border-dark-200 xl:grid-cols-[minmax(0,1.55fr)_380px]">
               <div className="border-b border-dark-200 bg-dark-400 p-5 xl:border-b-0 xl:border-r">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
+                  {selectedRoute && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="text-bnb-muted">{fmtEx(selectedRoute.path.korean_exchange)}</span>
+                      <span className="border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 font-semibold tracking-[0.2em] text-brand-400">{selectedRoute.rank}위</span>
+                    </div>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-3 text-bnb-text">
@@ -361,22 +341,51 @@ export function CheapestPathPage() {
             </div>
           ) : null}
 
-          {/* Route Optimization Table */}
+          {/* Route Table with Filters */}
           <div className="border-b border-dark-200 bg-dark-500">
-            <div className="flex flex-col gap-2 border-b border-dark-200 bg-dark-400 px-5 py-3 md:flex-row md:items-center md:justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">경로 분석</p>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-bnb-muted">
-                업데이트: {data.latest_scraping_time ?? '—'}
-              </p>
+            {/* Filter Bar */}
+            <div className="border-b border-dark-200 bg-dark-400 px-5 py-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* 네트워크 토글 */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">네트워크</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allNetworks.map((network) => {
+                      const excluded = excludedNetworks.includes(network);
+                      return (
+                        <button
+                          key={network}
+                          type="button"
+                          onClick={() => toggleNetwork(network)}
+                          className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
+                            excluded
+                              ? 'border-bnb-red/30 bg-bnb-red/5 text-bnb-red/50 hover:bg-bnb-red/10'
+                              : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
+                          }`}
+                        >
+                          {network}
+                          {excluded && <span className="ml-1 normal-case tracking-normal opacity-60">비활성</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 결과 수 */}
+                <div className="ml-auto text-[11px] uppercase tracking-[0.2em] text-bnb-muted">
+                  {filteredPaths.length}/{rankedPaths.length}개
+                </div>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-dark-200 bg-dark-400 text-left text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">
-                    <th className="px-5 py-3">경로</th>
-                    <th className="px-5 py-3">거래소/방식</th>
-                    <th className="px-5 py-3 text-right">수수료율</th>
+                    <th className="px-5 py-3">순위</th>
+                    <th className="px-5 py-3">출발지</th>
+                    <th className="px-5 py-3">코인 / 네트워크</th>
+                    <th className="px-5 py-3 text-right">총 수수료율</th>
                     <th className="px-5 py-3 text-right">수령 BTC</th>
                     <th className="px-5 py-3 text-right">수수료(KRW)</th>
                     <th className="px-5 py-3">상태</th>
@@ -384,19 +393,35 @@ export function CheapestPathPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topPaths.map((path, index) => {
-                    const status = getRouteStatus(index, path.fee_pct);
+                  {filteredPaths.map((path) => {
+                    const status = getRouteStatus(path.rank, path.fee_pct);
+                    const isHighlighted = selectedKoreanExchange === path.korean_exchange;
                     return (
                       <tr
                         key={`${path.korean_exchange}-${path.transfer_coin}-${path.network}`}
-                        className="border-b border-dark-200 bg-dark-500 transition-colors hover:bg-dark-400 last:border-b-0"
+                        className={`border-b border-dark-200 transition-colors last:border-b-0 ${isHighlighted ? 'bg-brand-500/10 hover:bg-brand-500/20' : 'bg-dark-500 hover:bg-dark-400'}`}
                       >
                         <td className="px-5 py-4">
-                          <span className="font-mono text-xs text-bnb-muted">#{String(index + 1).padStart(3, '0')}</span>
+                          <span className={`font-mono text-xs ${path.rank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
+                            #{String(path.rank).padStart(3, '0')}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-bnb-text">
+                          {fmtEx(path.korean_exchange)}
                         </td>
                         <td className="px-5 py-4">
-                          <p className="font-semibold text-bnb-text">{fmtEx(path.korean_exchange)}</p>
-                          <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{path.transfer_coin} / {path.network}</p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{path.network}</span></p>
+                            {path.path_type === 'lightning_exit' && (
+                              <span className="inline-flex items-center gap-0.5 border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-400">
+                                <Zap size={9} />
+                                LN
+                              </span>
+                            )}
+                            {path.swap_service && path.path_type === 'lightning_exit' && (
+                              <span className="text-[10px] text-bnb-muted">{path.swap_service}</span>
+                            )}
+                          </div>
                         </td>
                         <td className={`px-5 py-4 text-right font-semibold ${getFeeTone(path.fee_pct)}`}>
                           {formatPercent(path.fee_pct)}
@@ -418,6 +443,13 @@ export function CheapestPathPage() {
                       </tr>
                     );
                   })}
+                  {filteredPaths.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-8 text-center text-sm text-bnb-muted">
+                        필터 조건에 해당하는 경로가 없습니다.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -471,15 +503,15 @@ export function CheapestPathPage() {
               <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-5 py-3">
                 <TrendingUp size={14} className="text-bnb-muted" />
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">
-                  수수료율 비교
+                  수수료율 비교 (상위 5개)
                 </p>
               </div>
               <div className="p-5">
                 <div className="space-y-4">
-                  {topPaths.map((path) => (
+                  {topFivePaths.map((path) => (
                     <div key={`velocity-${path.korean_exchange}-${path.network}`}>
                       <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
-                        <span>{fmtEx(path.korean_exchange)}</span>
+                        <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
                         <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span>
                       </div>
                       <div className="h-2 bg-dark-200">

@@ -6,7 +6,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
-from backend.app.db.models import CrawlError
+from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -45,6 +45,10 @@ def list_crawl_errors_for_run(db: Session, crawl_run_id: int, stage: str | None 
         stmt = stmt.where(CrawlError.stage == stage)
     stmt = stmt.order_by(CrawlError.stage, CrawlError.exchange, CrawlError.coin, CrawlError.id)
     return list(db.scalars(stmt))
+
+
+def list_lightning_swap_fees_for_run(db: Session, run_id: int) -> list[LightningSwapFeeSnapshot]:
+    return db.query(LightningSwapFeeSnapshot).filter(LightningSwapFeeSnapshot.crawl_run_id == run_id).order_by(LightningSwapFeeSnapshot.service_name).all()
 
 
 def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
