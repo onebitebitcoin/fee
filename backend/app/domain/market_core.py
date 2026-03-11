@@ -12,10 +12,12 @@ from fee_checker import (
     fetch_bitget_withdrawal,
     fetch_bithumb,
     fetch_bithumb_withdrawal,
+    fetch_coinbase_withdrawal,
     fetch_coinbase,
     fetch_coinone,
     fetch_gopax,
     fetch_gopax_withdrawal,
+    fetch_kraken_withdrawal,
     fetch_kraken,
     fetch_korbit,
     fetch_okx_perp,
@@ -48,9 +50,13 @@ WITHDRAWAL_FETCHERS = {
     'bithumb': fetch_bithumb_withdrawal,
     'binance': fetch_binance_withdrawal,
     'okx': fetch_okx_withdrawal,
+    'coinbase': fetch_coinbase_withdrawal,
+    'kraken': fetch_kraken_withdrawal,
     'gopax': fetch_gopax_withdrawal,
     'bitget': fetch_bitget_withdrawal,
 }
+
+SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES = {'coinbase', 'kraken'}
 
 __all__ = [
     'ALL_EXCHANGES',
@@ -69,10 +75,12 @@ __all__ = [
     'fetch_bithumb',
     'fetch_bithumb_withdrawal',
     'fetch_coinbase',
+    'fetch_coinbase_withdrawal',
     'fetch_coinone',
     'fetch_gopax',
     'fetch_gopax_withdrawal',
     'fetch_kraken',
+    'fetch_kraken_withdrawal',
     'fetch_korbit',
     'fetch_okx_perp',
     'fetch_okx_spot',
@@ -189,7 +197,7 @@ def get_withdrawal_fees(exchange: str, coin: str = 'BTC') -> dict:
         result = {
             'exchange': exchange,
             'coin': coin,
-            'source': 'realtime_api' if exchange in WITHDRAWAL_FETCHERS else 'scraped_page',
+            'source': 'scraped_page' if exchange in SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES else ('realtime_api' if exchange in WITHDRAWAL_FETCHERS else 'scraped_page'),
             'networks': networks,
         }
         usd_krw_rate = fetch_usd_krw_rate()

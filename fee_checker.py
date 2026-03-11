@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import threading
 from datetime import datetime, timedelta
@@ -74,6 +75,8 @@ WITHDRAWAL_API_SOURCE_URLS = {
     "okx": "https://www.okx.com/v2/asset/withdraw/fee-amount-infos",
     "gopax": "https://api.gopax.co.kr/assets",
     "bitget": "https://api.bitget.com/api/v2/spot/public/coins",
+    "coinbase": "https://api.exchange.coinbase.com/currencies",
+    "kraken": "https://support.kraken.com/articles/360000767986-cryptocurrency-withdrawal-fees-and-minimums",
 }
 
 # ─── 거래소 그룹 ────────────────────────────────────────────────
@@ -377,6 +380,160 @@ def fetch_bitget_withdrawal(coin: str) -> list:
                 "enabled": True,
             })
     return result
+
+
+def _fetch_coinbase_currency_metadata(coin: str) -> dict:
+    r = _get(f"https://api.exchange.coinbase.com/currencies/{coin}")
+    if r.status_code != 200:
+        raise ValueError(f"Coinbase currency metadata 오류: {r.status_code}")
+    return r.json()
+
+
+def _estimate_btc_withdrawal_fee_btc() -> float:
+    attempts = [
+        ("https://mempool.space/api/v1/fees/recommended", lambda data: data.get("hourFee") or data.get("halfHourFee") or data.get("fastestFee")),
+        ("https://blockstream.info/api/fee-estimates", lambda data: data.get("6") or data.get("12") or data.get("24") or data.get("2")),
+    ]
+    last_error = None
+    for url, extractor in attempts:
+        try:
+            r = _get(url)
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            sat_per_vbyte = extractor(data)
+            if sat_per_vbyte is None:
+                continue
+            return round(float(sat_per_vbyte) * 140 / 100_000_000, 8)
+        except Exception as exc:
+            last_error = exc
+            continue
+    raise ValueError(f"BTC 네트워크 수수료 추정 실패: {last_error or 'fee source unavailable'}")
+
+
+def _estimate_eth_erc20_fee_in_usdt() -> float:
+    gas_price_wei = None
+    eth_price_usd = None
+    try:
+        r = requests.post(
+            "https://cloudflare-eth.com",
+            headers={**HEADERS, "Content-Type": "application/json"},
+            data=json.dumps({"jsonrpc": "2.0", "method": "eth_gasPrice", "params": [], "id": 1}),
+            timeout=TIMEOUT,
+        )
+        if r.status_code == 200:
+            gas_price_wei = int(r.json()["result"], 16)
+    except Exception:
+        gas_price_wei = None
+
+    try:
+        eth_resp = _get("https://api.coinbase.com/api/v3/brokerage/market/products/ETH-USD")
+        if eth_resp.status_code == 200:
+            eth_price_usd = float(eth_resp.json()["price"])
+    except Exception:
+        eth_price_usd = None
+
+    if gas_price_wei is None:
+        gas_price_wei = 15 * 10**9  # 15 gwei fallback
+    if eth_price_usd is None:
+        eth_price_usd = 3000.0
+
+    gas_limit = 65_000
+    fee_eth = gas_price_wei * gas_limit / 10**18
+    return round(fee_eth * eth_price_usd, 4)
+
+
+def fetch_coinbase_withdrawal(coin: str) -> list:
+    metadata = _fetch_coinbase_currency_metadata(coin)
+    supported_networks = metadata.get("supported_networks") or []
+    min_amount = metadata.get("min_withdrawal_amount")
+
+    if coin == "BTC":
+        label = "Bitcoin (On-chain)"
+        network_entry = next(
+            (
+                network for network in supported_networks
+                if "bitcoin" in (network.get("name") or "").lower()
+                or "btc" in (network.get("name") or "").lower()
+            ),
+            {},
+        )
+        return [{
+            "label": label,
+            "fee": _estimate_btc_withdrawal_fee_btc(),
+            "min": float(min_amount) if min_amount not in (None, "") else None,
+            "enabled": not bool(network_entry.get("is_disabled")),
+            "note": "공식 자산 메타데이터 + 공개 BTC 수수료 추정",
+        }]
+
+    if coin == "USDT":
+        results = []
+        for network in supported_networks:
+            network_name = (network.get("name") or "").lower()
+            if "ethereum" in network_name or "erc20" in network_name:
+                results.append({
+                    "label": "ERC20",
+                    "fee": _estimate_eth_erc20_fee_in_usdt(),
+                    "min": float(min_amount) if min_amount not in (None, "") else None,
+                    "enabled": not bool(network.get("is_disabled")),
+                    "note": "공식 자산 메타데이터 + 공개 ETH 가스비 추정",
+                })
+        return results
+    return []
+
+
+def _extract_kraken_table_fee(text: str, patterns: list[tuple[str, str]]) -> list[dict]:
+    results = []
+    for label, pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+        if not match:
+            continue
+        fee = float(match.group("fee"))
+        minimum = match.groupdict().get("min")
+        results.append({
+            "label": label,
+            "fee": fee,
+            "min": float(minimum) if minimum else None,
+            "enabled": True,
+            "note": "공식 지원 문서 스크래핑",
+        })
+    return results
+
+
+def fetch_kraken_withdrawal(coin: str) -> list:
+    source_url = "https://support.kraken.com/articles/360000767986-cryptocurrency-withdrawal-fees-and-minimums"
+    r = _get(source_url)
+    if r.status_code != 200:
+        raise ValueError(f"Kraken 출금 문서 조회 오류: {r.status_code}")
+    text = re.sub(r"<[^>]+>", " ", r.text)
+    text = re.sub(r"\s+", " ", text)
+
+    if coin == "BTC":
+        results = _extract_kraken_table_fee(text, [
+            ("Bitcoin (On-chain)", r"Bitcoin\s*\(BTC\).*?Withdrawal fee.*?(?P<fee>0\.\d+)\s*BTC(?:.*?Minimum.*?(?P<min>0\.\d+)\s*BTC)?"),
+            ("Bitcoin (On-chain)", r"Bitcoin\s*\(BTC\).*?(?P<fee>0\.\d+)\s*BTC(?:.*?(?P<min>0\.\d+)\s*BTC)?"),
+        ])
+        if results:
+            return [results[0]]
+    elif coin == "USDT":
+        results = _extract_kraken_table_fee(text, [
+            ("ERC20", r"Tether(?:\s*USD|)\s*\(Ethereum\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
+            ("TRC20", r"Tether(?:\s*USD|)\s*\(Tron\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
+            ("Solana", r"Tether(?:\s*USD|)\s*\(Solana\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
+            ("Polygon", r"Tether(?:\s*USD|)\s*\(Polygon\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
+            ("Arbitrum", r"Tether(?:\s*USD|)\s*\(Arbitrum(?:\s*One|)\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
+        ])
+        if results:
+            return results
+    raise ValueError(f"Kraken {coin} 출금 수수료 스크래핑 실패")
+
+
+SPECIAL_WITHDRAWAL_FETCHERS = {
+    ("coinbase", "btc"): fetch_coinbase_withdrawal,
+    ("coinbase", "usdt"): fetch_coinbase_withdrawal,
+    ("kraken", "btc"): fetch_kraken_withdrawal,
+    ("kraken", "usdt"): fetch_kraken_withdrawal,
+}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -870,6 +1027,10 @@ def get_scraped_withdrawal(exchange: str, coin: str) -> list:
     """출금 수수료 반환: 공개 API 또는 스크래핑 결과만 사용. fallback 없음."""
     exchange = exchange.lower()
     coin_lower = coin.lower()
+
+    special_fetcher = SPECIAL_WITHDRAWAL_FETCHERS.get((exchange, coin_lower))
+    if special_fetcher:
+      return special_fetcher(coin.upper())
 
     config = SCRAPED_WITHDRAWAL_LABELS.get(exchange, {}).get(coin_lower)
     if not config:

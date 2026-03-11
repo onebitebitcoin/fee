@@ -378,6 +378,95 @@ class TestGetScrapedWithdrawal:
     def test_bithumb_api_source_url_is_exposed(self):
         assert get_withdrawal_source_url("bithumb", "USDT", "TRC20") == "https://gw.bithumb.com/exchange/v1/coin-inout/info"
 
+    def test_coinbase_btc_uses_official_metadata_plus_public_fee_estimate(self, monkeypatch):
+        class DummyResponse:
+            def __init__(self, status_code, payload=None):
+                self.status_code = status_code
+                self._payload = payload or {}
+
+            def json(self):
+                return self._payload
+
+        def fake_get(url, **kwargs):
+            if url.endswith("/currencies/BTC"):
+                return DummyResponse(200, {
+                    "id": "BTC",
+                    "min_withdrawal_amount": "0.0001",
+                    "supported_networks": [{"name": "Bitcoin", "is_disabled": False}],
+                })
+            if "mempool.space" in url:
+                return DummyResponse(200, {"hourFee": 10})
+            if "blockstream.info" in url:
+                return DummyResponse(200, {"6": 10})
+            raise AssertionError(f"unexpected URL: {url}")
+
+        monkeypatch.setattr(fee_checker, "_get", fake_get)
+        result = get_scraped_withdrawal("coinbase", "BTC")
+        assert result == [{
+            "label": "Bitcoin (On-chain)",
+            "fee": 0.000014,
+            "min": 0.0001,
+            "enabled": True,
+            "note": "공식 자산 메타데이터 + 공개 BTC 수수료 추정",
+        }]
+
+    def test_coinbase_usdt_uses_metadata_and_gas_estimate(self, monkeypatch):
+        class DummyResponse:
+            def __init__(self, status_code, payload=None):
+                self.status_code = status_code
+                self._payload = payload or {}
+
+            def json(self):
+                return self._payload
+
+        def fake_get(url, **kwargs):
+            if url.endswith("/currencies/USDT"):
+                return DummyResponse(200, {
+                    "id": "USDT",
+                    "min_withdrawal_amount": "5",
+                    "supported_networks": [{"name": "Ethereum", "is_disabled": False}],
+                })
+            if url.endswith("/products/ETH-USD"):
+                return DummyResponse(200, {"price": "3000"})
+            raise AssertionError(f"unexpected URL: {url}")
+
+        def fake_post(url, **kwargs):
+            assert url == "https://cloudflare-eth.com"
+            return DummyResponse(200, {"result": hex(20 * 10**9)})
+
+        monkeypatch.setattr(fee_checker, "_get", fake_get)
+        monkeypatch.setattr(fee_checker.requests, "post", fake_post)
+        result = get_scraped_withdrawal("coinbase", "USDT")
+        assert result == [{
+            "label": "ERC20",
+            "fee": 3.9,
+            "min": 5.0,
+            "enabled": True,
+            "note": "공식 자산 메타데이터 + 공개 ETH 가스비 추정",
+        }]
+
+    def test_kraken_usdt_scrapes_official_support_article(self, monkeypatch):
+        html = """
+        <html><body>
+        Tether (Ethereum) Withdrawal fee 2.3 USDT Minimum 10 USDT
+        Tether (Tron) Withdrawal fee 1.0 USDT Minimum 5 USDT
+        </body></html>
+        """
+
+        class DummyResponse:
+            status_code = 200
+            text = html
+
+            def json(self):
+                return {}
+
+        monkeypatch.setattr(fee_checker, "_get", lambda url, **kwargs: DummyResponse())
+        result = get_scraped_withdrawal("kraken", "USDT")
+        assert result == [
+            {"label": "ERC20", "fee": 2.3, "min": 10.0, "enabled": True, "note": "공식 지원 문서 스크래핑"},
+            {"label": "TRC20", "fee": 1.0, "min": 5.0, "enabled": True, "note": "공식 지원 문서 스크래핑"},
+        ]
+
 
 # ─────────────────────────────────────────────────────────────
 # HTTP fetch 함수 테스트 (requests mock)
