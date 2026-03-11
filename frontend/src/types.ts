@@ -145,3 +145,15 @@ export type ScrapeStatusResponse = {
   last_run: { id: number; status: string; completed_at: string | null } | null;
   items: ScrapedPageStatus[];
 };
+
+export type LightningSwapFeeRow = {
+  service_name: string;
+  fee_pct: number | null;
+  fee_fixed_sat: number | null;
+  min_amount_sat: number | null;
+  max_amount_sat: number | null;
+  enabled: boolean;
+  source_url: string | null;
+  error_message: string | null;
+  recorded_at: string | null;
+};

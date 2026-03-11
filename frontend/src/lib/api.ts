@@ -3,6 +3,7 @@ import type {
   CheapestPathResponse,
   CrawlErrorRow,
   CrawlRun,
+  LightningSwapFeeRow,
   NetworkStatusMap,
   ScrapeStatusResponse,
   TickerRow,
@@ -31,4 +32,6 @@ export const api = {
   triggerCrawl: (): Promise<CrawlRun> => request('/api/v1/crawl-runs', { method: 'POST' }),
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
   getScrapeStatus: (): Promise<ScrapeStatusResponse> => request('/api/v1/market/scrape-status'),
+  getLightningSwapFees: (): Promise<{ last_run: CrawlRun | null; items: LightningSwapFeeRow[] }> =>
+    request('/api/v1/market/lightning-swap-fees/latest'),
 };

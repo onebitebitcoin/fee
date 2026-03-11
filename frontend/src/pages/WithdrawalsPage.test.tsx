@@ -6,6 +6,10 @@ import { WithdrawalsPage } from './WithdrawalsPage';
 
 vi.mock('../lib/api', () => ({
   api: {
+    getLightningSwapFees: vi.fn().mockResolvedValue({
+      last_run: null,
+      items: [],
+    }),
     getWithdrawals: vi.fn().mockResolvedValue({
       last_run: {
         id: 1,

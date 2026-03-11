@@ -1,5 +1,5 @@
-import { AlertTriangle, CheckCircle, ExternalLink, XCircle } from 'lucide-react';
-import { useCallback } from 'react';
+import { AlertTriangle, CheckCircle, Globe, Server, XCircle } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { fmtEx } from '../lib/exchangeNames';
 
@@ -7,12 +7,22 @@ import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
-import type { CrawlErrorRow, WithdrawalRow } from '../types';
+import type { CrawlErrorRow, LightningSwapFeeRow, WithdrawalRow } from '../types';
 
 type WithdrawalsPageData = {
   items: WithdrawalRow[];
   errors: CrawlErrorRow[];
   latestScrapingTime: string | null;
+};
+
+type NodeGroup = {
+  nodeId: string;
+  nodeLabel: string;
+  type: 'exchange' | 'lightning';
+  rows: Array<
+    | { kind: 'withdrawal'; data: WithdrawalRow }
+    | { kind: 'lightning'; data: LightningSwapFeeRow }
+  >;
 };
 
 const SATS_PER_BTC = 100_000_000;
@@ -22,16 +32,30 @@ function formatNumber(value: number, maximumFractionDigits = 8) {
 }
 
 function formatWithdrawalFee(item: WithdrawalRow) {
-  if (item.fee == null) {
-    return '-';
-  }
+  if (item.fee == null) return '-';
   if (item.coin.toUpperCase() === 'BTC') {
     return `${formatNumber(Math.round(item.fee * SATS_PER_BTC), 0)} sats`;
   }
   return formatNumber(item.fee);
 }
 
+function formatLightningFee(item: LightningSwapFeeRow) {
+  const parts: string[] = [];
+  if (item.fee_pct != null) parts.push(`${item.fee_pct}%`);
+  if (item.fee_fixed_sat != null) parts.push(`+${formatNumber(item.fee_fixed_sat, 0)} sats`);
+  return parts.length > 0 ? parts.join(' ') : '-';
+}
+
+function SourceIcon({ source }: { source: string }) {
+  if (source === 'realtime_api') {
+    return <Server size={13} className="text-bnb-green" />;
+  }
+  return <Globe size={13} className="text-bnb-muted" />;
+}
+
 export function WithdrawalsPage() {
+  const [nameFilter, setNameFilter] = useState('');
+
   const loadWithdrawals = useCallback(async (): Promise<WithdrawalsPageData> => {
     const response = await api.getWithdrawals();
     return {
@@ -41,12 +65,42 @@ export function WithdrawalsPage() {
     };
   }, []);
   const { data, error, loading } = useAsyncData(loadWithdrawals, {
-    initialData: {
-      items: [],
-      errors: [],
-      latestScrapingTime: null,
-    },
+    initialData: { items: [], errors: [], latestScrapingTime: null },
   });
+
+  const loadLightning = useCallback(async () => {
+    const response = await api.getLightningSwapFees();
+    return response.items;
+  }, []);
+  const { data: lightningItems } = useAsyncData(loadLightning, { initialData: [] });
+
+  const nodeGroups = useMemo<NodeGroup[]>(() => {
+    const map = new Map<string, NodeGroup>();
+
+    for (const item of data.items) {
+      const key = `exchange:${item.exchange}`;
+      if (!map.has(key)) {
+        map.set(key, { nodeId: key, nodeLabel: fmtEx(item.exchange), type: 'exchange', rows: [] });
+      }
+      map.get(key)!.rows.push({ kind: 'withdrawal', data: item });
+    }
+
+    for (const item of lightningItems) {
+      const key = `lightning:${item.service_name}`;
+      if (!map.has(key)) {
+        map.set(key, { nodeId: key, nodeLabel: item.service_name, type: 'lightning', rows: [] });
+      }
+      map.get(key)!.rows.push({ kind: 'lightning', data: item });
+    }
+
+    return Array.from(map.values());
+  }, [data.items, lightningItems]);
+
+  const filteredGroups = useMemo(() => {
+    if (!nameFilter.trim()) return nodeGroups;
+    const q = nameFilter.toLowerCase();
+    return nodeGroups.filter(g => g.nodeLabel.toLowerCase().includes(q));
+  }, [nodeGroups, nameFilter]);
 
   if (error) return <PageErrorMessage message={error} />;
   if (loading) return <PageSkeletonBlocks />;
@@ -60,8 +114,17 @@ export function WithdrawalsPage() {
             <p className="mt-1 text-xs text-bnb-muted">최신 스크래핑: {data.latestScrapingTime}</p>
           )}
         </div>
-        <span className="text-sm text-bnb-muted">{data.items.length}개 항목</span>
+        <span className="text-sm text-bnb-muted">{filteredGroups.length}개 노드</span>
       </div>
+
+      {/* 이름 필터 */}
+      <input
+        type="text"
+        value={nameFilter}
+        onChange={e => setNameFilter(e.target.value)}
+        placeholder="거래소 / 서비스 이름 필터..."
+        className="w-full border border-dark-200 bg-dark-400 px-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400 focus:outline-none sm:w-64"
+      />
 
       {data.errors.length > 0 && (
         <div className="flex items-start gap-2 border border-bnb-red/30 bg-bnb-red/10 p-4">
@@ -79,90 +142,144 @@ export function WithdrawalsPage() {
         </div>
       )}
 
-      <div className="space-y-3 md:hidden">
-        {data.items.map((item) => (
-          <article key={`mobile-${item.exchange}-${item.coin}-${item.network_label}`} className="border border-dark-200 bg-dark-300 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-semibold text-bnb-text">{fmtEx(item.exchange)}</p>
-                <p className="mt-1 text-sm text-bnb-muted">{item.coin} · {item.network_label}</p>
-              </div>
-              {item.enabled ? (
-                <CheckCircle size={16} className="shrink-0 text-bnb-green" />
-              ) : (
-                <XCircle size={16} className="shrink-0 text-bnb-red" />
+      {/* 노드 그룹 목록 */}
+      <div className="space-y-4">
+        {filteredGroups.map(group => (
+          <div key={group.nodeId} className="border border-dark-200">
+            {/* 노드 헤더 */}
+            <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-2">
+              <span className="font-semibold text-bnb-text">{group.nodeLabel}</span>
+              {group.type === 'lightning' && (
+                <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">⚡ Lightning</span>
               )}
+              <span className="ml-auto text-xs text-bnb-muted">{group.rows.length}개 네트워크</span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수수료</p>
-                <p className="mt-1 font-semibold text-brand-500">{formatWithdrawalFee(item)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">USD</p>
-                <p className="mt-1 text-bnb-text">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">출처</p>
-                <div className="mt-1 flex items-center justify-between gap-3">
-                  <span className="text-bnb-text">{item.source}</span>
-                  {item.source_url ? (
-                    <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-500 hover:text-brand-400">
-                      <ExternalLink size={12} />
-                      보기
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
 
-      <div className="hidden overflow-x-auto border border-dark-200 md:block">
-        <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-dark-200 bg-dark-400">
-            <tr>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">거래소</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">코인</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">네트워크</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">수수료</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">USD</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">출처</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted"><ExternalLink size={12} /></th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted"><CheckCircle size={12} /></th>
-            </tr>
-          </thead>
-          <tbody className="bg-dark-300">
-            {data.items.map((item) => (
-              <tr key={`${item.exchange}-${item.coin}-${item.network_label}`} className="border-t border-dark-200 transition-colors hover:bg-dark-400">
-                <td className="px-4 py-3 font-medium text-bnb-text">{fmtEx(item.exchange)}</td>
-                <td className="px-4 py-3 text-bnb-text">{item.coin}</td>
-                <td className="px-4 py-3 text-bnb-muted">{item.network_label}</td>
-                <td className="px-4 py-3 text-right font-semibold text-brand-500">{formatWithdrawalFee(item)}</td>
-                <td className="px-4 py-3 text-right text-bnb-muted">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</td>
-                <td className="px-4 py-3 text-bnb-muted">{item.source}</td>
-                <td className="px-4 py-3">
-                  {item.source_url ? (
-                    <a href={item.source_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-brand-500 hover:text-brand-400">
-                      <ExternalLink size={12} />
-                      보기
-                    </a>
-                  ) : (
-                    <span className="text-bnb-muted">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {item.enabled ? (
-                    <CheckCircle size={14} className="mx-auto text-bnb-green" />
-                  ) : (
-                    <XCircle size={14} className="mx-auto text-bnb-red" />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            {/* 모바일: 카드 */}
+            <div className="space-y-0 md:hidden">
+              {group.rows.map((row, idx) => {
+                if (row.kind === 'withdrawal') {
+                  const item = row.data;
+                  return (
+                    <div key={`m-${idx}`} className="border-t border-dark-200 bg-dark-300 p-3 first:border-t-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-bnb-muted">{item.coin} · {item.network_label}</p>
+                        <div className="flex items-center gap-2">
+                          <SourceIcon source={item.source} />
+                          {item.enabled ? <CheckCircle size={14} className="text-bnb-green" /> : <XCircle size={14} className="text-bnb-red" />}
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-bnb-muted">수수료</p>
+                          <p className="font-semibold text-brand-500">{formatWithdrawalFee(item)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-bnb-muted">USD</p>
+                          <p className="text-bnb-text">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  const item = row.data;
+                  return (
+                    <div key={`m-${idx}`} className="border-t border-dark-200 bg-dark-300 p-3 first:border-t-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-bnb-muted">Lightning Swap</p>
+                        <div className="flex items-center gap-2">
+                          <Globe size={13} className="text-bnb-muted" />
+                          {item.enabled ? <CheckCircle size={14} className="text-bnb-green" /> : <XCircle size={14} className="text-bnb-red" />}
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-bnb-muted">수수료</p>
+                          <p className="font-semibold text-brand-500">{formatLightningFee(item)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-bnb-muted">한도</p>
+                          <p className="text-bnb-text text-xs">
+                            {item.min_amount_sat != null ? `${formatNumber(item.min_amount_sat, 0)}~` : ''}
+                            {item.max_amount_sat != null ? `${formatNumber(item.max_amount_sat, 0)} sats` : '-'}
+                          </p>
+                        </div>
+                      </div>
+                      {item.error_message && <p className="mt-1 text-xs text-bnb-red">{item.error_message}</p>}
+                    </div>
+                  );
+                }
+              })}
+            </div>
+
+            {/* PC: 테이블 */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-dark-200 bg-dark-400/50">
+                  <tr>
+                    <th className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-bnb-muted">네트워크</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">수수료</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">USD</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted">출처</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted">상태</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-dark-300">
+                  {group.rows.map((row, idx) => {
+                    if (row.kind === 'withdrawal') {
+                      const item = row.data;
+                      return (
+                        <tr key={idx} className="border-t border-dark-200 hover:bg-dark-400 transition-colors">
+                          <td className="px-4 py-2 text-bnb-muted">
+                            {item.coin} · {item.network_label}
+                            {item.source_url && (
+                              <a href={item.source_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center text-brand-400 hover:text-brand-300">
+                                <Globe size={11} />
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-brand-500">{formatWithdrawalFee(item)}</td>
+                          <td className="px-4 py-2 text-right text-bnb-muted">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</td>
+                          <td className="px-4 py-2 text-center"><SourceIcon source={item.source} /></td>
+                          <td className="px-4 py-2 text-center">
+                            {item.enabled ? <CheckCircle size={13} className="mx-auto text-bnb-green" /> : <XCircle size={13} className="mx-auto text-bnb-red" />}
+                          </td>
+                        </tr>
+                      );
+                    } else {
+                      const item = row.data;
+                      return (
+                        <tr key={idx} className="border-t border-dark-200 hover:bg-dark-400 transition-colors">
+                          <td className="px-4 py-2 text-bnb-muted">
+                            Lightning Swap
+                            {item.source_url && (
+                              <a href={item.source_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center text-brand-400 hover:text-brand-300">
+                                <Globe size={11} />
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-brand-500">{formatLightningFee(item)}</td>
+                          <td className="px-4 py-2 text-right text-bnb-muted">
+                            {item.min_amount_sat != null || item.max_amount_sat != null
+                              ? `${item.min_amount_sat != null ? formatNumber(item.min_amount_sat, 0) : '0'}~${item.max_amount_sat != null ? formatNumber(item.max_amount_sat, 0) : '∞'} sats`
+                              : '-'}
+                          </td>
+                          <td className="px-4 py-2 text-center"><Globe size={13} className="mx-auto text-bnb-muted" /></td>
+                          <td className="px-4 py-2 text-center">
+                            {item.enabled ? <CheckCircle size={13} className="mx-auto text-bnb-green" /> : <XCircle size={13} className="mx-auto text-bnb-red" />}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+        {filteredGroups.length === 0 && (
+          <p className="py-8 text-center text-sm text-bnb-muted">'{nameFilter}'에 해당하는 노드가 없습니다.</p>
+        )}
       </div>
     </div>
   );
