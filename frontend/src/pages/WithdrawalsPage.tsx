@@ -1,4 +1,4 @@
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ExternalLink, XCircle } from 'lucide-react';
 import { useCallback } from 'react';
 
 import { PageErrorMessage } from '../components/PageErrorMessage';
@@ -65,14 +65,14 @@ export function WithdrawalsPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Exchange</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Coin</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Network</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">Fee</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">Fee USD</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Source</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">URL</th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted">Enabled</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">거래소</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">코인</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">네트워크</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">수수료</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">USD</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">출처</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted"><ExternalLink size={12} /></th>
+              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted"><CheckCircle size={12} /></th>
             </tr>
           </thead>
           <tbody className="bg-dark-300">
@@ -96,9 +96,9 @@ export function WithdrawalsPage() {
                 </td>
                 <td className="px-4 py-3 text-center">
                   {item.enabled ? (
-                    <span className="bg-bnb-green/20 px-2 py-0.5 text-xs font-medium text-bnb-green">Y</span>
+                    <CheckCircle size={14} className="mx-auto text-bnb-green" />
                   ) : (
-                    <span className="bg-bnb-red/20 px-2 py-0.5 text-xs font-medium text-bnb-red">N</span>
+                    <XCircle size={14} className="mx-auto text-bnb-red" />
                   )}
                 </td>
               </tr>

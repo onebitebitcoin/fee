@@ -2,12 +2,12 @@ import { BarChart2, Globe, History, Network, Route, TrendingUp } from 'lucide-re
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/', label: 'Overview', icon: BarChart2 },
-  { to: '/cheapest-path', label: 'Cheapest Path', icon: Route },
-  { to: '/tickers', label: 'Tickers', icon: TrendingUp },
-  { to: '/withdrawals', label: 'Withdrawals', icon: Globe },
-  { to: '/network-status', label: 'Network', icon: Network },
-  { to: '/runs', label: 'Run History', icon: History },
+  { to: '/', label: '개요', icon: BarChart2 },
+  { to: '/cheapest-path', label: '최적 경로', icon: Route },
+  { to: '/tickers', label: '시세', icon: TrendingUp },
+  { to: '/withdrawals', label: '출금 수수료', icon: Globe },
+  { to: '/network-status', label: '네트워크', icon: Network },
+  { to: '/runs', label: '수집 이력', icon: History },
 ];
 
 export function Layout() {
@@ -20,7 +20,7 @@ export function Layout() {
               <span className="text-sm font-bold text-dark-500">B</span>
             </div>
             <div>
-              <p className="text-sm font-bold text-bnb-text">BTC Route Finder</p>
+              <p className="text-sm font-bold text-bnb-text">BTC 경로 탐색기</p>
               <p className="text-xs text-bnb-muted">실시간 수수료 비교</p>
             </div>
           </div>

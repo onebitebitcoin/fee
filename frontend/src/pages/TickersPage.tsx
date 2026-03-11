@@ -28,12 +28,12 @@ export function TickersPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Exchange</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Market</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">Price</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Currency</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">Maker %</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">Taker %</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">거래소</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">마켓</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">가격</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">통화</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">메이커</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">테이커</th>
             </tr>
           </thead>
           <tbody className="bg-dark-300">

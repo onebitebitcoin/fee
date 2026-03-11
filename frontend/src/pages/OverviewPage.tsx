@@ -43,9 +43,9 @@ export function OverviewPage() {
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard label="최근 수집 상태" value={data?.last_run?.status ?? 'no-data'} helper={data?.last_run?.completed_at ?? '아직 수집 없음'} />
-        <MetricCard label="Ticker Rows" value={data?.counts.tickers ?? 0} />
-        <MetricCard label="Withdrawal Rows" value={data?.counts.withdrawal_rows ?? 0} />
-        <MetricCard label="Suspended Networks" value={data?.counts.suspended_networks ?? 0} />
+        <MetricCard label="시세 데이터" value={data?.counts.tickers ?? 0} />
+        <MetricCard label="출금 수수료" value={data?.counts.withdrawal_rows ?? 0} />
+        <MetricCard label="점검 네트워크" value={data?.counts.suspended_networks ?? 0} />
       </div>
 
       <div className="border border-dark-200 bg-dark-300 p-4">

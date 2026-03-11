@@ -7,9 +7,9 @@ import type { CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } f
 const DEFAULT_AMOUNT_KRW = 1000000;
 const GLOBAL_EXCHANGE_OPTIONS = ['binance', 'okx', 'coinbase', 'kraken', 'bitget'];
 const TOP_PATH_SORT_OPTIONS = [
-  { value: 'lowest_fee_krw', label: 'TOTAL FEE ASC' },
-  { value: 'lowest_fee_pct', label: 'FEE RATIO ASC' },
-  { value: 'highest_btc', label: 'BTC OUTPUT DESC' },
+  { value: 'lowest_fee_krw', label: '수수료 낮은 순' },
+  { value: 'lowest_fee_pct', label: '수수료율 낮은 순' },
+  { value: 'highest_btc', label: 'BTC 최대 순' },
 ] as const;
 
 type TopPathSortOption = (typeof TOP_PATH_SORT_OPTIONS)[number]['value'];
@@ -37,9 +37,9 @@ function getFeeTone(feePct: number) {
 }
 
 function getRouteStatus(index: number, feePct: number) {
-  if (index === 0) return { label: 'OPTIMAL', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
-  if (feePct <= 1.0) return { label: 'RELIABLE', className: 'border-sky-400/40 bg-sky-400/10 text-sky-300' };
-  return { label: 'EXPENSIVE', className: 'border-bnb-red/30 bg-bnb-red/10 text-bnb-red' };
+  if (index === 0) return { label: '최적', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
+  if (feePct <= 1.0) return { label: '안정', className: 'border-sky-400/40 bg-sky-400/10 text-sky-300' };
+  return { label: '고비용', className: 'border-bnb-red/30 bg-bnb-red/10 text-bnb-red' };
 }
 
 function sortTopPaths(paths: CheapestPathEntry[], sortBy: TopPathSortOption) {
@@ -61,17 +61,17 @@ function sortTopPaths(paths: CheapestPathEntry[], sortBy: TopPathSortOption) {
 
 function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | null }) {
   const [open, setOpen] = useState(false);
-  if (!breakdown?.components?.length) return <span className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">No detail</span>;
+  if (!breakdown?.components?.length) return <span className="text-[11px] text-bnb-muted">상세 없음</span>;
 
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.24em] text-sky-300 transition-colors hover:text-sky-200"
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-300 transition-colors hover:text-sky-200"
       >
         <Info size={11} />
-        Fee Trace {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+        수수료 내역 {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
       </button>
       {open && (
         <div className="border border-dark-200 bg-dark-400 p-3">
@@ -159,10 +159,10 @@ export function CheapestPathPage() {
 
   const summaryCards = data && !error
     ? [
-        { label: 'Evaluated Paths', value: `${formatNumber(data.total_paths_evaluated)} routes`, helper: '현재 계산에 포함된 후보 수' },
-        { label: 'Best Total Fee', value: data.best_path ? formatCurrency(data.best_path.total_fee_krw) : 'N/A', helper: '최저 총 수수료 기준' },
-        { label: 'Best Receiver', value: data.best_path ? data.best_path.korean_exchange.toUpperCase() : 'N/A', helper: data.best_path ? `${data.best_path.transfer_coin} / ${data.best_path.network}` : '활성 경로 없음' },
-        { label: 'Suppressed Paths', value: `${formatNumber(data.disabled_paths.length)} routes`, helper: data.disabled_paths.length ? '점검/정지 경로 제외' : '비활성 경로 없음' },
+        { label: '분석 경로', value: `${formatNumber(data.total_paths_evaluated)}개`, helper: '현재 계산에 포함된 후보 수' },
+        { label: '최저 수수료', value: data.best_path ? formatCurrency(data.best_path.total_fee_krw) : 'N/A', helper: '최저 총 수수료 기준' },
+        { label: '최적 거래소', value: data.best_path ? data.best_path.korean_exchange.toUpperCase() : 'N/A', helper: data.best_path ? `${data.best_path.transfer_coin} / ${data.best_path.network}` : '활성 경로 없음' },
+        { label: '비활성 경로', value: `${formatNumber(data.disabled_paths.length)}개`, helper: data.disabled_paths.length ? '점검/정지 경로 제외' : '비활성 경로 없음' },
       ]
     : [];
 
@@ -174,15 +174,15 @@ export function CheapestPathPage() {
       <div className="border-b border-dark-200 bg-dark-400 px-5 py-4">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.38em] text-bnb-muted">BTC Route Finder</p>
-            <h1 className="mt-1 text-lg font-semibold tracking-tight text-bnb-text">Route Optimization Dashboard</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.38em] text-bnb-muted">BTC 경로 탐색기</p>
+            <h1 className="mt-1 text-lg font-semibold tracking-tight text-bnb-text">최적 경로 대시보드</h1>
           </div>
           <div className="flex gap-4 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
             <div>
-              Source{data?.data_source ? `: ${data.data_source}` : ''}
+              출처{data?.data_source ? `: ${data.data_source}` : ''}
             </div>
             <div className="border-l border-dark-200 pl-4">
-              Snapshot: {data?.latest_scraping_time ?? 'standby'}
+              스냅샷: {data?.latest_scraping_time ?? '대기 중'}
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@ export function CheapestPathPage() {
       <div className="border-b border-dark-200 bg-dark-500 px-5 py-4">
         <form className="grid gap-0 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_220px_auto]" onSubmit={handleSubmit}>
           <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            Transaction Amount (KRW)
+            거래 금액 (KRW)
             <input
               type="number"
               min={10000}
@@ -205,7 +205,7 @@ export function CheapestPathPage() {
           </label>
 
           <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            Target Venue
+            목적지 거래소
             <select
               value={globalExchange}
               onChange={(event) => setGlobalExchange(event.target.value)}
@@ -219,7 +219,7 @@ export function CheapestPathPage() {
           </label>
 
           <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            Route Focus
+            경로 필터
             <select
               value={selectedKoreanExchange}
               onChange={(event) => setSelectedKoreanExchange(event.target.value)}
@@ -234,7 +234,7 @@ export function CheapestPathPage() {
           </label>
 
           <label className="border border-dark-200 bg-dark-400 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-bnb-muted xl:border-r-0">
-            Output View
+            정렬 기준
             <select
               value={topPathSort}
               onChange={(event) => setTopPathSort(event.target.value as TopPathSortOption)}
@@ -253,7 +253,7 @@ export function CheapestPathPage() {
             className="flex items-center justify-center gap-2 border border-sky-600 bg-sky-700 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white transition-colors hover:bg-sky-600 disabled:opacity-50"
           >
             <Search size={15} />
-            {submitting ? 'Scanning...' : 'Search Optimal Route'}
+            {submitting ? '검색 중...' : '최적 경로 검색'}
           </button>
         </form>
       </div>
@@ -285,7 +285,7 @@ export function CheapestPathPage() {
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5" size={18} />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">Route analysis failed</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">경로 분석 실패</p>
               <p className="mt-2 text-sm font-medium">{error}</p>
               {data?.errors?.length ? (
                 <ul className="mt-3 space-y-1 text-sm text-bnb-muted">
@@ -307,11 +307,11 @@ export function CheapestPathPage() {
           {data.best_path ? (
             <div className="grid gap-0 border-b border-dark-200 xl:grid-cols-[minmax(0,1.55fr)_380px]">
               <div className="border-b border-dark-200 bg-dark-400 p-5 xl:border-b-0 xl:border-r">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-400">Primary Route Recommendation</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-400">최적 경로</p>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-3 text-bnb-text">
-                      <span className="border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">Rank 01</span>
+                      <span className="border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">1위</span>
                       <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.best_path.korean_exchange}</span>
                       <ArrowRight size={16} className="text-bnb-muted" />
                       <span className="text-xl font-semibold uppercase tracking-[0.08em]">{data.global_exchange}</span>
@@ -324,15 +324,15 @@ export function CheapestPathPage() {
 
                   <div className="grid min-w-[220px] gap-4 sm:grid-cols-3 xl:grid-cols-1">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Received BTC</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 BTC</p>
                       <p className="mt-1 text-xl font-semibold text-bnb-text">{formatBtc(data.best_path.btc_received)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Total Fee</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
                       <p className="mt-1 text-xl font-semibold text-sky-300">{formatCurrency(data.best_path.total_fee_krw)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Fee Ratio</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
                       <p className={`mt-1 text-xl font-semibold ${getFeeTone(data.best_path.fee_pct)}`}>{formatPercent(data.best_path.fee_pct)}</p>
                     </div>
                   </div>
@@ -340,19 +340,19 @@ export function CheapestPathPage() {
               </div>
 
               <div className="bg-dark-500 p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-bnb-muted">Operations Log</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-bnb-muted">운영 정보</p>
                 <div className="mt-4 space-y-4 text-sm text-bnb-muted">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Last Run</p>
-                    <p className="mt-1 font-medium text-bnb-text">{data.last_run?.status ?? 'unknown'}</p>
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">최근 실행</p>
+                    <p className="mt-1 font-medium text-bnb-text">{data.last_run?.status ?? '알 수 없음'}</p>
                     <p className="mt-0.5 text-xs text-bnb-muted">{data.last_run?.completed_at ?? data.maintenance_checked_at ?? '최근 실행 정보 없음'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Market Inputs</p>
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">시장 가격</p>
                     <p className="mt-1">USD/KRW {formatNumber(data.usd_krw_rate)} · BTC/USD {formatNumber(data.global_btc_price_usd, 2)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Fee Trace</p>
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료 내역</p>
                     <div className="mt-2">
                       <FeeBreakdownRow breakdown={data.best_path.breakdown} />
                     </div>
@@ -365,9 +365,9 @@ export function CheapestPathPage() {
           {/* Route Optimization Table */}
           <div className="border-b border-dark-200 bg-dark-500">
             <div className="flex flex-col gap-2 border-b border-dark-200 bg-dark-400 px-5 py-3 md:flex-row md:items-center md:justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">Route Optimization Analysis</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">경로 분석</p>
               <p className="text-[11px] uppercase tracking-[0.2em] text-bnb-muted">
-                Last Updated: {data.latest_scraping_time ?? '—'}
+                업데이트: {data.latest_scraping_time ?? '—'}
               </p>
             </div>
 
@@ -375,13 +375,13 @@ export function CheapestPathPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-dark-200 bg-dark-400 text-left text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">
-                    <th className="px-5 py-3">Path ID</th>
-                    <th className="px-5 py-3">Provider / Method</th>
-                    <th className="px-5 py-3 text-right">Fee Rate</th>
-                    <th className="px-5 py-3 text-right">Est. Cost (BTC)</th>
-                    <th className="px-5 py-3 text-right">Est. Cost (KRW)</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Trace</th>
+                    <th className="px-5 py-3">경로</th>
+                    <th className="px-5 py-3">거래소/방식</th>
+                    <th className="px-5 py-3 text-right">수수료율</th>
+                    <th className="px-5 py-3 text-right">수령 BTC</th>
+                    <th className="px-5 py-3 text-right">수수료(KRW)</th>
+                    <th className="px-5 py-3">상태</th>
+                    <th className="px-5 py-3">내역</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -429,13 +429,13 @@ export function CheapestPathPage() {
             {/* Focused Route Inspector */}
             <div className="border-r border-dark-200 bg-dark-500">
               <div className="border-b border-dark-200 bg-dark-400 px-5 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">Focused Route Inspector</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">경로 상세</p>
               </div>
               <div className="p-5">
                 {selectedRoute ? (
                   <div className="space-y-5">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="border border-dark-200 bg-dark-400 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">#{selectedRoute.rank} rank</span>
+                      <span className="border border-dark-200 bg-dark-400 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">{selectedRoute.rank}위</span>
                       <span className="text-lg font-semibold uppercase tracking-[0.08em] text-bnb-text">{selectedRoute.path.korean_exchange}</span>
                       <ArrowRight size={14} className="text-bnb-muted" />
                       <span className="text-lg font-semibold uppercase tracking-[0.08em] text-bnb-text">{data.global_exchange}</span>
@@ -443,16 +443,16 @@ export function CheapestPathPage() {
 
                     <div className="grid gap-0 border border-dark-200 md:grid-cols-3">
                       <div className="border-r border-dark-200 p-4 last:border-r-0">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Asset Lane</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
                         <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
                         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.network}</p>
                       </div>
                       <div className="border-r border-dark-200 p-4 last:border-r-0">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Received BTC</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 BTC</p>
                         <p className="mt-2 font-semibold text-bnb-text">{formatBtc(selectedRoute.path.btc_received)}</p>
                       </div>
                       <div className="p-4">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">Fee Ratio</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
                         <p className={`mt-2 font-semibold ${getFeeTone(selectedRoute.path.fee_pct)}`}>{formatPercent(selectedRoute.path.fee_pct)}</p>
                       </div>
                     </div>
@@ -472,7 +472,7 @@ export function CheapestPathPage() {
               <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-5 py-3">
                 <TrendingUp size={14} className="text-bnb-muted" />
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">
-                  Fee Rate Velocity (Live Snapshot)
+                  수수료율 비교
                 </p>
               </div>
               <div className="p-5">
@@ -495,7 +495,7 @@ export function CheapestPathPage() {
 
                 {data.disabled_paths.length > 0 ? (
                   <div className="mt-6 border border-bnb-red/30 bg-bnb-red/5 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-red">Suppressed Routes</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-red">비활성 경로</p>
                     <ul className="mt-3 space-y-2 text-sm text-bnb-muted">
                       {data.disabled_paths.slice(0, 4).map((path, index) => (
                         <li key={`${path.korean_exchange}-${path.transfer_coin}-${index}`}>

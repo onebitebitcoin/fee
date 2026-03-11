@@ -30,11 +30,11 @@ export function RunsPage() {
           <thead className="border-b border-dark-200 bg-dark-400">
             <tr>
               <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">ID</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Trigger</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Status</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Started</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Completed</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">Message</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">트리거</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">상태</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">시작</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">완료</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-bnb-muted">메시지</th>
             </tr>
           </thead>
           <tbody className="bg-dark-300">
