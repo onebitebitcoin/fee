@@ -8,6 +8,8 @@ import type { CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } f
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
+const SATS_PER_BTC = 100_000_000;
+const BTC_AMOUNT_TEXT_PATTERN = /^\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*BTC\s*$/i;
 
 function formatNumber(value: number, maximumFractionDigits = 0) {
   return new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(value);
@@ -17,8 +19,17 @@ function formatCurrency(value: number) {
   return `${formatNumber(value)} KRW`;
 }
 
-function formatBtc(value: number) {
-  return value.toLocaleString('ko-KR', { maximumFractionDigits: 8 });
+function formatSats(value: number) {
+  return `${formatNumber(Math.round(value * SATS_PER_BTC))} sats`;
+}
+
+function formatAmountText(value?: string | null) {
+  if (!value) return null;
+  const matched = value.match(BTC_AMOUNT_TEXT_PATTERN);
+  if (!matched) return value;
+  const btcValue = Number(matched[1]);
+  if (!Number.isFinite(btcValue)) return value;
+  return `${formatNumber(Math.round(btcValue * SATS_PER_BTC))} sats`;
 }
 
 function formatPercent(value: number) {
@@ -81,13 +92,113 @@ function FeeBreakdownPopup({ breakdown, onClose }: { breakdown: CheapestPathBrea
                   <td className="py-2.5 pr-4 text-bnb-text">{component.label}</td>
                   <td className="py-2.5 pr-4 text-bnb-muted text-xs">
                     {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
-                    {component.amount_text ? ` · ${component.amount_text}` : ''}
+                    {component.amount_text ? ` · ${formatAmountText(component.amount_text)}` : ''}
                   </td>
                   <td className="py-2.5 text-right font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function RouteDetailPopup({
+  selectedRoute,
+  globalExchange,
+  onClose,
+}: {
+  selectedRoute: { rank: number; path: RankedPath };
+  globalExchange: string;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-4">
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label="경로 상세 팝업"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto border border-dark-200 bg-dark-400 shadow-xl"
+      >
+        <div className="flex items-center justify-between border-b border-dark-200 px-4 py-3 sm:px-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-bnb-muted">경로 상세</p>
+            <p className="mt-1 text-sm font-semibold text-bnb-text">{fmtEx(selectedRoute.path.korean_exchange)}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-bnb-muted hover:text-bnb-text">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="space-y-4 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="border border-dark-200 bg-dark-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">
+              {selectedRoute.rank}위
+            </span>
+            <span className="text-base font-semibold text-bnb-text">{fmtEx(selectedRoute.path.korean_exchange)}</span>
+            <ArrowRight size={14} className="text-bnb-muted" />
+            <span className="text-base font-semibold text-bnb-text">{fmtEx(globalExchange)}</span>
+          </div>
+
+          <div className="grid gap-0 border border-dark-200">
+            <div className="border-b border-dark-200 p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
+              <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
+              <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.network}</p>
+            </div>
+            <div className="border-b border-dark-200 p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
+              <p className="mt-2 font-semibold text-bnb-text">{formatSats(selectedRoute.path.btc_received)}</p>
+            </div>
+            <div className="p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
+              <p className={`mt-2 font-semibold ${getFeeTone(selectedRoute.path.fee_pct)}`}>{formatPercent(selectedRoute.path.fee_pct)}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료 내역</p>
+            <div className="mt-3 space-y-3">
+              {selectedRoute.path.breakdown?.components?.length ? (
+                selectedRoute.path.breakdown.components.map((component, index) => (
+                  <div key={`${component.label}-${index}`} className="border border-dark-200 bg-dark-500 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-bnb-text">{component.label}</p>
+                        <p className="mt-1 text-xs text-bnb-muted">
+                          {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
+                          {component.amount_text ? ` · ${formatAmountText(component.amount_text)}` : ''}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="border border-dashed border-dark-200 bg-dark-500 p-3 text-sm text-bnb-muted">
+                  수수료 내역이 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>,
@@ -122,6 +233,7 @@ export function CheapestPathPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
 
   // Table filters
   const [excludedNetworks, setExcludedNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
@@ -190,6 +302,12 @@ export function CheapestPathPage() {
     setSelectedKoreanExchange(preferredExchange);
   }, [availableKoreanExchanges, data?.best_path?.korean_exchange, selectedKoreanExchange]);
 
+  useEffect(() => {
+    if (mobileRouteDetailOpen && !selectedRoute) {
+      setMobileRouteDetailOpen(false);
+    }
+  }, [mobileRouteDetailOpen, selectedRoute]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
@@ -203,6 +321,11 @@ export function CheapestPathPage() {
     setExcludedNetworks((prev) =>
       prev.includes(network) ? prev.filter((n) => n !== network) : [...prev, network],
     );
+  };
+
+  const openMobileRouteDetail = (exchange: string) => {
+    setSelectedKoreanExchange(exchange);
+    setMobileRouteDetailOpen(true);
   };
 
 
@@ -321,8 +444,8 @@ export function CheapestPathPage() {
 
                   <div className="grid gap-4 sm:min-w-[220px] sm:grid-cols-3 xl:grid-cols-1">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 BTC</p>
-                      <p className="mt-1 text-xl font-semibold text-bnb-text">{formatBtc(data.best_path.btc_received)}</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
+                      <p className="mt-1 text-xl font-semibold text-bnb-text">{formatSats(data.best_path.btc_received)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
@@ -442,8 +565,8 @@ export function CheapestPathPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 border border-dark-200 bg-dark-400 p-3 text-sm">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수령 BTC</p>
-                        <p className="mt-1 font-semibold text-bnb-text">{formatBtc(path.btc_received)}</p>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수령 sats</p>
+                        <p className="mt-1 font-semibold text-bnb-text">{formatSats(path.btc_received)}</p>
                       </div>
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수수료율</p>
@@ -454,7 +577,7 @@ export function CheapestPathPage() {
                       <FeeBreakdownRow breakdown={path.breakdown} />
                       <button
                         type="button"
-                        onClick={() => setSelectedKoreanExchange(path.korean_exchange)}
+                        onClick={() => openMobileRouteDetail(path.korean_exchange)}
                         className="inline-flex items-center justify-center border border-brand-500/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-400 transition-colors hover:bg-brand-500/10"
                         aria-label={`${fmtEx(path.korean_exchange)} 경로 상세 열기`}
                       >
@@ -477,7 +600,7 @@ export function CheapestPathPage() {
                     <th className="px-5 py-3">출발지</th>
                     <th className="px-5 py-3">코인 / 네트워크</th>
                     <th className="px-5 py-3 text-right">총 수수료율</th>
-                    <th className="px-5 py-3 text-right">수령 BTC</th>
+                    <th className="px-5 py-3 text-right">수령 sats</th>
                     <th className="px-5 py-3 text-right">수수료(KRW)</th>
                     <th className="px-5 py-3">상태</th>
                     <th className="px-5 py-3">내역</th>
@@ -527,7 +650,7 @@ export function CheapestPathPage() {
                           {formatPercent(path.fee_pct)}
                         </td>
                         <td className="px-5 py-4 text-right font-medium text-bnb-text">
-                          {formatBtc(path.btc_received)}
+                          {formatSats(path.btc_received)}
                         </td>
                         <td className="px-5 py-4 text-right font-semibold text-brand-400">
                           {formatCurrency(path.total_fee_krw)}
@@ -558,7 +681,7 @@ export function CheapestPathPage() {
           {/* Bottom: Focused Route + Fee Velocity */}
           <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
             {/* Focused Route Inspector */}
-            <div className="border-r border-dark-200 bg-dark-500">
+            <div className="hidden border-r border-dark-200 bg-dark-500 md:block">
               <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">경로 상세</p>
               </div>
@@ -579,8 +702,8 @@ export function CheapestPathPage() {
                         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.network}</p>
                       </div>
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 BTC</p>
-                        <p className="mt-2 font-semibold text-bnb-text">{formatBtc(selectedRoute.path.btc_received)}</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
+                        <p className="mt-2 font-semibold text-bnb-text">{formatSats(selectedRoute.path.btc_received)}</p>
                       </div>
                       <div className="p-4">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
@@ -641,6 +764,13 @@ export function CheapestPathPage() {
             </div>
           </div>
         </>
+      ) : null}
+      {mobileRouteDetailOpen && selectedRoute ? (
+        <RouteDetailPopup
+          selectedRoute={selectedRoute}
+          globalExchange={data?.global_exchange ?? globalExchange}
+          onClose={() => setMobileRouteDetailOpen(false)}
+        />
       ) : null}
     </div>
   );

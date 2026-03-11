@@ -26,7 +26,10 @@ vi.mock('../lib/api', () => ({
         fee_pct: 0.2,
         breakdown: {
           total_fee_krw: 2000,
-          components: [{ label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 }],
+          components: [
+            { label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 },
+            { label: '테스트 BTC 수수료', amount_krw: 100, amount_text: '1e-6 BTC' },
+          ],
         },
       },
       top5: [],
@@ -49,7 +52,13 @@ vi.mock('../lib/api', () => ({
           btc_received_usd: 836,
           total_fee_krw: 2000,
           fee_pct: 0.2,
-          breakdown: { total_fee_krw: 2000, components: [{ label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 }] },
+          breakdown: {
+            total_fee_krw: 2000,
+            components: [
+              { label: '국내 매수 수수료', amount_krw: 500, rate_pct: 0.05 },
+              { label: '테스트 BTC 수수료', amount_krw: 100, amount_text: '1e-6 BTC' },
+            ],
+          },
         },
         {
           korean_exchange: 'cheap2',
@@ -110,6 +119,7 @@ describe('CheapestPathPage', () => {
     expect(screen.getByText('운영 정보')).toBeInTheDocument();
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
   });
 
   it('filters routes by network on mobile-friendly controls', async () => {
@@ -144,6 +154,23 @@ describe('CheapestPathPage', () => {
 
     const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
     expect(within(detailRegion).getByText('mid2')).toBeInTheDocument();
-    expect(within(detailRegion).getByText('Bitcoin')).toBeInTheDocument();
+    expect(within(detailRegion).getByText('900,000 sats')).toBeInTheDocument();
+  });
+
+  it('opens a mobile route detail popup and shows sats-converted values', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByRole('heading', { name: '최적 경로 대시보드' });
+    await user.click(screen.getByRole('button', { name: 'cheap1 경로 상세 열기' }));
+
+    const dialog = screen.getByRole('dialog', { name: '경로 상세 팝업' });
+    expect(within(dialog).getByText('880,000 sats')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('100 sats');
   });
 });
