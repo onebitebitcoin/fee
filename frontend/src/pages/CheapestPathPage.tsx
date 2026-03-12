@@ -35,6 +35,16 @@ function getFeeTone(feePct: number) {
 
 type RankedPath = CheapestPathEntry & { rank: number };
 
+
+function formatTopPathSequence(path: CheapestPathEntry, globalExchange: string) {
+  const parts = [fmtEx(path.korean_exchange), fmtEx(globalExchange)];
+  if (path.lightning_exit_provider) {
+    parts.push(path.lightning_exit_provider);
+  }
+  parts.push('개인 지갑');
+  return parts.join(' → ');
+}
+
 function ServiceLogo({
   name,
   variant,
@@ -514,23 +524,44 @@ export function CheapestPathPage() {
                 </div>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="flex flex-wrap items-center gap-3 text-bnb-text">
-                      <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
-                      <ServiceLabel
-                        name={data.best_path.korean_exchange}
-                        label={fmtEx(data.best_path.korean_exchange)}
-                        variant="exchange"
-                        textClassName="text-xl font-semibold uppercase tracking-[0.08em]"
-                        logoClassName="h-7 w-7"
-                      />
-                      <ArrowRight size={16} className="text-bnb-muted" />
-                      <ServiceLabel
-                        name={data.global_exchange}
-                        label={fmtEx(data.global_exchange)}
-                        variant="exchange"
-                        textClassName="text-xl font-semibold uppercase tracking-[0.08em]"
-                        logoClassName="h-7 w-7"
-                      />
+                    <div className="space-y-2 text-bnb-text">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
+                        <p className="text-lg font-semibold text-bnb-text sm:text-xl">
+                          {formatTopPathSequence(data.best_path, data.global_exchange)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-bnb-muted">
+                        <ServiceLabel
+                          name={data.best_path.korean_exchange}
+                          label={fmtEx(data.best_path.korean_exchange)}
+                          variant="exchange"
+                          textClassName="text-sm text-bnb-muted"
+                          logoClassName="h-5 w-5"
+                        />
+                        <ArrowRight size={14} className="text-bnb-muted" />
+                        <ServiceLabel
+                          name={data.global_exchange}
+                          label={fmtEx(data.global_exchange)}
+                          variant="exchange"
+                          textClassName="text-sm text-bnb-muted"
+                          logoClassName="h-5 w-5"
+                        />
+                        {data.best_path.lightning_exit_provider ? (
+                          <>
+                            <ArrowRight size={14} className="text-bnb-muted" />
+                            <ServiceLabel
+                              name={data.best_path.lightning_exit_provider}
+                              label={data.best_path.lightning_exit_provider}
+                              variant="lightning"
+                              textClassName="text-sm text-bnb-muted"
+                              logoClassName="h-5 w-5"
+                            />
+                          </>
+                        ) : null}
+                        <ArrowRight size={14} className="text-bnb-muted" />
+                        <span className="text-sm text-bnb-muted">개인 지갑</span>
+                      </div>
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-bnb-muted">
                       <p>국내 출발: {fmtEx(data.best_path.korean_exchange)} · {data.best_path.transfer_coin} · {data.best_path.domestic_withdrawal_network}</p>
