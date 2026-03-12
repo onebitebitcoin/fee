@@ -3,10 +3,33 @@ from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
 from backend.app.db.session import get_db
+from backend.app.services import kyc_registry
 from backend.app.services.live_market import find_cheapest_path_from_snapshot_rows
 from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
+
+
+def _enrich_path_payload_with_kyc(payload: dict, global_exchange: str) -> dict:
+    registry = kyc_registry.get_kyc_registry()
+    for path in payload.get('all_paths', []):
+        path['domestic_kyc_status'] = kyc_registry.resolve_exchange_asset_kyc_status(
+            path.get('korean_exchange'),
+            path.get('transfer_coin'),
+            registry=registry,
+        )
+        global_asset = 'BTC' if path.get('transfer_coin') == 'BTC' else 'USDT'
+        path['global_kyc_status'] = kyc_registry.resolve_exchange_asset_kyc_status(
+            global_exchange,
+            global_asset,
+            registry=registry,
+        )
+        path['exit_service_kyc_status'] = kyc_registry.resolve_service_kyc_status(
+            path.get('lightning_exit_provider') or path.get('swap_service'),
+            registry=registry,
+        )
+        path['wallet_kyc_status'] = 'non_kyc'
+    return payload
 
 
 @router.get('/tickers/latest')
@@ -177,7 +200,7 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
             'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
             'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
         }
-    return find_cheapest_path_from_snapshot_rows(
+    payload = find_cheapest_path_from_snapshot_rows(
         amount_krw=amount_krw,
         global_exchange=global_exchange,
         latest_run=latest_run,
@@ -186,6 +209,9 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
         network_rows=network_rows,
         lightning_swap_rows=lightning_swap_rows,
     )
+    if payload.get('error'):
+        return payload
+    return _enrich_path_payload_with_kyc(payload, global_exchange)
 
 
 @router.get('/scrape-status')
@@ -268,6 +294,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
     lightning_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id)
     crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id)
     notices_by_exchange = repositories.get_latest_notices_per_exchange(db, latest_run.id)
+    registry = kyc_registry.get_kyc_registry()
 
     # Scrape status lookup by exchange
     error_stages = {(e.exchange, e.stage): e.error_message for e in crawl_errors}
@@ -286,6 +313,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
                 'network_status': {'status': 'ok', 'suspended_networks': [], 'checked_at': None},
                 'scrape_status': None,
                 'notices': notices_by_exchange.get(ex, []),
+                'kyc_status': None,
             }
         exchange_map[ex]['withdrawal_rows'].append({
             'coin': row.coin,
@@ -295,6 +323,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
             'enabled': row.enabled,
             'source': row.source,
             'note': row.note,
+            'kyc_status': kyc_registry.resolve_exchange_asset_kyc_status(ex, row.coin, row.note, registry=registry),
         })
 
     # Populate scrape_status for each exchange
@@ -324,6 +353,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
                 'network_status': status,
                 'scrape_status': None,
                 'notices': notices_by_exchange.get(ex, []),
+                'kyc_status': None,
             }
         else:
             exchange_map[ex]['network_status'] = status
@@ -358,6 +388,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
                 'enabled': row.enabled,
                 'source': 'realtime_api',
                 'note': row.error_message,
+                'kyc_status': kyc_registry.resolve_service_kyc_status(row.service_name, registry=registry),
             }],
             'network_status': {'status': 'ok' if not has_error else 'error', 'suspended_networks': [], 'checked_at': None},
             'scrape_status': {
@@ -367,7 +398,13 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
                 'error_message': row.error_message,
             } if row.source_url else None,
             'notices': [],
+            'kyc_status': kyc_registry.resolve_service_kyc_status(row.service_name, registry=registry),
         })
+
+    for node in exchange_map.values():
+        node['kyc_status'] = kyc_registry.aggregate_kyc_status([
+            row.get('kyc_status') for row in node.get('withdrawal_rows', [])
+        ])
 
     return {
         'exchanges': list(exchange_map.values()),

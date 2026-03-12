@@ -2,6 +2,7 @@ import { AlertTriangle, Building2, CheckCircle, ChevronDown, ChevronUp, External
 import { useCallback, useMemo, useState } from 'react';
 
 import { PageErrorMessage } from '../components/PageErrorMessage';
+import { KycBadge } from '../components/KycBadge';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
@@ -66,6 +67,7 @@ function NetworkRows({ rows }: NetworkRowsProps) {
               <span className="text-sm text-bnb-muted truncate">
                 {row.coin} · {row.network_label}
               </span>
+              <KycBadge status={row.kyc_status} />
             </div>
             <div className="flex items-center gap-3 shrink-0 ml-2">
               <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
@@ -132,6 +134,7 @@ function NodeCard({ node }: NodeCardProps) {
         {node.type === 'lightning' && (
           <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">LN</span>
         )}
+        <KycBadge status={node.kyc_status} />
         <div className="ml-auto flex items-center gap-2">
           <StatusBadge status={overallStatus} />
           {node.scrape_status && (

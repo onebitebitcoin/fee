@@ -1,3 +1,5 @@
+export type KycStatus = 'kyc' | 'non_kyc' | 'mixed' | null;
+
 export type CrawlRun = {
   id: number;
   trigger: string;
@@ -37,6 +39,7 @@ export type WithdrawalRow = {
   fee_krw?: number | null;
   enabled: boolean;
   note?: string | null;
+  kyc_status?: KycStatus;
   recorded_at?: number | null;
 };
 
@@ -94,6 +97,10 @@ export type CheapestPathEntry = {
   lightning_swap_fee_krw?: number | null;
   global_withdrawal_fee_krw?: number | null;
   breakdown?: CheapestPathBreakdown | null;
+  domestic_kyc_status?: KycStatus;
+  global_kyc_status?: KycStatus;
+  exit_service_kyc_status?: KycStatus;
+  wallet_kyc_status?: KycStatus;
 };
 
 export type DisabledCheapestPathEntry = {
@@ -170,6 +177,7 @@ export type ExchangeStatusWithdrawalRow = {
   enabled: boolean;
   source: string;
   note?: string | null;
+  kyc_status?: KycStatus;
 };
 
 export type ExchangeStatusNode = {
@@ -187,6 +195,7 @@ export type ExchangeStatusNode = {
     last_crawled_at: number | null;
     error_message: string | null;
   } | null;
+  kyc_status?: KycStatus;
   notices: Array<{
     title: string;
     url: string | null;

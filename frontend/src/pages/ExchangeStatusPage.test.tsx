@@ -13,13 +13,14 @@ vi.mock('../lib/api', () => ({
           exchange: 'upbit',
           type: 'exchange',
           withdrawal_rows: [
-            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.0003, fee_krw: 41400, enabled: true, source: 'realtime_api' },
-            { coin: 'BTC', network_label: 'Lightning', fee: 0.000001, fee_krw: 138, enabled: true, source: 'realtime_api' },
-            { coin: 'USDT', network_label: 'TRC20', fee: 1, fee_krw: 1380, enabled: true, source: 'scraping' },
-            { coin: 'USDT', network_label: 'ERC20', fee: 10, fee_krw: 13800, enabled: false, source: 'scraping' },
+            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.0003, fee_krw: 41400, enabled: true, source: 'realtime_api', kyc_status: 'kyc' },
+            { coin: 'BTC', network_label: 'Lightning', fee: 0.000001, fee_krw: 138, enabled: true, source: 'realtime_api', kyc_status: 'kyc' },
+            { coin: 'USDT', network_label: 'TRC20', fee: 1, fee_krw: 1380, enabled: true, source: 'scraping', kyc_status: 'kyc' },
+            { coin: 'USDT', network_label: 'ERC20', fee: 10, fee_krw: 13800, enabled: false, source: 'scraping', kyc_status: 'kyc' },
           ],
           network_status: { status: 'ok', suspended_networks: [], checked_at: 1710000000 },
           scrape_status: { url: 'https://upbit.com/service_center/notice', status: 'ok', last_crawled_at: 1710000000, error_message: null },
+          kyc_status: 'kyc',
           notices: [
             { title: '업비트 서비스 점검 안내', url: 'https://upbit.com/notice/1', published_at: null },
             { title: 'BTC 입출금 재개 안내', url: 'https://upbit.com/notice/2', published_at: null },
@@ -29,7 +30,7 @@ vi.mock('../lib/api', () => ({
           exchange: 'bithumb',
           type: 'exchange',
           withdrawal_rows: [
-            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.001, fee_krw: 138000, enabled: true, source: 'scraping' },
+            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.001, fee_krw: 138000, enabled: true, source: 'scraping', kyc_status: 'kyc' },
           ],
           network_status: {
             status: 'maintenance',
@@ -37,16 +38,18 @@ vi.mock('../lib/api', () => ({
             checked_at: 1710000000,
           },
           scrape_status: { url: 'https://www.bithumb.com/react/notice/list', status: 'error', last_crawled_at: 1710000000, error_message: '스크래핑 실패' },
+          kyc_status: 'kyc',
           notices: [],
         },
         {
           exchange: 'binance',
           type: 'exchange',
           withdrawal_rows: [
-            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.0002, fee_krw: 27600, enabled: true, source: 'realtime_api' },
+            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.0002, fee_krw: 27600, enabled: true, source: 'realtime_api', kyc_status: 'kyc' },
           ],
           network_status: { status: 'ok', suspended_networks: [], checked_at: 1710000000 },
           scrape_status: null,
+          kyc_status: 'kyc',
           notices: [],
         },
       ],
@@ -55,10 +58,11 @@ vi.mock('../lib/api', () => ({
           exchange: 'Boltz',
           type: 'lightning',
           withdrawal_rows: [
-            { coin: 'BTC', network_label: 'Lightning Network', fee_pct: 0.5, fee_fixed_sat: 0, enabled: true, source: 'realtime_api' },
+            { coin: 'BTC', network_label: 'Lightning Network', fee_pct: 0.5, fee_fixed_sat: 0, enabled: true, source: 'realtime_api', kyc_status: 'non_kyc' },
           ],
           network_status: { status: 'ok', suspended_networks: [], checked_at: null },
           scrape_status: { url: 'https://boltz.exchange', status: 'ok', last_crawled_at: 1710000000, error_message: null },
+          kyc_status: 'non_kyc',
           notices: [],
         },
       ],
@@ -181,6 +185,18 @@ describe('ExchangeStatusPage', () => {
 
     await screen.findByText('현황');
     expect(screen.getAllByText('₩41,400').length).toBeGreaterThan(0);
+  });
+
+  it('shows node KYC badges', async () => {
+    render(
+      <BrowserRouter>
+        <ExchangeStatusPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('현황');
+    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
   });
 
   it('shows Lightning badge for lightning service nodes', async () => {

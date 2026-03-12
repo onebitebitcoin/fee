@@ -44,6 +44,9 @@ vi.mock('../lib/api', () => ({
             { label: '테스트 BTC 수수료', amount_krw: 100, amount_text: '1e-6 BTC' },
           ],
         },
+        domestic_kyc_status: 'kyc',
+        global_kyc_status: 'kyc',
+        wallet_kyc_status: 'non_kyc',
       },
       top5: [],
       all_paths: [
@@ -80,6 +83,9 @@ vi.mock('../lib/api', () => ({
               { label: '테스트 BTC 수수료', amount_krw: 100, amount_text: '1e-6 BTC' },
             ],
           },
+          domestic_kyc_status: 'kyc',
+          global_kyc_status: 'kyc',
+          wallet_kyc_status: 'non_kyc',
         },
         {
           path_id: 'cheap2-trc20-lightning',
@@ -96,6 +102,10 @@ vi.mock('../lib/api', () => ({
           total_fee_krw: 2500,
           fee_pct: 0.25,
           breakdown: { total_fee_krw: 2500, components: [{ label: '국내 매수 수수료', amount_krw: 700, rate_pct: 0.07 }] },
+          domestic_kyc_status: 'kyc',
+          global_kyc_status: 'kyc',
+          exit_service_kyc_status: 'non_kyc',
+          wallet_kyc_status: 'non_kyc',
         },
         {
           path_id: 'mid1-bitcoin-onchain',
@@ -157,6 +167,9 @@ describe('CheapestPathPage', () => {
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
   });
 
   it('filters routes by explicit path dimensions', async () => {
@@ -220,7 +233,7 @@ describe('CheapestPathPage', () => {
     expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitfreezer.png');
   });
 
-  it('opens a mobile route detail popup and shows sats-converted values', async () => {
+  it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
     const user = userEvent.setup();
 
     render(
@@ -233,7 +246,11 @@ describe('CheapestPathPage', () => {
     await user.click(screen.getByRole('button', { name: 'cheap1 경로 상세 열기' }));
 
     const dialog = screen.getByRole('dialog', { name: '경로 상세 팝업' });
-    expect(within(dialog).getByText('880,000 sats')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('모바일 경로 타임라인')).toBeInTheDocument();
+    expect(within(dialog).getAllByText('880,000 sats').length).toBeGreaterThan(0);
     expect(dialog).toHaveTextContent('100 sats');
+    expect(dialog).toHaveTextContent('단계 수수료');
+    expect(dialog).toHaveTextContent('500 KRW');
+    expect(dialog).toHaveTextContent('100 KRW');
   });
 });

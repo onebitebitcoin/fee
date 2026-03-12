@@ -47,7 +47,7 @@ def test_latest_tickers_returns_empty_without_crawl():
     Base.metadata.drop_all(bind=engine)
 
 
-def test_cheapest_path_uses_latest_snapshot_data():
+def test_cheapest_path_uses_latest_snapshot_data(mocker):
     engine, TestingSessionLocal = make_test_session()
 
     def override_get_db():
@@ -148,6 +148,14 @@ def test_cheapest_path_uses_latest_snapshot_data():
     db.commit()
     db.close()
 
+    mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={
+        'upbitbtc': {'is_kyc': True},
+        'upbitusdt': {'is_kyc': True},
+        'binancebtc': {'is_kyc': True},
+        'binanceusdt': {'is_kyc': True},
+        'bitfreeze': {'is_kyc': False},
+    })
+
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
     response = client.get('/api/v1/market/path-finder/cheapest?amount_krw=1000000&global_exchange=binance')
@@ -158,6 +166,9 @@ def test_cheapest_path_uses_latest_snapshot_data():
     assert payload['best_path']['domestic_withdrawal_network'] == 'Bitcoin'
     assert payload['best_path']['global_exit_mode'] == 'onchain'
     assert payload['best_path']['global_exit_network'] == 'Bitcoin'
+    assert payload['best_path']['domestic_kyc_status'] == 'kyc'
+    assert payload['best_path']['global_kyc_status'] == 'kyc'
+    assert payload['best_path']['wallet_kyc_status'] == 'non_kyc'
     assert payload['available_filters']['domestic_withdrawal_networks'] == ['Bitcoin', 'TRC20']
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
@@ -168,6 +179,7 @@ def test_cheapest_path_uses_latest_snapshot_data():
     lightning_paths = [path for path in payload['all_paths'] if path.get('path_type') == 'lightning_exit']
     assert lightning_paths
     assert all(path.get('lightning_exit_provider') for path in lightning_paths)
+    assert any(path.get('exit_service_kyc_status') == 'non_kyc' for path in lightning_paths)
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
@@ -271,6 +283,80 @@ def test_withdrawal_latest_exposes_source_url_for_realtime_api_rows():
     row = payload['items'][0]
     assert row['exchange'] == 'bithumb'
     assert row['source_url'] == 'https://gw.bithumb.com/exchange/v1/coin-inout/info'
+
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
+
+
+def test_exchange_status_includes_kyc_metadata(mocker):
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+    db.add_all([
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Bitcoin',
+            fee=0.0001,
+            fee_krw=10000.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            coin='USDT',
+            source='scraped_page',
+            network_label='TRC20',
+            fee=1.0,
+            fee_krw=1400.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+        LightningSwapFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            service_name='Bitfreezer',
+            fee_pct=0.39,
+            fee_fixed_sat=0,
+            min_amount_sat=1,
+            max_amount_sat=1_000_000_000,
+            enabled=True,
+            source_url='https://bitfreezer.com',
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={
+        'upbitbtc': {'is_kyc': True},
+        'upbitusdt': {'is_kyc': True},
+        'bitfreeze': {'is_kyc': False},
+    })
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/status')
+    assert response.status_code == 200
+    payload = response.json()
+    upbit = next(node for node in payload['exchanges'] if node['exchange'] == 'upbit')
+    assert upbit['kyc_status'] == 'kyc'
+    assert all(row['kyc_status'] == 'kyc' for row in upbit['withdrawal_rows'])
+    lightning = payload['lightning_services'][0]
+    assert lightning['kyc_status'] == 'non_kyc'
+    assert lightning['withdrawal_rows'][0]['kyc_status'] == 'non_kyc'
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
