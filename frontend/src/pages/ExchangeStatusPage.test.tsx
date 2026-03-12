@@ -187,7 +187,7 @@ describe('ExchangeStatusPage', () => {
     expect(screen.getAllByText('₩41,400').length).toBeGreaterThan(0);
   });
 
-  it('shows node KYC badges', async () => {
+  it('shows only node-level KYC badges', async () => {
     render(
       <BrowserRouter>
         <ExchangeStatusPage />
@@ -195,8 +195,8 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('KYC').length).toBe(3);
+    expect(screen.getAllByText('NON-KYC').length).toBe(1);
   });
 
   it('shows Lightning badge for lightning service nodes', async () => {

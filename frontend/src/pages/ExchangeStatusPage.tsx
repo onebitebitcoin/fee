@@ -69,7 +69,6 @@ function NetworkRows({ rows }: NetworkRowsProps) {
                 <span className="min-w-0 break-all text-sm text-bnb-muted">
                   {row.coin} · {localizeUiLabel(row.network_label)}
                 </span>
-                <KycBadge status={row.kyc_status} />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
                 <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
