@@ -184,6 +184,7 @@ describe('CheapestPathPage', () => {
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
+    expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
     expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
