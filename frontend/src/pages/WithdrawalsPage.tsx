@@ -47,6 +47,11 @@ function formatLightningFee(item: LightningSwapFeeRow) {
   return parts.length > 0 ? parts.join(' ') : '-';
 }
 
+function formatFeeKrw(feeKrw?: number | null) {
+  if (feeKrw == null) return '-';
+  return `₩${formatNumber(Math.round(feeKrw), 0)}`;
+}
+
 function SourceIcon({ source }: { source: string }) {
   if (source === 'realtime_api') {
     return <Server size={13} className="text-bnb-green" />;
@@ -176,8 +181,8 @@ export function WithdrawalsPage() {
                           <p className="font-semibold text-brand-500">{formatWithdrawalFee(item)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-bnb-muted">USD</p>
-                          <p className="text-bnb-text">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</p>
+                          <p className="text-xs text-bnb-muted">KRW</p>
+                          <p className="text-bnb-text">{formatFeeKrw(item.fee_krw)}</p>
                         </div>
                       </div>
                     </div>
@@ -220,7 +225,7 @@ export function WithdrawalsPage() {
                   <tr>
                     <th className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-bnb-muted">네트워크</th>
                     <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">수수료</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">USD</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wide text-bnb-muted">KRW</th>
                     <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted">출처</th>
                     <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wide text-bnb-muted">상태</th>
                   </tr>
@@ -240,7 +245,7 @@ export function WithdrawalsPage() {
                             )}
                           </td>
                           <td className="px-4 py-2 text-right font-semibold text-brand-500">{formatWithdrawalFee(item)}</td>
-                          <td className="px-4 py-2 text-right text-bnb-muted">{item.fee_usd != null ? `$${item.fee_usd}` : '-'}</td>
+                          <td className="px-4 py-2 text-right text-bnb-muted">{formatFeeKrw(item.fee_krw)}</td>
                           <td className="px-4 py-2 text-center"><SourceIcon source={item.source} /></td>
                           <td className="px-4 py-2 text-center">
                             {item.enabled ? <CheckCircle size={13} className="mx-auto text-bnb-green" /> : <XCircle size={13} className="mx-auto text-bnb-red" />}

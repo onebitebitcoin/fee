@@ -28,6 +28,7 @@ vi.mock('../lib/api', () => ({
           network_label: 'Bitcoin',
           fee: 0.000002,
           fee_usd: 0.2,
+          fee_krw: 280,
           enabled: true,
         },
         {
@@ -37,6 +38,7 @@ vi.mock('../lib/api', () => ({
           network_label: 'TRC20',
           fee: 1.5,
           fee_usd: 1.5,
+          fee_krw: 2100,
           enabled: true,
         },
       ],
@@ -46,7 +48,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('WithdrawalsPage', () => {
-  it('renders BTC withdrawal fees in sats and preserves non-BTC units', async () => {
+  it('renders BTC withdrawal fees in sats and shows KRW conversions', async () => {
     render(
       <BrowserRouter>
         <WithdrawalsPage />
@@ -56,5 +58,7 @@ describe('WithdrawalsPage', () => {
     expect(await screen.findByText('출금 수수료 현황')).toBeInTheDocument();
     expect(screen.getAllByText('200 sats').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1.5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('₩280').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('₩2,100').length).toBeGreaterThan(0);
   });
 });
