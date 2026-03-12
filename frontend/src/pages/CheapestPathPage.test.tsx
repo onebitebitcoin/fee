@@ -155,13 +155,32 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+async function renderAndSearch() {
+  const user = userEvent.setup();
+  render(
+    <BrowserRouter>
+      <CheapestPathPage />
+    </BrowserRouter>,
+  );
+  await user.click(screen.getByRole('button', { name: '검색' }));
+  return user;
+}
+
 describe('CheapestPathPage', () => {
-  it('renders the current dashboard summary for the cheapest route', async () => {
+  it('does not auto-load results before search', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
       </BrowserRouter>,
     );
+
+    expect(await screen.findByText('검색 버튼을 누르면 경로를 불러옵니다.')).toBeInTheDocument();
+    expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
+    expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
+  });
+
+  it('renders the current dashboard summary for the cheapest route', async () => {
+    await renderAndSearch();
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
@@ -173,13 +192,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('filters routes by explicit path dimensions', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
+    const user = await renderAndSearch();
 
     await screen.findByText('최적 경로');
 
@@ -194,13 +207,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('updates the selected route detail when a route is chosen', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
+    const user = await renderAndSearch();
 
     await screen.findByText('최적 경로');
     await user.click(screen.getAllByRole('button', { name: 'mid2 경로 선택' })[0]);
@@ -211,13 +218,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('renders service logos for exchanges and lightning providers', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
+    const user = await renderAndSearch();
 
     await screen.findByText('최적 경로');
 
@@ -234,13 +235,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
+    const user = await renderAndSearch();
 
     await screen.findByText('최적 경로');
     await user.click(screen.getByRole('button', { name: 'cheap1 경로 상세 열기' }));

@@ -299,8 +299,9 @@ export function CheapestPathPage() {
   const [globalExchange] = useState('binance');
   const [selectedPathId, setSelectedPathId] = useState('');
   const [data, setData] = useState<CheapestPathResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
   const [accessStats, setAccessStats] = useState<AccessStats | null>(null);
@@ -333,10 +334,6 @@ export function CheapestPathPage() {
       setSubmitting(false);
     }
   }, []);
-
-  useEffect(() => {
-    void load({ amountKrw: DEFAULT_AMOUNT_MANWON * 10000, globalExchange: 'binance' });
-  }, [load]);
 
   const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? []) : []), [data]);
 
@@ -381,10 +378,10 @@ export function CheapestPathPage() {
   }, [filteredPaths, selectedPathId]);
 
   useEffect(() => {
-    if (filteredPaths.length === 0) return;
+    if (!hasSearched || filteredPaths.length === 0) return;
     if (selectedPathId && filteredPaths.some((path) => path.path_id === selectedPathId)) return;
     setSelectedPathId(filteredPaths.some((path) => path.path_id === data?.best_path?.path_id) ? data!.best_path!.path_id : filteredPaths[0].path_id);
-  }, [data, filteredPaths, selectedPathId]);
+  }, [data, filteredPaths, hasSearched, selectedPathId]);
 
   useEffect(() => {
     if (mobileRouteDetailOpen && !selectedRoute) {
@@ -394,6 +391,7 @@ export function CheapestPathPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setHasSearched(true);
     setSubmitting(true);
     await load({
       amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * 10000, 10000),
@@ -498,7 +496,14 @@ export function CheapestPathPage() {
         </div>
       ) : null}
 
-      {!loading && data && !error ? (
+      {!hasSearched && !loading && !error ? (
+        <div className="border-b border-dark-200 bg-dark-400 px-4 py-10 text-center sm:px-5">
+          <p className="text-sm font-medium text-bnb-text">검색 버튼을 누르면 경로를 불러옵니다.</p>
+          <p className="mt-2 text-xs text-bnb-muted">초기 로딩은 하지 않고, 사용자가 검색할 때만 데이터를 조회합니다.</p>
+        </div>
+      ) : null}
+
+      {!loading && hasSearched && data && !error ? (
         <>
           {/* Best Path */}
           {data.best_path ? (
@@ -671,15 +676,11 @@ export function CheapestPathPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 border border-dark-200 bg-dark-400 p-3 text-sm">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수령 sats</p>
-                        <p className="mt-1 font-semibold text-bnb-text">{formatSats(path.btc_received)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-bnb-muted">수수료율</p>
-                        <p className={`mt-1 font-semibold ${getFeeTone(path.fee_pct)}`}>{formatPercent(path.fee_pct)}</p>
-                      </div>
+                    <div className="border border-dark-200 bg-dark-400 p-3 text-sm text-bnb-muted">
+                      <p>{path.transfer_coin} · {path.domestic_withdrawal_network}</p>
+                      <p className="mt-2 text-bnb-text">수령 {formatSats(path.btc_received)}</p>
+                      <p className="mt-1 text-bnb-text">총 수수료 {formatCurrency(path.total_fee_krw)}</p>
+                      <p className={`mt-1 ${getFeeTone(path.fee_pct)}`}>수수료율 {formatPercent(path.fee_pct)}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-3">
                       <button
