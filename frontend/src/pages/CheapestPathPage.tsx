@@ -1,4 +1,4 @@
-import { ArrowRight, Info, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
+import { ArrowRight, Building2, Info, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -49,6 +49,63 @@ function getRouteStatus(rank: number, feePct: number) {
 }
 
 type RankedPath = CheapestPathEntry & { rank: number };
+
+function ServiceLogo({
+  name,
+  variant,
+  className = 'h-5 w-5',
+}: {
+  name: string;
+  variant: 'exchange' | 'lightning';
+  className?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const logoName = name.toLowerCase().replace(/\s+/g, '');
+
+  if (!imgError) {
+    return (
+      <img
+        src={`/logos/${logoName}.png`}
+        alt={name}
+        width={20}
+        height={20}
+        className={`${className} shrink-0 rounded-full bg-dark-500 object-contain`}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return variant === 'lightning' ? (
+    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-400 ${className}`}>
+      <Zap size={12} />
+    </span>
+  ) : (
+    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-dark-200 text-bnb-muted ${className}`}>
+      <Building2 size={12} />
+    </span>
+  );
+}
+
+function ServiceLabel({
+  name,
+  label,
+  variant,
+  textClassName = 'text-bnb-text',
+  logoClassName,
+}: {
+  name: string;
+  label?: string;
+  variant: 'exchange' | 'lightning';
+  textClassName?: string;
+  logoClassName?: string;
+}) {
+  return (
+    <span className={`inline-flex items-center gap-2 ${textClassName}`}>
+      <ServiceLogo name={name} variant={variant} className={logoClassName} />
+      <span>{label ?? name}</span>
+    </span>
+  );
+}
 
 function sortAllPaths(paths: CheapestPathEntry[]): RankedPath[] {
   return [...paths]
@@ -153,9 +210,21 @@ function RouteDetailPopup({
             <span className="border border-dark-200 bg-dark-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">
               {selectedRoute.rank}위
             </span>
-            <span className="text-base font-semibold text-bnb-text">{fmtEx(selectedRoute.path.korean_exchange)}</span>
+            <ServiceLabel
+              name={selectedRoute.path.korean_exchange}
+              label={fmtEx(selectedRoute.path.korean_exchange)}
+              variant="exchange"
+              textClassName="text-base font-semibold text-bnb-text"
+              logoClassName="h-6 w-6"
+            />
             <ArrowRight size={14} className="text-bnb-muted" />
-            <span className="text-base font-semibold text-bnb-text">{fmtEx(globalExchange)}</span>
+            <ServiceLabel
+              name={globalExchange}
+              label={fmtEx(globalExchange)}
+              variant="exchange"
+              textClassName="text-base font-semibold text-bnb-text"
+              logoClassName="h-6 w-6"
+            />
           </div>
 
           <PathTimeline path={selectedRoute.path} globalExchange={globalExchange} />
@@ -213,13 +282,15 @@ function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | nu
 
 function PathTimeline({ path, globalExchange }: { path: RankedPath; globalExchange: string }) {
   const steps = [
-    { label: fmtEx(path.korean_exchange), sub: '한국 거래소', active: true },
+    { label: fmtEx(path.korean_exchange), rawName: path.korean_exchange, sub: '한국 거래소', active: true, variant: 'exchange' as const },
     { label: path.transfer_coin, sub: path.domestic_withdrawal_network, active: true },
-    { label: fmtEx(globalExchange), sub: '글로벌 거래소', active: true },
+    { label: fmtEx(globalExchange), rawName: globalExchange, sub: '글로벌 거래소', active: true, variant: 'exchange' as const },
     {
       label: path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain',
+      rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
       sub: path.global_exit_network + (path.lightning_exit_provider ? ` · ${path.lightning_exit_provider}` : ''),
       active: true,
+      variant: path.lightning_exit_provider || path.swap_service ? ('lightning' as const) : undefined,
     },
     { label: '개인 지갑', sub: formatSats(path.btc_received), active: true },
   ];
@@ -234,7 +305,17 @@ function PathTimeline({ path, globalExchange }: { path: RankedPath; globalExchan
             {idx < steps.length - 1 && <div className="h-px flex-1 bg-brand-500/40" />}
           </div>
           <div className="mt-2 text-center">
-            <p className="text-[11px] font-semibold text-bnb-text">{step.label}</p>
+            {step.rawName && step.variant ? (
+              <ServiceLabel
+                name={step.rawName}
+                label={step.label}
+                variant={step.variant}
+                textClassName="justify-center text-[11px] font-semibold text-bnb-text"
+                logoClassName="h-5 w-5"
+              />
+            ) : (
+              <p className="text-[11px] font-semibold text-bnb-text">{step.label}</p>
+            )}
             <p className="mt-0.5 text-[10px] text-bnb-muted">{step.sub}</p>
           </div>
         </div>
@@ -466,9 +547,21 @@ export function CheapestPathPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-3 text-bnb-text">
                       <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
-                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{fmtEx(data.best_path.korean_exchange)}</span>
+                      <ServiceLabel
+                        name={data.best_path.korean_exchange}
+                        label={fmtEx(data.best_path.korean_exchange)}
+                        variant="exchange"
+                        textClassName="text-xl font-semibold uppercase tracking-[0.08em]"
+                        logoClassName="h-7 w-7"
+                      />
                       <ArrowRight size={16} className="text-bnb-muted" />
-                      <span className="text-xl font-semibold uppercase tracking-[0.08em]">{fmtEx(data.global_exchange)}</span>
+                      <ServiceLabel
+                        name={data.global_exchange}
+                        label={fmtEx(data.global_exchange)}
+                        variant="exchange"
+                        textClassName="text-xl font-semibold uppercase tracking-[0.08em]"
+                        logoClassName="h-7 w-7"
+                      />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
                       <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.transfer_coin}</span>
@@ -477,7 +570,14 @@ export function CheapestPathPage() {
                         {data.best_path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {data.best_path.global_exit_network}
                       </span>
                       {data.best_path.lightning_exit_provider ? (
-                        <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.lightning_exit_provider}</span>
+                        <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">
+                          <ServiceLabel
+                            name={data.best_path.lightning_exit_provider}
+                            variant="lightning"
+                            textClassName="text-[11px] uppercase tracking-[0.24em] text-bnb-muted"
+                            logoClassName="h-4 w-4"
+                          />
+                        </span>
                       ) : null}
                     </div>
                   </div>
@@ -586,7 +686,13 @@ export function CheapestPathPage() {
                             className="text-left text-base font-semibold text-bnb-text"
                             aria-label={`${fmtEx(path.korean_exchange)} 경로 선택`}
                           >
-                            {fmtEx(path.korean_exchange)}
+                            <ServiceLabel
+                              name={path.korean_exchange}
+                              label={fmtEx(path.korean_exchange)}
+                              variant="exchange"
+                              textClassName="text-base font-semibold text-bnb-text"
+                              logoClassName="h-6 w-6"
+                            />
                           </button>
                           <span className={`border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${status.className}`}>
                             {status.label}
@@ -666,7 +772,13 @@ export function CheapestPathPage() {
                             }`}
                             aria-label={`${fmtEx(path.korean_exchange)} 경로 선택`}
                           >
-                            {fmtEx(path.korean_exchange)}
+                            <ServiceLabel
+                              name={path.korean_exchange}
+                              label={fmtEx(path.korean_exchange)}
+                              variant="exchange"
+                              textClassName={isHighlighted ? 'font-semibold text-brand-400' : 'font-semibold text-bnb-text'}
+                              logoClassName="h-5 w-5"
+                            />
                           </button>
                         </td>
                         <td className="px-5 py-4">
@@ -680,7 +792,12 @@ export function CheapestPathPage() {
                               </span>
                             )}
                             {(path.lightning_exit_provider || path.swap_service) && path.path_type === 'lightning_exit' && (
-                              <span className="text-[10px] text-bnb-muted">{path.lightning_exit_provider ?? path.swap_service}</span>
+                              <ServiceLabel
+                                name={path.lightning_exit_provider ?? path.swap_service ?? ''}
+                                variant="lightning"
+                                textClassName="text-[10px] text-bnb-muted"
+                                logoClassName="h-4 w-4"
+                              />
                             )}
                           </div>
                         </td>
@@ -728,9 +845,21 @@ export function CheapestPathPage() {
                   <div className="space-y-5">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="border border-dark-200 bg-dark-400 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">{selectedRoute.rank}위</span>
-                      <span className="text-lg font-semibold text-bnb-text">{fmtEx(selectedRoute.path.korean_exchange)}</span>
+                      <ServiceLabel
+                        name={selectedRoute.path.korean_exchange}
+                        label={fmtEx(selectedRoute.path.korean_exchange)}
+                        variant="exchange"
+                        textClassName="text-lg font-semibold text-bnb-text"
+                        logoClassName="h-6 w-6"
+                      />
                       <ArrowRight size={14} className="text-bnb-muted" />
-                      <span className="text-lg font-semibold text-bnb-text">{fmtEx(data.global_exchange)}</span>
+                      <ServiceLabel
+                        name={data.global_exchange}
+                        label={fmtEx(data.global_exchange)}
+                        variant="exchange"
+                        textClassName="text-lg font-semibold text-bnb-text"
+                        logoClassName="h-6 w-6"
+                      />
                     </div>
 
                     <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} />
@@ -744,7 +873,14 @@ export function CheapestPathPage() {
                           {selectedRoute.path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {selectedRoute.path.global_exit_network}
                         </p>
                         {selectedRoute.path.lightning_exit_provider ? (
-                          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.lightning_exit_provider}</p>
+                          <div className="mt-1">
+                            <ServiceLabel
+                              name={selectedRoute.path.lightning_exit_provider}
+                              variant="lightning"
+                              textClassName="text-xs uppercase tracking-[0.2em] text-bnb-muted"
+                              logoClassName="h-4 w-4"
+                            />
+                          </div>
                         ) : null}
                       </div>
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
@@ -780,7 +916,10 @@ export function CheapestPathPage() {
                   {topFivePaths.map((path) => (
                     <div key={`velocity-${path.path_id}`}>
                       <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
-                        <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
+                        <span className="inline-flex items-center gap-2">
+                          <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
+                          <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
+                        </span>
                         <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span>
                       </div>
                       <div className="h-2 bg-dark-200">

@@ -197,6 +197,29 @@ describe('CheapestPathPage', () => {
     expect(within(detailRegion).getAllByText('900,000 sats').length).toBeGreaterThan(0);
   });
 
+  it('renders service logos for exchanges and lightning providers', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('최적 경로');
+
+    const binanceLogos = screen.getAllByAltText('binance');
+    expect(binanceLogos.length).toBeGreaterThan(0);
+    expect(binanceLogos[0]).toHaveAttribute('src', '/logos/binance.png');
+
+    await user.click(screen.getAllByRole('button', { name: 'cheap2 경로 선택' })[0]);
+
+    const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
+    const providerLogos = within(detailRegion).getAllByAltText('Bitfreezer');
+    expect(providerLogos.length).toBeGreaterThan(0);
+    expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitfreezer.png');
+  });
+
   it('opens a mobile route detail popup and shows sats-converted values', async () => {
     const user = userEvent.setup();
 
