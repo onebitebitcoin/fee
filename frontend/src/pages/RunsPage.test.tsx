@@ -42,7 +42,7 @@ describe('RunsPage', () => {
     expect(await screen.findByText('수집 실행 이력')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '수동 크롤링 실행' })).toBeInTheDocument();
     expect(screen.getAllByText('manual').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('success').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('정상').length).toBeGreaterThan(0);
   });
 
   it('runs manual crawl and refreshes the list', async () => {

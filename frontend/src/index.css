@@ -1,24 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
   @apply bg-dark-500 text-bnb-text;
-  font-family: 'IBM Plex Sans', Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* ── Panels ── */
 .panel {
   @apply border border-dark-200 bg-dark-300 p-4;
+}
+
+.panel-accent {
+  @apply border border-dark-200 bg-dark-300 p-4;
+  border-left: 2px solid #f0b90b;
 }
 
 .table-wrap {
   @apply overflow-x-auto border border-dark-200 bg-dark-300;
 }
 
+/* ── Buttons ── */
 .btn-primary {
-  @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-colors hover:bg-brand-400 disabled:opacity-50;
+  @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-all
+    hover:bg-brand-400 active:scale-[0.98] disabled:opacity-50;
+  box-shadow: 0 0 0 0 rgba(240, 185, 11, 0);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 16px rgba(240, 185, 11, 0.25);
 }
 
 .btn-secondary {
-  @apply border border-dark-200 bg-dark-300 px-4 py-2 text-sm font-medium text-bnb-text transition-colors hover:bg-dark-200 disabled:opacity-50;
+  @apply border border-dark-200 bg-dark-300 px-4 py-2 text-sm font-medium text-bnb-text
+    transition-colors hover:border-dark-100 hover:bg-dark-200 disabled:opacity-50;
 }
+
+/* ── Typography helpers ── */
+.font-data {
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-display {
+  font-family: 'Syne', system-ui, sans-serif;
+}
+
+/* ── Live indicator ── */
+.live-dot {
+  position: relative;
+  display: inline-flex;
+  width: 7px;
+  height: 7px;
+}
+.live-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #03a66d;
+  animation: live-ping 1.6s ease-out infinite;
+}
+.live-dot::after {
+  content: '';
+  position: relative;
+  display: inline-flex;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #03a66d;
+}
+
+@keyframes live-ping {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ── Fee breakdown bar ── */
+.fee-bar-track {
+  @apply h-1.5 overflow-hidden rounded-full bg-dark-200;
+}
+
+.fee-bar-segment {
+  height: 100%;
+  border-radius: 999px;
+  animation: bar-fill 0.7s ease-out forwards;
+}
+
+@keyframes bar-fill {
+  from { width: 0 !important; }
+}
+
+/* ── Rank badge ── */
+.rank-badge {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rank-1 { @apply bg-brand-500 text-dark-500; }
+.rank-2 { @apply bg-dark-100 text-bnb-text; }
+.rank-3 { @apply bg-dark-200 text-bnb-muted; }
+.rank-n { @apply bg-dark-300 text-bnb-muted border border-dark-200; }
+
+/* ── Section header ── */
+.section-label {
+  @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-bnb-muted;
+}
+
+/* ── Card hover ── */
+.card-interactive {
+  @apply cursor-pointer border border-dark-200 bg-dark-300 transition-all duration-150
+    hover:border-brand-500/25 hover:bg-dark-400;
+}
+.card-interactive.selected {
+  @apply border-brand-500/50 bg-dark-400;
+  box-shadow: inset 2px 0 0 #f0b90b;
+}
+
+/* ── Stagger animation delays ── */
+.stagger-1 { animation-delay: 0.05s; opacity: 0; animation-fill-mode: forwards; }
+.stagger-2 { animation-delay: 0.1s;  opacity: 0; animation-fill-mode: forwards; }
+.stagger-3 { animation-delay: 0.15s; opacity: 0; animation-fill-mode: forwards; }
+.stagger-4 { animation-delay: 0.2s;  opacity: 0; animation-fill-mode: forwards; }
+.stagger-5 { animation-delay: 0.25s; opacity: 0; animation-fill-mode: forwards; }
+
+/* ── Price bar (TickersPage) ── */
+.price-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  animation: bar-fill 0.6s ease-out forwards;
+  background: linear-gradient(90deg, #f0b90b 0%, #ffc926 100%);
+}
+
+/* ── Ticker price change ── */
+.price-up   { @apply text-bnb-green; }
+.price-down { @apply text-bnb-red; }

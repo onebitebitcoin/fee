@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Globe, Megaphone, Server, XCircle, Zap } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle, ChevronDown, ChevronUp, ExternalLink, Globe, Megaphone, Search, Server, XCircle, Zap } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { PageErrorMessage } from '../components/PageErrorMessage';
@@ -56,25 +56,25 @@ function NetworkRows({ rows, inheritedKycStatus }: NetworkRowsProps) {
 
   return (
     <div>
-      <div className="space-y-0">
+      <div className="divide-y divide-dark-200">
         {visible.map((row, idx) => (
-          <div key={idx} className="border-t border-dark-200 px-4 py-2 first:border-t-0 hover:bg-dark-400 transition-colors">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div key={idx} className="px-4 py-2.5 hover:bg-dark-400 transition-colors">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <SourceIcon source={row.source} />
                 {row.enabled ? (
-                  <CheckCircle size={12} className="text-bnb-green shrink-0" />
+                  <CheckCircle size={11} className="text-bnb-green shrink-0" />
                 ) : (
-                  <XCircle size={12} className="text-bnb-red shrink-0" />
+                  <XCircle size={11} className="text-bnb-red shrink-0" />
                 )}
                 <span className="min-w-0 break-all text-sm text-bnb-muted">
                   {row.coin} · {localizeUiLabel(row.network_label)}
                 </span>
                 <KycBadge status={row.kyc_status ?? inheritedKycStatus} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
-                <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
-                <span className="text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:shrink-0">
+                <span className="font-data text-sm font-semibold text-brand-400">{formatFee(row)}</span>
+                <span className="font-data text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
               </div>
             </div>
           </div>
@@ -130,13 +130,16 @@ function NodeCard({ node }: NodeCardProps) {
   const overallStatus = hasNetworkIssues ? 'error' : node.network_status.status;
 
   return (
-    <div className="border border-dark-200 bg-dark-300">
+    <div className="border border-dark-200 bg-dark-300 transition-colors hover:border-dark-100">
       {/* 노드 헤더 */}
       <div className="flex flex-wrap items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
         <NodeLogo exchange={node.exchange} type={node.type} />
         <span className="min-w-0 flex-1 break-all font-semibold text-bnb-text">{label}</span>
         {node.type === 'lightning' && (
-          <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">라이트닝</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-400/15 px-2 py-0.5 text-[11px] font-semibold text-brand-400">
+            <Zap size={9} />
+            라이트닝
+          </span>
         )}
         <KycBadge status={node.kyc_status} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -263,22 +266,33 @@ export function ExchangeStatusPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-bnb-text">현황</h2>
-        <span className="text-sm text-bnb-muted">{totalCount}개 노드</span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="section-label">거래소 · 네트워크</p>
+          <h2 className="mt-1 text-xl font-bold text-bnb-text font-display">현황</h2>
+        </div>
+        <span className="font-data text-xs text-bnb-muted">{totalCount}개 노드</span>
       </div>
 
-      <input
-        type="text"
-        value={nameFilter}
-        onChange={e => setNameFilter(e.target.value)}
-        placeholder="거래소 / 서비스 이름 필터..."
-        className="w-full border border-dark-200 bg-dark-400 px-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400 focus:outline-none sm:w-64"
-      />
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-bnb-muted pointer-events-none" />
+        <input
+          type="text"
+          value={nameFilter}
+          onChange={e => setNameFilter(e.target.value)}
+          placeholder="거래소 / 서비스 이름 필터..."
+          className="w-full border border-dark-200 bg-dark-400 pl-9 pr-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400/50 focus:outline-none sm:w-72 transition-colors"
+        />
+      </div>
 
       {filteredDomestic.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">국내 거래소</h3>
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="section-label">국내 거래소</h3>
+            <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
+              {filteredDomestic.length}
+            </span>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {filteredDomestic.map(node => (
               <NodeCard key={`exchange-${node.exchange}`} node={node} />
@@ -289,7 +303,12 @@ export function ExchangeStatusPage() {
 
       {filteredGlobal.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">해외 거래소</h3>
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="section-label">해외 거래소</h3>
+            <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
+              {filteredGlobal.length}
+            </span>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {filteredGlobal.map(node => (
               <NodeCard key={`exchange-${node.exchange}`} node={node} />
@@ -300,7 +319,12 @@ export function ExchangeStatusPage() {
 
       {filteredLightning.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">라이트닝 스왑</h3>
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="section-label">라이트닝 스왑</h3>
+            <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
+              {filteredLightning.length}
+            </span>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {filteredLightning.map(node => (
               <NodeCard key={`lightning-${node.exchange}`} node={node} />

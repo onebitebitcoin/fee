@@ -2,6 +2,10 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        data: ['"JetBrains Mono"', 'Consolas', 'Monaco', 'monospace'],
+        display: ['Syne', 'system-ui', 'sans-serif'],
+      },
       colors: {
         brand: {
           50: '#fff8e0',
@@ -26,6 +30,30 @@ export default {
         'bnb-red': '#cf304a',
         'bnb-text': '#eaecef',
         'bnb-muted': '#848e9c',
+      },
+      keyframes: {
+        'bar-fill': {
+          '0%': { width: '0%' },
+          '100%': {},
+        },
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'live-ping': {
+          '0%': { transform: 'scale(1)', opacity: '0.8' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-400px 0' },
+          '100%': { backgroundPosition: '400px 0' },
+        },
+      },
+      animation: {
+        'bar-fill': 'bar-fill 0.7s ease-out forwards',
+        'fade-in-up': 'fade-in-up 0.35s ease-out forwards',
+        'live-ping': 'live-ping 1.6s ease-out infinite',
+        shimmer: 'shimmer 1.8s linear infinite',
       },
     },
   },
