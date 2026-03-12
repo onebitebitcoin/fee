@@ -312,6 +312,7 @@ export function CheapestPathPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [pathShortcut, setPathShortcut] = useState<'default' | 'non_kyc' | 'no_lightning'>('default');
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
   const [accessStats, setAccessStats] = useState<AccessStats | null>(null);
@@ -369,9 +370,16 @@ export function CheapestPathPage() {
       if (excludedDomesticNetworks.includes(path.domestic_withdrawal_network)) return false;
       if (excludedGlobalExitOptions.includes(globalExitKey)) return false;
       if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
+      if (pathShortcut === 'no_lightning' && path.global_exit_mode === 'lightning') return false;
+      if (pathShortcut === 'non_kyc') {
+        const beforeWalletKyc = path.exit_service_kyc_status ?? path.global_kyc_status;
+        if (beforeWalletKyc !== 'non_kyc') return false;
+      }
       return true;
     });
-  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, rankedPaths]);
+  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, pathShortcut, rankedPaths]);
+
+  const bestVisiblePath = useMemo(() => filteredPaths[0] ?? null, [filteredPaths]);
 
   const selectedRoute = useMemo(() => {
     if (!data || !selectedPathId) return null;
@@ -390,7 +398,7 @@ export function CheapestPathPage() {
   useEffect(() => {
     if (!hasSearched || filteredPaths.length === 0) return;
     if (selectedPathId && filteredPaths.some((path) => path.path_id === selectedPathId)) return;
-    setSelectedPathId(filteredPaths.some((path) => path.path_id === data?.best_path?.path_id) ? data!.best_path!.path_id : filteredPaths[0].path_id);
+    setSelectedPathId(filteredPaths[0].path_id);
   }, [data, filteredPaths, hasSearched, selectedPathId]);
 
   useEffect(() => {
@@ -476,6 +484,32 @@ export function CheapestPathPage() {
         </form>
       </div>
 
+      <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPathShortcut('default')}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'default' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+          >
+            최저 경로
+          </button>
+          <button
+            type="button"
+            onClick={() => setPathShortcut('non_kyc')}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'non_kyc' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+          >
+            논 KYC
+          </button>
+          <button
+            type="button"
+            onClick={() => setPathShortcut('no_lightning')}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'no_lightning' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+          >
+            라이트닝 제외
+          </button>
+        </div>
+      </div>
+
       {/* Summary Strip */}
       {loading ? (
         <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
@@ -509,7 +543,7 @@ export function CheapestPathPage() {
       {!loading && hasSearched && data && !error ? (
         <>
           {/* Best Path */}
-          {data.best_path ? (
+          {bestVisiblePath ? (
             <div className="border-b border-dark-200">
               <div className="bg-dark-400 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -521,13 +555,13 @@ export function CheapestPathPage() {
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
                         <p className="text-lg font-semibold text-bnb-text sm:text-xl">
-                          {formatTopPathSequence(data.best_path, data.global_exchange)}
+                          {formatTopPathSequence(bestVisiblePath, data.global_exchange)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-bnb-muted">
                         <ServiceLabel
-                          name={data.best_path.korean_exchange}
-                          label={fmtEx(data.best_path.korean_exchange)}
+                          name={bestVisiblePath.korean_exchange}
+                          label={fmtEx(bestVisiblePath.korean_exchange)}
                           variant="exchange"
                           textClassName="text-sm text-bnb-muted"
                           logoClassName="h-5 w-5"
@@ -540,12 +574,12 @@ export function CheapestPathPage() {
                           textClassName="text-sm text-bnb-muted"
                           logoClassName="h-5 w-5"
                         />
-                        {data.best_path.lightning_exit_provider ? (
+                        {bestVisiblePath.lightning_exit_provider ? (
                           <>
                             <ArrowRight size={14} className="text-bnb-muted" />
                             <ServiceLabel
-                              name={data.best_path.lightning_exit_provider}
-                              label={data.best_path.lightning_exit_provider}
+                              name={bestVisiblePath.lightning_exit_provider}
+                              label={bestVisiblePath.lightning_exit_provider}
                               variant="lightning"
                               textClassName="text-sm text-bnb-muted"
                               logoClassName="h-5 w-5"
@@ -557,14 +591,14 @@ export function CheapestPathPage() {
                       </div>
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-bnb-muted">
-                      <p>국내 출발: {fmtEx(data.best_path.korean_exchange)} · {data.best_path.transfer_coin} · {data.best_path.domestic_withdrawal_network}</p>
-                      <p>해외 진입: {fmtEx(data.global_exchange)} · {data.best_path.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
-                      <p>최종 출금: {data.best_path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} · {data.best_path.global_exit_network}</p>
-                      {data.best_path.lightning_exit_provider ? (
+                      <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {bestVisiblePath.domestic_withdrawal_network}</p>
+                      <p>해외 진입: {fmtEx(data.global_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
+                      <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} · {bestVisiblePath.global_exit_network}</p>
+                      {bestVisiblePath.lightning_exit_provider ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span>중간 서비스:</span>
                           <ServiceLabel
-                            name={data.best_path.lightning_exit_provider}
+                            name={bestVisiblePath.lightning_exit_provider}
                             variant="lightning"
                             textClassName="text-sm text-bnb-muted"
                             logoClassName="h-4 w-4"
@@ -576,22 +610,22 @@ export function CheapestPathPage() {
 
                   <div className="w-full lg:max-w-3xl">
                     <div className="border border-dark-200 bg-dark-500/60 p-3">
-                      <PathTimeline path={data.best_path} globalExchange={data.global_exchange} />
+                      <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} />
                     </div>
                   </div>
 
                   <div className="grid gap-4 sm:min-w-[220px] sm:grid-cols-3 xl:grid-cols-1">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
-                      <p className="mt-1 text-xl font-semibold text-bnb-text">{formatSats(data.best_path.btc_received)}</p>
+                      <p className="mt-1 text-xl font-semibold text-bnb-text">{formatSats(bestVisiblePath.btc_received)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
-                      <p className="mt-1 text-xl font-semibold text-brand-400">{formatCurrency(data.best_path.total_fee_krw)}</p>
+                      <p className="mt-1 text-xl font-semibold text-brand-400">{formatCurrency(bestVisiblePath.total_fee_krw)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
-                      <p className={`mt-1 text-xl font-semibold ${getFeeTone(data.best_path.fee_pct)}`}>{formatPercent(data.best_path.fee_pct)}</p>
+                      <p className={`mt-1 text-xl font-semibold ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
                     </div>
                   </div>
                 </div>

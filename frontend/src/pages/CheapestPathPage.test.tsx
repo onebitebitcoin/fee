@@ -176,6 +176,9 @@ describe('CheapestPathPage', () => {
 
     expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
     expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '최저 경로' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '논 KYC' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
     expect(screen.queryByText('검색 버튼을 누르면 경로를 불러옵니다.')).not.toBeInTheDocument();
   });
 
@@ -235,6 +238,23 @@ describe('CheapestPathPage', () => {
     expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitfreezer.png');
   });
 
+
+  it('applies the non-KYC shortcut', async () => {
+    const user = await renderAndSearch();
+
+    await user.click(screen.getByRole('button', { name: '논 KYC' }));
+
+    expect(screen.getByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).toBeInTheDocument();
+  });
+
+  it('applies the without-lightning shortcut', async () => {
+    const user = await renderAndSearch();
+
+    await user.click(screen.getByRole('button', { name: '라이트닝 제외' }));
+
+    expect(screen.queryByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).not.toBeInTheDocument();
+    expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
+  });
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
     const user = await renderAndSearch();
 
