@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle, Globe, Server, XCircle } from 'lucide-react
 import { useCallback, useMemo, useState } from 'react';
 
 import { fmtEx } from '../lib/exchangeNames';
+import { localizeUiLabel } from '../lib/localizeUi';
 
 import { PageErrorMessage } from '../components/PageErrorMessage';
 import { PageSkeletonBlocks } from '../components/PageSkeletonBlocks';
@@ -156,7 +157,7 @@ export function WithdrawalsPage() {
             <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-2">
               <span className="font-semibold text-bnb-text">{group.nodeLabel}</span>
               {group.type === 'lightning' && (
-                <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">⚡ Lightning</span>
+                <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">⚡ 라이트닝</span>
               )}
               <span className="ml-auto text-xs text-bnb-muted">{group.rows.length}개 네트워크</span>
             </div>
@@ -169,7 +170,7 @@ export function WithdrawalsPage() {
                   return (
                     <div key={`m-${idx}`} className="border-t border-dark-200 bg-dark-300 p-3 first:border-t-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-bnb-muted">{item.coin} · {item.network_label}</p>
+                        <p className="text-sm text-bnb-muted">{item.coin} · {localizeUiLabel(item.network_label)}</p>
                         <div className="flex items-center gap-2">
                           <SourceIcon source={item.source} />
                           {item.enabled ? <CheckCircle size={14} className="text-bnb-green" /> : <XCircle size={14} className="text-bnb-red" />}
@@ -192,7 +193,7 @@ export function WithdrawalsPage() {
                   return (
                     <div key={`m-${idx}`} className="border-t border-dark-200 bg-dark-300 p-3 first:border-t-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-bnb-muted">Lightning Swap</p>
+                        <p className="text-sm text-bnb-muted">라이트닝 스왑</p>
                         <div className="flex items-center gap-2">
                           <Globe size={13} className="text-bnb-muted" />
                           {item.enabled ? <CheckCircle size={14} className="text-bnb-green" /> : <XCircle size={14} className="text-bnb-red" />}
@@ -237,7 +238,7 @@ export function WithdrawalsPage() {
                       return (
                         <tr key={idx} className="border-t border-dark-200 hover:bg-dark-400 transition-colors">
                           <td className="px-4 py-2 text-bnb-muted">
-                            {item.coin} · {item.network_label}
+                            {item.coin} · {localizeUiLabel(item.network_label)}
                             {item.source_url && (
                               <a href={item.source_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center text-brand-400 hover:text-brand-300">
                                 <Globe size={11} />
@@ -257,7 +258,7 @@ export function WithdrawalsPage() {
                       return (
                         <tr key={idx} className="border-t border-dark-200 hover:bg-dark-400 transition-colors">
                           <td className="px-4 py-2 text-bnb-muted">
-                            Lightning Swap
+                            라이트닝 스왑
                             {item.source_url && (
                               <a href={item.source_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center text-brand-400 hover:text-brand-300">
                                 <Globe size={11} />

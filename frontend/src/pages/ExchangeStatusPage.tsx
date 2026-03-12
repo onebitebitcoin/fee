@@ -8,6 +8,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
+import { localizeUiLabel } from '../lib/localizeUi';
 import type { ExchangeStatusNode, ExchangeStatusWithdrawalRow, SuspendedNetwork } from '../types';
 
 const DOMESTIC_EXCHANGES = new Set(['upbit', 'bithumb', 'coinone', 'korbit', 'gopax']);
@@ -19,7 +20,7 @@ function formatNumber(value: number, maximumFractionDigits = 8) {
 }
 
 function formatFee(row: ExchangeStatusWithdrawalRow): string {
-  // Lightning swap row
+  // 라이트닝 스왑 행
   if (row.fee_pct != null || row.fee_fixed_sat != null) {
     const parts: string[] = [];
     if (row.fee_pct != null) parts.push(`${row.fee_pct}%`);
@@ -66,7 +67,7 @@ function NetworkRows({ rows }: NetworkRowsProps) {
                   <XCircle size={12} className="text-bnb-red shrink-0" />
                 )}
                 <span className="min-w-0 break-all text-sm text-bnb-muted">
-                  {row.coin} · {row.network_label}
+                  {row.coin} · {localizeUiLabel(row.network_label)}
                 </span>
                 <KycBadge status={row.kyc_status} />
               </div>
@@ -134,7 +135,7 @@ function NodeCard({ node }: NodeCardProps) {
         <NodeLogo exchange={node.exchange} type={node.type} />
         <span className="min-w-0 flex-1 break-all font-semibold text-bnb-text">{label}</span>
         {node.type === 'lightning' && (
-          <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">LN</span>
+          <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">라이트닝</span>
         )}
         <KycBadge status={node.kyc_status} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -163,7 +164,7 @@ function NodeCard({ node }: NodeCardProps) {
           {node.network_status.suspended_networks.map((sn: SuspendedNetwork, idx: number) => (
             <div key={idx} className="flex items-start gap-2 text-xs text-bnb-red">
               <XCircle size={12} className="mt-0.5 shrink-0" />
-              <span>{sn.coin} / {sn.network}: {sn.reason ?? sn.status}</span>
+              <span>{sn.coin} / {localizeUiLabel(sn.network)}: {sn.reason ?? sn.status}</span>
             </div>
           ))}
         </div>
@@ -298,7 +299,7 @@ export function ExchangeStatusPage() {
 
       {filteredLightning.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">Lightning 스왑</h3>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">라이트닝 스왑</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {filteredLightning.map(node => (
               <NodeCard key={`lightning-${node.exchange}`} node={node} />

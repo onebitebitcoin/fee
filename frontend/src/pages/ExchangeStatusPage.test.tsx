@@ -95,7 +95,7 @@ describe('ExchangeStatusPage', () => {
     await screen.findByText('현황');
     expect(screen.getByText('국내 거래소')).toBeInTheDocument();
     expect(screen.getByText('해외 거래소')).toBeInTheDocument();
-    expect(screen.getByText('Lightning 스왑')).toBeInTheDocument();
+    expect(screen.getByText('라이트닝 스왑')).toBeInTheDocument();
   });
 
   it('shows top 3 networks and expand button for node with more than 3', async () => {
@@ -195,8 +195,8 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('본인확인').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('미인증').length).toBeGreaterThan(0);
   });
 
   it('shows Lightning badge for lightning service nodes', async () => {
@@ -207,6 +207,6 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    expect(screen.getByText('LN')).toBeInTheDocument();
+    expect(screen.getByText('라이트닝')).toBeInTheDocument();
   });
 });

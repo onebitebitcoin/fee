@@ -1,16 +1,17 @@
+import { localizeKycLabel } from '../lib/localizeUi';
 import type { KycStatus } from '../types';
 
 const badgeMap: Record<Exclude<KycStatus, null>, { label: string; className: string }> = {
   kyc: {
-    label: 'KYC',
+    label: localizeKycLabel('kyc')!,
     className: 'border-blue-500/40 bg-blue-500/10 text-blue-400',
   },
   non_kyc: {
-    label: 'NON-KYC',
+    label: localizeKycLabel('non_kyc')!,
     className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
   },
   mixed: {
-    label: 'MIXED',
+    label: localizeKycLabel('mixed')!,
     className: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400',
   },
 };

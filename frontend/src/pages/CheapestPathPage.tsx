@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { KycBadge } from '../components/KycBadge';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
+import { localizeUiLabel } from '../lib/localizeUi';
 import type { AccessStats, CheapestPathEntry, CheapestPathResponse } from '../types';
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
@@ -198,7 +199,7 @@ function PathTimeline({ path, globalExchange }: { path: CheapestPathEntry; globa
     },
     {
       label: path.transfer_coin,
-      sub: path.domestic_withdrawal_network,
+      sub: localizeUiLabel(path.domestic_withdrawal_network),
       active: true,
       feeText: components[1] ? formatCurrency(components[1].amount_krw) : null,
       feeLabel: components[1]?.label ?? null,
@@ -206,7 +207,7 @@ function PathTimeline({ path, globalExchange }: { path: CheapestPathEntry; globa
     {
       label: fmtEx(globalExchange),
       rawName: globalExchange,
-      sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT 입금' : '글로벌 거래소 · BTC 입금',
+      sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT 입금' : '글로벌 거래소 · 비트코인 입금',
       active: true,
       variant: 'exchange' as const,
       kycStatus: path.global_kyc_status,
@@ -214,9 +215,9 @@ function PathTimeline({ path, globalExchange }: { path: CheapestPathEntry; globa
       feeLabel: components[2]?.label ?? null,
     },
     {
-      label: path.global_exit_mode === 'lightning' ? 'Lightning 출금' : '온체인 출금',
+      label: path.global_exit_mode === 'lightning' ? '라이트닝 출금' : '온체인 출금',
       rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
-      sub: path.global_exit_network + (path.lightning_exit_provider ? ` · ${path.lightning_exit_provider}` : ''),
+      sub: localizeUiLabel(path.global_exit_network) + (path.lightning_exit_provider ? ` · ${path.lightning_exit_provider}` : ''),
       active: true,
       variant: path.lightning_exit_provider || path.swap_service ? ('lightning' as const) : undefined,
       kycStatus: path.exit_service_kyc_status,
@@ -498,7 +499,7 @@ export function CheapestPathPage() {
             onClick={() => setPathShortcut('non_kyc')}
             className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'non_kyc' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
           >
-            논 KYC
+            미인증 경로
           </button>
           <button
             type="button"
@@ -591,9 +592,9 @@ export function CheapestPathPage() {
                       </div>
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-bnb-muted">
-                      <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {bestVisiblePath.domestic_withdrawal_network}</p>
+                      <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {localizeUiLabel(bestVisiblePath.domestic_withdrawal_network)}</p>
                       <p>해외 진입: {fmtEx(data.global_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
-                      <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} · {bestVisiblePath.global_exit_network}</p>
+                      <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} · {localizeUiLabel(bestVisiblePath.global_exit_network)}</p>
                       {bestVisiblePath.lightning_exit_provider ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span>중간 서비스:</span>
@@ -670,7 +671,7 @@ export function CheapestPathPage() {
                           : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
                       }`}
                     >
-                      {option.mode === 'lightning' ? '⚡' : ''}{option.network}
+                      {option.mode === 'lightning' ? '⚡ ' : ''}{localizeUiLabel(option.network)}
                     </button>
                   );
                 })}
@@ -728,7 +729,7 @@ export function CheapestPathPage() {
                       <p className="shrink-0 text-sm font-semibold text-brand-400">{formatCurrency(path.total_fee_krw)}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-bnb-muted">
-                      <p className="col-span-2">{path.transfer_coin} · {path.domestic_withdrawal_network}</p>
+                      <p className="col-span-2">{path.transfer_coin} · {localizeUiLabel(path.domestic_withdrawal_network)}</p>
                       <p>수령 <span className="text-bnb-text">{formatSats(path.btc_received)}</span></p>
                       <p>수수료율 <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span></p>
                     </div>
@@ -795,12 +796,12 @@ export function CheapestPathPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{path.domestic_withdrawal_network}</span></p>
-                            <span className="text-[10px] text-bnb-muted">→ {path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {path.global_exit_network}</span>
+                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{localizeUiLabel(path.domestic_withdrawal_network)}</span></p>
+                            <span className="text-[10px] text-bnb-muted">→ {path.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} / {localizeUiLabel(path.global_exit_network)}</span>
                             {path.path_type === 'lightning_exit' && (
                               <span className="inline-flex items-center gap-0.5 border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-400">
                                 <Zap size={9} />
-                                LN
+                                라이트닝
                               </span>
                             )}
                             {(path.lightning_exit_provider || path.swap_service) && path.path_type === 'lightning_exit' && (
@@ -872,9 +873,9 @@ export function CheapestPathPage() {
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
                         <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
-                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{selectedRoute.path.domestic_withdrawal_network}</p>
+                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{localizeUiLabel(selectedRoute.path.domestic_withdrawal_network)}</p>
                         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">
-                          {selectedRoute.path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {selectedRoute.path.global_exit_network}
+                          {selectedRoute.path.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} / {localizeUiLabel(selectedRoute.path.global_exit_network)}
                         </p>
                         {selectedRoute.path.lightning_exit_provider ? (
                           <div className="mt-1">

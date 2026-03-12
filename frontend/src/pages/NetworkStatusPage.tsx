@@ -14,7 +14,7 @@ import type { NetworkStatusMap, ScrapeStatusResponse } from '../types';
 const CATEGORY_LABEL: Record<string, string> = {
   network_status: '네트워크',
   withdrawal: '출금',
-  lightning: 'Lightning',
+  lightning: '라이트닝',
 };
 
 export function NetworkStatusPage() {
@@ -63,7 +63,7 @@ export function NetworkStatusPage() {
                       <XCircle size={14} className="mt-0.5 shrink-0 text-bnb-red" />
                       <div className="text-sm">
                         <p className="font-medium text-bnb-text">
-                          {item.coin} / {item.network}
+                          {item.coin} / {item.network === 'Lightning Network' ? '라이트닝 네트워크' : item.network === 'Bitcoin' ? '비트코인' : item.network}
                         </p>
                         <p className="text-xs text-bnb-muted">{item.reason ?? item.status}</p>
                       </div>
