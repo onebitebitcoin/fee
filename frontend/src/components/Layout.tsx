@@ -12,12 +12,16 @@ export function Layout() {
     <div className="flex min-h-screen flex-col bg-dark-500">
       <header className="border-b border-dark-200 bg-dark-400">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <NavLink to="/cheapest-path" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center bg-brand-500">
-              <span className="text-sm font-bold text-dark-500">B</span>
-            </div>
+          <NavLink to="/cheapest-path" className="flex items-center gap-3">
+            <img
+              src="/logos/hanip.png"
+              alt="한입 로고"
+              className="h-9 w-9 rounded-full object-cover"
+              width={36}
+              height={36}
+            />
             <div>
-              <p className="text-sm font-bold text-bnb-text">BTC 경로 탐색기</p>
+              <p className="text-sm font-bold text-bnb-text">한입 비트코인 경로</p>
               <p className="text-xs text-bnb-muted">실시간 수수료 비교</p>
             </div>
           </NavLink>
