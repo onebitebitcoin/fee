@@ -177,7 +177,7 @@ describe('CheapestPathPage', () => {
     expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
     expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '최저 경로' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '미인증 경로' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'non-KYC 경로' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
     expect(screen.queryByText('검색 버튼을 누르면 경로를 불러옵니다.')).not.toBeInTheDocument();
   });
@@ -191,8 +191,8 @@ describe('CheapestPathPage', () => {
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
     expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('본인확인').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('미인증').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
   });
 
   it('filters routes by explicit path dimensions', async () => {
@@ -242,7 +242,7 @@ describe('CheapestPathPage', () => {
   it('applies the non-KYC shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: '미인증 경로' }));
+    await user.click(screen.getByRole('button', { name: 'non-KYC 경로' }));
 
     expect(screen.getByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).toBeInTheDocument();
   });

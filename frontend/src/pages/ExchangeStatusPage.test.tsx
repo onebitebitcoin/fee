@@ -195,8 +195,8 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    expect(screen.getAllByText('본인확인').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('미인증').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
   });
 
   it('shows Lightning badge for lightning service nodes', async () => {

@@ -499,7 +499,7 @@ export function CheapestPathPage() {
             onClick={() => setPathShortcut('non_kyc')}
             className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'non_kyc' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
           >
-            미인증 경로
+            non-KYC 경로
           </button>
           <button
             type="button"

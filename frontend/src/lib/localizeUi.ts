@@ -9,9 +9,9 @@ const NETWORK_LABEL_MAP: Record<string, string> = {
 };
 
 const KYC_LABEL_MAP: Record<Exclude<KycStatus, null>, string> = {
-  kyc: '본인확인',
-  non_kyc: '미인증',
-  mixed: '혼합',
+  kyc: 'KYC',
+  non_kyc: 'NON-KYC',
+  mixed: 'MIXED',
 };
 
 export function localizeUiLabel(value: string | null | undefined): string {
