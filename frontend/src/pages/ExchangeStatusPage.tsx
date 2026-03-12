@@ -46,9 +46,10 @@ function SourceIcon({ source }: { source: string }) {
 
 type NetworkRowsProps = {
   rows: ExchangeStatusWithdrawalRow[];
+  inheritedKycStatus?: ExchangeStatusNode['kyc_status'];
 };
 
-function NetworkRows({ rows }: NetworkRowsProps) {
+function NetworkRows({ rows, inheritedKycStatus }: NetworkRowsProps) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? rows : rows.slice(0, 3);
   const hasMore = rows.length > 3;
@@ -69,6 +70,7 @@ function NetworkRows({ rows }: NetworkRowsProps) {
                 <span className="min-w-0 break-all text-sm text-bnb-muted">
                   {row.coin} · {localizeUiLabel(row.network_label)}
                 </span>
+                <KycBadge status={row.kyc_status ?? inheritedKycStatus} />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
                 <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
@@ -171,7 +173,7 @@ function NodeCard({ node }: NodeCardProps) {
 
       {/* 출금 네트워크 목록 */}
       {node.withdrawal_rows.length > 0 ? (
-        <NetworkRows rows={node.withdrawal_rows} />
+        <NetworkRows rows={node.withdrawal_rows} inheritedKycStatus={node.kyc_status} />
       ) : (
         <p className="px-4 py-3 text-sm text-bnb-muted">출금 수수료 데이터 없음</p>
       )}
