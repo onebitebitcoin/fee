@@ -136,13 +136,13 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
         ),
         LightningSwapFeeSnapshot(
             crawl_run_id=crawl_run.id,
-            service_name='Bitfreezer',
+            service_name='BitFlower',
             fee_pct=0.39,
             fee_fixed_sat=0,
             min_amount_sat=1,
             max_amount_sat=1_000_000_000,
             enabled=True,
-            source_url='https://bitfreezer.com',
+            source_url='https://bitflower.com',
         ),
     ])
     db.commit()
@@ -172,7 +172,7 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert payload['available_filters']['domestic_withdrawal_networks'] == ['Bitcoin', 'TRC20']
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
-    assert 'Bitfreezer' in payload['available_filters']['lightning_exit_providers']
+    assert 'BitFlower' in payload['available_filters']['lightning_exit_providers']
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
     assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
@@ -328,13 +328,13 @@ def test_exchange_status_includes_kyc_metadata(mocker):
         ),
         LightningSwapFeeSnapshot(
             crawl_run_id=crawl_run.id,
-            service_name='Bitfreezer',
+            service_name='BitFlower',
             fee_pct=0.39,
             fee_fixed_sat=0,
             min_amount_sat=1,
             max_amount_sat=1_000_000_000,
             enabled=True,
-            source_url='https://bitfreezer.com',
+            source_url='https://bitflower.com',
         ),
     ])
     db.commit()
@@ -418,6 +418,7 @@ def test_sell_cheapest_path_uses_btc_input(mocker):
         'upbitbtc': {'is_kyc': True},
         'binancebtc': {'is_kyc': True},
     })
+    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee_btc', return_value=0.00001)
 
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)

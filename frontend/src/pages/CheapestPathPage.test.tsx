@@ -24,7 +24,7 @@ vi.mock('../lib/api', () => ({
           { mode: 'onchain', network: 'Bitcoin' },
           { mode: 'lightning', network: 'Lightning Network' },
         ],
-        lightning_exit_providers: ['Bitfreezer'],
+        lightning_exit_providers: ['BitFlower'],
       },
       best_path: {
         path_id: 'cheap1-trc20-onchain',
@@ -96,7 +96,7 @@ vi.mock('../lib/api', () => ({
           domestic_withdrawal_network: 'TRC20',
           global_exit_mode: 'lightning',
           global_exit_network: 'Lightning Network',
-          lightning_exit_provider: 'Bitfreezer',
+          lightning_exit_provider: 'BitFlower',
           path_type: 'lightning_exit',
           btc_received: 0.0087,
           btc_received_usd: 827,
@@ -234,9 +234,9 @@ describe('CheapestPathPage', () => {
     await user.click(screen.getAllByRole('button', { name: 'cheap2 경로 선택' })[0]);
 
     const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
-    const providerLogos = within(detailRegion).getAllByAltText('Bitfreezer');
+    const providerLogos = within(detailRegion).getAllByAltText('BitFlower');
     expect(providerLogos.length).toBeGreaterThan(0);
-    expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitfreezer.png');
+    expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitflower.png');
   });
 
 
@@ -245,7 +245,7 @@ describe('CheapestPathPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'non-KYC 경로' }));
 
-    expect(screen.getByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).toBeInTheDocument();
+    expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
   });
 
   it('applies the without-lightning shortcut', async () => {
@@ -253,7 +253,7 @@ describe('CheapestPathPage', () => {
 
     await user.click(screen.getByRole('button', { name: '라이트닝 제외' }));
 
-    expect(screen.queryByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).not.toBeInTheDocument();
+    expect(screen.queryByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).not.toBeInTheDocument();
     expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
   });
 

@@ -4,7 +4,7 @@ Lightning Network 스왑 서비스 실시간 수수료 스크래퍼
 지원 서비스:
   - Boltz Exchange (boltz.exchange): 공개 REST API 사용
   - Coinos.io (coinos.io): 공개 REST API 사용
-  - Bitfreezer (bitfreezer.com): 웹 스크래핑
+  - BitFlower (bitflower.com): 웹 스크래핑
   - Wallet of Satoshi (walletofsatoshi.com): 웹 스크래핑 / 고정 수수료
   - Strike (strike.me): 공개 API 사용
   - Oksusu / Corn Wallet (team.oksu.su): 공식 사이트 스크래핑 / 고정 수수료
@@ -153,22 +153,23 @@ def fetch_coinos_fees() -> dict:
         }
 
 
-def fetch_bitfreezer_fees() -> dict:
+def fetch_bitflower_fees() -> dict:
     """
-    Bitfreezer Lightning 스왑 수수료 조회.
-    Bitfreezer는 Lightning ↔ On-chain 스왑 서비스.
-    검증된 정적 수수료: 0.39% (Telegram @lnswap_bot 기준, API 미공개)
-    공개 API: https://bitfreezer.com/api/v1/fees 또는 웹 스크래핑
+    BitFlower Lightning 스왑 수수료 조회.
+    BitFlower는 Lightning ↔ On-chain 스왑 서비스.
+    검증된 정적 수수료: -0.2% + 500 sats (BitFlower 공개 안내 기준)
+    공개 API: https://bitflower.com/api/v1/fees 또는 웹 스크래핑
     """
-    service_name = 'Bitfreezer'
-    source_url = 'https://bitfreezer.com'
-    _STATIC_FEE_PCT = 0.39
-    _STATIC_ERROR = '정적 검증값 (API 미공개, Telegram @lnswap_bot 기준)'
+    service_name = 'BitFlower'
+    source_url = 'https://bitflower.com'
+    _STATIC_FEE_PCT = -0.2
+    _STATIC_FIXED_SAT = 500
+    _STATIC_ERROR = '정적 검증값 (BitFlower 안내 기준: -0.2% + 500 sats)'
     api_urls = [
-        'https://bitfreezer.com/api/v1/fees',
-        'https://bitfreezer.com/api/fees',
-        'https://api.bitfreezer.com/v1/fees',
-        'https://api.bitfreezer.com/fees',
+        'https://bitflower.com/api/v1/fees',
+        'https://bitflower.com/api/fees',
+        'https://api.bitflower.com/v1/fees',
+        'https://api.bitflower.com/fees',
     ]
     for api_url in api_urls:
         try:
@@ -205,7 +206,7 @@ def fetch_bitfreezer_fees() -> dict:
                 return {
                     'service_name': service_name,
                     'fee_pct': fee_pct,
-                    'fee_fixed_sat': 0,
+                    'fee_fixed_sat': _STATIC_FIXED_SAT,
                     'min_amount_sat': 10_000,
                     'max_amount_sat': 10_000_000,
                     'enabled': True,
@@ -213,13 +214,13 @@ def fetch_bitfreezer_fees() -> dict:
                     'error': 'API 미발견, 웹 스크래핑으로 추정',
                 }
     except Exception as exc2:
-        logger.warning('Bitfreezer 웹 스크래핑 실패: %s', exc2)
+        logger.warning('BitFlower 웹 스크래핑 실패: %s', exc2)
 
     # 모든 시도 실패 시 검증된 정적 수수료 사용
     return {
         'service_name': service_name,
         'fee_pct': _STATIC_FEE_PCT,
-        'fee_fixed_sat': 0,
+        'fee_fixed_sat': _STATIC_FIXED_SAT,
         'min_amount_sat': 10_000,
         'max_amount_sat': 10_000_000,
         'enabled': True,
@@ -415,7 +416,7 @@ def get_all_lightning_swap_fees() -> list[dict]:
     fetchers = [
         fetch_boltz_fees,
         fetch_coinos_fees,
-        fetch_bitfreezer_fees,
+        fetch_bitflower_fees,
         fetch_wos_fees,
         fetch_strike_fees,
         fetch_oksusu_fees,

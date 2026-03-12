@@ -21,7 +21,7 @@ _cache: dict[str, object] = {
 }
 
 _SERVICE_ALIASES = {
-    'bitfreezer': 'bitfreeze',
+    'bitflower': 'bitfreeze',
     'walletofsatoshi': 'walletofsatoshi',
     'walletofsats': 'walletofsatoshi',
     'personalwallet': 'personalwallet',
