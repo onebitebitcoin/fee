@@ -32,6 +32,7 @@ from backend.app.domain.market_paths import (
     compare_btc_prices,
     find_cheapest_path,
     find_cheapest_path_from_snapshot_rows,
+    find_cheapest_sell_path_from_snapshot_rows,
     get_exchange_summary,
     get_network_status,
 )
@@ -63,6 +64,7 @@ __all__ = [
     'fetch_usd_krw_rate',
     'find_cheapest_path',
     'find_cheapest_path_from_snapshot_rows',
+    'find_cheapest_sell_path_from_snapshot_rows',
     'get_exchange_summary',
     'get_network_status',
     'get_scraped_withdrawal',

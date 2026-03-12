@@ -360,3 +360,74 @@ def test_exchange_status_includes_kyc_metadata(mocker):
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
+
+
+def test_sell_cheapest_path_uses_btc_input(mocker):
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+
+    db.add_all([
+        TickerSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            pair='BTC/KRW',
+            market_type='spot',
+            currency='KRW',
+            price=100000000.0,
+            taker_fee_pct=0.05,
+            usd_krw_rate=1400.0,
+        ),
+        TickerSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            pair='BTC/USD',
+            market_type='spot',
+            currency='USD',
+            price=70000.0,
+            taker_fee_pct=0.1,
+            usd_krw_rate=1400.0,
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Bitcoin',
+            fee=0.0001,
+            fee_krw=10000.0,
+            enabled=True,
+            note='snapshot value',
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={
+        'upbitbtc': {'is_kyc': True},
+        'binancebtc': {'is_kyc': True},
+    })
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/path-finder/cheapest?mode=sell&amount_btc=0.01&global_exchange=binance')
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['mode'] == 'sell'
+    assert payload['amount_btc'] == 0.01
+    assert payload['best_path']['route_variant'] == 'btc_direct'
+    assert payload['best_path']['krw_received'] > 0
+
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)

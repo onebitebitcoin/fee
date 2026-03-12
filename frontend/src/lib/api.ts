@@ -28,8 +28,18 @@ export const api = {
     request('/api/v1/market/withdrawal-fees/latest'),
   getNetworkStatus: (): Promise<{ last_run: CrawlRun | null; exchanges: NetworkStatusMap; total_suspended: number }> => request('/api/v1/market/network-status/latest'),
   getRuns: (): Promise<{ items: CrawlRun[] }> => request('/api/v1/crawl-runs'),
-  getCheapestPath: (params: { amountKrw: number; globalExchange: string }): Promise<CheapestPathResponse> =>
-    request(`/api/v1/market/path-finder/cheapest?amount_krw=${params.amountKrw}&global_exchange=${params.globalExchange}`),
+  getCheapestPath: (params: { mode: 'buy' | 'sell'; amountKrw?: number; amountBtc?: number; globalExchange: string }): Promise<CheapestPathResponse> => {
+    const qs = new URLSearchParams({
+      mode: params.mode,
+      global_exchange: params.globalExchange,
+    });
+    if (params.mode === 'sell') {
+      qs.set('amount_btc', String(params.amountBtc ?? 0.01));
+    } else {
+      qs.set('amount_krw', String(params.amountKrw ?? 1000000));
+    }
+    return request(`/api/v1/market/path-finder/cheapest?${qs.toString()}`);
+  },
   triggerCrawl: (): Promise<CrawlRun> => request('/api/v1/crawl-runs', { method: 'POST' }),
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
   getScrapeStatus: (): Promise<ScrapeStatusResponse> => request('/api/v1/market/scrape-status'),

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 
+import { api } from '../lib/api';
 import { CheapestPathPage } from './CheapestPathPage';
 
 vi.mock('../lib/api', () => ({
@@ -254,6 +255,77 @@ describe('CheapestPathPage', () => {
 
     expect(screen.queryByText('cheap2 → 바이낸스 → Bitfreezer → 개인 지갑')).not.toBeInTheDocument();
     expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
+  });
+
+  it('switches to reverse sell mode and renders a reversed path', async () => {
+    vi.mocked(api.getCheapestPath).mockResolvedValueOnce({
+      mode: 'sell',
+      amount_btc: 0.01,
+      global_exchange: 'binance',
+      global_btc_price_usd: 95000,
+      usd_krw_rate: 1380,
+      total_paths_evaluated: 1,
+      available_filters: {
+        domestic_withdrawal_networks: ['TRC20'],
+        global_exit_options: [{ mode: 'lightning', network: 'Lightning Network' }],
+        lightning_exit_providers: ['Strike'],
+      },
+      best_path: {
+        path_id: 'sell-lightning-via-global',
+        route_variant: 'lightning_via_global',
+        korean_exchange: 'bithumb',
+        transfer_coin: 'USDT',
+        network: 'TRC20',
+        domestic_withdrawal_network: 'TRC20',
+        global_exit_mode: 'lightning',
+        global_exit_network: 'Lightning Network',
+        lightning_exit_provider: 'Strike',
+        krw_received: 1280000,
+        total_fee_krw: 22000,
+        fee_pct: 1.69,
+        domestic_kyc_status: 'kyc',
+        global_kyc_status: 'kyc',
+        exit_service_kyc_status: 'kyc',
+        wallet_kyc_status: 'non_kyc',
+        breakdown: { total_fee_krw: 22000, components: [{ label: '라이트닝 스왑 수수료', amount_krw: 5000 }] },
+      },
+      top5: [],
+      all_paths: [{
+        path_id: 'sell-lightning-via-global',
+        route_variant: 'lightning_via_global',
+        korean_exchange: 'bithumb',
+        transfer_coin: 'USDT',
+        network: 'TRC20',
+        domestic_withdrawal_network: 'TRC20',
+        global_exit_mode: 'lightning',
+        global_exit_network: 'Lightning Network',
+        lightning_exit_provider: 'Strike',
+        krw_received: 1280000,
+        total_fee_krw: 22000,
+        fee_pct: 1.69,
+        domestic_kyc_status: 'kyc',
+        global_kyc_status: 'kyc',
+        exit_service_kyc_status: 'kyc',
+        wallet_kyc_status: 'non_kyc',
+        breakdown: { total_fee_krw: 22000, components: [{ label: '라이트닝 스왑 수수료', amount_krw: 5000 }] },
+      }],
+      disabled_paths: [],
+    } as never);
+
+    const user = userEvent.setup();
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: '역방향 매도' }));
+    await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
+
+    expect(await screen.findByText('역방향 매도 경로')).toBeInTheDocument();
+    expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
+    expect(screen.getByText('예상 KRW 수령')).toBeInTheDocument();
+    expect(screen.getAllByText('1,280,000 KRW').length).toBeGreaterThan(0);
   });
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
     const user = await renderAndSearch();

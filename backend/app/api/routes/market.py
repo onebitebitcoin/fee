@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 from backend.app.db import repositories
 from backend.app.db.session import get_db
 from backend.app.services import kyc_registry
-from backend.app.services.live_market import find_cheapest_path_from_snapshot_rows
+from backend.app.services.live_market import (
+    find_cheapest_path_from_snapshot_rows,
+    find_cheapest_sell_path_from_snapshot_rows,
+)
 from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
@@ -158,7 +161,13 @@ def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get('/path-finder/cheapest')
-def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchange: str = Query('binance'), db: Session = Depends(get_db)) -> dict:
+def get_cheapest_path(
+    amount_krw: int = Query(1000000, ge=10000),
+    amount_btc: float | None = Query(None, gt=0),
+    mode: str = Query('buy'),
+    global_exchange: str = Query('binance'),
+    db: Session = Depends(get_db),
+) -> dict:
     repositories.record_access(db)
     latest_run = repositories.get_latest_successful_run(db)
     ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
@@ -200,15 +209,28 @@ def get_cheapest_path(amount_krw: int = Query(1000000, ge=10000), global_exchang
             'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
             'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
         }
-    payload = find_cheapest_path_from_snapshot_rows(
-        amount_krw=amount_krw,
-        global_exchange=global_exchange,
-        latest_run=latest_run,
-        ticker_rows=ticker_rows,
-        withdrawal_rows=withdrawal_rows,
-        network_rows=network_rows,
-        lightning_swap_rows=lightning_swap_rows,
-    )
+    if mode == 'sell':
+        if amount_btc is None:
+            return {'error': 'sell 모드에는 amount_btc가 필요합니다.'}
+        payload = find_cheapest_sell_path_from_snapshot_rows(
+            amount_btc=amount_btc,
+            global_exchange=global_exchange,
+            latest_run=latest_run,
+            ticker_rows=ticker_rows,
+            withdrawal_rows=withdrawal_rows,
+            network_rows=network_rows,
+            lightning_swap_rows=lightning_swap_rows,
+        )
+    else:
+        payload = find_cheapest_path_from_snapshot_rows(
+            amount_krw=amount_krw,
+            global_exchange=global_exchange,
+            latest_run=latest_run,
+            ticker_rows=ticker_rows,
+            withdrawal_rows=withdrawal_rows,
+            network_rows=network_rows,
+            lightning_swap_rows=lightning_swap_rows,
+        )
     if payload.get('error'):
         return payload
     return _enrich_path_payload_with_kyc(payload, global_exchange)

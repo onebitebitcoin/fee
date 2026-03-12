@@ -1,4 +1,5 @@
 export type KycStatus = 'kyc' | 'non_kyc' | 'mixed' | null;
+export type PathMode = 'buy' | 'sell';
 
 export type CrawlRun = {
   id: number;
@@ -81,6 +82,7 @@ export type CheapestPathBreakdown = {
 
 export type CheapestPathEntry = {
   path_id: string;
+  route_variant?: 'btc_direct' | 'usdt_via_global' | 'lightning_direct' | 'lightning_via_global';
   korean_exchange: string;
   transfer_coin: string;
   network: string;
@@ -90,8 +92,9 @@ export type CheapestPathEntry = {
   lightning_exit_provider?: string | null;
   path_type?: 'lightning_exit' | null;
   swap_service?: string | null;
-  btc_received: number;
+  btc_received?: number;
   btc_received_usd?: number | null;
+  krw_received?: number;
   total_fee_krw: number;
   fee_pct: number;
   lightning_swap_fee_krw?: number | null;
@@ -111,7 +114,9 @@ export type DisabledCheapestPathEntry = {
 };
 
 export type CheapestPathResponse = {
-  amount_krw: number;
+  mode: PathMode;
+  amount_krw?: number;
+  amount_btc?: number;
   global_exchange: string;
   global_btc_price_usd: number;
   usd_krw_rate: number;

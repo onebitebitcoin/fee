@@ -6,7 +6,7 @@ import { KycBadge } from '../components/KycBadge';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import { localizeUiLabel } from '../lib/localizeUi';
-import type { AccessStats, CheapestPathEntry, CheapestPathResponse } from '../types';
+import type { AccessStats, CheapestPathEntry, CheapestPathResponse, PathMode } from '../types';
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
@@ -36,8 +36,49 @@ function getFeeTone(feePct: number) {
 
 type RankedPath = CheapestPathEntry & { rank: number };
 
+function getSellFirstHopKyc(path: CheapestPathEntry) {
+  switch (path.route_variant) {
+    case 'lightning_direct':
+    case 'lightning_via_global':
+      return path.exit_service_kyc_status;
+    case 'usdt_via_global':
+      return path.global_kyc_status;
+    case 'btc_direct':
+      return path.domestic_kyc_status;
+    default:
+      return path.exit_service_kyc_status ?? path.global_kyc_status ?? path.domestic_kyc_status;
+  }
+}
 
-function formatTopPathSequence(path: CheapestPathEntry, globalExchange: string) {
+function sortAllPaths(paths: CheapestPathEntry[], mode: PathMode): RankedPath[] {
+  return [...paths]
+    .sort((a, b) => {
+      if (mode === 'sell') {
+        const receivedDiff = (b.krw_received ?? 0) - (a.krw_received ?? 0);
+        if (receivedDiff !== 0) return receivedDiff;
+        return a.total_fee_krw - b.total_fee_krw;
+      }
+      if (a.total_fee_krw !== b.total_fee_krw) return a.total_fee_krw - b.total_fee_krw;
+      return (b.btc_received ?? 0) - (a.btc_received ?? 0);
+    })
+    .map((path, i) => ({ ...path, rank: i + 1 }));
+}
+
+function formatTopPathSequence(path: CheapestPathEntry, globalExchange: string, mode: PathMode) {
+  if (mode === 'sell') {
+    switch (path.route_variant) {
+      case 'lightning_direct':
+        return ['개인 지갑', path.lightning_exit_provider ?? '라이트닝 스왑', fmtEx(path.korean_exchange)].join(' → ');
+      case 'lightning_via_global':
+        return ['개인 지갑', path.lightning_exit_provider ?? '라이트닝 스왑', fmtEx(globalExchange), fmtEx(path.korean_exchange)].join(' → ');
+      case 'usdt_via_global':
+        return ['개인 지갑', fmtEx(globalExchange), fmtEx(path.korean_exchange)].join(' → ');
+      case 'btc_direct':
+      default:
+        return ['개인 지갑', fmtEx(path.korean_exchange)].join(' → ');
+    }
+  }
+
   const parts = [fmtEx(path.korean_exchange), fmtEx(globalExchange)];
   if (path.lightning_exit_provider) {
     parts.push(path.lightning_exit_provider);
@@ -45,6 +86,7 @@ function formatTopPathSequence(path: CheapestPathEntry, globalExchange: string) 
   parts.push('개인 지갑');
   return parts.join(' → ');
 }
+
 
 function ServiceLogo({
   name,
@@ -103,22 +145,26 @@ function ServiceLabel({
   );
 }
 
-function sortAllPaths(paths: CheapestPathEntry[]): RankedPath[] {
-  return [...paths]
-    .sort((a, b) => {
-      if (a.total_fee_krw !== b.total_fee_krw) return a.total_fee_krw - b.total_fee_krw;
-      return b.btc_received - a.btc_received;
-    })
-    .map((path, i) => ({ ...path, rank: i + 1 }));
-}
+type PathStep = {
+  label: string;
+  sub: string;
+  active: boolean;
+  rawName?: string;
+  variant?: 'exchange' | 'lightning';
+  kycStatus?: CheapestPathEntry['domestic_kyc_status'];
+  feeText?: string | null;
+  feeLabel?: string | null;
+};
 
 function RouteDetailPopup({
   selectedRoute,
   globalExchange,
+  mode,
   onClose,
 }: {
   selectedRoute: { rank: number; path: RankedPath };
   globalExchange: string;
+  mode: PathMode;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -176,7 +222,7 @@ function RouteDetailPopup({
             />
           </div>
 
-          <PathTimeline path={selectedRoute.path} globalExchange={globalExchange} />
+          <PathTimeline path={selectedRoute.path} globalExchange={globalExchange} mode={mode} />
         </div>
       </div>
     </div>,
@@ -184,53 +230,139 @@ function RouteDetailPopup({
   );
 }
 
-function PathTimeline({ path, globalExchange }: { path: CheapestPathEntry; globalExchange: string }) {
+function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry; globalExchange: string; mode: PathMode }) {
   const components = path.breakdown?.components ?? [];
-  const steps = [
-    {
-      label: fmtEx(path.korean_exchange),
-      rawName: path.korean_exchange,
-      sub: '한국 거래소',
-      active: true,
-      variant: 'exchange' as const,
-      kycStatus: path.domestic_kyc_status,
-      feeText: components[0] ? formatCurrency(components[0].amount_krw) : null,
-      feeLabel: components[0]?.label ?? null,
-    },
-    {
-      label: path.transfer_coin,
-      sub: localizeUiLabel(path.domestic_withdrawal_network),
-      active: true,
-      feeText: components[1] ? formatCurrency(components[1].amount_krw) : null,
-      feeLabel: components[1]?.label ?? null,
-    },
-    {
-      label: fmtEx(globalExchange),
-      rawName: globalExchange,
-      sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT 입금' : '글로벌 거래소 · 비트코인 입금',
-      active: true,
-      variant: 'exchange' as const,
-      kycStatus: path.global_kyc_status,
-      feeText: components[2] ? formatCurrency(components[2].amount_krw) : null,
-      feeLabel: components[2]?.label ?? null,
-    },
-    {
-      label: path.global_exit_mode === 'lightning' ? '라이트닝 출금' : '온체인 출금',
-      rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
-      sub: localizeUiLabel(path.global_exit_network) + (path.lightning_exit_provider ? ` · ${path.lightning_exit_provider}` : ''),
-      active: true,
-      variant: path.lightning_exit_provider || path.swap_service ? ('lightning' as const) : undefined,
-      kycStatus: path.exit_service_kyc_status,
-      feeText: components.length > 3 ? formatCurrency(components.slice(3).reduce((sum, component) => sum + component.amount_krw, 0)) : null,
-      feeLabel: components.length > 3 ? components.slice(3).map((component) => component.label).join(' + ') : null,
-    },
-    {
-      label: '개인 지갑',
-      sub: formatSats(path.btc_received),
-      active: true,
-      kycStatus: path.wallet_kyc_status,
-    },
-  ];
+  const steps: PathStep[] = mode === 'sell'
+    ? (() => {
+        switch (path.route_variant) {
+          case 'lightning_direct':
+            return [
+              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '라이트닝 스왑',
+                rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
+                sub: '라이트닝 → 온체인 전환',
+                active: true,
+                variant: 'lightning' as const,
+                kycStatus: path.exit_service_kyc_status,
+              },
+              {
+                label: fmtEx(path.korean_exchange),
+                rawName: path.korean_exchange,
+                sub: `비트코인 입금 · ${localizeUiLabel(path.domestic_withdrawal_network)}`,
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.domestic_kyc_status,
+              },
+            ];
+          case 'lightning_via_global':
+            return [
+              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '라이트닝 스왑',
+                rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
+                sub: '라이트닝 → 거래소 입금',
+                active: true,
+                variant: 'lightning' as const,
+                kycStatus: path.exit_service_kyc_status,
+              },
+              {
+                label: fmtEx(globalExchange),
+                rawName: globalExchange,
+                sub: 'BTC 매도 · USDT 확보',
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.global_kyc_status,
+              },
+              {
+                label: fmtEx(path.korean_exchange),
+                rawName: path.korean_exchange,
+                sub: `USDT 입금 · ${localizeUiLabel(path.domestic_withdrawal_network)}`,
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.domestic_kyc_status,
+              },
+            ];
+          case 'usdt_via_global':
+            return [
+              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: fmtEx(globalExchange),
+                rawName: globalExchange,
+                sub: 'BTC 매도 · USDT 확보',
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.global_kyc_status,
+              },
+              {
+                label: fmtEx(path.korean_exchange),
+                rawName: path.korean_exchange,
+                sub: `USDT 입금 · ${localizeUiLabel(path.domestic_withdrawal_network)}`,
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.domestic_kyc_status,
+              },
+            ];
+          case 'btc_direct':
+          default:
+            return [
+              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: fmtEx(path.korean_exchange),
+                rawName: path.korean_exchange,
+                sub: `비트코인 입금 · ${localizeUiLabel(path.domestic_withdrawal_network)}`,
+                active: true,
+                variant: 'exchange' as const,
+                kycStatus: path.domestic_kyc_status,
+              },
+            ];
+        }
+      })()
+    : [
+        {
+          label: fmtEx(path.korean_exchange),
+          rawName: path.korean_exchange,
+          sub: '한국 거래소',
+          active: true,
+          variant: 'exchange' as const,
+          kycStatus: path.domestic_kyc_status,
+          feeText: components[0] ? formatCurrency(components[0].amount_krw) : null,
+          feeLabel: components[0]?.label ?? null,
+        },
+        {
+          label: path.transfer_coin,
+          sub: localizeUiLabel(path.domestic_withdrawal_network),
+          active: true,
+          feeText: components[1] ? formatCurrency(components[1].amount_krw) : null,
+          feeLabel: components[1]?.label ?? null,
+        },
+        {
+          label: fmtEx(globalExchange),
+          rawName: globalExchange,
+          sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT 입금' : '글로벌 거래소 · 비트코인 입금',
+          active: true,
+          variant: 'exchange' as const,
+          kycStatus: path.global_kyc_status,
+          feeText: components[2] ? formatCurrency(components[2].amount_krw) : null,
+          feeLabel: components[2]?.label ?? null,
+        },
+        {
+          label: path.global_exit_mode === 'lightning' ? '라이트닝 출금' : '온체인 출금',
+          rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
+          sub: localizeUiLabel(path.global_exit_network) + (path.lightning_exit_provider ? ` · ${path.lightning_exit_provider}` : ''),
+          active: true,
+          variant: path.lightning_exit_provider || path.swap_service ? ('lightning' as const) : undefined,
+          kycStatus: path.exit_service_kyc_status,
+          feeText: components.length > 3 ? formatCurrency(components.slice(3).reduce((sum, component) => sum + component.amount_krw, 0)) : null,
+          feeLabel: components.length > 3 ? components.slice(3).map((component) => component.label).join(' + ') : null,
+        },
+        {
+          label: '개인 지갑',
+          sub: formatSats(path.btc_received ?? 0),
+          active: true,
+          kycStatus: path.wallet_kyc_status,
+        },
+      ];
 
   return (
     <>
@@ -306,7 +438,9 @@ function PathTimeline({ path, globalExchange }: { path: CheapestPathEntry; globa
 }
 
 export function CheapestPathPage() {
+  const [mode, setMode] = useState<PathMode>('buy');
   const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
+  const [amountBtcInput, setAmountBtcInput] = useState('0.01');
   const [globalExchange] = useState('binance');
   const [selectedPathId, setSelectedPathId] = useState('');
   const [data, setData] = useState<CheapestPathResponse | null>(null);
@@ -327,7 +461,7 @@ export function CheapestPathPage() {
   const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
 
-  const load = useCallback(async (requestParams: { amountKrw: number; globalExchange: string }) => {
+  const load = useCallback(async (requestParams: { mode: PathMode; amountKrw?: number; amountBtc?: number; globalExchange: string }) => {
     try {
       setError(null);
       setLoading(true);
@@ -347,7 +481,7 @@ export function CheapestPathPage() {
     }
   }, []);
 
-  const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? []) : []), [data]);
+  const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? [], data.mode ?? mode) : []), [data, mode]);
 
   const allDomesticNetworks = useMemo(
     () => data?.available_filters?.domestic_withdrawal_networks ?? Array.from(new Set(rankedPaths.map((p) => p.domestic_withdrawal_network))).sort(),
@@ -373,12 +507,14 @@ export function CheapestPathPage() {
       if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
       if (pathShortcut === 'no_lightning' && path.global_exit_mode === 'lightning') return false;
       if (pathShortcut === 'non_kyc') {
-        const beforeWalletKyc = path.exit_service_kyc_status ?? path.global_kyc_status;
+        const beforeWalletKyc = mode === 'sell'
+          ? getSellFirstHopKyc(path)
+          : (path.exit_service_kyc_status ?? path.global_kyc_status);
         if (beforeWalletKyc !== 'non_kyc') return false;
       }
       return true;
     });
-  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, pathShortcut, rankedPaths]);
+  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, mode, pathShortcut, rankedPaths]);
 
   const bestVisiblePath = useMemo(() => filteredPaths[0] ?? null, [filteredPaths]);
 
@@ -412,10 +548,19 @@ export function CheapestPathPage() {
     event.preventDefault();
     setHasSearched(true);
     setSubmitting(true);
-    await load({
-      amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * 10000, 10000),
-      globalExchange,
-    });
+    await load(
+      mode === 'sell'
+        ? {
+            mode,
+            amountBtc: Math.max(Number(amountBtcInput) || 0.01, 0.00000001),
+            globalExchange,
+          }
+        : {
+            mode,
+            amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * 10000, 10000),
+            globalExchange,
+          },
+    );
   };
 
   const toggleDomesticNetwork = (network: string) => {
@@ -444,7 +589,7 @@ export function CheapestPathPage() {
 
 
   const topFivePaths = filteredPaths.slice(0, 5);
-  const maxFeePct = Math.max(...topFivePaths.map((p) => p.fee_pct), 1);
+  const maxComparisonValue = Math.max(...topFivePaths.map((p) => mode === 'sell' ? (p.krw_received ?? 0) : p.fee_pct), 1);
 
   return (
     <div className="space-y-0 border border-dark-200">
@@ -457,29 +602,59 @@ export function CheapestPathPage() {
           <span>오늘 {accessStats ? accessStats.today.toLocaleString('ko-KR') : '-'}회</span>
         </div>
         <form onSubmit={handleSubmit}>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('buy')}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${mode === 'buy' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+            >
+              매수
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('sell')}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${mode === 'sell' ? 'border-bnb-red/40 bg-bnb-red/10 text-bnb-red' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+            >
+              역방향 매도
+            </button>
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3">
             <label className="flex max-w-[8rem] flex-col gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">투입 금액(만원)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={amountKrwInput}
-                onChange={(event) => setAmountKrwInput(event.target.value)}
-                className="w-full border-b-2 border-brand-500 bg-transparent pb-1 text-left text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted sm:text-center"
-                placeholder="100"
-              />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '보유 BTC' : '투입 금액(만원)'}</span>
+              {mode === 'sell' ? (
+                <input
+                  type="number"
+                  min={0.00000001}
+                  step={0.00000001}
+                  value={amountBtcInput}
+                  onChange={(event) => setAmountBtcInput(event.target.value)}
+                  className="w-full border-b-2 border-bnb-red bg-transparent pb-1 text-left text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted sm:text-center"
+                  placeholder="0.01"
+                />
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={amountKrwInput}
+                  onChange={(event) => setAmountKrwInput(event.target.value)}
+                  className="w-full border-b-2 border-brand-500 bg-transparent pb-1 text-left text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted sm:text-center"
+                  placeholder="100"
+                />
+              )}
             </label>
             <span className="text-sm font-medium leading-relaxed text-bnb-muted sm:text-lg">
-              원화로 비트코인을 살 때 가장 저렴한 이동 경로를 바로 비교합니다.
+              {mode === 'sell'
+                ? '개인지갑의 비트코인을 한국 거래소 원화로 되돌리는 역방향 매도 경로를 비교합니다.'
+                : '원화로 비트코인을 살 때 가장 저렴한 이동 경로를 바로 비교합니다.'}
             </span>
             <button
               type="submit"
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 border border-brand-600 bg-brand-600 px-5 py-2 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors hover:bg-brand-500 disabled:opacity-50 sm:w-auto"
+              className={`flex w-full items-center justify-center gap-2 px-5 py-2 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors disabled:opacity-50 sm:w-auto ${mode === 'sell' ? 'border border-bnb-red bg-bnb-red hover:bg-bnb-red/90' : 'border border-brand-600 bg-brand-600 hover:bg-brand-500'}`}
             >
               <Search size={13} />
-              {submitting ? '검색 중...' : '검색'}
+              {submitting ? '검색 중...' : mode === 'sell' ? '매도 경로 검색' : '검색'}
             </button>
           </div>
         </form>
@@ -548,7 +723,7 @@ export function CheapestPathPage() {
             <div className="border-b border-dark-200">
               <div className="bg-dark-400 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
+                  <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '역방향 매도 경로' : '최적 경로'}</p>
                 </div>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -556,7 +731,7 @@ export function CheapestPathPage() {
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
                         <p className="text-lg font-semibold text-bnb-text sm:text-xl">
-                          {formatTopPathSequence(bestVisiblePath, data.global_exchange)}
+                          {formatTopPathSequence(bestVisiblePath, data.global_exchange, mode)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-bnb-muted">
@@ -592,12 +767,24 @@ export function CheapestPathPage() {
                       </div>
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-bnb-muted">
-                      <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {localizeUiLabel(bestVisiblePath.domestic_withdrawal_network)}</p>
-                      <p>해외 진입: {fmtEx(data.global_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
-                      <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} · {localizeUiLabel(bestVisiblePath.global_exit_network)}</p>
+                      {mode === 'sell' ? (
+                        <>
+                          <p>출발 지점: 개인 지갑 · BTC 보유</p>
+                          {bestVisiblePath.route_variant === 'usdt_via_global' || bestVisiblePath.route_variant === 'lightning_via_global' ? (
+                            <p>해외 단계: {fmtEx(data.global_exchange)} · BTC 매도 후 USDT 확보</p>
+                          ) : null}
+                          <p>국내 종료: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 KRW 전환' : 'BTC 매도 후 KRW 수령'}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {localizeUiLabel(bestVisiblePath.domestic_withdrawal_network)}</p>
+                          <p>해외 진입: {fmtEx(data.global_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
+                          <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} · {localizeUiLabel(bestVisiblePath.global_exit_network)}</p>
+                        </>
+                      )}
                       {bestVisiblePath.lightning_exit_provider ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <span>중간 서비스:</span>
+                          <span>{mode === 'sell' ? '역방향 중간 서비스:' : '중간 서비스:'}</span>
                           <ServiceLabel
                             name={bestVisiblePath.lightning_exit_provider}
                             variant="lightning"
@@ -611,14 +798,14 @@ export function CheapestPathPage() {
 
                   <div className="w-full lg:max-w-3xl">
                     <div className="border border-dark-200 bg-dark-500/60 p-3">
-                      <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} />
+                      <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} mode={mode} />
                     </div>
                   </div>
 
                   <div className="grid gap-4 sm:min-w-[220px] sm:grid-cols-3 xl:grid-cols-1">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
-                      <p className="mt-1 text-xl font-semibold text-bnb-text">{formatSats(bestVisiblePath.btc_received)}</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
+                      <p className="mt-1 text-xl font-semibold text-bnb-text">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
@@ -730,7 +917,7 @@ export function CheapestPathPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-bnb-muted">
                       <p className="col-span-2">{path.transfer_coin} · {localizeUiLabel(path.domestic_withdrawal_network)}</p>
-                      <p>수령 <span className="text-bnb-text">{formatSats(path.btc_received)}</span></p>
+                      <p>{mode === 'sell' ? 'KRW 수령' : '수령'} <span className="text-bnb-text">{mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatSats(path.btc_received ?? 0)}</span></p>
                       <p>수수료율 <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span></p>
                     </div>
                     <div className="flex justify-end">
@@ -818,7 +1005,7 @@ export function CheapestPathPage() {
                           {formatPercent(path.fee_pct)}
                         </td>
                         <td className="px-5 py-4 text-right font-medium text-bnb-text">
-                          {formatSats(path.btc_received)}
+                          {mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatSats(path.btc_received ?? 0)}
                         </td>
                         <td className="px-5 py-4 text-right font-semibold text-brand-400">
                           {formatCurrency(path.total_fee_krw)}
@@ -867,7 +1054,7 @@ export function CheapestPathPage() {
                       />
                     </div>
 
-                    <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} />
+                    <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} mode={mode} />
 
                     <div className="grid gap-0 border border-dark-200 md:grid-cols-3">
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
@@ -890,7 +1077,7 @@ export function CheapestPathPage() {
                       </div>
                       <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
-                        <p className="mt-2 font-semibold text-bnb-text">{formatSats(selectedRoute.path.btc_received)}</p>
+                        <p className="mt-2 font-semibold text-bnb-text">{mode === 'sell' ? formatCurrency(selectedRoute.path.krw_received ?? 0) : formatSats(selectedRoute.path.btc_received ?? 0)}</p>
                       </div>
                       <div className="p-4">
                         <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
@@ -912,7 +1099,7 @@ export function CheapestPathPage() {
               <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
                 <TrendingUp size={14} className="text-bnb-muted" />
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">
-                  수수료율 비교 (상위 5개)
+                  {mode === 'sell' ? 'KRW 수령 비교 (상위 5개)' : '수수료율 비교 (상위 5개)'}
                 </p>
               </div>
               <div className="p-4 sm:p-5">
@@ -924,12 +1111,12 @@ export function CheapestPathPage() {
                           <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
                           <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
                         </span>
-                        <span className={getFeeTone(path.fee_pct)}>{formatPercent(path.fee_pct)}</span>
+                        <span className={mode === 'sell' ? 'text-brand-400' : getFeeTone(path.fee_pct)}>{mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatPercent(path.fee_pct)}</span>
                       </div>
                       <div className="h-2 bg-dark-200">
                         <div
                           className="h-2 bg-brand-500"
-                          style={{ width: `${Math.max((path.fee_pct / maxFeePct) * 100, 8)}%` }}
+                          style={{ width: `${Math.max(((mode === 'sell' ? (path.krw_received ?? 0) : path.fee_pct) / maxComparisonValue) * 100, 8)}%` }}
                         />
                       </div>
                     </div>
@@ -958,6 +1145,7 @@ export function CheapestPathPage() {
         <RouteDetailPopup
           selectedRoute={selectedRoute}
           globalExchange={data?.global_exchange ?? globalExchange}
+          mode={mode}
           onClose={() => setMobileRouteDetailOpen(false)}
         />
       ) : null}
