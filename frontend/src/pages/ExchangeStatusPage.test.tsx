@@ -39,6 +39,16 @@ vi.mock('../lib/api', () => ({
           scrape_status: { url: 'https://www.bithumb.com/react/notice/list', status: 'error', last_crawled_at: 1710000000, error_message: '스크래핑 실패' },
           notices: [],
         },
+        {
+          exchange: 'binance',
+          type: 'exchange',
+          withdrawal_rows: [
+            { coin: 'BTC', network_label: 'Bitcoin', fee: 0.0002, fee_krw: 27600, enabled: true, source: 'realtime_api' },
+          ],
+          network_status: { status: 'ok', suspended_networks: [], checked_at: 1710000000 },
+          scrape_status: null,
+          notices: [],
+        },
       ],
       lightning_services: [
         {
@@ -57,21 +67,31 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('ExchangeStatusPage', () => {
-  it('renders all exchange and lightning nodes', async () => {
+  it('renders page title and all nodes', async () => {
     render(
       <BrowserRouter>
         <ExchangeStatusPage />
       </BrowserRouter>,
     );
 
-    expect(await screen.findByText('거래소 현황')).toBeInTheDocument();
-    expect(screen.getByText('3개 노드')).toBeInTheDocument();
-    // upbit shown (fmtEx transforms exchange name)
+    expect(await screen.findByText('현황')).toBeInTheDocument();
+    expect(screen.getByText('4개 노드')).toBeInTheDocument();
     expect(screen.getAllByText(/upbit|Upbit|업비트/i).length).toBeGreaterThan(0);
-    // bithumb shown
     expect(screen.getAllByText(/bithumb|Bithumb|빗썸/i).length).toBeGreaterThan(0);
-    // lightning service shown
     expect(screen.getByText('Boltz')).toBeInTheDocument();
+  });
+
+  it('shows 3 section headers: 국내, 해외, Lightning', async () => {
+    render(
+      <BrowserRouter>
+        <ExchangeStatusPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('현황');
+    expect(screen.getByText('국내 거래소')).toBeInTheDocument();
+    expect(screen.getByText('해외 거래소')).toBeInTheDocument();
+    expect(screen.getByText('Lightning 스왑')).toBeInTheDocument();
   });
 
   it('shows top 3 networks and expand button for node with more than 3', async () => {
@@ -81,9 +101,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
-
-    // upbit has 4 rows → should show expand button
+    await screen.findByText('현황');
     expect(screen.getByRole('button', { name: /1개 더 보기/i })).toBeInTheDocument();
   });
 
@@ -96,7 +114,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
+    await screen.findByText('현황');
 
     const expandBtn = screen.getByRole('button', { name: /1개 더 보기/i });
     await user.click(expandBtn);
@@ -111,7 +129,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
+    await screen.findByText('현황');
     expect(screen.getByText(/ETH.*ERC20.*점검 중/)).toBeInTheDocument();
   });
 
@@ -124,7 +142,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
+    await screen.findByText('현황');
 
     const noticeBtn = screen.getByRole('button', { name: /최신 공지 2건/i });
     expect(noticeBtn).toBeInTheDocument();
@@ -134,7 +152,7 @@ describe('ExchangeStatusPage', () => {
     expect(screen.getByText('BTC 입출금 재개 안내')).toBeInTheDocument();
   });
 
-  it('filters nodes by name', async () => {
+  it('filters nodes by name across all sections', async () => {
     const user = userEvent.setup();
 
     render(
@@ -143,13 +161,15 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
+    await screen.findByText('현황');
 
     const filterInput = screen.getByPlaceholderText(/이름 필터/i);
     await user.type(filterInput, 'Boltz');
 
     expect(screen.getByText('1개 노드')).toBeInTheDocument();
     expect(screen.getByText('Boltz')).toBeInTheDocument();
+    expect(screen.queryByText('국내 거래소')).not.toBeInTheDocument();
+    expect(screen.queryByText('해외 거래소')).not.toBeInTheDocument();
   });
 
   it('shows fee in KRW', async () => {
@@ -159,8 +179,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
-    // BTC fee_krw: 41400 → ₩41,400
+    await screen.findByText('현황');
     expect(screen.getAllByText('₩41,400').length).toBeGreaterThan(0);
   });
 
@@ -171,7 +190,7 @@ describe('ExchangeStatusPage', () => {
       </BrowserRouter>,
     );
 
-    await screen.findByText('거래소 현황');
+    await screen.findByText('현황');
     expect(screen.getByText('LN')).toBeInTheDocument();
   });
 });

@@ -9,6 +9,8 @@ import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import type { ExchangeStatusNode, ExchangeStatusWithdrawalRow, SuspendedNetwork } from '../types';
 
+const DOMESTIC_EXCHANGES = new Set(['upbit', 'bithumb', 'coinone', 'korbit', 'gopax']);
+
 const SATS_PER_BTC = 100_000_000;
 
 function formatNumber(value: number, maximumFractionDigits = 8) {
@@ -88,6 +90,29 @@ function NetworkRows({ rows }: NetworkRowsProps) {
   );
 }
 
+function NodeLogo({ exchange, type }: { exchange: string; type: 'exchange' | 'lightning' }) {
+  const [imgError, setImgError] = useState(false);
+  const logoName = exchange.toLowerCase().replace(/\s+/g, '');
+
+  if (!imgError) {
+    return (
+      <img
+        src={`/logos/${logoName}.png`}
+        alt={exchange}
+        width={24}
+        height={24}
+        className="h-6 w-6 rounded shrink-0"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  if (type === 'lightning') {
+    return <Zap size={14} className="text-brand-400 shrink-0" />;
+  }
+  return <Building2 size={14} className="text-bnb-muted shrink-0" />;
+}
+
 type NodeCardProps = {
   node: ExchangeStatusNode;
 };
@@ -102,11 +127,7 @@ function NodeCard({ node }: NodeCardProps) {
     <div className="border border-dark-200 bg-dark-300">
       {/* 노드 헤더 */}
       <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
-        {node.type === 'lightning' ? (
-          <Zap size={14} className="text-brand-400 shrink-0" />
-        ) : (
-          <Building2 size={14} className="text-bnb-muted shrink-0" />
-        )}
+        <NodeLogo exchange={node.exchange} type={node.type} />
         <span className="font-semibold text-bnb-text">{label}</span>
         {node.type === 'lightning' && (
           <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">LN</span>
@@ -199,27 +220,45 @@ export function ExchangeStatusPage() {
     initialData: { exchanges: [], lightning_services: [] },
   });
 
-  const allNodes = useMemo(() => {
-    return [...data.exchanges, ...data.lightning_services];
+  const { domestic, global: globalExchanges } = useMemo(() => {
+    const domestic: typeof data.exchanges = [];
+    const global: typeof data.exchanges = [];
+    for (const node of data.exchanges) {
+      if (DOMESTIC_EXCHANGES.has(node.exchange.toLowerCase())) {
+        domestic.push(node);
+      } else {
+        global.push(node);
+      }
+    }
+    return { domestic, global };
   }, [data]);
 
-  const filteredNodes = useMemo(() => {
-    if (!nameFilter.trim()) return allNodes;
-    const q = nameFilter.toLowerCase();
-    return allNodes.filter(node => {
-      const label = node.type === 'exchange' ? fmtEx(node.exchange) : node.exchange;
-      return label.toLowerCase().includes(q) || node.exchange.toLowerCase().includes(q);
-    });
-  }, [allNodes, nameFilter]);
+  const filterNodes = useCallback(
+    (nodes: ExchangeStatusNode[]) => {
+      if (!nameFilter.trim()) return nodes;
+      const q = nameFilter.toLowerCase();
+      return nodes.filter(node => {
+        const label = node.type === 'exchange' ? fmtEx(node.exchange) : node.exchange;
+        return label.toLowerCase().includes(q) || node.exchange.toLowerCase().includes(q);
+      });
+    },
+    [nameFilter],
+  );
+
+  const filteredDomestic = useMemo(() => filterNodes(domestic), [domestic, filterNodes]);
+  const filteredGlobal = useMemo(() => filterNodes(globalExchanges), [globalExchanges, filterNodes]);
+  const filteredLightning = useMemo(() => filterNodes(data.lightning_services), [data.lightning_services, filterNodes]);
+
+  const totalCount = filteredDomestic.length + filteredGlobal.length + filteredLightning.length;
 
   if (error) return <PageErrorMessage message={error} />;
   if (loading) return <PageSkeletonBlocks blocks={4} className="h-40 bg-dark-300" containerClassName="grid gap-4 md:grid-cols-2" />;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-bnb-text">거래소 현황</h2>
-        <span className="text-sm text-bnb-muted">{filteredNodes.length}개 노드</span>
+        <h2 className="text-lg font-semibold text-bnb-text">현황</h2>
+        <span className="text-sm text-bnb-muted">{totalCount}개 노드</span>
       </div>
 
       <input
@@ -230,16 +269,44 @@ export function ExchangeStatusPage() {
         className="w-full border border-dark-200 bg-dark-400 px-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400 focus:outline-none sm:w-64"
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {filteredNodes.map(node => (
-          <NodeCard key={`${node.type}-${node.exchange}`} node={node} />
-        ))}
-        {filteredNodes.length === 0 && (
-          <p className="col-span-2 py-8 text-center text-sm text-bnb-muted">
-            '{nameFilter}'에 해당하는 노드가 없습니다.
-          </p>
-        )}
-      </div>
+      {filteredDomestic.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">국내 거래소</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredDomestic.map(node => (
+              <NodeCard key={`exchange-${node.exchange}`} node={node} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {filteredGlobal.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">해외 거래소</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredGlobal.map(node => (
+              <NodeCard key={`exchange-${node.exchange}`} node={node} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {filteredLightning.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bnb-muted">Lightning 스왑</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredLightning.map(node => (
+              <NodeCard key={`lightning-${node.exchange}`} node={node} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {totalCount === 0 && nameFilter && (
+        <p className="py-8 text-center text-sm text-bnb-muted">
+          '{nameFilter}'에 해당하는 노드가 없습니다.
+        </p>
+      )}
     </div>
   );
 }
