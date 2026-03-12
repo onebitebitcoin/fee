@@ -506,13 +506,6 @@ export function CheapestPathPage() {
         </div>
       ) : null}
 
-      {!hasSearched && !loading && !error ? (
-        <div className="border-b border-dark-200 bg-dark-400 px-4 py-10 text-center sm:px-5">
-          <p className="text-sm font-medium text-bnb-text">검색 버튼을 누르면 경로를 불러옵니다.</p>
-          <p className="mt-2 text-xs text-bnb-muted">초기 로딩은 하지 않고, 사용자가 검색할 때만 데이터를 조회합니다.</p>
-        </div>
-      ) : null}
-
       {!loading && hasSearched && data && !error ? (
         <>
           {/* Best Path */}

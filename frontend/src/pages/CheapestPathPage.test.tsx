@@ -174,9 +174,9 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    expect(await screen.findByText('검색 버튼을 누르면 경로를 불러옵니다.')).toBeInTheDocument();
     expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
     expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
+    expect(screen.queryByText('검색 버튼을 누르면 경로를 불러옵니다.')).not.toBeInTheDocument();
   });
 
   it('renders the current dashboard summary for the cheapest route', async () => {
