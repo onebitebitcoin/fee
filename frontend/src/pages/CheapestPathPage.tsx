@@ -1,16 +1,15 @@
-import { ArrowRight, Building2, Info, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
+import { ArrowRight, Building2, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { KycBadge } from '../components/KycBadge';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
-import type { AccessStats, CheapestPathBreakdown, CheapestPathEntry, CheapestPathResponse } from '../types';
+import type { AccessStats, CheapestPathEntry, CheapestPathResponse } from '../types';
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
 const SATS_PER_BTC = 100_000_000;
-const BTC_AMOUNT_TEXT_PATTERN = /^\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*BTC\s*$/i;
 
 function formatNumber(value: number, maximumFractionDigits = 0) {
   return new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(value);
@@ -24,15 +23,6 @@ function formatSats(value: number) {
   return `${formatNumber(Math.round(value * SATS_PER_BTC))} sats`;
 }
 
-function formatAmountText(value?: string | null) {
-  if (!value) return null;
-  const matched = value.match(BTC_AMOUNT_TEXT_PATTERN);
-  if (!matched) return value;
-  const btcValue = Number(matched[1]);
-  if (!Number.isFinite(btcValue)) return value;
-  return `${formatNumber(Math.round(btcValue * SATS_PER_BTC))} sats`;
-}
-
 function formatPercent(value: number) {
   return `${value.toFixed(value >= 1 ? 2 : 3)}%`;
 }
@@ -41,12 +31,6 @@ function getFeeTone(feePct: number) {
   if (feePct <= 0.5) return 'text-bnb-green';
   if (feePct <= 1.0) return 'text-brand-400';
   return 'text-bnb-red';
-}
-
-function getRouteStatus(rank: number, feePct: number) {
-  if (rank === 1) return { label: '최적', className: 'border-bnb-green/40 bg-bnb-green/10 text-bnb-green' };
-  if (feePct <= 1.0) return { label: '안정', className: 'border-brand-400/40 bg-brand-400/10 text-brand-400' };
-  return { label: '고비용', className: 'border-bnb-red/30 bg-bnb-red/10 text-bnb-red' };
 }
 
 type RankedPath = CheapestPathEntry & { rank: number };
@@ -117,53 +101,6 @@ function sortAllPaths(paths: CheapestPathEntry[]): RankedPath[] {
     .map((path, i) => ({ ...path, rank: i + 1 }));
 }
 
-function FeeBreakdownPopup({ breakdown, onClose }: { breakdown: CheapestPathBreakdown; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', keyHandler); };
-  }, [onClose]);
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-4">
-      <div
-        ref={ref}
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto border border-dark-200 bg-dark-400 shadow-xl"
-      >
-        <div className="flex items-center justify-between border-b border-dark-200 px-4 py-3 sm:px-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-bnb-muted">수수료 내역</p>
-          <button type="button" onClick={onClose} className="text-bnb-muted hover:text-bnb-text">
-            <X size={15} />
-          </button>
-        </div>
-        <div className="p-4 sm:p-5">
-          <table className="min-w-full text-sm">
-            <tbody>
-              {breakdown.components.map((component, index) => (
-                <tr key={`${component.label}-${index}`} className="border-t border-dark-200 first:border-t-0">
-                  <td className="py-2.5 pr-4 text-bnb-text">{component.label}</td>
-                  <td className="py-2.5 pr-4 text-bnb-muted text-xs">
-                    {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
-                    {component.amount_text ? ` · ${formatAmountText(component.amount_text)}` : ''}
-                  </td>
-                  <td className="py-2.5 text-right font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 function RouteDetailPopup({
   selectedRoute,
   globalExchange,
@@ -229,55 +166,10 @@ function RouteDetailPopup({
           </div>
 
           <PathTimeline path={selectedRoute.path} globalExchange={globalExchange} />
-
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료 내역</p>
-            <div className="mt-3 space-y-3">
-              {selectedRoute.path.breakdown?.components?.length ? (
-                selectedRoute.path.breakdown.components.map((component, index) => (
-                  <div key={`${component.label}-${index}`} className="border border-dark-200 bg-dark-500 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-bnb-text">{component.label}</p>
-                        <p className="mt-1 text-xs text-bnb-muted">
-                          {component.rate_pct != null ? `요율 ${formatPercent(component.rate_pct)}` : '고정'}
-                          {component.amount_text ? ` · ${formatAmountText(component.amount_text)}` : ''}
-                        </p>
-                      </div>
-                      <p className="text-sm font-semibold text-brand-400">{formatCurrency(component.amount_krw)}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="border border-dashed border-dark-200 bg-dark-500 p-3 text-sm text-bnb-muted">
-                  수수료 내역이 없습니다.
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>,
     document.body,
-  );
-}
-
-function FeeBreakdownRow({ breakdown }: { breakdown?: CheapestPathBreakdown | null }) {
-  const [open, setOpen] = useState(false);
-  if (!breakdown?.components?.length) return <span className="text-[11px] text-bnb-muted">—</span>;
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-400 transition-colors hover:text-brand-300"
-      >
-        <Info size={11} />
-        자세히 보기
-      </button>
-      {open && <FeeBreakdownPopup breakdown={breakdown} onClose={() => setOpen(false)} />}
-    </>
   );
 }
 
@@ -614,12 +506,6 @@ export function CheapestPathPage() {
               <div className="bg-dark-400 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
-                  {selectedRoute && (
-                    <div className="flex items-center gap-2 text-[11px]">
-                      <span className="text-bnb-muted">{fmtEx(selectedRoute.path.korean_exchange)}</span>
-                      <span className="border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 font-semibold tracking-[0.2em] text-brand-400">{selectedRoute.rank}위</span>
-                    </div>
-                  )}
                 </div>
                 <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -641,21 +527,20 @@ export function CheapestPathPage() {
                         logoClassName="h-7 w-7"
                       />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.24em] text-bnb-muted">
-                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.transfer_coin}</span>
-                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">{data.best_path.domestic_withdrawal_network}</span>
-                      <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">
-                        {data.best_path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} / {data.best_path.global_exit_network}
-                      </span>
+                    <div className="mt-3 space-y-2 text-sm text-bnb-muted">
+                      <p>국내 출발: {fmtEx(data.best_path.korean_exchange)} · {data.best_path.transfer_coin} · {data.best_path.domestic_withdrawal_network}</p>
+                      <p>해외 진입: {fmtEx(data.global_exchange)} · {data.best_path.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
+                      <p>최종 출금: {data.best_path.global_exit_mode === 'lightning' ? 'Lightning' : 'On-chain'} · {data.best_path.global_exit_network}</p>
                       {data.best_path.lightning_exit_provider ? (
-                        <span className="border border-dark-200 bg-dark-300 px-2 py-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>중간 서비스:</span>
                           <ServiceLabel
                             name={data.best_path.lightning_exit_provider}
                             variant="lightning"
-                            textClassName="text-[11px] uppercase tracking-[0.24em] text-bnb-muted"
+                            textClassName="text-sm text-bnb-muted"
                             logoClassName="h-4 w-4"
                           />
-                        </span>
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -751,7 +636,6 @@ export function CheapestPathPage() {
 
             <div className="divide-y divide-dark-200 md:hidden">
               {filteredPaths.map((path) => {
-                const status = getRouteStatus(path.rank, path.fee_pct);
                 const isHighlighted = selectedPathId === path.path_id;
                 return (
                   <article
@@ -778,9 +662,6 @@ export function CheapestPathPage() {
                               logoClassName="h-6 w-6"
                             />
                           </button>
-                          <span className={`border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${status.className}`}>
-                            {status.label}
-                          </span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -800,8 +681,7 @@ export function CheapestPathPage() {
                         <p className={`mt-1 font-semibold ${getFeeTone(path.fee_pct)}`}>{formatPercent(path.fee_pct)}</p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <FeeBreakdownRow breakdown={path.breakdown} />
+                    <div className="flex flex-wrap items-center justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => openMobileRouteDetail(path.path_id)}
@@ -829,14 +709,11 @@ export function CheapestPathPage() {
                     <th className="px-5 py-3 text-right">총 수수료율</th>
                     <th className="px-5 py-3 text-right">수령 sats</th>
                     <th className="px-5 py-3 text-right">수수료(KRW)</th>
-                    <th className="px-5 py-3">상태</th>
-                    <th className="px-5 py-3">내역</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPaths.map((path) => {
-                    const status = getRouteStatus(path.rank, path.fee_pct);
-                    const isHighlighted = selectedPathId === path.path_id;
+                        const isHighlighted = selectedPathId === path.path_id;
                     return (
                       <tr
                         key={path.path_id}
@@ -894,20 +771,12 @@ export function CheapestPathPage() {
                         <td className="px-5 py-4 text-right font-semibold text-brand-400">
                           {formatCurrency(path.total_fee_krw)}
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${status.className}`}>
-                            {status.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <FeeBreakdownRow breakdown={path.breakdown} />
-                        </td>
                       </tr>
                     );
                   })}
                   {filteredPaths.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-5 py-8 text-center text-sm text-bnb-muted">
+                      <td colSpan={6} className="px-5 py-8 text-center text-sm text-bnb-muted">
                         필터 조건에 해당하는 경로가 없습니다.
                       </td>
                     </tr>
@@ -977,7 +846,6 @@ export function CheapestPathPage() {
                       </div>
                     </div>
 
-                    <FeeBreakdownRow breakdown={selectedRoute.path.breakdown} />
                   </div>
                 ) : (
                   <div className="border border-dashed border-dark-200 bg-dark-400 p-5 text-sm text-bnb-muted">

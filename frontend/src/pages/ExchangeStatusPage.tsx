@@ -56,22 +56,24 @@ function NetworkRows({ rows }: NetworkRowsProps) {
     <div>
       <div className="space-y-0">
         {visible.map((row, idx) => (
-          <div key={idx} className="flex items-center justify-between border-t border-dark-200 px-4 py-2 first:border-t-0 hover:bg-dark-400 transition-colors">
-            <div className="flex items-center gap-2 min-w-0">
-              <SourceIcon source={row.source} />
-              {row.enabled ? (
-                <CheckCircle size={12} className="text-bnb-green shrink-0" />
-              ) : (
-                <XCircle size={12} className="text-bnb-red shrink-0" />
-              )}
-              <span className="text-sm text-bnb-muted truncate">
-                {row.coin} · {row.network_label}
-              </span>
-              <KycBadge status={row.kyc_status} />
-            </div>
-            <div className="flex items-center gap-3 shrink-0 ml-2">
-              <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
-              <span className="text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
+          <div key={idx} className="border-t border-dark-200 px-4 py-2 first:border-t-0 hover:bg-dark-400 transition-colors">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <SourceIcon source={row.source} />
+                {row.enabled ? (
+                  <CheckCircle size={12} className="text-bnb-green shrink-0" />
+                ) : (
+                  <XCircle size={12} className="text-bnb-red shrink-0" />
+                )}
+                <span className="min-w-0 break-all text-sm text-bnb-muted">
+                  {row.coin} · {row.network_label}
+                </span>
+                <KycBadge status={row.kyc_status} />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
+                <span className="text-sm font-semibold text-brand-500">{formatFee(row)}</span>
+                <span className="text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
+              </div>
             </div>
           </div>
         ))}
@@ -128,14 +130,14 @@ function NodeCard({ node }: NodeCardProps) {
   return (
     <div className="border border-dark-200 bg-dark-300">
       {/* 노드 헤더 */}
-      <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
         <NodeLogo exchange={node.exchange} type={node.type} />
-        <span className="font-semibold text-bnb-text">{label}</span>
+        <span className="min-w-0 flex-1 break-all font-semibold text-bnb-text">{label}</span>
         {node.type === 'lightning' && (
           <span className="rounded bg-brand-400/20 px-1.5 py-0.5 text-xs text-brand-400">LN</span>
         )}
         <KycBadge status={node.kyc_status} />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <StatusBadge status={overallStatus} />
           {node.scrape_status && (
             <a

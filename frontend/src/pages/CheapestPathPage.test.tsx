@@ -248,9 +248,9 @@ describe('CheapestPathPage', () => {
     const dialog = screen.getByRole('dialog', { name: '경로 상세 팝업' });
     expect(within(dialog).getByLabelText('모바일 경로 타임라인')).toBeInTheDocument();
     expect(within(dialog).getAllByText('880,000 sats').length).toBeGreaterThan(0);
-    expect(dialog).toHaveTextContent('100 sats');
     expect(dialog).toHaveTextContent('단계 수수료');
     expect(dialog).toHaveTextContent('500 KRW');
     expect(dialog).toHaveTextContent('100 KRW');
+    expect(screen.queryByText('자세히 보기')).not.toBeInTheDocument();
   });
 });
