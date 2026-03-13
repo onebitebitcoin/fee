@@ -451,7 +451,7 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                             'components': [
                                 fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
                                 fee_component('USDT 출금 수수료', withdrawal_fee_krw, amount_text=f'{withdrawal_fee_usdt} USDT'),
-                                fee_component('해외 BTC 매수 수수료', global_trading_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
+                                fee_component('해외 BTC 매수 수수료', round(global_trading_fee_usdt * usd_krw_rate, 1), rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
                             ],
                             'total_fee_krw': total_fee_krw,
                         },
@@ -640,7 +640,7 @@ def find_cheapest_path_from_snapshot_rows(
                 wd_components = [
                     fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
                     fee_component('USDT 출금 수수료', withdrawal_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label)),
-                    fee_component('해외 BTC 매수 수수료', global_trading_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
+                    fee_component('해외 BTC 매수 수수료', round(global_trading_fee_usdt * usd_krw_rate, 1), rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
                     fee_component(f'해외 BTC 출금 수수료 ({global_exchange})', global_onchain_wd_fee_krw, amount_text=f'{global_onchain_wd_fee} BTC'),
                 ]
             else:
@@ -649,7 +649,7 @@ def find_cheapest_path_from_snapshot_rows(
                 wd_components = [
                     fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
                     fee_component('USDT 출금 수수료', withdrawal_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label)),
-                    fee_component('해외 BTC 매수 수수료', global_trading_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
+                    fee_component('해외 BTC 매수 수수료', round(global_trading_fee_usdt * usd_krw_rate, 1), rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
                 ]
             if btc_received <= 0:
                 continue
@@ -816,7 +816,7 @@ def find_cheapest_path_from_snapshot_rows(
                     components = [
                         fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
                         fee_component('USDT 출금 수수료', withdrawal_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label)),
-                        fee_component('해외 BTC 매수 수수료', global_trading_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
+                        fee_component('해외 BTC 매수 수수료', round(global_trading_fee_usdt * usd_krw_rate, 1), rate_pct=global_taker * 100, amount_text=f'{round(global_trading_fee_usdt, 8)} USDT'),
                         fee_component(f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})', global_ln_wd_fee_krw, amount_text=f'{global_ln_wd_fee} BTC'),
                     ]
                     components.append(fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', ln_swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(ln_swap_fee_btc, 8)} BTC'))

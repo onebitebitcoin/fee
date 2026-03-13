@@ -17,7 +17,8 @@ function formatNumber(value: number, maximumFractionDigits = 0) {
 }
 
 function formatCurrency(value: number) {
-  return `${formatNumber(value)} KRW`;
+  const decimals = value % 1 !== 0 ? 1 : 0;
+  return `${formatNumber(value, decimals)} KRW`;
 }
 
 function formatSats(value: number) {
