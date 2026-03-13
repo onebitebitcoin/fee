@@ -24,7 +24,37 @@ _HEADERS = {
     'Accept': 'application/json',
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
 }
-_MAX_NOTICES = 5
+_MAX_NOTICES = 5   # 반환할 최대 건수
+_MAX_FETCH = 30    # 필터링 전 최대 수집 건수
+
+# BTC/USDT/Lightning 관련 공지 필터 키워드
+_BTC_KEYWORDS = [
+    'BTC', 'Bitcoin', '비트코인',
+    'USDT', 'Tether', '테더',
+    'Lightning', '라이트닝',
+    'SegWit', '세그윗',
+    'halving', '반감기',
+]
+# 거래소 전체에 영향을 미치는 주요 공지 (알트코인 특정 공지 제외)
+_MAJOR_KEYWORDS = [
+    '전체 점검', '전체점검',
+    '서비스 점검', '서비스점검',
+    '시스템 점검', '시스템점검',
+    '거래소 점검', '거래소점검',
+    '긴급 점검', '긴급점검',
+]
+
+
+def _is_relevant(title: str) -> bool:
+    """BTC/USDT/Lightning 관련 공지이거나 거래소 전체 주요 공지인지 판단"""
+    lower = title.lower()
+    for kw in _BTC_KEYWORDS:
+        if kw.lower() in lower:
+            return True
+    for kw in _MAJOR_KEYWORDS:
+        if kw in title:
+            return True
+    return False
 
 
 def _parse_iso(s: str | None) -> datetime | None:
@@ -60,7 +90,7 @@ def _parse_date_str(s: str | None) -> datetime | None:
 def fetch_upbit_notices() -> list[dict]:
     """Upbit 공지사항 API 스크래핑 (api-manager.upbit.com)"""
     exchange = 'upbit'
-    url = f'https://api-manager.upbit.com/api/v1/announcements?os=web&page=1&per_page={_MAX_NOTICES}&category=all'
+    url = f'https://api-manager.upbit.com/api/v1/announcements?os=web&page=1&per_page={_MAX_FETCH}&category=all'
     headers = {**_HEADERS, 'Referer': 'https://upbit.com/'}
     try:
         resp = requests.get(url, headers=headers, timeout=_TIMEOUT)
@@ -70,10 +100,12 @@ def fetch_upbit_notices() -> list[dict]:
             return []
         notices = data.get('data', {}).get('notices', [])
         results = []
-        for item in notices[:_MAX_NOTICES]:
+        for item in notices:
             title = item.get('title', '').strip()
             notice_id = item.get('id')
             if not title or not notice_id:
+                continue
+            if not _is_relevant(title):
                 continue
             results.append({
                 'exchange': exchange,
@@ -81,6 +113,8 @@ def fetch_upbit_notices() -> list[dict]:
                 'url': f'https://upbit.com/service_center/notice/{notice_id}',
                 'published_at': _parse_iso(item.get('listed_at')),
             })
+            if len(results) >= _MAX_NOTICES:
+                break
         return results
     except Exception as e:
         logger.warning('Upbit notice scrape failed: %s', e)
@@ -95,7 +129,7 @@ def fetch_bithumb_notices() -> list[dict]:
         f = Fetcher()
         page = f.get('https://feed.bithumb.com/notice')
         results = []
-        for a in page.css('a[href*="/notice/"]')[:_MAX_NOTICES]:
+        for a in page.css('a[href*="/notice/"]')[:_MAX_FETCH]:
             href = a.attrib.get('href', '')
             # 제목: link-title 클래스 스팬
             title_spans = a.css('span[class*="link-title"]')
@@ -106,6 +140,8 @@ def fetch_bithumb_notices() -> list[dict]:
 
             if not title or len(title) < 3:
                 continue
+            if not _is_relevant(title):
+                continue
             full_url = f'https://feed.bithumb.com{href}' if href.startswith('/') else href
             results.append({
                 'exchange': exchange,
@@ -113,6 +149,8 @@ def fetch_bithumb_notices() -> list[dict]:
                 'url': full_url,
                 'published_at': _parse_date_str(date_str),
             })
+            if len(results) >= _MAX_NOTICES:
+                break
         return results
     except ImportError:
         logger.debug('Scrapling not installed, skipping Bithumb notices')
@@ -125,7 +163,7 @@ def fetch_bithumb_notices() -> list[dict]:
 def fetch_coinone_notices() -> list[dict]:
     """Coinone 공지사항 API 스크래핑 (api-gateway.coinone.co.kr)"""
     exchange = 'coinone'
-    url = f'https://api-gateway.coinone.co.kr/notice/v1/announcements/posts?includePin=false&page=0&pageSize={_MAX_NOTICES}'
+    url = f'https://api-gateway.coinone.co.kr/notice/v1/announcements/posts?includePin=false&page=0&pageSize={_MAX_FETCH}'
     headers = {**_HEADERS, 'Referer': 'https://coinone.co.kr/'}
     try:
         resp = requests.get(url, headers=headers, timeout=_TIMEOUT)
@@ -134,10 +172,12 @@ def fetch_coinone_notices() -> list[dict]:
         body = data.get('body', {})
         notices = body.get('notices', [])
         results = []
-        for item in notices[:_MAX_NOTICES]:
+        for item in notices:
             title = item.get('title', '').strip()
             notice_id = item.get('id')
             if not title or not notice_id:
+                continue
+            if not _is_relevant(title):
                 continue
             results.append({
                 'exchange': exchange,
@@ -145,6 +185,8 @@ def fetch_coinone_notices() -> list[dict]:
                 'url': f'https://coinone.co.kr/info/notice/{notice_id}',
                 'published_at': _parse_epoch(item.get('createdAt')),
             })
+            if len(results) >= _MAX_NOTICES:
+                break
         return results
     except Exception as e:
         logger.warning('Coinone notice scrape failed: %s', e)
