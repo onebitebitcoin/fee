@@ -212,3 +212,11 @@ export type ExchangeStatusResponse = {
   exchanges: ExchangeStatusNode[];
   lightning_services: ExchangeStatusNode[];
 };
+
+export type ExchangeNoticeItem = {
+  exchange: string;
+  title: string;
+  url: string | null;
+  published_at: number | null;
+  noticed_at: number | null;
+};

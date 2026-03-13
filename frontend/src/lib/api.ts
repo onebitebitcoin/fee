@@ -3,6 +3,7 @@ import type {
   CheapestPathResponse,
   CrawlErrorRow,
   CrawlRun,
+  ExchangeNoticeItem,
   ExchangeStatusResponse,
   LightningSwapFeeRow,
   NetworkStatusMap,
@@ -46,4 +47,6 @@ export const api = {
   getLightningSwapFees: (): Promise<{ last_run: CrawlRun | null; items: LightningSwapFeeRow[] }> =>
     request('/api/v1/market/lightning-swap-fees/latest'),
   getExchangeStatus: (): Promise<ExchangeStatusResponse> => request('/api/v1/market/status'),
+  getLatestNotices: (): Promise<{ items: ExchangeNoticeItem[] }> =>
+    request('/api/v1/market/notices/latest'),
 };

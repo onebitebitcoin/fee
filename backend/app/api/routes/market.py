@@ -432,3 +432,21 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
         'exchanges': list(exchange_map.values()),
         'lightning_services': lightning_services,
     }
+
+
+@router.get('/notices/latest')
+def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends(get_db)) -> dict:
+    """BTC/USDT/Lightning 관련 최신 공지사항 반환"""
+    rows = repositories.get_latest_relevant_notices(db, limit=limit)
+    return {
+        'items': [
+            {
+                'exchange': row.exchange,
+                'title': row.title,
+                'url': row.url,
+                'published_at': int(row.published_at.timestamp()) if row.published_at else None,
+                'noticed_at': int(row.noticed_at.timestamp()) if row.noticed_at else None,
+            }
+            for row in rows
+        ]
+    }

@@ -8,8 +8,9 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
+import { formatTs } from '../lib/formatTs';
 import { localizeUiLabel } from '../lib/localizeUi';
-import type { ExchangeStatusNode, ExchangeStatusWithdrawalRow, SuspendedNetwork } from '../types';
+import type { ExchangeNoticeItem, ExchangeStatusNode, ExchangeStatusWithdrawalRow, SuspendedNetwork } from '../types';
 
 const DOMESTIC_EXCHANGES = new Set(['upbit', 'bithumb', 'coinone', 'korbit', 'gopax']);
 
@@ -230,6 +231,9 @@ export function ExchangeStatusPage() {
     initialData: { exchanges: [], lightning_services: [] },
   });
 
+  const loadNotices = useCallback(async () => api.getLatestNotices(), []);
+  const { data: noticesData } = useAsyncData(loadNotices, { initialData: { items: [] } });
+
   const { domestic, global: globalExchanges } = useMemo(() => {
     const domestic: typeof data.exchanges = [];
     const global: typeof data.exchanges = [];
@@ -266,6 +270,48 @@ export function ExchangeStatusPage() {
 
   return (
     <div className="space-y-6">
+      {/* 최신 공지사항 */}
+      {noticesData.items.length > 0 && (
+        <section className="border border-dark-200 bg-dark-300">
+          <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
+            <Megaphone size={14} className="text-brand-400 shrink-0" />
+            <h3 className="text-sm font-semibold text-bnb-text">최신 공지사항</h3>
+            <span className="ml-auto font-data text-xs text-bnb-muted">{noticesData.items.length}건</span>
+          </div>
+          <ul className="divide-y divide-dark-200">
+            {noticesData.items.map((notice: ExchangeNoticeItem, idx: number) => (
+              <li key={idx} className="flex items-start gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-dark-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-bnb-muted">
+                      {fmtEx(notice.exchange)}
+                    </span>
+                    {notice.url ? (
+                      <a
+                        href={notice.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex min-w-0 items-center gap-1 text-xs text-brand-400 hover:underline"
+                      >
+                        <ExternalLink size={10} className="shrink-0" />
+                        <span className="min-w-0 truncate">{notice.title}</span>
+                      </a>
+                    ) : (
+                      <span className="min-w-0 truncate text-xs text-bnb-text">{notice.title}</span>
+                    )}
+                  </div>
+                  {(notice.published_at ?? notice.noticed_at) && (
+                    <p className="mt-0.5 text-[10px] text-bnb-muted">
+                      {formatTs(notice.published_at ?? notice.noticed_at!)}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="section-label">거래소 · 네트워크</p>

@@ -112,3 +112,17 @@ def get_latest_notices_per_exchange(db: Session, crawl_run_id: int) -> dict[str,
             })
             counts[ex] += 1
     return result
+
+
+def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNotice]:
+    """BTC/USDT/Lightning 관련 최신 공지 limit건 반환 (전체 DB 기준 최신순)"""
+    keywords = ['BTC', 'Bitcoin', '비트코인', 'USDT', 'Lightning', '라이트닝', '출금', '입금', '점검', '네트워크', 'Network']
+    from sqlalchemy import or_
+    conditions = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in keywords]
+    stmt = (
+        select(ExchangeNotice)
+        .where(or_(*conditions))
+        .order_by(desc(ExchangeNotice.noticed_at))
+        .limit(limit)
+    )
+    return list(db.scalars(stmt))
