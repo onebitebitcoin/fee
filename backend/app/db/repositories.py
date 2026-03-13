@@ -119,7 +119,7 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
 
     알트코인 무관 공지를 제외하기 위해 BTC 특화 + 거래소 전체 주요 공지만 허용.
     """
-    from sqlalchemy import or_
+    from sqlalchemy import nullslast, or_
     btc_keywords = ['BTC', 'Bitcoin', '비트코인', 'USDT', 'Tether', '테더', 'Lightning', '라이트닝', 'SegWit', '세그윗', 'halving', '반감기']
     major_keywords = ['전체 점검', '전체점검', '서비스 점검', '서비스점검', '시스템 점검', '시스템점검', '거래소 점검', '긴급 점검', '긴급점검']
     conditions = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in btc_keywords]
@@ -127,7 +127,7 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
     stmt = (
         select(ExchangeNotice)
         .where(or_(*conditions))
-        .order_by(desc(ExchangeNotice.noticed_at))
+        .order_by(nullslast(desc(ExchangeNotice.published_at)), desc(ExchangeNotice.noticed_at))
         .limit(limit)
     )
     return list(db.scalars(stmt))
