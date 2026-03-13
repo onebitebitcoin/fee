@@ -1,5 +1,5 @@
-import { ArrowRight, Building2, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ArrowRight, Building2, ChevronDown, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { KycBadge } from '../components/KycBadge';
@@ -429,6 +429,9 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 <KycBadge status={step.kycStatus} />
               </div>
               <p className="mt-0.5 text-[10px] text-bnb-muted">{step.sub}</p>
+              {step.feeText ? (
+                <p className="mt-1 text-[10px] font-semibold text-brand-400">{step.feeText}</p>
+              ) : null}
             </div>
           </div>
         ))}
@@ -450,6 +453,7 @@ export function CheapestPathPage() {
   const [pathShortcut, setPathShortcut] = useState<'default' | 'non_kyc' | 'no_lightning'>('default');
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
+  const [expandedPathId, setExpandedPathId] = useState('');
   const [accessStats, setAccessStats] = useState<AccessStats | null>(null);
 
   useEffect(() => {
@@ -722,98 +726,29 @@ export function CheapestPathPage() {
           {bestVisiblePath ? (
             <div className="border-b border-dark-200">
               <div className="bg-dark-400 p-4 sm:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '역방향 매도 경로' : '최적 경로'}</p>
-                </div>
-                <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="space-y-2 text-bnb-text">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
-                        <p className="text-lg font-semibold text-bnb-text sm:text-xl">
-                          {formatTopPathSequence(bestVisiblePath, data.global_exchange, mode)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-bnb-muted">
-                        <ServiceLabel
-                          name={bestVisiblePath.korean_exchange}
-                          label={fmtEx(bestVisiblePath.korean_exchange)}
-                          variant="exchange"
-                          textClassName="text-sm text-bnb-muted"
-                          logoClassName="h-5 w-5"
-                        />
-                        <ArrowRight size={14} className="text-bnb-muted" />
-                        <ServiceLabel
-                          name={data.global_exchange}
-                          label={fmtEx(data.global_exchange)}
-                          variant="exchange"
-                          textClassName="text-sm text-bnb-muted"
-                          logoClassName="h-5 w-5"
-                        />
-                        {bestVisiblePath.lightning_exit_provider ? (
-                          <>
-                            <ArrowRight size={14} className="text-bnb-muted" />
-                            <ServiceLabel
-                              name={bestVisiblePath.lightning_exit_provider}
-                              label={bestVisiblePath.lightning_exit_provider}
-                              variant="lightning"
-                              textClassName="text-sm text-bnb-muted"
-                              logoClassName="h-5 w-5"
-                            />
-                          </>
-                        ) : null}
-                        <ArrowRight size={14} className="text-bnb-muted" />
-                        <span className="text-sm text-bnb-muted">개인 지갑</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-bnb-muted">
-                      {mode === 'sell' ? (
-                        <>
-                          <p>출발 지점: 개인 지갑 · BTC 보유</p>
-                          {bestVisiblePath.route_variant === 'usdt_via_global' || bestVisiblePath.route_variant === 'lightning_via_global' ? (
-                            <p>해외 단계: {fmtEx(data.global_exchange)} · BTC 매도 후 USDT 확보</p>
-                          ) : null}
-                          <p>국내 종료: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 KRW 전환' : 'BTC 매도 후 KRW 수령'}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p>국내 출발: {fmtEx(bestVisiblePath.korean_exchange)} · {bestVisiblePath.transfer_coin} · {localizeUiLabel(bestVisiblePath.domestic_withdrawal_network)}</p>
-                          <p>해외 진입: {fmtEx(data.global_exchange)} · {bestVisiblePath.transfer_coin === 'USDT' ? 'USDT 입금 후 BTC 전환' : 'BTC 직접 이동'}</p>
-                          <p>최종 출금: {bestVisiblePath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} · {localizeUiLabel(bestVisiblePath.global_exit_network)}</p>
-                        </>
-                      )}
-                      {bestVisiblePath.lightning_exit_provider ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span>{mode === 'sell' ? '역방향 중간 서비스:' : '중간 서비스:'}</span>
-                          <ServiceLabel
-                            name={bestVisiblePath.lightning_exit_provider}
-                            variant="lightning"
-                            textClassName="text-sm text-bnb-muted"
-                            logoClassName="h-4 w-4"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '역방향 매도 경로' : '최적 경로'}</p>
+                <div className="mt-3 space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
+                    <p className="text-lg font-semibold text-bnb-text sm:text-xl">
+                      {formatTopPathSequence(bestVisiblePath, data.global_exchange, mode)}
+                    </p>
                   </div>
-
-                  <div className="w-full lg:max-w-3xl">
-                    <div className="border border-dark-200 bg-dark-500/60 p-3">
-                      <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} mode={mode} />
-                    </div>
+                  <div className="border border-dark-200 bg-dark-500/60 p-3">
+                    <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} mode={mode} />
                   </div>
-
-                  <div className="grid gap-4 sm:min-w-[220px] sm:grid-cols-3 xl:grid-cols-1">
-                    <div>
+                  <div className="grid grid-cols-3 gap-px border border-dark-200 bg-dark-200">
+                    <div className="bg-dark-500 p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
-                      <p className="mt-1 text-xl font-semibold text-bnb-text">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
+                      <p className="mt-1 text-xl font-semibold font-data text-bnb-text">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
                     </div>
-                    <div>
+                    <div className="bg-dark-500 p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
-                      <p className="mt-1 text-xl font-semibold text-brand-400">{formatCurrency(bestVisiblePath.total_fee_krw)}</p>
+                      <p className="mt-1 text-xl font-semibold font-data text-brand-400">{formatCurrency(bestVisiblePath.total_fee_krw)}</p>
                     </div>
-                    <div>
+                    <div className="bg-dark-500 p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
-                      <p className={`mt-1 text-xl font-semibold ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
+                      <p className={`mt-1 text-xl font-semibold font-data ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
                     </div>
                   </div>
                 </div>
@@ -825,7 +760,8 @@ export function CheapestPathPage() {
           {/* Route Table with Filters */}
           <div className="border-b border-dark-200 bg-dark-500">
             {/* Filter Bar */}
-            <div className="space-y-3 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
+            <div className="space-y-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">필터</p>
               <div className="flex flex-wrap items-center gap-2">
                 {allDomesticNetworks.map((network) => {
                   const excluded = excludedDomesticNetworks.includes(network);
@@ -944,73 +880,114 @@ export function CheapestPathPage() {
                   <tr className="border-b border-dark-200 bg-dark-400 text-left text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">
                     <th className="px-5 py-3">순위</th>
                     <th className="px-5 py-3">출발지</th>
-                    <th className="px-5 py-3">코인 / 네트워크</th>
-                    <th className="px-5 py-3 text-right">총 수수료율</th>
-                    <th className="px-5 py-3 text-right">수령 sats</th>
+                    <th className="px-5 py-3">경유지</th>
+                    <th className="px-5 py-3 text-right">수수료율</th>
+                    <th className="px-5 py-3 text-right">{mode === 'sell' ? 'KRW 수령' : '수령 sats'}</th>
                     <th className="px-5 py-3 text-right">수수료(KRW)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPaths.map((path) => {
-                        const isHighlighted = selectedPathId === path.path_id;
+                    const isExpanded = expandedPathId === path.path_id;
                     return (
-                      <tr
-                        key={path.path_id}
-                        className={`border-b border-dark-200 transition-colors last:border-b-0 ${isHighlighted ? 'bg-brand-500/10 hover:bg-brand-500/20' : 'bg-dark-500 hover:bg-dark-400'}`}
-                      >
-                        <td className="px-5 py-4">
-                          <span className={`font-mono text-xs ${path.rank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
-                            #{String(path.rank).padStart(3, '0')}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-semibold text-bnb-text">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedPathId(path.path_id)}
-                            className={`text-left transition-colors ${
-                              isHighlighted ? 'text-brand-400' : 'text-bnb-text hover:text-brand-400'
-                            }`}
-                            aria-label={`${fmtEx(path.korean_exchange)} 경로 선택`}
-                          >
+                      <Fragment key={path.path_id}>
+                        <tr
+                          className={`cursor-pointer border-b border-dark-200 transition-colors ${isExpanded ? 'bg-dark-400' : 'bg-dark-500 hover:bg-dark-400'}`}
+                          onClick={() => setExpandedPathId(prev => prev === path.path_id ? '' : path.path_id)}
+                        >
+                          <td className="px-5 py-3.5">
+                            <span className={`font-mono text-xs ${path.rank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
+                              #{String(path.rank).padStart(3, '0')}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
                             <ServiceLabel
                               name={path.korean_exchange}
                               label={fmtEx(path.korean_exchange)}
                               variant="exchange"
-                              textClassName={isHighlighted ? 'font-semibold text-brand-400' : 'font-semibold text-bnb-text'}
+                              textClassName={isExpanded ? 'font-semibold text-brand-400' : 'font-semibold text-bnb-text'}
                               logoClassName="h-5 w-5"
                             />
-                          </button>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <p className="text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{localizeUiLabel(path.domestic_withdrawal_network)}</span></p>
-                            <span className="text-[10px] text-bnb-muted">→ {path.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} / {localizeUiLabel(path.global_exit_network)}</span>
-                            {path.path_type === 'lightning_exit' && (
-                              <span className="inline-flex items-center gap-0.5 border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-400">
-                                <Zap size={9} />
-                                라이트닝
-                              </span>
-                            )}
-                            {(path.lightning_exit_provider || path.swap_service) && path.path_type === 'lightning_exit' && (
-                              <ServiceLabel
-                                name={path.lightning_exit_provider ?? path.swap_service ?? ''}
-                                variant="lightning"
-                                textClassName="text-[10px] text-bnb-muted"
-                                logoClassName="h-4 w-4"
-                              />
-                            )}
-                          </div>
-                        </td>
-                        <td className={`px-5 py-4 text-right font-semibold ${getFeeTone(path.fee_pct)}`}>
-                          {formatPercent(path.fee_pct)}
-                        </td>
-                        <td className="px-5 py-4 text-right font-medium text-bnb-text">
-                          {mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatSats(path.btc_received ?? 0)}
-                        </td>
-                        <td className="px-5 py-4 text-right font-semibold text-brand-400">
-                          {formatCurrency(path.total_fee_krw)}
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {mode === 'sell' ? (
+                                <>
+                                  <span className="text-xs text-bnb-muted">지갑</span>
+                                  {path.lightning_exit_provider && (
+                                    <>
+                                      <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                      <ServiceLogo name={path.lightning_exit_provider} variant="lightning" className="h-4 w-4" />
+                                    </>
+                                  )}
+                                  {(path.route_variant === 'usdt_via_global' || path.route_variant === 'lightning_via_global') && (
+                                    <>
+                                      <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                      <ServiceLogo name={data.global_exchange} variant="exchange" className="h-4 w-4" />
+                                    </>
+                                  )}
+                                  <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                  <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
+                                </>
+                              ) : (
+                                <>
+                                  <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
+                                  <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                  <span className="rounded border border-dark-100 px-1 py-0.5 text-[10px] font-medium text-bnb-muted">{path.transfer_coin}</span>
+                                  <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                  <ServiceLogo name={data.global_exchange} variant="exchange" className="h-4 w-4" />
+                                  {path.lightning_exit_provider && (
+                                    <>
+                                      <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                      <ServiceLogo name={path.lightning_exit_provider} variant="lightning" className="h-4 w-4" />
+                                    </>
+                                  )}
+                                  <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                                  <span className="text-xs text-bnb-muted">지갑</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className={`px-5 py-3.5 text-right font-semibold font-data ${getFeeTone(path.fee_pct)}`}>
+                            {formatPercent(path.fee_pct)}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-medium font-data text-bnb-text">
+                            {mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatSats(path.btc_received ?? 0)}
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="font-semibold font-data text-brand-400">{formatCurrency(path.total_fee_krw)}</span>
+                              <ChevronDown size={13} className={`shrink-0 text-bnb-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b border-dark-200 bg-dark-400/60">
+                            <td colSpan={6} className="p-4">
+                              <div className="space-y-3">
+                                <div className="border border-dark-200 bg-dark-500/80 p-3">
+                                  <PathTimeline path={path} globalExchange={data.global_exchange} mode={mode} />
+                                </div>
+                                <div className="grid grid-cols-3 gap-px border border-dark-200 bg-dark-200">
+                                  <div className="bg-dark-500 p-3">
+                                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
+                                    <p className="mt-1 font-semibold font-data text-bnb-text">{mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatSats(path.btc_received ?? 0)}</p>
+                                  </div>
+                                  <div className="bg-dark-500 p-3">
+                                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
+                                    <p className="mt-1 font-semibold font-data text-brand-400">{formatCurrency(path.total_fee_krw)}</p>
+                                  </div>
+                                  <div className="bg-dark-500 p-3">
+                                    <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인 / 네트워크</p>
+                                    <p className="mt-1 text-sm text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{localizeUiLabel(path.domestic_withdrawal_network)}</span></p>
+                                    <p className="text-xs text-bnb-muted">{path.global_exit_mode === 'lightning' ? '⚡ 라이트닝' : '온체인'} · {localizeUiLabel(path.global_exit_network)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                   {filteredPaths.length === 0 && (
@@ -1025,77 +1002,8 @@ export function CheapestPathPage() {
             </div>
           </div>
 
-          {/* Bottom: Focused Route + Fee Velocity */}
-          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
-            {/* Focused Route Inspector */}
-            <div className="hidden border-r border-dark-200 bg-dark-500 md:block">
-              <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">경로 상세</p>
-              </div>
-              <div className="p-4 sm:p-5" role="region" aria-label="선택 경로 상세">
-                {selectedRoute ? (
-                  <div className="space-y-5">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="border border-dark-200 bg-dark-400 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">{selectedRoute.rank}위</span>
-                      <ServiceLabel
-                        name={selectedRoute.path.korean_exchange}
-                        label={fmtEx(selectedRoute.path.korean_exchange)}
-                        variant="exchange"
-                        textClassName="text-lg font-semibold text-bnb-text"
-                        logoClassName="h-6 w-6"
-                      />
-                      <ArrowRight size={14} className="text-bnb-muted" />
-                      <ServiceLabel
-                        name={data.global_exchange}
-                        label={fmtEx(data.global_exchange)}
-                        variant="exchange"
-                        textClassName="text-lg font-semibold text-bnb-text"
-                        logoClassName="h-6 w-6"
-                      />
-                    </div>
-
-                    <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} mode={mode} />
-
-                    <div className="grid gap-0 border border-dark-200 md:grid-cols-3">
-                      <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인/네트워크</p>
-                        <p className="mt-2 font-semibold text-bnb-text">{selectedRoute.path.transfer_coin}</p>
-                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-bnb-muted">{localizeUiLabel(selectedRoute.path.domestic_withdrawal_network)}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.2em] text-bnb-muted">
-                          {selectedRoute.path.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'} / {localizeUiLabel(selectedRoute.path.global_exit_network)}
-                        </p>
-                        {selectedRoute.path.lightning_exit_provider ? (
-                          <div className="mt-1">
-                            <ServiceLabel
-                              name={selectedRoute.path.lightning_exit_provider}
-                              variant="lightning"
-                              textClassName="text-xs uppercase tracking-[0.2em] text-bnb-muted"
-                              logoClassName="h-4 w-4"
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="border-b border-dark-200 p-4 md:border-b-0 md:border-r last:border-r-0">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
-                        <p className="mt-2 font-semibold text-bnb-text">{mode === 'sell' ? formatCurrency(selectedRoute.path.krw_received ?? 0) : formatSats(selectedRoute.path.btc_received ?? 0)}</p>
-                      </div>
-                      <div className="p-4">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
-                        <p className={`mt-2 font-semibold ${getFeeTone(selectedRoute.path.fee_pct)}`}>{formatPercent(selectedRoute.path.fee_pct)}</p>
-                      </div>
-                    </div>
-
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-dark-200 bg-dark-400 p-5 text-sm text-bnb-muted">
-                    경로를 선택하면 해당 경로의 순위, 수수료, 세부 계산 근거를 이 영역에서 확인할 수 있습니다.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Fee Rate Velocity */}
-            <div className="bg-dark-500">
+          {/* Bottom: Fee Velocity */}
+          <div className="bg-dark-500">
               <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
                 <TrendingUp size={14} className="text-bnb-muted" />
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">
@@ -1138,7 +1046,6 @@ export function CheapestPathPage() {
                 ) : null}
               </div>
             </div>
-          </div>
         </>
       ) : null}
       {mobileRouteDetailOpen && selectedRoute ? (
