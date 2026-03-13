@@ -210,6 +210,9 @@ function NodeCard({ node }: NodeCardProps) {
                   ) : (
                     <p className="text-xs text-bnb-text">{notice.title}</p>
                   )}
+                  {notice.published_at && (
+                    <p className="mt-0.5 text-[10px] text-bnb-muted">{formatTs(notice.published_at)}</p>
+                  )}
                 </li>
               ))}
             </ul>
