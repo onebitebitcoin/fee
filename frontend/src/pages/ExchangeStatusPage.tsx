@@ -283,32 +283,28 @@ export function ExchangeStatusPage() {
           </div>
           <ul className="divide-y divide-dark-200">
             {noticesData.items.map((notice: ExchangeNoticeItem, idx: number) => (
-              <li key={idx} className="flex items-start gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-dark-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-bnb-muted">
-                      {fmtEx(notice.exchange)}
-                    </span>
-                    {notice.url ? (
-                      <a
-                        href={notice.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex min-w-0 items-center gap-1 text-xs text-brand-400 hover:underline"
-                      >
-                        <ExternalLink size={10} className="shrink-0" />
-                        <span className="min-w-0 truncate">{notice.title}</span>
-                      </a>
-                    ) : (
-                      <span className="min-w-0 truncate text-xs text-bnb-text">{notice.title}</span>
-                    )}
-                  </div>
-                  {(notice.published_at ?? notice.noticed_at) && (
-                    <p className="mt-0.5 text-[10px] text-bnb-muted">
-                      {formatTs(notice.published_at ?? notice.noticed_at!)}
-                    </p>
-                  )}
-                </div>
+              <li key={idx} className="flex items-center gap-2 px-4 py-2.5">
+                <span className="shrink-0 rounded bg-dark-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-bnb-muted">
+                  {fmtEx(notice.exchange)}
+                </span>
+                {notice.url ? (
+                  <a
+                    href={notice.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-w-0 flex-1 items-center gap-1 text-xs text-brand-400 hover:underline"
+                  >
+                    <ExternalLink size={10} className="shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{notice.title}</span>
+                  </a>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate text-xs text-bnb-text">{notice.title}</span>
+                )}
+                {(notice.published_at ?? notice.noticed_at) && (
+                  <span className="shrink-0 text-[10px] text-bnb-muted">
+                    {formatTs(notice.published_at ?? notice.noticed_at!)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
