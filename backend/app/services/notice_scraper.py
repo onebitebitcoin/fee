@@ -12,40 +12,75 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 
 import requests
-from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = 10
+_TIMEOUT = 12
 _HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept': 'application/json',
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 _MAX_NOTICES = 5
 
 
-def fetch_upbit_notices() -> list[dict]:
-    """Upbit 공지사항 스크래핑"""
-    exchange = 'upbit'
-    url = 'https://upbit.com/service_center/notice'
+def _parse_iso(s: str | None) -> datetime | None:
+    """ISO 8601 문자열을 UTC datetime으로 파싱"""
+    if not s:
+        return None
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        return datetime.fromisoformat(s).astimezone(timezone.utc).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _parse_epoch(ts: int | None) -> datetime | None:
+    """Unix 타임스탬프(초)를 UTC datetime으로 파싱"""
+    if not ts:
+        return None
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _parse_date_str(s: str | None) -> datetime | None:
+    """YYYY.MM.DD 형식 날짜 문자열 파싱"""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.strip(), '%Y.%m.%d')
+    except Exception:
+        return None
+
+
+def fetch_upbit_notices() -> list[dict]:
+    """Upbit 공지사항 API 스크래핑 (api-manager.upbit.com)"""
+    exchange = 'upbit'
+    url = f'https://api-manager.upbit.com/api/v1/announcements?os=web&page=1&per_page={_MAX_NOTICES}&category=all'
+    headers = {**_HEADERS, 'Referer': 'https://upbit.com/'}
+    try:
+        resp = requests.get(url, headers=headers, timeout=_TIMEOUT)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        data = resp.json()
+        if not data.get('success'):
+            return []
+        notices = data.get('data', {}).get('notices', [])
         results = []
-        items = soup.select('a[href*="/service_center/notice/"]')
-        if not items:
-            items = soup.select('.list_area li a, .notice_list li a, article li a')
-        for item in items[:_MAX_NOTICES]:
-            title = item.get_text(strip=True)
-            href = item.get('href', '')
-            if not title or len(title) < 3:
+        for item in notices[:_MAX_NOTICES]:
+            title = item.get('title', '').strip()
+            notice_id = item.get('id')
+            if not title or not notice_id:
                 continue
-            full_url = f'https://upbit.com{href}' if href.startswith('/') else href
-            results.append({'exchange': exchange, 'title': title, 'url': full_url, 'published_at': None})
+            results.append({
+                'exchange': exchange,
+                'title': title,
+                'url': f'https://upbit.com/service_center/notice/{notice_id}',
+                'published_at': _parse_iso(item.get('listed_at')),
+            })
         return results
     except Exception as e:
         logger.warning('Upbit notice scrape failed: %s', e)
@@ -53,49 +88,63 @@ def fetch_upbit_notices() -> list[dict]:
 
 
 def fetch_bithumb_notices() -> list[dict]:
-    """Bithumb 공지사항 스크래핑"""
+    """Bithumb 공지사항 스크래핑 (feed.bithumb.com - SSR 페이지, Scrapling Fetcher 사용)"""
     exchange = 'bithumb'
-    url = 'https://www.bithumb.com/react/notice/list'
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        from scrapling.fetchers import Fetcher
+        f = Fetcher()
+        page = f.get('https://feed.bithumb.com/notice')
         results = []
-        items = soup.select('a[href*="/react/notice/"], a[href*="/notice/"]')
-        if not items:
-            items = soup.select('.board_list tr td.subject a, .list a, li a')
-        for item in items[:_MAX_NOTICES]:
-            title = item.get_text(strip=True)
-            href = item.get('href', '')
+        for a in page.css('a[href*="/notice/"]')[:_MAX_NOTICES]:
+            href = a.attrib.get('href', '')
+            # 제목: link-title 클래스 스팬
+            title_spans = a.css('span[class*="link-title"]')
+            title = title_spans[0].text.strip() if title_spans else ''
+            # 날짜: link-date 클래스 스팬
+            date_spans = a.css('span[class*="link-date"]')
+            date_str = date_spans[0].text.strip() if date_spans else None
+
             if not title or len(title) < 3:
                 continue
-            full_url = f'https://www.bithumb.com{href}' if href.startswith('/') else href
-            results.append({'exchange': exchange, 'title': title, 'url': full_url, 'published_at': None})
+            full_url = f'https://feed.bithumb.com{href}' if href.startswith('/') else href
+            results.append({
+                'exchange': exchange,
+                'title': title,
+                'url': full_url,
+                'published_at': _parse_date_str(date_str),
+            })
         return results
+    except ImportError:
+        logger.debug('Scrapling not installed, skipping Bithumb notices')
+        return []
     except Exception as e:
         logger.warning('Bithumb notice scrape failed: %s', e)
         return []
 
 
 def fetch_coinone_notices() -> list[dict]:
-    """Coinone 공지사항 스크래핑"""
+    """Coinone 공지사항 API 스크래핑 (api-gateway.coinone.co.kr)"""
     exchange = 'coinone'
-    url = 'https://coinone.co.kr/notice'
+    url = f'https://api-gateway.coinone.co.kr/notice/v1/announcements/posts?includePin=false&page=0&pageSize={_MAX_NOTICES}'
+    headers = {**_HEADERS, 'Referer': 'https://coinone.co.kr/'}
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp = requests.get(url, headers=headers, timeout=_TIMEOUT)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        data = resp.json()
+        body = data.get('body', {})
+        notices = body.get('notices', [])
         results = []
-        items = soup.select('a[href*="/notice/"]')
-        if not items:
-            items = soup.select('.notice-list li a, .board-list li a, li a')
-        for item in items[:_MAX_NOTICES]:
-            title = item.get_text(strip=True)
-            href = item.get('href', '')
-            if not title or len(title) < 3:
+        for item in notices[:_MAX_NOTICES]:
+            title = item.get('title', '').strip()
+            notice_id = item.get('id')
+            if not title or not notice_id:
                 continue
-            full_url = f'https://coinone.co.kr{href}' if href.startswith('/') else href
-            results.append({'exchange': exchange, 'title': title, 'url': full_url, 'published_at': None})
+            results.append({
+                'exchange': exchange,
+                'title': title,
+                'url': f'https://coinone.co.kr/info/notice/{notice_id}',
+                'published_at': _parse_epoch(item.get('createdAt')),
+            })
         return results
     except Exception as e:
         logger.warning('Coinone notice scrape failed: %s', e)
@@ -103,28 +152,11 @@ def fetch_coinone_notices() -> list[dict]:
 
 
 def fetch_korbit_notices() -> list[dict]:
-    """Korbit 공지사항 스크래핑"""
-    exchange = 'korbit'
-    url = 'https://www.korbit.co.kr/announce'
-    try:
-        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        results = []
-        items = soup.select('a[href*="/announce"]')
-        if not items:
-            items = soup.select('.notice li a, .board li a, li a')
-        for item in items[:_MAX_NOTICES]:
-            title = item.get_text(strip=True)
-            href = item.get('href', '')
-            if not title or len(title) < 3 or href == '/announce':
-                continue
-            full_url = f'https://www.korbit.co.kr{href}' if href.startswith('/') else href
-            results.append({'exchange': exchange, 'title': title, 'url': full_url, 'published_at': None})
-        return results
-    except Exception as e:
-        logger.warning('Korbit notice scrape failed: %s', e)
-        return []
+    """Korbit 공지사항 스크래핑 (현재 모든 접근 방법이 홈으로 리다이렉트됨)"""
+    # Korbit의 /announce 페이지는 headless browser 접근 시 홈으로 리다이렉트되어
+    # 현재 스크래핑이 불가능합니다.
+    logger.debug('Korbit notice scraping skipped (page redirects to homepage)')
+    return []
 
 
 def get_all_notices() -> list[dict]:
