@@ -66,6 +66,18 @@ vi.mock('../lib/api', () => ({
           kyc_status: 'non_kyc',
           notices: [],
         },
+        {
+          exchange: 'BitFreezer',
+          type: 'lightning',
+          direction: 'ln_to_onchain',
+          withdrawal_rows: [
+            { coin: 'BTC', network_label: 'Lightning Network', fee_pct: 0.44, fee_fixed_sat: 0, enabled: true, source: 'realtime_api', kyc_status: 'non_kyc' },
+          ],
+          network_status: { status: 'ok', suspended_networks: [], checked_at: null },
+          scrape_status: { url: 'https://bitfreezer.vercel.app', status: 'ok', last_crawled_at: 1710000000, error_message: null },
+          kyc_status: 'non_kyc',
+          notices: [],
+        },
       ],
       latest_notices: [],
     }),
@@ -84,7 +96,8 @@ describe('ExchangeStatusPage', () => {
     expect(screen.getByText('4개 노드')).toBeInTheDocument();
     expect(screen.getAllByText(/upbit|Upbit|업비트/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/bithumb|Bithumb|빗썸/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Boltz')).toBeInTheDocument();
+    // 기본 필터(buy=KRW→BTC)에서 ln_to_onchain인 BitFreezer가 보여야 함
+    expect(screen.getByText('BitFreezer')).toBeInTheDocument();
   });
 
   it('shows 3 section headers: 국내, 해외, Lightning', async () => {
@@ -170,10 +183,11 @@ describe('ExchangeStatusPage', () => {
     await screen.findByText('현황');
 
     const filterInput = screen.getByPlaceholderText(/이름 필터/i);
-    await user.type(filterInput, 'Boltz');
+    // 기본 buy 필터에서 ln_to_onchain인 BitFreezer로 검색
+    await user.type(filterInput, 'BitFreezer');
 
     expect(screen.getByText('1개 노드')).toBeInTheDocument();
-    expect(screen.getByText('Boltz')).toBeInTheDocument();
+    expect(screen.getByText('BitFreezer')).toBeInTheDocument();
     expect(screen.queryByText('국내 거래소')).not.toBeInTheDocument();
     expect(screen.queryByText('해외 거래소')).not.toBeInTheDocument();
   });
@@ -220,7 +234,28 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    // Boltz는 direction='onchain_to_ln'이므로 '온체인 → LN' 뱃지 표시
-    expect(screen.getByText('온체인 → LN')).toBeInTheDocument();
+    // 기본 buy 필터에서 BitFreezer(ln_to_onchain)가 보이므로 'LN → 온체인' 뱃지 표시
+    expect(screen.getByText('LN → 온체인')).toBeInTheDocument();
+  });
+
+  it('direction filter: buy shows ln_to_onchain, sell shows onchain_to_ln', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BrowserRouter>
+        <ExchangeStatusPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('현황');
+
+    // 기본 buy(KRW→BTC) 필터: BitFreezer(ln_to_onchain) 보임, Boltz(onchain_to_ln) 숨김
+    expect(screen.getByText('BitFreezer')).toBeInTheDocument();
+    expect(screen.queryByText('Boltz')).not.toBeInTheDocument();
+
+    // sell(BTC→KRW) 필터로 전환: Boltz(onchain_to_ln) 보임, BitFreezer(ln_to_onchain) 숨김
+    await user.click(screen.getByRole('button', { name: /BTC 지갑 → KRW/i }));
+    expect(screen.getByText('Boltz')).toBeInTheDocument();
+    expect(screen.queryByText('BitFreezer')).not.toBeInTheDocument();
   });
 });

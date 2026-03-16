@@ -283,8 +283,8 @@ export function ExchangeStatusPage() {
     return nodes.filter(node => {
       const dir = (node as ExchangeStatusNode & { direction?: string | null }).direction;
       if (dir == null) return true; // 방향 미지정 = 양방향
-      if (directionFilter === 'buy') return dir === 'onchain_to_ln';
-      if (directionFilter === 'sell') return dir === 'ln_to_onchain';
+      if (directionFilter === 'buy') return dir === 'ln_to_onchain';
+      if (directionFilter === 'sell') return dir === 'onchain_to_ln';
       return true;
     });
   }, [data.lightning_services, filterNodes, directionFilter]);
