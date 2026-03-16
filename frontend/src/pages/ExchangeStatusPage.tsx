@@ -335,23 +335,47 @@ export function ExchangeStatusPage() {
         </section>
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="section-label">거래소 · 네트워크</p>
-          <h2 className="mt-1 text-xl font-bold text-bnb-text font-display">현황</h2>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="section-label">거래소 · 네트워크</p>
+            <h2 className="mt-1 text-xl font-bold text-bnb-text font-display">현황</h2>
+          </div>
+          <span className="font-data text-xs text-bnb-muted">{totalCount}개 노드</span>
         </div>
-        <span className="font-data text-xs text-bnb-muted">{totalCount}개 노드</span>
-      </div>
 
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-bnb-muted pointer-events-none" />
-        <input
-          type="text"
-          value={nameFilter}
-          onChange={e => setNameFilter(e.target.value)}
-          placeholder="거래소 / 서비스 이름 필터..."
-          className="w-full border border-dark-200 bg-dark-400 pl-9 pr-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400/50 focus:outline-none sm:w-72 transition-colors"
-        />
+        {/* 방향 필터 */}
+        <div className="grid grid-cols-3 gap-px border border-dark-200 bg-dark-200">
+          {([
+            { key: 'all', label: '전체', sub: '모든 서비스' },
+            { key: 'buy', label: 'KRW → BTC 지갑', sub: '거래소 출금 경로' },
+            { key: 'sell', label: 'BTC 지갑 → KRW', sub: '거래소 입금 경로' },
+          ] as const).map(({ key, label, sub }) => (
+            <button
+              key={key}
+              onClick={() => setDirectionFilter(key)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-2.5 text-center transition-colors ${
+                directionFilter === key
+                  ? 'bg-brand-500/10 text-brand-400'
+                  : 'bg-dark-400 text-bnb-muted hover:bg-dark-300 hover:text-bnb-text'
+              }`}
+            >
+              <span className="text-[11px] font-semibold leading-tight">{label}</span>
+              <span className="hidden text-[10px] leading-tight opacity-60 sm:block">{sub}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-bnb-muted pointer-events-none" />
+          <input
+            type="text"
+            value={nameFilter}
+            onChange={e => setNameFilter(e.target.value)}
+            placeholder="거래소 / 서비스 이름 필터..."
+            className="w-full border border-dark-200 bg-dark-400 pl-9 pr-3 py-2 text-sm text-bnb-text placeholder-bnb-muted focus:border-brand-400/50 focus:outline-none sm:w-72 transition-colors"
+          />
+        </div>
       </div>
 
       {filteredDomestic.length > 0 && (
@@ -388,26 +412,11 @@ export function ExchangeStatusPage() {
 
       {data.lightning_services.length > 0 && (
         <section>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <h3 className="section-label">라이트닝 스왑</h3>
             <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
               {filteredLightning.length}
             </span>
-            <div className="ml-auto flex items-center gap-1">
-              {(['all', 'buy', 'sell'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setDirectionFilter(f)}
-                  className={`px-2.5 py-1 text-[11px] font-semibold border transition-colors ${
-                    directionFilter === f
-                      ? 'border-brand-400/60 bg-brand-500/10 text-brand-400'
-                      : 'border-dark-200 bg-dark-400 text-bnb-muted hover:text-bnb-text'
-                  }`}
-                >
-                  {f === 'all' ? '전체' : f === 'buy' ? '거래소 → 지갑' : '지갑 → 거래소'}
-                </button>
-              ))}
-            </div>
           </div>
           {filteredLightning.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
