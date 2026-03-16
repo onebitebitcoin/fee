@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "source": "OECD Global Forum on Tax Transparency",
+    "last_updated": "2025",
+    "total_committed": 67,
+    "reference_doc": "https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf"
+  },
+  "early_adopters_2027": {
+    "count": 52,
+    "data_collection_start": "2026-01-01",
+    "first_exchange": "2027",
+    "countries": [
+      "Austria", "Azerbaijan", "Belgium", "Bermuda", "Brazil",
+      "Bulgaria", "Canada", "Cayman Islands", "Colombia", "Croatia",
+      "Cyprus", "Czechia", "Denmark", "Estonia", "Faroe Islands",
+      "Finland", "France", "Germany", "Gibraltar", "Greece",
+      "Guernsey", "Iceland", "Indonesia", "Ireland", "Isle of Man",
+      "Israel", "Italy", "Japan", "Jersey", "Kazakhstan",
+      "Korea", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg",
+      "Malta", "Mexico", "Netherlands", "New Zealand", "Norway",
+      "Poland", "Portugal", "Romania", "San Marino", "Slovak Republic",
+      "Slovenia", "South Africa", "Spain", "Sweden", "Switzerland",
+      "Uganda", "United Kingdom"
+    ]
+  },
+  "planned_2028": {
+    "count": 14,
+    "data_collection_start": "2027-01-01",
+    "first_exchange": "2028",
+    "countries": [
+      "Bahamas", "Barbados", "British Virgin Islands", "Costa Rica",
+      "Hong Kong (China)", "Malaysia", "Mongolia", "Nigeria",
+      "Saint Vincent and the Grenadines", "Seychelles", "Singapore",
+      "Thailand", "Türkiye", "United Arab Emirates"
+    ]
+  },
+  "planned_2029": {
+    "count": 1,
+    "first_exchange": "2029",
+    "countries": ["United States"]
+  },
+  "under_consideration": {
+    "countries": [
+      "Argentina", "Australia", "El Salvador", "India",
+      "Panama", "Philippines", "Vietnam"
+    ]
+  },
+  "korea_status": {
+    "country": "Korea (South Korea)",
+    "group": "early_adopters_2027",
+    "early_adopter": true,
+    "planned_year": "2027",
+    "data_collection_start": "2026-01-01",
+    "signed_mcaa": true,
+    "signed_mcaa_date": "2024-11",
+    "details": "한국은 2024년 11월 OECD 글로벌 포럼 총회에서 CARF MCAA(다자간 정보교환 협정)에 공식 서명. 2026년 1월 1일부터 국내 가상자산 거래소(업비트, 빗썸 등)가 외국인 투자자 거래 정보를 수집하기 시작. 2027년 4월 말까지 국세청에 보고 후 2027년 중 첫 국가 간 정보교환 실시 예정."
+  },
+  "asia_overview": {
+    "2027_group": ["Korea", "Japan", "Indonesia", "Kazakhstan"],
+    "2028_group": ["Hong Kong (China)", "Singapore", "Malaysia", "Thailand", "Mongolia"],
+    "not_committed": ["India", "Philippines", "Vietnam"]
+  },
+  "sources": [
+    "https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf",
+    "https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/crypto-asset-reporting-framework-monitoring-implementation-update-2025.pdf",
+    "https://www.taina.tech/resources-news-and-awards/48-jurisdictions-commit-to-implement-the-crypto-asset-reporting-framework-carf-by-2027",
+    "https://www.blockchaintoday.co.kr/news/articleView.html?idxno=56525",
+    "https://www.hankookilbo.com/News/Read/A2025102815210003392",
+    "https://www.asiae.co.kr/article/2025102814332225054",
+    "https://99bitcoins.com/kr/news/bitcoin/south-korea-to-begin-global-sharing-of-crypto-transaction-data-in-2027/",
+    "https://legasset.com/oecd-carf-crypto-reporting-timeline/"
+  ]
+}

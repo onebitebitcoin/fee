@@ -1,0 +1,113 @@
+{
+  "metadata": {
+    "research_date": "2026-03-16",
+    "as_of": "2026년 3월 기준"
+  },
+  "korean_exchanges": [
+    {
+      "name": "Upbit",
+      "korean_name": "업비트",
+      "legal_entity": "두나무 주식회사 (Dunamu Inc.)",
+      "business_registration_number": "119-86-54968",
+      "founded": "2012-04",
+      "registered_country": "South Korea",
+      "registered_address": "서울특별시 서초구 강남대로 369, 15층",
+      "vasp_registered": true,
+      "vasp_renewal_status": "approved",
+      "vasp_renewal_date": "2025-12-23",
+      "overseas_entity": "Levvels (미국, 2022, NFT 서비스 자회사)",
+      "carf_applicable": true,
+      "notes": "5대 원화 거래소 중 VASP 갱신 첫 승인."
+    },
+    {
+      "name": "Bithumb",
+      "korean_name": "빗썸",
+      "legal_entity": "빗썸코리아 주식회사 (Bithumb Korea Co., Ltd.)",
+      "founded": "2014-01",
+      "registered_country": "South Korea",
+      "registered_address": "서울특별시 강남구 테헤란로 152, 강남파이낸스센터",
+      "vasp_registered": true,
+      "vasp_renewal_status": "pending_approval",
+      "vasp_renewal_date": null,
+      "overseas_entity": "Bithumb Global (독립 운영, 별도 법인)",
+      "carf_applicable": true,
+      "notes": "갱신 신청 완료, FIU 수리 대기 중."
+    },
+    {
+      "name": "Coinone",
+      "korean_name": "코인원",
+      "legal_entity": "주식회사 코인원 (Coinone Inc.)",
+      "founded": "2014-02",
+      "registered_country": "South Korea",
+      "registered_address": "서울특별시 중구 퇴계로 173, 남산스퀘어빌딩 12층",
+      "vasp_registered": true,
+      "vasp_renewal_status": "under_review",
+      "vasp_renewal_date": null,
+      "overseas_entity": null,
+      "carf_applicable": true,
+      "notes": "FIU 제재 심의 진행 중."
+    },
+    {
+      "name": "Korbit",
+      "korean_name": "코빗",
+      "legal_entity": "주식회사 코빗 (Korbit Inc.)",
+      "founded": "2013-07",
+      "registered_country": "South Korea",
+      "registered_address": "서울특별시 강남구 테헤란로 5길 7, 4층 (KG타워)",
+      "vasp_registered": true,
+      "vasp_renewal_status": "approved",
+      "vasp_renewal_date": "2026-02-06",
+      "overseas_entity": null,
+      "major_shareholder": "NXC Corporation → 미래에셋 인수 협의 중",
+      "carf_applicable": true,
+      "notes": "한국 최초 암호화폐 거래소. VASP 갱신 2번째 승인."
+    },
+    {
+      "name": "GOPAX",
+      "korean_name": "고팍스",
+      "legal_entity": "주식회사 스트리미 (Streami Inc.)",
+      "founded": "2015-07",
+      "registered_country": "South Korea",
+      "vasp_registered": true,
+      "vasp_renewal_status": "under_review",
+      "vasp_renewal_date": null,
+      "overseas_entity": "GOPAX International (gopax.com)",
+      "major_shareholder": "Binance (67%, 2023-02) → Megazone 인수 협의 중",
+      "carf_applicable": true,
+      "notes": "Binance 지분으로 갱신 심사 복잡."
+    }
+  ],
+  "korea_carf_policy": {
+    "mcaa_signed": true,
+    "signing_date": "2024-11-27",
+    "signing_event": "OECD 글로벌포럼 제17차 총회",
+    "signatory_countries_count": 48,
+    "early_adopter_47": false,
+    "note_on_timing": "한국은 47개국 조기도입 그룹과 별개로 48개국 MCAA 서명 참여. 2027년 첫 교환으로 실질적 일정 동일.",
+    "first_reporting_period": "2026-01-01 ~ 2026-12-31",
+    "first_domestic_report_deadline": "2027-04-30",
+    "first_international_exchange_year": "2027",
+    "planned_year": "2027",
+    "domestic_legislation": "기획재정부 '암호화자산 정보 자동교환 이행규정' 제정 (2025년 10월 행정예고)",
+    "crypto_tax_alignment": {
+      "effective_date": "2027-01-01",
+      "tax_rate": "22% (지방소득세 2% 포함)",
+      "exemption": "연간 250만 원 이하 비과세"
+    },
+    "related_laws": [
+      "특정금융정보법 (특금법)",
+      "소득세법 (2024년 12월 개정, 2027년 1월 시행)",
+      "기획재정부 암호화자산 자동정보교환 이행규정",
+      "CARF MCAA (2024년 11월 서명)"
+    ]
+  },
+  "sources": [
+    "https://www.dunamu.com/about/company",
+    "https://www.thelec.kr/news/articleView.html?idxno=50127",
+    "https://www.thelec.kr/news/articleView.html?idxno=52073",
+    "https://www.news1.kr/finance/blockchain-fintech/6065012",
+    "https://eiec.kdi.re.kr/policy/materialView.do?num=260337",
+    "https://www.asiae.co.kr/article/2025102814332225054",
+    "https://www.hankookilbo.com/News/Read/A2025102815210003392"
+  ]
+}

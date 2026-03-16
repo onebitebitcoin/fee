@@ -1,0 +1,150 @@
+{
+  "metadata": {
+    "research_date": "2026-03-16",
+    "description": "CARF 국가-거래소 교차 분석: 한국 사용자 관점"
+  },
+  "carf_exchange_matrix": [
+    {
+      "exchange": "업비트 (Upbit)",
+      "type": "korean",
+      "registered_country": "대한민국",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "한국 법인, 한국 거주자 데이터 → 2027년 상호 정보교환 대상"
+    },
+    {
+      "exchange": "빗썸 (Bithumb)",
+      "type": "korean",
+      "registered_country": "대한민국",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "한국 법인, VASP 갱신 심사 중. CARF 보고 2026년 시작"
+    },
+    {
+      "exchange": "코인원 (Coinone)",
+      "type": "korean",
+      "registered_country": "대한민국",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "한국 법인, FIU 제재 심의 중이나 CARF 의무 적용"
+    },
+    {
+      "exchange": "코빗 (Korbit)",
+      "type": "korean",
+      "registered_country": "대한민국",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "한국 법인, VASP 갱신 승인 완료"
+    },
+    {
+      "exchange": "고팍스 (GOPAX)",
+      "type": "korean",
+      "registered_country": "대한민국",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "한국 법인, Binance 지분 이슈로 VASP 갱신 불확실"
+    },
+    {
+      "exchange": "Binance",
+      "type": "global",
+      "registered_country": "Cayman Islands",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "medium",
+      "impact_detail": "한국 FIU 미등록으로 앱 차단. 케이맨 제도 CARF 2027 적용. 우회 이용 한국인 데이터 케이맨 경로로 교환될 수 있음"
+    },
+    {
+      "exchange": "Gate.io",
+      "type": "global",
+      "registered_country": "Cayman Islands",
+      "carf_group": "2027",
+      "carf_first_exchange": "2027",
+      "korea_user_carf_impact": "high",
+      "impact_detail": "유일하게 한국 공식 서비스 제공 글로벌 거래소. 케이맨 CARF 2027 → 한국 사용자 데이터 교환 대상"
+    },
+    {
+      "exchange": "OKX",
+      "type": "global",
+      "registered_country": "Seychelles",
+      "carf_group": "2028",
+      "carf_first_exchange": "2028",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "한국 앱 차단. 세이셸 CARF 2028. 우회 이용 시 2028년부터 정보교환 가능성"
+    },
+    {
+      "exchange": "Bybit",
+      "type": "global",
+      "registered_country": "British Virgin Islands",
+      "carf_group": "2028",
+      "carf_first_exchange": "2028",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "한국 앱 차단. BVI CARF 2028."
+    },
+    {
+      "exchange": "Bitget",
+      "type": "global",
+      "registered_country": "Seychelles",
+      "carf_group": "2028",
+      "carf_first_exchange": "2028",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "한국 앱스토어 차단. 세이셸 CARF 2028."
+    },
+    {
+      "exchange": "Kraken",
+      "type": "global",
+      "registered_country": "United States (Wyoming)",
+      "carf_group": "2029",
+      "carf_first_exchange": "2029",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "미국 CARF 2029. 한국 공식 서비스 미제공."
+    },
+    {
+      "exchange": "Coinbase",
+      "type": "global",
+      "registered_country": "United States (Texas)",
+      "carf_group": "2029",
+      "carf_first_exchange": "2029",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "미국 CARF 2029. 한국 공식 서비스 미제공."
+    },
+    {
+      "exchange": "Bitfinex",
+      "type": "global",
+      "registered_country": "British Virgin Islands",
+      "carf_group": "2028",
+      "carf_first_exchange": "2028",
+      "korea_user_carf_impact": "low",
+      "impact_detail": "BVI CARF 2028. 한국 공식 서비스 없음."
+    },
+    {
+      "exchange": "KuCoin",
+      "type": "global",
+      "registered_country": "Turks and Caicos Islands",
+      "carf_group": "not_member",
+      "carf_first_exchange": null,
+      "korea_user_carf_impact": "none",
+      "impact_detail": "터크스케이커스 CARF 미가입. 한국 앱스토어 차단. CARF 사각지대."
+    },
+    {
+      "exchange": "HTX (Huobi)",
+      "type": "global",
+      "registered_country": "Seychelles (법인 말소)",
+      "carf_group": "unclear",
+      "carf_first_exchange": null,
+      "korea_user_carf_impact": "none",
+      "impact_detail": "세이셸 법인 말소 상태. 규제 공백. CARF 사각지대."
+    }
+  ],
+  "key_insights": [
+    "한국 법인 거래소(업비트, 빗썸, 코인원, 코빗, 고팍스)는 모두 한국 CARF 2027 그룹 적용 대상",
+    "Gate.io는 글로벌 거래소 중 유일하게 한국 공식 서비스 제공 + 케이맨 제도 CARF 2027 적용",
+    "Binance/OKX/Bybit/Bitget은 한국 앱 차단이나, 우회 이용자는 거래소 등록 국가 CARF 경로로 정보교환 가능",
+    "KuCoin, HTX는 CARF 미가입/법인 불명확으로 완전한 규제 사각지대",
+    "2026년 1월 1일부터 한국 거래소들이 데이터 수집 시작, 2027년 4월 국세청 보고 의무"
+  ]
+}
