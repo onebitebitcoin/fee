@@ -241,7 +241,7 @@ function NodeCard({ node }: NodeCardProps) {
 
 export function ExchangeStatusPage() {
   const [nameFilter, setNameFilter] = useState('');
-  const [directionFilter, setDirectionFilter] = useState<'all' | 'buy' | 'sell'>('all');
+  const [directionFilter, setDirectionFilter] = useState<'buy' | 'sell'>('buy');
 
   const loadData = useCallback(async () => {
     return api.getExchangeStatus();
@@ -280,7 +280,6 @@ export function ExchangeStatusPage() {
   const filteredGlobal = useMemo(() => filterNodes(globalExchanges), [globalExchanges, filterNodes]);
   const filteredLightning = useMemo(() => {
     const nodes = filterNodes(data.lightning_services);
-    if (directionFilter === 'all') return nodes;
     return nodes.filter(node => {
       const dir = (node as ExchangeStatusNode & { direction?: string | null }).direction;
       if (dir == null) return true; // 방향 미지정 = 양방향
@@ -345,9 +344,8 @@ export function ExchangeStatusPage() {
         </div>
 
         {/* 방향 필터 */}
-        <div className="grid grid-cols-3 gap-px border border-dark-200 bg-dark-200">
+        <div className="grid grid-cols-2 gap-px border border-dark-200 bg-dark-200">
           {([
-            { key: 'all', label: '전체', sub: '모든 서비스' },
             { key: 'buy', label: 'KRW → BTC 지갑', sub: '거래소 출금 경로' },
             { key: 'sell', label: 'BTC 지갑 → KRW', sub: '거래소 입금 경로' },
           ] as const).map(({ key, label, sub }) => (

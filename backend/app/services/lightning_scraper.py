@@ -437,6 +437,50 @@ def _error_result(service_name: str, source_url: str, error: str) -> dict:
     }
 
 
+def fetch_bitfreezer_fees() -> dict:
+    """
+    BitFreezer Lightning→On-chain 스왑 수수료 조회.
+    BitFreezer는 Lightning BTC를 온체인 BTC 주소로 스왑하는 서비스.
+    공개 API: https://bitfreezer.vercel.app/api/status
+    """
+    service_name = 'BitFreezer'
+    source_url = 'https://bitfreezer.vercel.app'
+    api_url = 'https://bitfreezer.vercel.app/api/status'
+    _STATIC_FEE_PCT = 0.44
+    _STATIC_ERROR = '정적 검증값 (BitFreezer API 기준: 0.44%)'
+    try:
+        resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        fee_pct = float(data.get('serviceFee', _STATIC_FEE_PCT))
+        min_amount_sat = int(data.get('min', 10_000))
+        max_amount_sat = int(data.get('max', 10_000_000))
+        return {
+            'service_name': service_name,
+            'fee_pct': fee_pct,
+            'fee_fixed_sat': 0,
+            'min_amount_sat': min_amount_sat,
+            'max_amount_sat': max_amount_sat,
+            'enabled': True,
+            'source_url': source_url,
+            'error': None,
+            'direction': 'ln_to_onchain',
+        }
+    except Exception as exc:
+        logger.warning('BitFreezer 수수료 조회 실패: %s', exc)
+        return {
+            'service_name': service_name,
+            'fee_pct': _STATIC_FEE_PCT,
+            'fee_fixed_sat': 0,
+            'min_amount_sat': 10_000,
+            'max_amount_sat': 10_000_000,
+            'enabled': True,
+            'source_url': source_url,
+            'error': _STATIC_ERROR,
+            'direction': 'ln_to_onchain',
+        }
+
+
 def get_all_lightning_swap_fees() -> list[dict]:
     """
     모든 Lightning 스왑 서비스 수수료를 병렬로 조회.
@@ -448,6 +492,7 @@ def get_all_lightning_swap_fees() -> list[dict]:
         fetch_boltz_fees,
         fetch_coinos_fees,
         fetch_bitflower_fees,
+        fetch_bitfreezer_fees,
         fetch_wos_fees,
         fetch_strike_fees,
         fetch_oksusu_fees,
