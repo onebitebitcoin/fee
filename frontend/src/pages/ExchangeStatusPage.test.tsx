@@ -57,6 +57,7 @@ vi.mock('../lib/api', () => ({
         {
           exchange: 'Boltz',
           type: 'lightning',
+          direction: 'onchain_to_ln',
           withdrawal_rows: [
             { coin: 'BTC', network_label: 'Lightning Network', fee_pct: 0.5, fee_fixed_sat: 0, enabled: true, source: 'realtime_api', kyc_status: 'non_kyc' },
           ],
@@ -208,5 +209,17 @@ describe('ExchangeStatusPage', () => {
 
     await screen.findByText('현황');
     expect(screen.getByText('LN')).toBeInTheDocument();
+  });
+
+  it('shows direction badge for lightning service nodes', async () => {
+    render(
+      <BrowserRouter>
+        <ExchangeStatusPage />
+      </BrowserRouter>,
+    );
+
+    await screen.findByText('현황');
+    // Boltz는 direction='onchain_to_ln'이므로 '온체인 → LN' 뱃지 표시
+    expect(screen.getByText('온체인 → LN')).toBeInTheDocument();
   });
 });

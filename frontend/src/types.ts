@@ -188,6 +188,7 @@ export type ExchangeStatusWithdrawalRow = {
 export type ExchangeStatusNode = {
   exchange: string;
   type: 'exchange' | 'lightning';
+  direction?: 'onchain_to_ln' | 'ln_to_onchain' | null;
   withdrawal_rows: ExchangeStatusWithdrawalRow[];
   network_status: {
     status: string;

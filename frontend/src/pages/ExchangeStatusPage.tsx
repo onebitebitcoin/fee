@@ -164,6 +164,16 @@ function NodeCard({ node }: NodeCardProps) {
                 LN
               </span>
             )}
+            {node.direction === 'onchain_to_ln' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold border border-dark-100 text-bnb-muted">
+                온체인 → LN
+              </span>
+            )}
+            {node.direction === 'ln_to_onchain' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold border border-dark-100 text-bnb-muted">
+                LN → 온체인
+              </span>
+            )}
             <KycBadge status={node.kyc_status} />
           </div>
         )}

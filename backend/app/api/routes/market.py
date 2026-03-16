@@ -438,6 +438,7 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
             } if row.source_url else None,
             'notices': [],
             'kyc_status': kyc_registry.resolve_service_kyc_status(row.service_name, registry=registry),
+            'direction': row.direction,
         })
 
     for node in exchange_map.values():
