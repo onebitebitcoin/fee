@@ -460,7 +460,7 @@ export function CheapestPathPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [pathShortcut, setPathShortcut] = useState<'default' | 'non_kyc' | 'no_lightning'>('default');
+  const [pathShortcut, setPathShortcut] = useState<'default' | 'non_kyc' | 'no_lightning'>('non_kyc');
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
   const [expandedPathId, setExpandedPathId] = useState('');
@@ -749,18 +749,19 @@ export function CheapestPathPage() {
                   <div className="border border-dark-200 bg-dark-500/60 p-3">
                     <PathTimeline path={bestVisiblePath} globalExchange={data.global_exchange} mode={mode} />
                   </div>
-                  <div className="grid grid-cols-3 gap-px border border-dark-200 bg-dark-200">
-                    <div className="bg-dark-500 p-4">
+                  {/* Stats: mobile = stacked rows, sm+ = 3-col grid */}
+                  <div className="divide-y divide-dark-200 border border-dark-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                    <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
-                      <p className="mt-1 text-xl font-semibold font-data text-bnb-text">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
+                      <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-xl">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
                     </div>
-                    <div className="bg-dark-500 p-4">
+                    <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
-                      <p className="mt-1 text-xl font-semibold font-data text-brand-400">{formatCurrency(bestVisiblePath.total_fee_krw)}</p>
+                      <p className="font-data font-semibold text-brand-400 sm:mt-1 sm:text-xl">{formatCurrency(bestVisiblePath.total_fee_krw)}</p>
                     </div>
-                    <div className="bg-dark-500 p-4">
+                    <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수수료율</p>
-                      <p className={`mt-1 text-xl font-semibold font-data ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
+                      <p className={`font-data font-semibold sm:mt-1 sm:text-xl ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
                     </div>
                   </div>
                 </div>

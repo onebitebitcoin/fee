@@ -167,6 +167,14 @@ async function renderAndSearch() {
   return user;
 }
 
+// 전체 경로(non-KYC 필터 해제) 상태가 필요한 테스트용 헬퍼
+async function renderAndSearchAll() {
+  const user = await renderAndSearch();
+  await screen.findByText('최적 경로');
+  await user.click(screen.getByRole('button', { name: '최저 경로' }));
+  return user;
+}
+
 describe('CheapestPathPage', () => {
   it('does not auto-load results before search', async () => {
     render(
@@ -184,20 +192,21 @@ describe('CheapestPathPage', () => {
   });
 
   it('renders the current dashboard summary for the cheapest route', async () => {
+    // 기본값이 non-KYC이므로 cheap2(Lightning)가 best visible path
     await renderAndSearch();
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
     expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
-    expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
-    expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
+    expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
+    expect(screen.getAllByText('cheap2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('870,000 sats').length).toBeGreaterThan(0);
     expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
     expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
     expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
   });
 
   it('filters routes by explicit path dimensions', async () => {
-    const user = await renderAndSearch();
+    const user = await renderAndSearchAll();
 
     await screen.findByText('최적 경로');
 
@@ -215,7 +224,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('updates the selected route detail when a route is chosen', async () => {
-    const user = await renderAndSearch();
+    const user = await renderAndSearchAll();
 
     await screen.findByText('최적 경로');
     await user.click(screen.getAllByRole('button', { name: 'mid2 경로 선택' })[0]);
@@ -226,7 +235,7 @@ describe('CheapestPathPage', () => {
   });
 
   it('renders service logos for exchanges and lightning providers', async () => {
-    const user = await renderAndSearch();
+    const user = await renderAndSearchAll();
 
     await screen.findByText('최적 경로');
 
@@ -324,6 +333,7 @@ describe('CheapestPathPage', () => {
 
     await user.click(screen.getByRole('button', { name: '역방향 매도' }));
     await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
+    await user.click(await screen.findByRole('button', { name: '최저 경로' }));
 
     expect(await screen.findByText('역방향 매도 경로')).toBeInTheDocument();
     expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
@@ -331,7 +341,7 @@ describe('CheapestPathPage', () => {
     expect(screen.getAllByText('1,280,000 KRW').length).toBeGreaterThan(0);
   });
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
-    const user = await renderAndSearch();
+    const user = await renderAndSearchAll();
 
     await screen.findByText('최적 경로');
     await user.click(screen.getByRole('button', { name: 'cheap1 경로 상세 열기' }));
