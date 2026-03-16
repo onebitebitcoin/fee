@@ -41,28 +41,39 @@ _HEADERS = {
 
 def fetch_boltz_fees() -> dict:
     """
-    Boltz Exchange API에서 BTC→Lightning 역방향 스왑(reverse swap) 수수료를 조회.
-    Reverse swap: 온체인 BTC를 보내면 Lightning으로 받는 방식.
-    API: https://api.boltz.exchange/v2/swap/reverse
+    Boltz Exchange API에서 BTC(온체인)→Lightning 스왑 수수료를 조회.
+    Submarine swap: 온체인 BTC를 보내면 Lightning으로 받는 방식 (0.1%).
+    API: https://api.boltz.exchange/v2/swap/submarine
     """
     service_name = 'Boltz'
     source_url = 'https://boltz.exchange'
-    api_url = 'https://api.boltz.exchange/v2/swap/reverse'
+    api_url = 'https://api.boltz.exchange/v2/swap/submarine'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
 
         # BTC/BTC 페어를 찾음 (on-chain BTC → Lightning BTC)
-        pair_data = data.get('BTC/BTC') or data.get('BTC') or (list(data.values())[0] if data else None)
+        # Boltz v2 API 응답 구조: {"BTC/BTC": {...}} 또는 {"BTC": {"BTC": {...}}} 중첩 형태
+        btc_outer = data.get('BTC')
+        pair_data = (
+            data.get('BTC/BTC')
+            or (btc_outer.get('BTC') if isinstance(btc_outer, dict) else None)
+            or btc_outer
+            or (list(data.values())[0] if data else None)
+        )
         if not pair_data:
             return _error_result(service_name, source_url, f'Boltz API 응답에서 BTC/BTC 페어를 찾지 못함: {list(data.keys())}')
 
         fees = pair_data.get('fees', {})
-        fee_pct = fees.get('percentage', 0.5)
+        # Boltz submarine (on-chain → Lightning) 기본 수수료: 0.1%
+        fee_pct = fees.get('percentage', 0.1)
         miner_fees = fees.get('minerFees', {})
-        # lockup + claim 마이닝 수수료 합산 (사토시)
-        fee_fixed_sat = (miner_fees.get('lockup', 0) or 0) + (miner_fees.get('claim', 0) or 0)
+        # minerFees는 int(submarine) 또는 dict(reverse) 형태
+        if isinstance(miner_fees, dict):
+            fee_fixed_sat = (miner_fees.get('lockup', 0) or 0) + (miner_fees.get('claim', 0) or 0)
+        else:
+            fee_fixed_sat = int(miner_fees) if miner_fees else 0
 
         limits = pair_data.get('limits', {})
         min_amount_sat = limits.get('minimal', 10_000)
@@ -372,23 +383,28 @@ def fetch_oksusu_fees() -> dict:
 
 def fetch_boltz_submarine_fees() -> dict:
     """
-    Boltz Exchange 잠수함 스왑(submarine swap) 수수료 조회.
-    Submarine swap: Lightning으로 보내면 온체인 BTC로 받는 방식.
-    (이 방향은 참고용; 우리 경로는 reverse swap이 주 목적)
-    API: https://api.boltz.exchange/v2/swap/submarine
+    Boltz Exchange Lightning→BTC(온체인) 스왑 수수료 조회.
+    Reverse swap: Lightning을 보내면 온체인 BTC로 받는 방식 (0.5%).
+    API: https://api.boltz.exchange/v2/swap/reverse
     """
     service_name = 'Boltz (Submarine)'
     source_url = 'https://boltz.exchange'
-    api_url = 'https://api.boltz.exchange/v2/swap/submarine'
+    api_url = 'https://api.boltz.exchange/v2/swap/reverse'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
-        pair_data = data.get('BTC/BTC') or data.get('BTC') or (list(data.values())[0] if data else None)
+        btc_outer2 = data.get('BTC')
+        pair_data = (
+            data.get('BTC/BTC')
+            or (btc_outer2.get('BTC') if isinstance(btc_outer2, dict) else None)
+            or btc_outer2
+            or (list(data.values())[0] if data else None)
+        )
         if not pair_data:
             return _error_result(service_name, source_url, 'BTC/BTC 페어 없음')
         fees = pair_data.get('fees', {})
-        fee_pct = fees.get('percentage', 0.5)
+        fee_pct = fees.get('percentage', 0.1)
         miner_fees = fees.get('minerFees', {})
         fee_fixed_sat = int(miner_fees) if isinstance(miner_fees, (int, float)) else 0
         limits = pair_data.get('limits', {})
