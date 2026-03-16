@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CheapestPathPage } from './pages/CheapestPathPage';
 import { ExchangeStatusPage } from './pages/ExchangeStatusPage';
+import { PolicyPage } from './pages/PolicyPage';
 import { RunsPage } from './pages/RunsPage';
 import { TickersPage } from './pages/TickersPage';
 
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/withdrawals" element={<Navigate to="/status" replace />} />
         <Route path="/network-status" element={<Navigate to="/status" replace />} />
         <Route path="/status" element={<ExchangeStatusPage />} />
+        <Route path="/policy" element={<PolicyPage />} />
         <Route path="/runs" element={<RunsPage />} />
       </Route>
       <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
