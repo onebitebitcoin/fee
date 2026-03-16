@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDown, ArrowRight, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowRight, Ban, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   CARF_GROUP_LABELS,
@@ -113,6 +113,7 @@ export function PolicyPage() {
   const src = KOREAN_EXCHANGES.find((e) => e.id === srcId)!;
   const dst = GLOBAL_EXCHANGES.find((e) => e.id === dstId)!;
   const combined = combinedYear(src, dst);
+  const isImpossible = dst.travelRuleKorea === 'none';
 
   return (
     <div className="space-y-5 animate-fade-in-up">
@@ -165,16 +166,30 @@ export function PolicyPage() {
         <ExchangeRow exchange={src} side="출발" />
 
         {/* Dest row */}
-        <ExchangeRow exchange={dst} side="도착" />
+        <div className={isImpossible ? 'opacity-50' : ''}>
+          <ExchangeRow exchange={dst} side="도착" />
+        </div>
 
         {/* Combined result */}
-        <div className="px-4 py-3 flex items-center justify-between gap-3 bg-dark-400/40">
-          <div className="flex items-center gap-2 text-xs text-bnb-muted">
-            <span className={`h-2 w-2 rounded-full ${impactDotClass(dst.koreaImpact)}`} />
-            <span>한국 사용자 영향: <span className="font-semibold text-bnb-text">{impactLabel(dst.koreaImpact)}</span></span>
+        {isImpossible ? (
+          <div className="px-4 py-3 flex items-center gap-3 bg-bnb-red/10 border-t border-bnb-red/20">
+            <Ban size={14} className="shrink-0 text-bnb-red" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-bnb-red">불가능한 경로</p>
+              <p className="text-[11px] text-bnb-muted mt-0.5">
+                {dst.name}은(는) 트래블룰 미지원 거래소입니다. 한국 거래소(특금법)에서 공식적으로 출금이 불가합니다.
+              </p>
+            </div>
           </div>
-          <span className={`text-xs font-bold font-data ${combined.cls}`}>{combined.label}</span>
-        </div>
+        ) : (
+          <div className="px-4 py-3 flex items-center justify-between gap-3 bg-dark-400/40">
+            <div className="flex items-center gap-2 text-xs text-bnb-muted">
+              <span className={`h-2 w-2 rounded-full ${impactDotClass(dst.koreaImpact)}`} />
+              <span>한국 사용자 영향: <span className="font-semibold text-bnb-text">{impactLabel(dst.koreaImpact)}</span></span>
+            </div>
+            <span className={`text-xs font-bold font-data ${combined.cls}`}>{combined.label}</span>
+          </div>
+        )}
 
         {/* Detail note for destination */}
         <div className="px-4 py-2.5">
