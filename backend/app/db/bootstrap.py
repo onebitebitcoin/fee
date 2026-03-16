@@ -1,7 +1,8 @@
-from backend.app.db.base import Base
-from backend.app.db.session import engine
-from backend.app.db import models  # noqa: F401
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    """DB 초기화. Alembic 마이그레이션은 배포 시 별도 실행."""
+    logger.info('DB session initialized (schema managed by Alembic)')

@@ -103,7 +103,8 @@ class CrawlService:
             # Lightning 스왑 수수료 수집 (오류가 나도 전체 크롤링 성공에 영향 없음)
             lightning_fees = get_all_lightning_swap_fees()
             for fee_data in lightning_fees:
-                if fee_data.get('error') and not fee_data.get('enabled', True):
+                if fee_data.get('error'):
+                    logger.warning('Lightning swap fee partial: %s - %s', fee_data.get('service_name'), fee_data['error'])
                     self._add_error(crawl_run.id, None, None, 'lightning_swap', f"{fee_data.get('service_name', 'unknown')}: {fee_data['error']}")
                     # lightning_swap 오류는 error_count에 포함하지 않음 (부가 정보)
                 self.db.add(LightningSwapFeeSnapshot(
@@ -136,6 +137,7 @@ class CrawlService:
             crawl_run.status = 'partial_success' if error_count else 'success'
             crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, errors={error_count}'
         except Exception as exc:
+            self.db.rollback()          # 부분 커밋 방지
             self._add_error(crawl_run.id, None, None, 'crawl', str(exc))
             crawl_run.status = 'failed'
             crawl_run.message = str(exc)

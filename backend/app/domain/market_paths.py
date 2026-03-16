@@ -501,12 +501,6 @@ def find_cheapest_path_from_snapshot_rows(
             'source_url': source_url,
         }
 
-    def is_suspended(exchange: str, coin: str, network_label: str):
-        for item in maintenance_status.get(exchange, []):
-            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
-                return item.get('reason', '점검 중')
-        return None
-
     usd_krw_rate = latest_run.usd_krw_rate or next((row.usd_krw_rate for row in ticker_rows if getattr(row, 'usd_krw_rate', None)), None)
     if usd_krw_rate is None:
         return {'error': '최신 수집 결과에 환율 정보가 없습니다.'}
@@ -555,6 +549,12 @@ def find_cheapest_path_from_snapshot_rows(
             'network': row.network or '',
             'reason': row.reason or row.status,
         })
+
+    def is_suspended(exchange: str, coin: str, network_label: str):
+        for item in maintenance_status.get(exchange, []):
+            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
+                return item.get('reason', '점검 중')
+        return None
 
     maintenance_checked_at = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     paths = []
@@ -904,12 +904,6 @@ def find_cheapest_sell_path_from_snapshot_rows(
             'source_url': source_url,
         }
 
-    def is_suspended(exchange: str, coin: str, network_label: str):
-        for item in maintenance_status.get(exchange, []):
-            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
-                return item.get('reason', '점검 중')
-        return None
-
     def build_entry(
         *,
         route_variant: str,
@@ -986,6 +980,12 @@ def find_cheapest_sell_path_from_snapshot_rows(
             'network': row.network or '',
             'reason': row.reason or row.status,
         })
+
+    def is_suspended(exchange: str, coin: str, network_label: str):
+        for item in maintenance_status.get(exchange, []):
+            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
+                return item.get('reason', '점검 중')
+        return None
 
     maintenance_checked_at = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     paths: list[dict] = []

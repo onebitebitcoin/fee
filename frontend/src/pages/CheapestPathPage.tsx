@@ -1003,6 +1003,32 @@ export function CheapestPathPage() {
             </div>
           </div>
 
+          {/* Selected Route Detail */}
+          {selectedRoute ? (
+            <section
+              role="region"
+              aria-label="선택 경로 상세"
+              className="border-b border-dark-200 bg-dark-400 p-4 sm:p-5"
+            >
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-bnb-muted">선택 경로 상세</p>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <span className="border border-dark-200 bg-dark-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">
+                  {selectedRoute.rank}위
+                </span>
+                <ServiceLabel
+                  name={selectedRoute.path.korean_exchange}
+                  label={fmtEx(selectedRoute.path.korean_exchange)}
+                  variant="exchange"
+                  textClassName="text-base font-semibold text-bnb-text"
+                  logoClassName="h-6 w-6"
+                />
+              </div>
+              <div className="border border-dark-200 bg-dark-500/60 p-3">
+                <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} mode={mode} />
+              </div>
+            </section>
+          ) : null}
+
           {/* Bottom: Fee Velocity */}
           <div className="bg-dark-500">
               <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">

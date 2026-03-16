@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
@@ -11,6 +11,23 @@ from backend.app.services.live_market import (
 from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
+
+
+def _ts(dt_val) -> int | None:
+    """datetime → unix timestamp (초). None이면 None 반환."""
+    return int(dt_val.timestamp()) if dt_val else None
+
+
+def _serialize_run(run) -> dict | None:
+    """CrawlRun 객체를 직렬화 딕셔너리로 변환."""
+    if run is None:
+        return None
+    return {
+        'id': run.id,
+        'status': run.status,
+        'completed_at': _ts(run.completed_at),
+        'started_at': _ts(run.started_at) if hasattr(run, 'started_at') else None,
+    }
 
 
 def _enrich_path_payload_with_kyc(payload: dict, global_exchange: str) -> dict:
@@ -42,7 +59,7 @@ def get_latest_tickers(db: Session = Depends(get_db)) -> dict:
         return {'last_run': None, 'items': []}
     rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id)
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
+        'last_run': _serialize_run(latest_run),
         'items': [
             {
                 'exchange': row.exchange,
@@ -81,8 +98,8 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
         errors = [row for row in errors if row.coin == coin.upper()]
     legacy_rows = [row for row in rows if row.source == 'official_docs']
     return {
-        'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None},
-        'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
+        'last_run': _serialize_run(latest_run),
+        'latest_scraping_time': _ts(latest_run.completed_at),
         'items': [
             {
                 'exchange': row.exchange,
@@ -95,7 +112,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'enabled': row.enabled,
                 'note': row.note,
                 'source_url': get_withdrawal_source_url(row.exchange, row.coin, row.network_label),
-                'recorded_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                'recorded_at': _ts(row.recorded_at),
             }
             for row in rows
         ],
@@ -105,7 +122,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'coin': row.coin,
                 'stage': row.stage,
                 'error_message': row.error_message,
-                'created_at': int(row.created_at.timestamp()) if row.created_at else None,
+                'created_at': _ts(row.created_at),
             }
             for row in errors
         ] + [
@@ -114,7 +131,7 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'coin': row.coin,
                 'stage': 'withdrawal',
                 'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                'created_at': _ts(row.recorded_at),
             }
             for row in legacy_rows
         ],
@@ -211,7 +228,7 @@ def get_cheapest_path(
         }
     if mode == 'sell':
         if amount_btc is None:
-            return {'error': 'sell 모드에는 amount_btc가 필요합니다.'}
+            raise HTTPException(status_code=422, detail='sell 모드에는 amount_btc가 필요합니다.')
         payload = find_cheapest_sell_path_from_snapshot_rows(
             amount_btc=amount_btc,
             global_exchange=global_exchange,
@@ -232,7 +249,7 @@ def get_cheapest_path(
             lightning_swap_rows=lightning_swap_rows,
         )
     if payload.get('error'):
-        return payload
+        raise HTTPException(status_code=503, detail=payload['error'])
     return _enrich_path_payload_with_kyc(payload, global_exchange)
 
 

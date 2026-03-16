@@ -30,8 +30,10 @@ def _warm_withdrawal_cache() -> None:
 async def lifespan(app: FastAPI):
     init_db()
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(ThreadPoolExecutor(max_workers=1), _warm_withdrawal_cache)
+    executor = ThreadPoolExecutor(max_workers=1)
+    loop.run_in_executor(executor, _warm_withdrawal_cache)
     yield
+    executor.shutdown(wait=False)
 
 
 def create_app() -> FastAPI:

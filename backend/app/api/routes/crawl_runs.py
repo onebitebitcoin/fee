@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get('')
-def list_runs(limit: int = 20, db: Session = Depends(get_db)) -> dict:
+def list_runs(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)) -> dict:
     runs = repositories.list_crawl_runs(db, limit=min(max(limit, 1), 100))
     return {
         'items': [
@@ -29,10 +29,15 @@ def list_runs(limit: int = 20, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)
-def trigger_crawl(db: Session = Depends(get_db)) -> dict:
+def trigger_crawl(
+    x_api_key: str = Header(..., alias='X-API-Key'),
+    db: Session = Depends(get_db),
+) -> dict:
     settings = get_settings()
     if not settings.manual_crawl_enabled:
         raise HTTPException(status_code=403, detail='Manual crawl is disabled')
+    if x_api_key != settings.admin_api_key:
+        raise HTTPException(status_code=401, detail='Unauthorized')
     result = CrawlService(db).run_full_crawl(trigger='manual')
     return {
         'id': result.id,

@@ -50,7 +50,10 @@ def list_crawl_errors_for_run(db: Session, crawl_run_id: int, stage: str | None 
 
 
 def list_lightning_swap_fees_for_run(db: Session, run_id: int) -> list[LightningSwapFeeSnapshot]:
-    return db.query(LightningSwapFeeSnapshot).filter(LightningSwapFeeSnapshot.crawl_run_id == run_id).order_by(LightningSwapFeeSnapshot.service_name).all()
+    stmt = select(LightningSwapFeeSnapshot).where(
+        LightningSwapFeeSnapshot.crawl_run_id == run_id
+    ).order_by(LightningSwapFeeSnapshot.service_name)
+    return list(db.scalars(stmt))
 
 
 def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
@@ -82,8 +85,8 @@ def get_access_count(db: Session) -> dict:
     now_kst = dt.datetime.now(kst)
     today_start = dt.datetime(now_kst.year, now_kst.month, now_kst.day, tzinfo=kst)
 
-    total = db.query(sqlfunc.count(AccessLog.id)).scalar() or 0
-    today = db.query(sqlfunc.count(AccessLog.id)).filter(AccessLog.accessed_at >= today_start).scalar() or 0
+    total = db.scalar(select(sqlfunc.count(AccessLog.id))) or 0
+    today = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.accessed_at >= today_start)) or 0
 
     return {'total': total, 'today': today}
 

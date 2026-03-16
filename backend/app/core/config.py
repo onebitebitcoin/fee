@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     app_name: str = 'exchange-fee'
     api_v1_prefix: str = '/api/v1'
     environment: Literal['development', 'test', 'production'] = 'development'
-    database_url: str = 'sqlite:///./exchange_fee.db'
+    database_url: str = f'sqlite:///{ROOT_DIR}/exchange_fee.db'
 
     @field_validator('database_url', mode='before')
     @classmethod
@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     cors_origins: str = '*'
     crawl_interval_minutes: int = 60
     manual_crawl_enabled: bool = True
+    admin_api_key: str = 'dev-secret-key'  # 프로덕션에서는 환경 변수로 오버라이드 필요
     frontend_dist_dir: Path = Field(default=FRONTEND_DIST_DIR)
+    playground_service_nodes_url: str = 'https://playground.onebitebitcoin.com/api/service-nodes/admin?username=guest'
 
     @property
     def cors_origin_list(self) -> list[str]:

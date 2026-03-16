@@ -58,34 +58,32 @@ def get_kyc_registry(force_refresh: bool = False) -> dict[str, dict]:
     with _cache_lock:
         if not force_refresh and _cache['registry'] and now < float(_cache['expires_at']):
             return dict(_cache['registry'])
-
-    registry: dict[str, dict] = {}
-    try:
-        response = requests.get(
-            PLAYGROUND_SERVICE_NODES_URL,
-            headers={'Accept': 'application/json'},
-            timeout=_REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        for node in payload.get('nodes', []):
-            service_key = _normalize_service(node.get('service') or node.get('display_name'))
-            if not service_key:
-                continue
-            registry[service_key] = {
-                'display_name': node.get('display_name'),
-                'is_kyc': bool(node.get('is_kyc')),
-                'is_custodial': bool(node.get('is_custodial')),
-            }
-    except Exception as exc:  # pragma: no cover - defensive network fallback
-        _logger.warning('Failed to load playground KYC registry: %s', exc)
-        with _cache_lock:
-            return dict(_cache['registry'])
-
-    with _cache_lock:
+        registry: dict[str, dict] = {}
+        try:
+            response = requests.get(
+                PLAYGROUND_SERVICE_NODES_URL,
+                headers={'Accept': 'application/json'},
+                timeout=_REQUEST_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            for node in payload.get('nodes', []):
+                service_key = _normalize_service(node.get('service') or node.get('display_name'))
+                if not service_key:
+                    continue
+                registry[service_key] = {
+                    'display_name': node.get('display_name'),
+                    'is_kyc': bool(node.get('is_kyc')),
+                    'is_custodial': bool(node.get('is_custodial')),
+                }
+        except Exception as exc:  # pragma: no cover - defensive network fallback
+            _logger.warning('Failed to load playground KYC registry: %s', exc)
+            if _cache['registry']:
+                return dict(_cache['registry'])
+            raise
         _cache['registry'] = dict(registry)
         _cache['expires_at'] = now + _CACHE_TTL_SECONDS
-    return registry
+        return dict(_cache['registry'])
 
 
 

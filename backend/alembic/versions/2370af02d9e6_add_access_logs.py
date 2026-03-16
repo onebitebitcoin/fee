@@ -2,7 +2,7 @@
 
 # ruff: noqa: E402
 revision = '2370af02d9e6'
-down_revision = '52fdd263d2f9'
+down_revision = 'd07e15a759c2'
 branch_labels = None
 depends_on = None
 

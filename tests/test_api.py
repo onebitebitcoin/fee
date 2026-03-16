@@ -227,7 +227,7 @@ def test_trigger_crawl_persists_rows(mocker):
     })
 
     client = TestClient(app)
-    response = client.post('/api/v1/crawl-runs')
+    response = client.post('/api/v1/crawl-runs', headers={'X-API-Key': 'dev-secret-key'})
     assert response.status_code == 201
     payload = response.json()
     assert payload['status'] == 'success'
