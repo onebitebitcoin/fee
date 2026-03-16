@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDown, ArrowRight, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowRight, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   CARF_GROUP_LABELS,
@@ -8,6 +8,7 @@ import {
   KEY_INSIGHTS,
   KOREAN_EXCHANGES,
   SOURCES,
+  TravelRuleStatus,
 } from '../data/carfData';
 
 function carfBadgeClass(group: CarfGroup): string {
@@ -37,6 +38,26 @@ function impactLabel(impact: string): string {
   if (impact === 'medium') return '중간';
   if (impact === 'low') return '낮음';
   return '없음';
+}
+
+function travelRuleBadge(status: TravelRuleStatus) {
+  if (status === 'compatible')
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-bnb-green/30 bg-bnb-green/10 px-1.5 py-0.5 text-[10px] font-semibold text-bnb-green">
+        <Shuffle size={10} /> 호환
+      </span>
+    );
+  if (status === 'partial')
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-brand-500/30 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-400">
+        <Shuffle size={10} /> 부분
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-bnb-red/30 bg-bnb-red/10 px-1.5 py-0.5 text-[10px] font-semibold text-bnb-red">
+      <XCircle size={10} /> 미적용
+    </span>
+  );
 }
 
 function combinedYear(src: ExchangeCarfInfo, dst: ExchangeCarfInfo): { label: string; cls: string } {
@@ -188,13 +209,15 @@ export function PolicyPage() {
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap">CARF</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap">첫 교환</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden md:table-cell">한국</th>
+                <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden lg:table-cell">트래블룰</th>
+                <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden lg:table-cell">한국 사용자 관할권</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden md:table-cell">영향도</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-200/60">
               {/* Korean exchanges */}
               <tr className="bg-dark-400/20">
-                <td colSpan={6} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">한국 거래소</td>
+                <td colSpan={8} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">한국 거래소</td>
               </tr>
               {KOREAN_EXCHANGES.map((ex) => (
                 <tr key={ex.id} className="hover:bg-dark-400/30 transition-colors">
@@ -212,6 +235,12 @@ export function PolicyPage() {
                       <CheckCircle size={11} /> 제공
                     </span>
                   </td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell">
+                    <span className="text-[10px] text-bnb-muted">한국 특금법 적용</span>
+                  </td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell">
+                    <span className="text-xs text-bnb-text">대한민국</span>
+                  </td>
                   <td className="px-4 py-2.5 hidden md:table-cell">
                     <span className="flex items-center gap-1.5">
                       <span className={`h-2 w-2 rounded-full ${impactDotClass(ex.koreaImpact)}`} />
@@ -222,10 +251,10 @@ export function PolicyPage() {
               ))}
               {/* Global exchanges */}
               <tr className="bg-dark-400/20">
-                <td colSpan={6} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">글로벌 거래소</td>
+                <td colSpan={8} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">글로벌 거래소</td>
               </tr>
               {GLOBAL_EXCHANGES.map((ex) => (
-                <tr key={ex.id} className="hover:bg-dark-400/30 transition-colors">
+                <tr key={ex.id} className="hover:bg-dark-400/30 transition-colors group">
                   <td className="px-4 py-2.5 font-medium text-bnb-text whitespace-nowrap">{ex.name}</td>
                   <td className="px-4 py-2.5 text-bnb-muted whitespace-nowrap hidden sm:table-cell">{ex.registeredCountry}</td>
                   <td className="px-4 py-2.5">
@@ -243,6 +272,22 @@ export function PolicyPage() {
                     ) : (
                       <span className="text-bnb-muted">미제공</span>
                     )}
+                  </td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell">
+                    {ex.travelRuleKorea ? (
+                      <div className="flex flex-col gap-0.5">
+                        {travelRuleBadge(ex.travelRuleKorea)}
+                        <span className="text-[10px] text-bnb-muted leading-tight max-w-[180px]">{ex.travelRuleNote}</span>
+                      </div>
+                    ) : <span className="text-bnb-muted">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs text-bnb-text whitespace-nowrap">{ex.koreaUserJurisdiction ?? '—'}</span>
+                      {ex.koreaUserJurisdictionNote && (
+                        <span className="text-[10px] text-bnb-muted leading-tight max-w-[200px]">{ex.koreaUserJurisdictionNote}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 hidden md:table-cell">
                     <span className="flex items-center gap-1.5">

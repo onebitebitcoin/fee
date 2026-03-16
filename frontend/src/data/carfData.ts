@@ -1,5 +1,6 @@
 export type CarfGroup = '2027' | '2028' | '2029' | 'not_member' | 'unclear';
 export type KoreaImpact = 'high' | 'medium' | 'low' | 'none';
+export type TravelRuleStatus = 'compatible' | 'partial' | 'none';
 
 export interface ExchangeCarfInfo {
   id: string;
@@ -13,6 +14,10 @@ export interface ExchangeCarfInfo {
   koreaBlocked: boolean;
   koreaImpact: KoreaImpact;
   impactDetail: string;
+  travelRuleKorea?: TravelRuleStatus;
+  travelRuleNote?: string;
+  koreaUserJurisdiction?: string;
+  koreaUserJurisdictionNote?: string;
 }
 
 export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
@@ -96,6 +101,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: true,
     koreaImpact: 'medium',
     impactDetail: '한국 FIU 미등록, 앱 차단. 케이맨 CARF 2027 적용.',
+    travelRuleKorea: 'compatible',
+    travelRuleNote: 'VerifyVASP 참여 — 한국 거래소와 트래블룰 정보 교환 가능',
+    koreaUserJurisdiction: '케이맨 제도',
+    koreaUserJurisdictionNote: '한국 FIU 미등록, 한국 사용자는 Binance Holdings Ltd.(케이맨) 약관 적용',
   },
   {
     id: 'okx',
@@ -109,6 +118,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: true,
     koreaImpact: 'low',
     impactDetail: '한국 앱 차단. 세이셸 CARF 2028.',
+    travelRuleKorea: 'partial',
+    travelRuleNote: 'TRISA·VerifyVASP 일부 지원, 한국 차단으로 실질 미적용',
+    koreaUserJurisdiction: '세이셸',
+    koreaUserJurisdictionNote: 'Aux Cayes FinTech Co. Ltd.(세이셸) 약관 적용, EU 이용자는 OKX EU(몰타) 별도',
   },
   {
     id: 'bybit',
@@ -122,6 +135,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: true,
     koreaImpact: 'low',
     impactDetail: '한국 앱 차단. BVI CARF 2028.',
+    travelRuleKorea: 'partial',
+    travelRuleNote: '자체 Travel Rule 솔루션 보유, 한국 VerifyVASP 네트워크 미참여',
+    koreaUserJurisdiction: 'BVI',
+    koreaUserJurisdictionNote: 'Bybit Fintech Limited(BVI) 약관 적용, 실질 HQ는 UAE 두바이',
   },
   {
     id: 'bitget',
@@ -135,6 +152,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: true,
     koreaImpact: 'low',
     impactDetail: '한국 앱스토어 차단. 세이셸 CARF 2028.',
+    travelRuleKorea: 'compatible',
+    travelRuleNote: 'VerifyVASP 참여 — 한국 거래소와 트래블룰 정보 교환 가능',
+    koreaUserJurisdiction: '세이셸',
+    koreaUserJurisdictionNote: 'Bitget Limited(세이셸) 약관 적용',
   },
   {
     id: 'kraken',
@@ -148,6 +169,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: false,
     koreaImpact: 'low',
     impactDetail: '미국 CARF 2029. 한국 공식 서비스 미제공.',
+    travelRuleKorea: 'partial',
+    travelRuleNote: 'Travel Rule Protocol(TRP) 지원, 한국 VerifyVASP 네트워크 미참여',
+    koreaUserJurisdiction: '미국 (와이오밍)',
+    koreaUserJurisdictionNote: 'Payward Inc.(미국) 약관 적용, 한국 공식 서비스 미제공',
   },
   {
     id: 'coinbase',
@@ -161,6 +186,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: false,
     koreaImpact: 'low',
     impactDetail: '미국 CARF 2029. 한국 공식 서비스 미제공.',
+    travelRuleKorea: 'partial',
+    travelRuleNote: 'Travel Rule Protocol(TRP) 지원, 한국 VerifyVASP 네트워크 미참여',
+    koreaUserJurisdiction: '미국 (텍사스)',
+    koreaUserJurisdictionNote: 'Coinbase Global, Inc.(미국) 약관 적용, 한국 공식 서비스 미제공',
   },
   {
     id: 'bitfinex',
@@ -174,6 +203,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: false,
     koreaImpact: 'low',
     impactDetail: 'BVI CARF 2028. 한국 공식 서비스 없음.',
+    travelRuleKorea: 'none',
+    travelRuleNote: '트래블룰 지원 미확인, CFTC 제재 이력으로 규제 리스크 높음',
+    koreaUserJurisdiction: 'BVI',
+    koreaUserJurisdictionNote: 'iFinex Inc.(BVI) 약관 적용',
   },
   {
     id: 'kucoin',
@@ -187,6 +220,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: true,
     koreaImpact: 'none',
     impactDetail: '터크스케이커스 CARF 미가입. 한국 앱스토어 차단. CARF 사각지대.',
+    travelRuleKorea: 'none',
+    travelRuleNote: '트래블룰 미지원, DOJ $297M 합의 이력. 규제 회피 이전 이력',
+    koreaUserJurisdiction: '터크스케이커스',
+    koreaUserJurisdictionNote: 'Peken Global Ltd.(터크스케이커스) 약관 적용, CARF·트래블룰 모두 사각지대',
   },
   {
     id: 'gate',
@@ -200,6 +237,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: false,
     koreaImpact: 'high',
     impactDetail: '한국 공식 서비스(서울 오피스). 케이맨 CARF 2027 적용.',
+    travelRuleKorea: 'compatible',
+    travelRuleNote: 'VerifyVASP 참여, 한국 공식 서비스 제공 — 트래블룰 완전 적용',
+    koreaUserJurisdiction: '케이맨 제도 / 대한민국',
+    koreaUserJurisdictionNote: '서울 오피스 운영, 한국 사용자는 한국 법 및 케이맨 약관 이중 적용 가능',
   },
   {
     id: 'htx',
@@ -213,6 +254,10 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaBlocked: false,
     koreaImpact: 'none',
     impactDetail: '세이셸 법인 말소 상태. 규제 공백. CARF 사각지대.',
+    travelRuleKorea: 'none',
+    travelRuleNote: '법인 말소로 트래블룰 준수 불가, 규제 공백 상태',
+    koreaUserJurisdiction: '불명확',
+    koreaUserJurisdictionNote: '세이셸 법인 말소로 적용 가능한 관할권 불명확, 리스크 최고',
   },
 ];
 
