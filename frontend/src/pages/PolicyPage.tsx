@@ -207,6 +207,7 @@ export function PolicyPage() {
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap">거래소</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden sm:table-cell">등록 국가</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap">CARF</th>
+                <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden sm:table-cell">수집 시작</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap">첫 교환</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden md:table-cell">한국</th>
                 <th className="px-4 py-2 text-left font-semibold text-bnb-muted whitespace-nowrap hidden lg:table-cell">트래블룰</th>
@@ -217,7 +218,7 @@ export function PolicyPage() {
             <tbody className="divide-y divide-dark-200/60">
               {/* Korean exchanges */}
               <tr className="bg-dark-400/20">
-                <td colSpan={8} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">한국 거래소</td>
+                <td colSpan={9} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">한국 거래소</td>
               </tr>
               {KOREAN_EXCHANGES.map((ex) => (
                 <tr key={ex.id} className="hover:bg-dark-400/30 transition-colors">
@@ -229,6 +230,7 @@ export function PolicyPage() {
                       {CARF_GROUP_LABELS[ex.carfGroup]}
                     </span>
                   </td>
+                  <td className="px-4 py-2.5 font-data text-xs text-bnb-text whitespace-nowrap hidden sm:table-cell">{ex.carfDataCollectionStart ?? '—'}</td>
                   <td className="px-4 py-2.5 font-data text-bnb-text whitespace-nowrap">{ex.carfFirstExchange ?? '—'}</td>
                   <td className="px-4 py-2.5 hidden md:table-cell">
                     <span className="inline-flex items-center gap-1 text-bnb-green">
@@ -251,7 +253,7 @@ export function PolicyPage() {
               ))}
               {/* Global exchanges */}
               <tr className="bg-dark-400/20">
-                <td colSpan={8} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">글로벌 거래소</td>
+                <td colSpan={9} className="px-4 py-1.5 text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">글로벌 거래소</td>
               </tr>
               {GLOBAL_EXCHANGES.map((ex) => (
                 <tr key={ex.id} className="hover:bg-dark-400/30 transition-colors group">
@@ -263,6 +265,7 @@ export function PolicyPage() {
                       {CARF_GROUP_LABELS[ex.carfGroup]}
                     </span>
                   </td>
+                  <td className="px-4 py-2.5 font-data text-xs text-bnb-text whitespace-nowrap hidden sm:table-cell">{ex.carfDataCollectionStart ?? '—'}</td>
                   <td className="px-4 py-2.5 font-data text-bnb-text whitespace-nowrap">{ex.carfFirstExchange ?? '—'}</td>
                   <td className="px-4 py-2.5 hidden md:table-cell">
                     {ex.koreaService ? (
