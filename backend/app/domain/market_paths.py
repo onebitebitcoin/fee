@@ -682,7 +682,10 @@ def find_cheapest_path_from_snapshot_rows(
 
     # Lightning exit 경로 추가 (온체인 BTC → Lightning 스왑 서비스 → 개인 Lightning 지갑)
     if lightning_swap_rows:
-        active_swaps = [s for s in lightning_swap_rows if s.enabled and s.fee_pct is not None]
+        active_swaps = [
+            s for s in lightning_swap_rows
+            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'onchain_to_ln'
+        ]
 
         # 글로벌 거래소 BTC 출금 수수료 조회 (USDT 경유 경로에 필요)
         global_btc_withdrawals = withdrawals_by_key.get((global_exchange, 'BTC'), [])
@@ -1079,7 +1082,10 @@ def find_cheapest_sell_path_from_snapshot_rows(
             ))
 
     if lightning_swap_rows:
-        active_swaps = [s for s in lightning_swap_rows if s.enabled and s.fee_pct is not None]
+        active_swaps = [
+            s for s in lightning_swap_rows
+            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'ln_to_onchain'
+        ]
         for swap in active_swaps:
             fee_pct = swap.fee_pct / 100
             fee_fixed_btc = (swap.fee_fixed_sat or 0) / 1e8

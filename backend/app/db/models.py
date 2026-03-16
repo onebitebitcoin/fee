@@ -116,6 +116,7 @@ class LightningSwapFeeSnapshot(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    direction: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='lightning_swap_fee_snapshots')

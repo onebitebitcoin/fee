@@ -77,6 +77,7 @@ def fetch_boltz_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': None,
+            'direction': 'onchain_to_ln',
         }
     except Exception as exc:
         logger.warning('Boltz 수수료 조회 실패: %s', exc)
@@ -127,6 +128,7 @@ def fetch_coinos_fees() -> dict:
                 'enabled': True,
                 'source_url': source_url,
                 'error': _STATIC_ERROR,
+                'direction': 'ln_to_onchain',
             }
 
         return {
@@ -138,6 +140,7 @@ def fetch_coinos_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': None,
+            'direction': 'ln_to_onchain',
         }
     except Exception as exc:
         logger.warning('Coinos 수수료 조회 실패: %s', exc)
@@ -150,6 +153,7 @@ def fetch_coinos_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': _STATIC_ERROR,
+            'direction': 'ln_to_onchain',
         }
 
 
@@ -189,6 +193,7 @@ def fetch_bitflower_fees() -> dict:
                     'enabled': True,
                     'source_url': source_url,
                     'error': None,
+                    'direction': 'onchain_to_ln',
                 }
         except Exception:
             continue
@@ -212,6 +217,7 @@ def fetch_bitflower_fees() -> dict:
                     'enabled': True,
                     'source_url': source_url,
                     'error': 'API 미발견, 웹 스크래핑으로 추정',
+                    'direction': 'onchain_to_ln',
                 }
     except Exception as exc2:
         logger.warning('BitFlower 웹 스크래핑 실패: %s', exc2)
@@ -226,6 +232,7 @@ def fetch_bitflower_fees() -> dict:
         'enabled': True,
         'source_url': source_url,
         'error': _STATIC_ERROR,
+        'direction': 'onchain_to_ln',
     }
 
 
@@ -256,6 +263,7 @@ def fetch_wos_fees() -> dict:
                     'enabled': True,
                     'source_url': source_url,
                     'error': None,
+                    'direction': 'ln_to_onchain',
                 }
     except Exception as exc:
         logger.warning('WalletOfSatoshi API 조회 실패: %s', exc)
@@ -270,6 +278,7 @@ def fetch_wos_fees() -> dict:
         'enabled': True,
         'source_url': source_url,
         'error': _STATIC_ERROR,
+        'direction': 'ln_to_onchain',
     }
 
 
@@ -297,6 +306,7 @@ def fetch_strike_fees() -> dict:
                 'enabled': True,
                 'source_url': source_url,
                 'error': None,
+                'direction': 'ln_to_onchain',
             }
     except Exception as exc:
         logger.warning('Strike API 조회 실패: %s', exc)
@@ -311,6 +321,7 @@ def fetch_strike_fees() -> dict:
         'enabled': True,
         'source_url': source_url,
         'error': '공개 API 인증 필요, Lightning BTC 수신 무료 적용',
+        'direction': 'ln_to_onchain',
     }
 
 
@@ -342,6 +353,7 @@ def fetch_oksusu_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': None if match else static_error,
+            'direction': 'ln_to_onchain',
         }
     except Exception as exc:
         logger.warning('Oksusu 수수료 조회 실패: %s', exc)
@@ -354,6 +366,7 @@ def fetch_oksusu_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': static_error,
+            'direction': 'ln_to_onchain',
         }
 
 
@@ -388,6 +401,7 @@ def fetch_boltz_submarine_fees() -> dict:
             'enabled': True,
             'source_url': source_url,
             'error': None,
+            'direction': 'ln_to_onchain',
         }
     except Exception as exc:
         return _error_result(service_name, source_url, str(exc))
@@ -403,6 +417,7 @@ def _error_result(service_name: str, source_url: str, error: str) -> dict:
         'enabled': False,
         'source_url': source_url,
         'error': error,
+        'direction': None,
     }
 
 

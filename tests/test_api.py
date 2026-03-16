@@ -143,6 +143,18 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
             max_amount_sat=1_000_000_000,
             enabled=True,
             source_url='https://bitflower.com',
+            direction='onchain_to_ln',
+        ),
+        LightningSwapFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            service_name='Coinos',
+            fee_pct=0.4,
+            fee_fixed_sat=0,
+            min_amount_sat=1000,
+            max_amount_sat=50_000_000,
+            enabled=True,
+            source_url='https://coinos.io',
+            direction='ln_to_onchain',
         ),
     ])
     db.commit()
@@ -173,6 +185,10 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
     assert 'BitFlower' in payload['available_filters']['lightning_exit_providers']
+    # 방향 필터링: onchain_to_ln 서비스(BitFlower)만 매수 경로에 포함, ln_to_onchain(Coinos)은 제외
+    lightning_providers_in_paths = {p.get('lightning_exit_provider') for p in payload['all_paths'] if p.get('lightning_exit_provider')}
+    assert 'BitFlower' in lightning_providers_in_paths
+    assert 'Coinos' not in lightning_providers_in_paths
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
     assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
@@ -335,6 +351,7 @@ def test_exchange_status_includes_kyc_metadata(mocker):
             max_amount_sat=1_000_000_000,
             enabled=True,
             source_url='https://bitflower.com',
+            direction='onchain_to_ln',
         ),
     ])
     db.commit()

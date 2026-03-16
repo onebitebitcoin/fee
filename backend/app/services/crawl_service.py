@@ -117,6 +117,7 @@ class CrawlService:
                     enabled=fee_data.get('enabled', True),
                     source_url=fee_data.get('source_url'),
                     error_message=fee_data.get('error'),
+                    direction=fee_data.get('direction'),
                 ))
                 lightning_count += 1
 
