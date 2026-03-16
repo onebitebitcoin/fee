@@ -381,7 +381,7 @@ def fetch_oksusu_fees() -> dict:
         }
 
 
-def fetch_boltz_submarine_fees() -> dict:
+def fetch_boltz_reverse_fees() -> dict:
     """
     Boltz Exchange Lightning→BTC(온체인) 스왑 수수료 조회.
     Reverse swap: Lightning을 보내면 온체인 BTC로 받는 방식 (0.5%).

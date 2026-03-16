@@ -29,6 +29,10 @@ def _set_status_cache(data: dict) -> None:
     _STATUS_CACHE['status'] = {'data': data, 'ts': time.time()}
 
 
+def invalidate_status_cache() -> None:
+    _STATUS_CACHE.pop('status', None)
+
+
 def _ts(dt_val) -> int | None:
     """datetime → unix timestamp (초). None이면 None 반환."""
     return int(dt_val.timestamp()) if dt_val else None

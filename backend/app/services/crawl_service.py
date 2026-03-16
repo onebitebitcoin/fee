@@ -11,6 +11,14 @@ from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices
 
+# 지연 임포트: 순환 참조 방지용 (실제 호출은 run_full_crawl 내에서)
+def _invalidate_market_cache() -> None:
+    try:
+        from backend.app.api.routes.market import invalidate_status_cache  # noqa: PLC0415
+        invalidate_status_cache()
+    except Exception:
+        pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -137,6 +145,7 @@ class CrawlService:
 
             crawl_run.status = 'partial_success' if error_count else 'success'
             crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, errors={error_count}'
+            _invalidate_market_cache()
         except Exception as exc:
             self.db.rollback()          # 부분 커밋 방지
             self._add_error(crawl_run.id, None, None, 'crawl', str(exc))
