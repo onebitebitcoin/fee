@@ -231,3 +231,39 @@ export const KEY_INSIGHTS = [
   'KuCoin·HTX는 CARF 완전 사각지대 — 세금 추적 불가',
   '가상자산 과세(2027-01) + CARF 첫 교환(2027) 동시 시행 예정',
 ];
+
+export interface SourceLink {
+  label: string;
+  url: string;
+}
+
+export const SOURCES: SourceLink[] = [
+  {
+    label: 'OECD CARF 가입국 목록 (공식 PDF)',
+    url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+  },
+  {
+    label: 'OECD CARF 2025 모니터링 업데이트',
+    url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/crypto-asset-reporting-framework-monitoring-implementation-update-2025.pdf',
+  },
+  {
+    label: 'KDI: 한국 CARF MCAA 서명 (2024-11)',
+    url: 'https://eiec.kdi.re.kr/policy/materialView.do?num=260337',
+  },
+  {
+    label: '한국일보: 2027년부터 암호화자산 국가간 거래정보 교환',
+    url: 'https://www.hankookilbo.com/News/Read/A2025102815210003392',
+  },
+  {
+    label: '케이맨 제도 CARF 규정 시행 (2026-01)',
+    url: 'https://www.loebsmith.com/insight/the-cayman-islands-implements-crypto-asset-reporting-framework/',
+  },
+  {
+    label: '한국 거래소 VASP 갱신 현황 (디일렉)',
+    url: 'https://www.thelec.kr/news/articleView.html?idxno=50127',
+  },
+  {
+    label: '국세청: 가상자산 과세 안내',
+    url: 'https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=40370&cntntsId=238935',
+  },
+];
