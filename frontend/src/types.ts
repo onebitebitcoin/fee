@@ -212,6 +212,7 @@ export type ExchangeStatusNode = {
 export type ExchangeStatusResponse = {
   exchanges: ExchangeStatusNode[];
   lightning_services: ExchangeStatusNode[];
+  latest_notices: ExchangeNoticeItem[];
 };
 
 export type ExchangeNoticeItem = {

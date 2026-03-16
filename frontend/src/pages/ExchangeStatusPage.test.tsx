@@ -67,6 +67,7 @@ vi.mock('../lib/api', () => ({
           notices: [],
         },
       ],
+      latest_notices: [],
     }),
   },
 }));

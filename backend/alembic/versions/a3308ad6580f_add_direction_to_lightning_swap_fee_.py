@@ -1,12 +1,12 @@
 """add_direction_to_lightning_swap_fee_snapshots"""
 
+from alembic import op
+import sqlalchemy as sa
+
 revision = 'a3308ad6580f'
 down_revision = '598507520372'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 

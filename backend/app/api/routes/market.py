@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,20 @@ from backend.app.services.live_market import (
 from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
+
+_STATUS_CACHE: dict = {}
+_STATUS_CACHE_TTL = 60  # seconds
+
+
+def _get_status_cache() -> dict | None:
+    entry = _STATUS_CACHE.get('status')
+    if entry and time.time() - entry['ts'] < _STATUS_CACHE_TTL:
+        return entry['data']
+    return None
+
+
+def _set_status_cache(data: dict) -> None:
+    _STATUS_CACHE['status'] = {'data': data, 'ts': time.time()}
 
 
 def _ts(dt_val) -> int | None:
@@ -324,9 +340,13 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
 @router.get('/status')
 def get_exchange_status(db: Session = Depends(get_db)) -> dict:
     """출금 수수료 + 네트워크 상태 + 공지사항 통합 뷰"""
+    cached = _get_status_cache()
+    if cached is not None:
+        return cached
+
     latest_run = repositories.get_latest_successful_run(db)
     if latest_run is None:
-        return {'exchanges': [], 'lightning_services': []}
+        return {'exchanges': [], 'lightning_services': [], 'latest_notices': []}
 
     withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id)
     network_rows = repositories.list_network_status_for_run(db, latest_run.id)
@@ -446,10 +466,26 @@ def get_exchange_status(db: Session = Depends(get_db)) -> dict:
             row.get('kyc_status') for row in node.get('withdrawal_rows', [])
         ])
 
-    return {
+    # 최신 공지사항 (전역 정렬, 별도 API 호출 불필요)
+    latest_notice_rows = repositories.get_latest_relevant_notices(db, limit=5)
+    latest_notices = [
+        {
+            'exchange': row.exchange,
+            'title': row.title,
+            'url': row.url,
+            'published_at': _ts(row.published_at),
+            'noticed_at': _ts(row.noticed_at),
+        }
+        for row in latest_notice_rows
+    ]
+
+    result = {
         'exchanges': list(exchange_map.values()),
         'lightning_services': lightning_services,
+        'latest_notices': latest_notices,
     }
+    _set_status_cache(result)
+    return result
 
 
 @router.get('/notices/latest')
