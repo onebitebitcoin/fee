@@ -201,6 +201,9 @@ describe('CheapestPathPage', () => {
 
     await screen.findByText('최적 경로');
 
+    // 필터가 기본 접힘 상태이므로 먼저 열기
+    await user.click(screen.getByRole('button', { name: /필터/i }));
+
     await user.click(screen.getByRole('button', { name: /TRC20/i }));
     expect(screen.getByText('4/6')).toBeInTheDocument();
 

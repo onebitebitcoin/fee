@@ -47,10 +47,9 @@ function SourceIcon({ source }: { source: string }) {
 
 type NetworkRowsProps = {
   rows: ExchangeStatusWithdrawalRow[];
-  inheritedKycStatus?: ExchangeStatusNode['kyc_status'];
 };
 
-function NetworkRows({ rows, inheritedKycStatus }: NetworkRowsProps) {
+function NetworkRows({ rows }: NetworkRowsProps) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? rows : rows.slice(0, 3);
   const hasMore = rows.length > 3;
@@ -71,7 +70,6 @@ function NetworkRows({ rows, inheritedKycStatus }: NetworkRowsProps) {
                 <span className="min-w-0 break-all text-sm text-bnb-muted">
                   {row.coin} · {localizeUiLabel(row.network_label)}
                 </span>
-                <KycBadge status={row.kyc_status ?? inheritedKycStatus} />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:shrink-0">
                 <span className="font-data text-sm font-semibold text-brand-400">{formatFee(row)}</span>
@@ -133,34 +131,42 @@ function NodeCard({ node }: NodeCardProps) {
   return (
     <div className="border border-dark-200 bg-dark-300 transition-colors hover:border-dark-100">
       {/* 노드 헤더 */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3">
-        <NodeLogo exchange={node.exchange} type={node.type} />
-        <span className="min-w-0 flex-1 break-all font-semibold text-bnb-text">{label}</span>
-        {node.type === 'lightning' && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-400/15 px-2 py-0.5 text-[11px] font-semibold text-brand-400">
-            <Zap size={9} />
-            라이트닝
-          </span>
-        )}
-        <KycBadge status={node.kyc_status} />
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <StatusBadge status={overallStatus} />
-          {node.scrape_status && (
-            <a
-              href={node.scrape_status.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={node.scrape_status.status === 'error' ? node.scrape_status.error_message ?? '스크래핑 오류' : '스크래핑 페이지'}
-              className="flex items-center gap-1 text-xs text-bnb-muted hover:text-brand-400 transition-colors"
-            >
-              {node.scrape_status.status === 'error' ? (
-                <AlertTriangle size={12} className="text-bnb-red" />
-              ) : (
-                <ExternalLink size={12} />
-              )}
-            </a>
-          )}
+      <div className="flex flex-col gap-1.5 border-b border-dark-200 bg-dark-400 px-4 py-3">
+        {/* 1행: 로고 + 이름 + 상태 */}
+        <div className="flex items-center gap-2">
+          <NodeLogo exchange={node.exchange} type={node.type} />
+          <span className="min-w-0 flex-1 truncate font-semibold text-bnb-text">{label}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <StatusBadge status={overallStatus} />
+            {node.scrape_status && (
+              <a
+                href={node.scrape_status.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={node.scrape_status.status === 'error' ? node.scrape_status.error_message ?? '스크래핑 오류' : '스크래핑 페이지'}
+                className="flex items-center gap-1 text-xs text-bnb-muted hover:text-brand-400 transition-colors"
+              >
+                {node.scrape_status.status === 'error' ? (
+                  <AlertTriangle size={12} className="text-bnb-red" />
+                ) : (
+                  <ExternalLink size={12} />
+                )}
+              </a>
+            )}
+          </div>
         </div>
+        {/* 2행: 속성 태그 */}
+        {(node.type === 'lightning' || node.kyc_status) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {node.type === 'lightning' && (
+              <span className="inline-flex items-center gap-1 border border-brand-500/40 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-400">
+                <Zap size={9} />
+                LN
+              </span>
+            )}
+            <KycBadge status={node.kyc_status} />
+          </div>
+        )}
       </div>
 
       {/* 점검 중인 네트워크 */}
@@ -177,7 +183,7 @@ function NodeCard({ node }: NodeCardProps) {
 
       {/* 출금 네트워크 목록 */}
       {node.withdrawal_rows.length > 0 ? (
-        <NetworkRows rows={node.withdrawal_rows} inheritedKycStatus={node.kyc_status} />
+        <NetworkRows rows={node.withdrawal_rows} />
       ) : (
         <p className="px-4 py-3 text-sm text-bnb-muted">출금 수수료 데이터 없음</p>
       )}

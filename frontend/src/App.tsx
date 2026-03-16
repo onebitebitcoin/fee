@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { AdminGuard } from './components/AdminGuard';
 import { Layout } from './components/Layout';
 import { CheapestPathPage } from './pages/CheapestPathPage';
 import { ExchangeStatusPage } from './pages/ExchangeStatusPage';
@@ -21,7 +22,7 @@ export default function App() {
         <Route path="/network-status" element={<Navigate to="/status" replace />} />
         <Route path="/status" element={<ExchangeStatusPage />} />
         <Route path="/policy" element={<PolicyPage />} />
-        <Route path="/runs" element={<RunsPage />} />
+        <Route path="/runs" element={<AdminGuard><RunsPage /></AdminGuard>} />
       </Route>
       <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
     </Routes>

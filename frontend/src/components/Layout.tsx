@@ -1,11 +1,10 @@
-import { Building2, History, Route, Shield } from 'lucide-react';
+import { Building2, Route, Shield } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
   { to: '/cheapest-path', label: '최적 경로', icon: Route },
   { to: '/status', label: '현황', icon: Building2 },
   { to: '/policy', label: '정책', icon: Shield },
-  { to: '/runs', label: '수집 이력', icon: History },
 ];
 
 export function Layout() {
@@ -72,7 +71,7 @@ export function Layout() {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-dark-200 bg-dark-400/95 backdrop-blur-md md:hidden">
-        <div className="mx-auto grid max-w-7xl grid-cols-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

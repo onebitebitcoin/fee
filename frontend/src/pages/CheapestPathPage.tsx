@@ -9,7 +9,16 @@ import { localizeUiLabel } from '../lib/localizeUi';
 import type { AccessStats, CheapestPathEntry, CheapestPathResponse, PathMode } from '../types';
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
-const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia'];
+const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia', 'ERC20'];
+
+// 비트코인 네트워크 변형을 단일 canonical key로 통일
+const BITCOIN_VARIANTS = new Set([
+  'bitcoin', 'bitcoin onchain', 'bitcoin network',
+  '비트코인', '비트코인 온체인',
+]);
+function canonicalNetwork(network: string): string {
+  return BITCOIN_VARIANTS.has(network.toLowerCase()) ? 'Bitcoin' : network;
+}
 const SATS_PER_BTC = 100_000_000;
 
 function formatNumber(value: number, maximumFractionDigits = 0) {
@@ -462,6 +471,7 @@ export function CheapestPathPage() {
   }, []);
 
   // Table filters
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
   const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
@@ -488,10 +498,11 @@ export function CheapestPathPage() {
 
   const rankedPaths = useMemo(() => (data ? sortAllPaths(data.all_paths ?? [], data.mode ?? mode) : []), [data, mode]);
 
-  const allDomesticNetworks = useMemo(
-    () => data?.available_filters?.domestic_withdrawal_networks ?? Array.from(new Set(rankedPaths.map((p) => p.domestic_withdrawal_network))).sort(),
-    [data?.available_filters?.domestic_withdrawal_networks, rankedPaths],
-  );
+  const allDomesticNetworks = useMemo(() => {
+    const raw = data?.available_filters?.domestic_withdrawal_networks ??
+      Array.from(new Set(rankedPaths.map((p) => p.domestic_withdrawal_network))).sort();
+    return Array.from(new Set(raw.map(canonicalNetwork))).sort();
+  }, [data?.available_filters?.domestic_withdrawal_networks, rankedPaths]);
   const allGlobalExitOptions = useMemo(
     () => data?.available_filters?.global_exit_options ?? Array.from(new Set(rankedPaths.map((p) => `${p.global_exit_mode}::${p.global_exit_network}`))).sort().map((value) => {
       const [mode, network] = value.split('::');
@@ -507,7 +518,7 @@ export function CheapestPathPage() {
   const filteredPaths = useMemo(() => {
     return rankedPaths.filter((path) => {
       const globalExitKey = `${path.global_exit_mode}::${path.global_exit_network}`;
-      if (excludedDomesticNetworks.includes(path.domestic_withdrawal_network)) return false;
+      if (excludedDomesticNetworks.includes(canonicalNetwork(path.domestic_withdrawal_network))) return false;
       if (excludedGlobalExitOptions.includes(globalExitKey)) return false;
       if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
       if (pathShortcut === 'no_lightning' && path.global_exit_mode === 'lightning') return false;
@@ -761,9 +772,22 @@ export function CheapestPathPage() {
           {/* Route Table with Filters */}
           <div className="border-b border-dark-200 bg-dark-500">
             {/* Filter Bar */}
-            <div className="space-y-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">필터</p>
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className="flex w-full items-center gap-2"
+              >
+                <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-muted">필터</span>
+                {!filtersOpen && excludedDomesticNetworks.length > 0 && (
+                  <span className="rounded-full bg-dark-200 px-1.5 py-0.5 text-[10px] font-data text-bnb-muted">
+                    {excludedDomesticNetworks.length}개 제외
+                  </span>
+                )}
+                <ChevronDown size={12} className={`ml-auto text-bnb-muted transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {filtersOpen && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 {allDomesticNetworks.map((network) => {
                   const excluded = excludedDomesticNetworks.includes(network);
                   return (
@@ -777,7 +801,7 @@ export function CheapestPathPage() {
                           : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
                       }`}
                     >
-                      {network}
+                      {localizeUiLabel(network)}
                     </button>
                   );
                 })}
@@ -820,6 +844,7 @@ export function CheapestPathPage() {
                   {filteredPaths.length}/{rankedPaths.length}
                 </span>
               </div>
+              )}
             </div>
 
             <div className="divide-y divide-dark-200 md:hidden">

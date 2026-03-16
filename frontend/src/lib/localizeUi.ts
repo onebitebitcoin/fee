@@ -6,6 +6,9 @@ const NETWORK_LABEL_MAP: Record<string, string> = {
   'on-chain': '온체인',
   onchain: '온체인',
   bitcoin: '비트코인',
+  'bitcoin onchain': '비트코인',
+  'bitcoin network': '비트코인',
+  '비트코인 온체인': '비트코인',
 };
 
 const KYC_LABEL_MAP: Record<Exclude<KycStatus, null>, string> = {
