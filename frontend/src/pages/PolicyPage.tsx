@@ -185,7 +185,7 @@ export function PolicyPage() {
       {/* Key Insights */}
       <div className="border border-dark-200 divide-y divide-dark-200">
         <div className="px-4 py-2.5">
-          <span className="text-[11px] font-semibold text-bnb-muted uppercase tracking-wider">핵심 인사이트</span>
+          <span className="text-[11px] font-semibold text-bnb-muted uppercase tracking-wider">요약</span>
         </div>
         {KEY_INSIGHTS.map((insight, i) => (
           <div key={i} className="px-4 py-2.5 flex items-start gap-2.5">
