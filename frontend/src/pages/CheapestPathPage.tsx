@@ -3,10 +3,22 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { createPortal } from 'react-dom';
 
 import { KycBadge } from '../components/KycBadge';
+import { GLOBAL_EXCHANGES, KOREAN_EXCHANGES } from '../data/carfData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import { localizeUiLabel } from '../lib/localizeUi';
 import type { AccessStats, CheapestPathEntry, CheapestPathResponse, PathMode } from '../types';
+
+const CARF_2027_IDS = new Set([
+  ...KOREAN_EXCHANGES.filter((e) => e.carfGroup === '2027').map((e) => e.id),
+  ...GLOBAL_EXCHANGES.filter((e) => e.carfGroup === '2027').map((e) => e.id),
+]);
+
+function isCarfAffected(path: CheapestPathEntry, globalExchange: string): boolean {
+  if (CARF_2027_IDS.has(path.korean_exchange)) return true;
+  if (CARF_2027_IDS.has(globalExchange)) return true;
+  return false;
+}
 
 const DEFAULT_AMOUNT_MANWON = 100; // 만원 단위
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia', 'ERC20'];
@@ -481,6 +493,8 @@ export function CheapestPathPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [carfBlackbox, setCarfBlackbox] = useState(false);
+
   // Table filters
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
@@ -710,6 +724,13 @@ export function CheapestPathPage() {
           >
             라이트닝 제외
           </button>
+          <button
+            type="button"
+            onClick={() => setCarfBlackbox((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${carfBlackbox ? 'border-amber-500/40 bg-amber-500/10 text-amber-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+          >
+            CARF 2027 블랙박스
+          </button>
         </div>
       </div>
 
@@ -747,7 +768,7 @@ export function CheapestPathPage() {
         <>
           {/* Best Path */}
           {bestVisiblePath ? (
-            <div className="border-b border-dark-200">
+            <div className={`border-b border-dark-200 ${carfBlackbox && isCarfAffected(bestVisiblePath, data.global_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
               <div className="bg-dark-400 p-4 sm:p-5">
                 <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '비트코인 팔 때 경로' : '최적 경로'}</p>
                 <div className="mt-3 space-y-3">
@@ -865,7 +886,7 @@ export function CheapestPathPage() {
                 return (
                   <article
                     key={`mobile-${path.path_id}`}
-                    className={`space-y-2.5 p-3 ${isHighlighted ? 'bg-brand-500/10' : 'bg-dark-500'}`}
+                    className={`space-y-2.5 p-3 ${isHighlighted ? 'bg-brand-500/10' : 'bg-dark-500'} ${carfBlackbox && data && isCarfAffected(path, data.global_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -930,7 +951,7 @@ export function CheapestPathPage() {
                     return (
                       <Fragment key={path.path_id}>
                         <tr
-                          className={`cursor-pointer border-b border-dark-200 transition-colors ${isExpanded ? 'bg-dark-400' : 'bg-dark-500 hover:bg-dark-400'}`}
+                          className={`cursor-pointer border-b border-dark-200 transition-colors ${isExpanded ? 'bg-dark-400' : 'bg-dark-500 hover:bg-dark-400'} ${carfBlackbox && data && isCarfAffected(path, data.global_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}`}
                           onClick={() => setExpandedPathId(prev => prev === path.path_id ? '' : path.path_id)}
                         >
                           <td className="px-5 py-3.5">
@@ -1077,7 +1098,7 @@ export function CheapestPathPage() {
               <div className="p-4 sm:p-5">
                 <div className="space-y-4">
                   {topFivePaths.map((path) => (
-                    <div key={`velocity-${path.path_id}`}>
+                    <div key={`velocity-${path.path_id}`} className={carfBlackbox && data && isCarfAffected(path, data.global_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}>
                       <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
                         <span className="inline-flex items-center gap-2">
                           <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
