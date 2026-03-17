@@ -74,6 +74,13 @@ function NetworkRows({ rows }: NetworkRowsProps) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:shrink-0">
                 <span className="font-data text-sm font-semibold text-brand-400">{formatFee(row)}</span>
                 <span className="font-data text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
+                {row.max_withdrawal != null && (
+                  <span className="font-data text-xs text-bnb-muted">
+                    최대 {row.coin.toUpperCase() === 'BTC'
+                      ? `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 8 }).format(row.max_withdrawal)} BTC`
+                      : `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(row.max_withdrawal)} ${row.coin.toUpperCase()}`}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -346,8 +353,8 @@ export function ExchangeStatusPage() {
         {/* 방향 필터 */}
         <div className="grid grid-cols-2 gap-px border border-dark-200 bg-dark-200">
           {([
-            { key: 'buy', label: 'KRW → BTC 지갑', sub: '거래소 출금 경로' },
-            { key: 'sell', label: 'BTC 지갑 → KRW', sub: '거래소 입금 경로' },
+            { key: 'buy', label: '비트코인 살 때', sub: '거래소 출금 경로' },
+            { key: 'sell', label: '비트코인 팔 때', sub: '거래소 입금 경로' },
           ] as const).map(({ key, label, sub }) => (
             <button
               key={key}

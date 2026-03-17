@@ -84,6 +84,8 @@ class CrawlService:
                             fee=network.get('fee'),
                             fee_usd=network.get('fee_usd'),
                             fee_krw=network.get('fee_krw'),
+                            min_withdrawal=network.get('min'),
+                            max_withdrawal=network.get('max'),
                             enabled=network.get('enabled', True),
                             note=network.get('note'),
                         ))

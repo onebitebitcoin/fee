@@ -281,15 +281,21 @@ def fetch_binance_withdrawal(coin: str) -> list:
         raise ValueError("Binance 출금 API 오류")
     for item in r.json()["data"]:
         if item["coin"] == coin:
-            return [
-                {
+            result = []
+            for net in item.get("networkList", []):
+                max_text = net.get("withdrawMax")
+                try:
+                    max_amount = float(max_text) if max_text not in (None, "", "0", "0.0") else None
+                except (ValueError, TypeError):
+                    max_amount = None
+                result.append({
                     "label":   net["name"],
                     "fee":     float(net["withdrawFee"]),
                     "min":     float(net["withdrawMin"]),
+                    "max":     max_amount,
                     "enabled": net.get("withdrawEnable", False),
-                }
-                for net in item.get("networkList", [])
-            ]
+                })
+            return result
     return []
 
 
@@ -297,18 +303,26 @@ def fetch_okx_withdrawal(coin: str) -> list:
     r = _get("https://www.okx.com/v2/asset/withdraw/fee-amount-infos")
     for item in r.json().get("data", []):
         if item.get("symbol") == coin:
-            result = [
-                {"label": name, "fee": float(fee), "min": float(amt), "enabled": True}
-                for name, fee, amt in zip(
-                    item.get("networkName", []),
-                    item.get("minFee", []),
-                    item.get("minAmount", []),
-                )
-            ]
+            max_amounts = item.get("maxAmount", [])
+            result = []
+            for i, (name, fee, amt) in enumerate(zip(
+                item.get("networkName", []),
+                item.get("minFee", []),
+                item.get("minAmount", []),
+            )):
+                max_text = max_amounts[i] if i < len(max_amounts) else None
+                try:
+                    max_amount = float(max_text) if max_text not in (None, "", "0", "0.0") else None
+                except (ValueError, TypeError):
+                    max_amount = None
+                result.append({"label": name, "fee": float(fee), "min": float(amt), "max": max_amount, "enabled": True})
             if coin == "BTC":
                 result.append({
                     "label": "Lightning Network",
                     "fee": None,
+                    "min": None,
+                    "max": None,
+                    "enabled": True,
                     "note": "Invoice 방식 (인증 필요)",
                 })
             return result
@@ -319,10 +333,16 @@ def fetch_gopax_withdrawal(coin: str) -> list:
     r = _get("https://api.gopax.co.kr/assets")
     for item in r.json():
         if item["id"] == coin:
+            max_text = item.get("withdrawalAmountMax")
+            try:
+                max_amount = float(max_text) if max_text not in (None, "", "0", "0.0") else None
+            except (ValueError, TypeError):
+                max_amount = None
             return [{
                 "label":   item.get("networkName", coin),
                 "fee":     float(item["withdrawalFee"]),
                 "min":     float(item["withdrawalAmountMin"]),
+                "max":     max_amount,
                 "enabled": True,
             }]
     return []
@@ -347,6 +367,7 @@ def fetch_bithumb_withdrawal(coin: str) -> list:
         for network in item.get("networkInfoList", []):
             fee_text = network.get("withdrawFeeQuantity")
             min_text = network.get("withdrawMinimumQuantity")
+            max_text = network.get("withdrawMaximumQuantity")
             try:
                 fee = float(fee_text) if fee_text not in (None, "", "-") else None
             except ValueError:
@@ -355,10 +376,15 @@ def fetch_bithumb_withdrawal(coin: str) -> list:
                 min_amount = float(min_text) if min_text not in (None, "", "-") else None
             except ValueError:
                 min_amount = None
+            try:
+                max_amount = float(max_text) if max_text not in (None, "", "-", "0", "0.0") else None
+            except (ValueError, TypeError):
+                max_amount = None
             result.append({
                 "label": label_map.get(network.get("networkName"), network.get("networkName")),
                 "fee": fee,
                 "min": min_amount,
+                "max": max_amount,
                 "enabled": bool(network.get("isWithdrawAvailable", False)),
             })
         return result
@@ -373,10 +399,16 @@ def fetch_bitget_withdrawal(coin: str) -> list:
     result = []
     for chain in d["data"][0].get("chains", []):
         if chain.get("withdrawable") == "true":
+            max_text = chain.get("maxWithdrawAmount")
+            try:
+                max_amount = float(max_text) if max_text not in (None, "", "0", "0.0") else None
+            except (ValueError, TypeError):
+                max_amount = None
             result.append({
                 "label":   chain["chain"],
                 "fee":     float(chain["withdrawFee"]),
                 "min":     float(chain["minWithdrawAmount"]),
+                "max":     max_amount,
                 "enabled": True,
             })
     return result

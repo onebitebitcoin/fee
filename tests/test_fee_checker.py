@@ -793,6 +793,7 @@ class TestFetchBinanceWithdrawal:
                             "name": "BTC",
                             "withdrawFee": "0.0001",
                             "withdrawMin": "0.001",
+                            "withdrawMax": "10.0",
                             "withdrawEnable": True,
                         }
                     ],
@@ -805,6 +806,7 @@ class TestFetchBinanceWithdrawal:
         assert len(result) == 1
         assert result[0]["fee"] == 0.0001
         assert result[0]["enabled"] is True
+        assert result[0]["max"] == 10.0
 
     def test_coin_not_found(self, mocker):
         mock_resp = MagicMock()
@@ -833,6 +835,7 @@ class TestFetchOkxWithdrawal:
                     "networkName": ["Bitcoin"],
                     "minFee": ["0.0002"],
                     "minAmount": ["0.001"],
+                    "maxAmount": ["5.0"],
                 }
             ]
         }
@@ -842,6 +845,8 @@ class TestFetchOkxWithdrawal:
         assert any(r["label"] == "Bitcoin" for r in result)
         # BTC인 경우 Lightning Network 항목 추가
         assert any("Lightning" in r["label"] for r in result)
+        btc_row = next(r for r in result if r["label"] == "Bitcoin")
+        assert btc_row["max"] == 5.0
 
     def test_not_found(self, mocker):
         mock_resp = MagicMock()
@@ -856,13 +861,14 @@ class TestFetchGopaxWithdrawal:
     def test_success(self, mocker):
         mock_resp = MagicMock()
         mock_resp.json.return_value = [
-            {"id": "BTC", "networkName": "Bitcoin", "withdrawalFee": "0.0005", "withdrawalAmountMin": "0.001"}
+            {"id": "BTC", "networkName": "Bitcoin", "withdrawalFee": "0.0005", "withdrawalAmountMin": "0.001", "withdrawalAmountMax": "3.0"}
         ]
         mocker.patch("fee_checker._get", return_value=mock_resp)
 
         result = fee_checker.fetch_gopax_withdrawal("BTC")
         assert len(result) == 1
         assert result[0]["fee"] == 0.0005
+        assert result[0]["max"] == 3.0
 
     def test_not_found(self, mocker):
         mock_resp = MagicMock()
@@ -913,7 +919,7 @@ class TestFetchBithumbWithdrawal:
 
         btc = fee_checker.fetch_bithumb_withdrawal("BTC")
         usdt = fee_checker.fetch_bithumb_withdrawal("USDT")
-        assert btc == [{"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.001, "enabled": True}]
+        assert btc == [{"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.001, "max": None, "enabled": True}]
         assert usdt[0]["label"] == "TRC20"
         assert usdt[0]["fee"] == 0.0
         assert usdt[1]["label"] == "ERC20"
@@ -940,6 +946,7 @@ class TestFetchBitgetWithdrawal:
                             "chain": "BTC",
                             "withdrawFee": "0.0002",
                             "minWithdrawAmount": "0.001",
+                            "maxWithdrawAmount": "20.0",
                             "withdrawable": "true",
                         }
                     ]
@@ -951,6 +958,7 @@ class TestFetchBitgetWithdrawal:
         result = fee_checker.fetch_bitget_withdrawal("BTC")
         assert len(result) == 1
         assert result[0]["fee"] == 0.0002
+        assert result[0]["max"] == 20.0
 
     def test_api_error(self, mocker):
         mock_resp = MagicMock()

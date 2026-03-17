@@ -65,6 +65,8 @@ class WithdrawalFeeSnapshot(Base):
     fee: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     fee_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     fee_krw: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_withdrawal: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_withdrawal: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

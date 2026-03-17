@@ -179,6 +179,8 @@ export type ExchangeStatusWithdrawalRow = {
   fee_fixed_sat?: number | null;
   min_amount_sat?: number | null;
   max_amount_sat?: number | null;
+  min_withdrawal?: number | null;
+  max_withdrawal?: number | null;
   enabled: boolean;
   source: string;
   note?: string | null;
