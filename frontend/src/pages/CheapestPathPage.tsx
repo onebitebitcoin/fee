@@ -470,6 +470,17 @@ export function CheapestPathPage() {
     api.getAccessCount().then(setAccessStats).catch(() => setAccessStats(null));
   }, []);
 
+  // 페이지 최초 로딩 시 기본값으로 자동 검색
+  useEffect(() => {
+    setHasSearched(true);
+    load({
+      mode: 'buy',
+      amountKrw: DEFAULT_AMOUNT_MANWON * 10000,
+      globalExchange: 'binance',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Table filters
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);

@@ -176,19 +176,19 @@ async function renderAndSearchAll() {
 }
 
 describe('CheapestPathPage', () => {
-  it('does not auto-load results before search', async () => {
+  it('auto-loads results on page load without clicking search button', async () => {
     render(
       <BrowserRouter>
         <CheapestPathPage />
       </BrowserRouter>,
     );
 
-    expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
-    expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
+    // 검색 버튼 클릭 없이 결과가 자동 로딩되어야 함
+    expect(await screen.findByText('최적 경로')).toBeInTheDocument();
+    expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '신원인증 최소화' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
-    expect(screen.queryByText('검색 버튼을 누르면 경로를 불러옵니다.')).not.toBeInTheDocument();
   });
 
   it('renders the current dashboard summary for the cheapest route', async () => {
@@ -270,6 +270,17 @@ describe('CheapestPathPage', () => {
   });
 
   it('switches to reverse sell mode and renders a reversed path', async () => {
+    const user = userEvent.setup();
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    // 자동 로딩이 완료될 때까지 대기
+    await screen.findByText('최적 경로');
+
+    // 자동 로딩 완료 후 sell 모드 mock 설정
     vi.mocked(api.getCheapestPath).mockResolvedValueOnce({
       mode: 'sell',
       amount_btc: 0.01,
@@ -323,13 +334,6 @@ describe('CheapestPathPage', () => {
       }],
       disabled_paths: [],
     } as never);
-
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
 
     await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
     await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
