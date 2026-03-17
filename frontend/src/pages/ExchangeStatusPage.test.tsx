@@ -254,7 +254,7 @@ describe('ExchangeStatusPage', () => {
     expect(screen.queryByText('Boltz')).not.toBeInTheDocument();
 
     // sell(BTC→KRW) 필터로 전환: Boltz(onchain_to_ln) 보임, BitFreezer(ln_to_onchain) 숨김
-    await user.click(screen.getByRole('button', { name: /BTC 지갑 → KRW/i }));
+    await user.click(screen.getByRole('button', { name: /비트코인 팔 때/i }));
     expect(screen.getByText('Boltz')).toBeInTheDocument();
     expect(screen.queryByText('BitFreezer')).not.toBeInTheDocument();
   });

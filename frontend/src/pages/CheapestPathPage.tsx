@@ -624,14 +624,14 @@ export function CheapestPathPage() {
               onClick={() => setMode('buy')}
               className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${mode === 'buy' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
             >
-              매수
+              비트코인 살 때
             </button>
             <button
               type="button"
               onClick={() => setMode('sell')}
               className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${mode === 'sell' ? 'border-bnb-red/40 bg-bnb-red/10 text-bnb-red' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
             >
-              역방향 매도
+              비트코인 팔 때
             </button>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3">
@@ -680,17 +680,17 @@ export function CheapestPathPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setPathShortcut('default')}
-            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'default' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
-          >
-            최저 경로
-          </button>
-          <button
-            type="button"
             onClick={() => setPathShortcut('non_kyc')}
             className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'non_kyc' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
           >
-            non-KYC 경로
+            신원인증 최소화
+          </button>
+          <button
+            type="button"
+            onClick={() => setPathShortcut('default')}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === 'default' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+          >
+            가장 낮은 수수료
           </button>
           <button
             type="button"
@@ -738,7 +738,7 @@ export function CheapestPathPage() {
           {bestVisiblePath ? (
             <div className="border-b border-dark-200">
               <div className="bg-dark-400 p-4 sm:p-5">
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '역방향 매도 경로' : '최적 경로'}</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '비트코인 팔 때 경로' : '최적 경로'}</p>
                 <div className="mt-3 space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>

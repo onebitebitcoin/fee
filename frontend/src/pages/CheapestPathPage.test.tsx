@@ -167,11 +167,11 @@ async function renderAndSearch() {
   return user;
 }
 
-// 전체 경로(non-KYC 필터 해제) 상태가 필요한 테스트용 헬퍼
+// 전체 경로(신원인증 최소화 필터 해제) 상태가 필요한 테스트용 헬퍼
 async function renderAndSearchAll() {
   const user = await renderAndSearch();
   await screen.findByText('최적 경로');
-  await user.click(screen.getByRole('button', { name: '최저 경로' }));
+  await user.click(screen.getByRole('button', { name: '가장 낮은 수수료' }));
   return user;
 }
 
@@ -185,8 +185,8 @@ describe('CheapestPathPage', () => {
 
     expect(await screen.findByText(/누적 42회/)).toBeInTheDocument();
     expect(screen.queryByText('수수료율 비교 (상위 5개)')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '최저 경로' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'non-KYC 경로' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '신원인증 최소화' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
     expect(screen.queryByText('검색 버튼을 누르면 경로를 불러옵니다.')).not.toBeInTheDocument();
   });
@@ -255,7 +255,7 @@ describe('CheapestPathPage', () => {
   it('applies the non-KYC shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: 'non-KYC 경로' }));
+    await user.click(screen.getByRole('button', { name: '신원인증 최소화' }));
 
     expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
   });
@@ -331,11 +331,11 @@ describe('CheapestPathPage', () => {
       </BrowserRouter>,
     );
 
-    await user.click(screen.getByRole('button', { name: '역방향 매도' }));
+    await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
     await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
-    await user.click(await screen.findByRole('button', { name: '최저 경로' }));
+    await user.click(await screen.findByRole('button', { name: '가장 낮은 수수료' }));
 
-    expect(await screen.findByText('역방향 매도 경로')).toBeInTheDocument();
+    expect(await screen.findByText('비트코인 팔 때 경로')).toBeInTheDocument();
     expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
     expect(screen.getByText('예상 KRW 수령')).toBeInTheDocument();
     expect(screen.getAllByText('1,280,000 KRW').length).toBeGreaterThan(0);
