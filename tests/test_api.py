@@ -166,6 +166,7 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
         'binancebtc': {'is_kyc': True},
         'binanceusdt': {'is_kyc': True},
         'bitfreeze': {'is_kyc': False},
+        'coinos': {'is_kyc': False},
     })
 
     app.dependency_overrides[get_db] = override_get_db
@@ -184,11 +185,11 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert payload['available_filters']['domestic_withdrawal_networks'] == ['Bitcoin', 'TRC20']
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
-    assert 'BitFlower' in payload['available_filters']['lightning_exit_providers']
-    # 방향 필터링: onchain_to_ln 서비스(BitFlower)만 매수 경로에 포함, ln_to_onchain(Coinos)은 제외
+    assert 'Coinos' in payload['available_filters']['lightning_exit_providers']
+    # 방향 필터링: ln_to_onchain 서비스(Coinos)만 매수 경로에 포함, onchain_to_ln(BitFlower)은 제외
     lightning_providers_in_paths = {p.get('lightning_exit_provider') for p in payload['all_paths'] if p.get('lightning_exit_provider')}
-    assert 'BitFlower' in lightning_providers_in_paths
-    assert 'Coinos' not in lightning_providers_in_paths
+    assert 'Coinos' in lightning_providers_in_paths
+    assert 'BitFlower' not in lightning_providers_in_paths
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
     assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600

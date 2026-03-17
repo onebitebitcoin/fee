@@ -716,7 +716,7 @@ def find_cheapest_path_from_snapshot_rows(
     if lightning_swap_rows:
         active_swaps = [
             s for s in lightning_swap_rows
-            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) in ('onchain_to_ln', None)
+            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) in ('ln_to_onchain', None)
         ]
 
         # 글로벌 거래소 BTC 출금 수수료 조회 (USDT 경유 경로에 필요)
