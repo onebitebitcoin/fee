@@ -716,7 +716,7 @@ def find_cheapest_path_from_snapshot_rows(
     if lightning_swap_rows:
         active_swaps = [
             s for s in lightning_swap_rows
-            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'onchain_to_ln'
+            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) in ('onchain_to_ln', None)
         ]
 
         # 글로벌 거래소 BTC 출금 수수료 조회 (USDT 경유 경로에 필요)
@@ -1118,7 +1118,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
         # Bug #2 fix: sell 모드는 개인 온체인 지갑 → onchain_to_ln 스왑 → Lightning → 거래소 입금
         active_swaps = [
             s for s in lightning_swap_rows
-            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'onchain_to_ln'
+            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) in ('onchain_to_ln', None)
         ]
         for swap in active_swaps:
             fee_pct = swap.fee_pct / 100
