@@ -22,10 +22,19 @@ _cache: dict[str, object] = {
 
 _SERVICE_ALIASES = {
     'bitflower': 'bitfreeze',
+    'bitfreezer': 'bitfreeze',
+    'boltz': 'boltz',
+    'boltzsubmarine': 'boltz',
+    'boltzmutual': 'boltz',
     'walletofsatoshi': 'walletofsatoshi',
     'walletofsats': 'walletofsatoshi',
     'personalwallet': 'personalwallet',
     '개인지갑': 'personalwallet',
+}
+
+# playground registry에 등록되지 않은 서비스의 KYC 상태 정적 fallback
+_STATIC_KYC: dict[str, KycStatus] = {
+    'oksusu': 'non_kyc',
 }
 
 
@@ -106,11 +115,12 @@ def infer_kyc_status_from_note(note: str | None) -> KycStatus | None:
 def resolve_service_kyc_status(service_name: str | None, registry: dict[str, dict] | None = None) -> KycStatus | None:
     if not service_name:
         return None
+    normalized = _normalize_service(service_name)
     resolved_registry = registry if registry is not None else get_kyc_registry()
-    entry = resolved_registry.get(_normalize_service(service_name))
-    if not entry:
-        return None
-    return _status_from_bool(bool(entry.get('is_kyc')))
+    entry = resolved_registry.get(normalized)
+    if entry:
+        return _status_from_bool(bool(entry.get('is_kyc')))
+    return _STATIC_KYC.get(normalized)
 
 
 
