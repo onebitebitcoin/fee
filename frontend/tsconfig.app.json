@@ -15,5 +15,5 @@
     "baseUrl": "."
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.tsx", "src/test"]
+  "exclude": ["src/**/*.test.tsx", "src/**/*.test.ts", "src/test"]
 }
