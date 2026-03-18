@@ -341,7 +341,7 @@ def fetch_boltz_reverse_fees() -> dict:
             or (list(data.values())[0] if data else None)
         )
         if not pair_data:
-            return _error_result(service_name, source_url, 'BTC/BTC 페어 없음')
+            return _error_result(service_name, source_url, 'BTC/BTC 페어 없음', direction='ln_to_onchain')
         fees = pair_data.get('fees', {})
         fee_pct = fees.get('percentage', 0.1)
         miner_fees = fees.get('minerFees', {})
@@ -359,10 +359,10 @@ def fetch_boltz_reverse_fees() -> dict:
             'direction': 'ln_to_onchain',
         }
     except Exception as exc:
-        return _error_result(service_name, source_url, str(exc))
+        return _error_result(service_name, source_url, str(exc), direction='ln_to_onchain')
 
 
-def _error_result(service_name: str, source_url: str, error: str) -> dict:
+def _error_result(service_name: str, source_url: str, error: str, direction: str | None = None) -> dict:
     return {
         'service_name': service_name,
         'fee_pct': None,
@@ -372,7 +372,7 @@ def _error_result(service_name: str, source_url: str, error: str) -> dict:
         'enabled': False,
         'source_url': source_url,
         'error': error,
-        'direction': None,
+        'direction': direction,
     }
 
 
