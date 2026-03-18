@@ -41,7 +41,14 @@ export const api = {
     }
     return request(`/api/v1/market/path-finder/cheapest?${qs.toString()}`);
   },
-  triggerCrawl: (): Promise<CrawlRun> => request('/api/v1/crawl-runs', { method: 'POST' }),
+  triggerCrawl: (): Promise<CrawlRun> =>
+    request('/api/v1/crawl-runs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': import.meta.env.VITE_ADMIN_API_KEY ?? 'dev-secret-key',
+      },
+    }),
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
   getScrapeStatus: (): Promise<ScrapeStatusResponse> => request('/api/v1/market/scrape-status'),
   getLightningSwapFees: (): Promise<{ last_run: CrawlRun | null; items: LightningSwapFeeRow[] }> =>
