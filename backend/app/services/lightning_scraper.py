@@ -336,6 +336,25 @@ def fetch_strike_fees() -> dict:
     }
 
 
+def fetch_strike_onchain_to_ln_fees() -> dict:
+    """
+    Strike 온체인 → Lightning 방향 수수료 조회.
+    Strike는 온체인 BTC를 수신하여 Lightning으로 송금 가능 (SELL 경로용).
+    BTC↔BTC 변환 수수료 0% (USD 환전 시에만 수수료 발생).
+    """
+    return {
+        'service_name': 'Strike',
+        'fee_pct': 0.0,
+        'fee_fixed_sat': 0,
+        'min_amount_sat': 1_000,
+        'max_amount_sat': 100_000_000,
+        'enabled': True,
+        'source_url': 'https://strike.me',
+        'error': None,
+        'direction': 'onchain_to_ln',
+    }
+
+
 def fetch_oksusu_fees() -> dict:
     """
     Oksusu / Corn Wallet Lightning → on-chain 출금 수수료 조회.
@@ -495,6 +514,7 @@ def get_all_lightning_swap_fees() -> list[dict]:
         fetch_bitfreezer_fees,
         fetch_wos_fees,
         fetch_strike_fees,
+        fetch_strike_onchain_to_ln_fees,
         fetch_oksusu_fees,
     ]
 
