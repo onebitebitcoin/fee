@@ -186,10 +186,12 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
     assert 'Coinos' in payload['available_filters']['lightning_exit_providers']
-    # 방향 필터링: ln_to_onchain 서비스(Coinos)만 매수 경로에 포함, onchain_to_ln(BitFlower)은 제외
-    lightning_providers_in_paths = {p.get('lightning_exit_provider') for p in payload['all_paths'] if p.get('lightning_exit_provider')}
-    assert 'Coinos' in lightning_providers_in_paths
-    assert 'BitFlower' not in lightning_providers_in_paths
+    # 방향 필터링: 경로 A(BTC on-chain → onchain_to_ln swap)에는 BitFlower 포함, 경로 B(USDT → global LN → ln_to_onchain swap)에는 Coinos만 포함
+    ln_path_a = [p for p in payload['all_paths'] if p.get('path_type') == 'lightning_exit' and p.get('transfer_coin') == 'BTC']
+    ln_path_b = [p for p in payload['all_paths'] if p.get('path_type') == 'lightning_exit' and p.get('transfer_coin') == 'USDT']
+    assert any(p.get('lightning_exit_provider') == 'BitFlower' for p in ln_path_a), 'BitFlower(onchain_to_ln)은 경로 A에 포함되어야 함'
+    assert not any(p.get('lightning_exit_provider') == 'BitFlower' for p in ln_path_b), 'BitFlower(onchain_to_ln)은 경로 B에 포함되면 안 됨'
+    assert any(p.get('lightning_exit_provider') == 'Coinos' for p in ln_path_b), 'Coinos(ln_to_onchain)는 경로 B에 포함되어야 함'
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
     assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
