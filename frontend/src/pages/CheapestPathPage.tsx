@@ -57,6 +57,7 @@ function getFeeTone(feePct: number) {
 }
 
 type RankedPath = CheapestPathEntry & { rank: number };
+type VisibleRankedPath = RankedPath & { visibleRank: number };
 
 function getSellFirstHopKyc(path: CheapestPathEntry) {
   switch (path.route_variant) {
@@ -540,7 +541,7 @@ export function CheapestPathPage() {
     [data?.available_filters?.lightning_exit_providers, rankedPaths],
   );
 
-  const filteredPaths = useMemo(() => {
+  const filteredPaths = useMemo<VisibleRankedPath[]>(() => {
     return rankedPaths.filter((path) => {
       const globalExitKey = `${path.global_exit_mode}::${path.global_exit_network}`;
       if (excludedDomesticNetworks.includes(canonicalNetwork(path.domestic_withdrawal_network))) return false;
@@ -554,16 +555,18 @@ export function CheapestPathPage() {
         if (beforeWalletKyc !== 'non_kyc') return false;
       }
       return true;
-    });
+    }).map((path, index) => ({ ...path, visibleRank: index + 1 }));
   }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, mode, pathShortcut, rankedPaths]);
 
   const bestVisiblePath = useMemo(() => filteredPaths[0] ?? null, [filteredPaths]);
 
   const selectedRoute = useMemo(() => {
     if (!data || !selectedPathId) return null;
-    const found = filteredPaths.find((item) => item.path_id === selectedPathId) ?? rankedPaths.find((item) => item.path_id === selectedPathId);
-    if (!found) return null;
-    return { rank: found.rank, path: found };
+    const visibleMatch = filteredPaths.find((item) => item.path_id === selectedPathId);
+    if (visibleMatch) return { rank: visibleMatch.visibleRank, path: visibleMatch };
+    const rankedMatch = rankedPaths.find((item) => item.path_id === selectedPathId);
+    if (!rankedMatch) return null;
+    return { rank: rankedMatch.rank, path: rankedMatch };
   }, [data, filteredPaths, rankedPaths, selectedPathId]);
 
   useEffect(() => {
@@ -890,8 +893,8 @@ export function CheapestPathPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className={`font-mono text-xs ${path.rank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
-                          #{String(path.rank).padStart(3, '0')}
+                        <span className={`font-mono text-xs ${path.visibleRank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
+                          #{String(path.visibleRank).padStart(3, '0')}
                         </span>
                         <button
                           type="button"
@@ -955,8 +958,8 @@ export function CheapestPathPage() {
                           onClick={() => setExpandedPathId(prev => prev === path.path_id ? '' : path.path_id)}
                         >
                           <td className="px-5 py-3.5">
-                            <span className={`font-mono text-xs ${path.rank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
-                              #{String(path.rank).padStart(3, '0')}
+                            <span className={`font-mono text-xs ${path.visibleRank === 1 ? 'font-bold text-brand-400' : 'text-bnb-muted'}`}>
+                              #{String(path.visibleRank).padStart(3, '0')}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">

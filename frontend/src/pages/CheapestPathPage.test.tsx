@@ -234,6 +234,20 @@ describe('CheapestPathPage', () => {
     expect(within(detailRegion).getAllByText('900,000 sats').length).toBeGreaterThan(0);
   });
 
+  it('reindexes visible route ranks from 1 after filtering', async () => {
+    const user = await renderAndSearchAll();
+
+    await screen.findByText('최적 경로');
+    await user.click(screen.getByRole('button', { name: /필터/i }));
+    await user.click(screen.getByRole('button', { name: /TRC20/i }));
+    await user.click(screen.getAllByRole('button', { name: 'mid1 경로 선택' })[0]);
+
+    const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
+    expect(within(detailRegion).getByText('1위')).toBeInTheDocument();
+    expect(within(detailRegion).queryByText('3위')).not.toBeInTheDocument();
+    expect(screen.getAllByText('#001').length).toBeGreaterThan(0);
+  });
+
   it('renders service logos for exchanges and lightning providers', async () => {
     const user = await renderAndSearchAll();
 
