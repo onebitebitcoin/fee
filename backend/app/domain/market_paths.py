@@ -714,92 +714,14 @@ def find_cheapest_path_from_snapshot_rows(
 
     # Lightning exit 경로 추가
     if lightning_swap_rows:
-        # 경로 A 전용: 한국 거래소 BTC on-chain 출금 → onchain_to_ln 스왑 → 개인 Lightning 지갑
-        active_swaps_onchain_to_ln = [
-            s for s in lightning_swap_rows
-            if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'onchain_to_ln'
-        ]
-        # 경로 B 전용: 글로벌 거래소 BTC Lightning 출금 → ln_to_onchain 스왑 → 개인 on-chain 지갑
+        # buy 모드: ln_to_onchain 서비스만 사용 (BitFreezer 등)
+        # 흐름: 한국 USDT → 글로벌 거래소 BTC Lightning 출금 → ln_to_onchain 스왑 → 개인 on-chain 지갑
         active_swaps_ln_to_onchain = [
             s for s in lightning_swap_rows
             if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'ln_to_onchain'
         ]
 
-        # ------ Lightning 경로 A: 한국 거래소 BTC on-chain 출금 → onchain_to_ln 스왑 → 개인 Lightning 지갑 ------
-        for swap in active_swaps_onchain_to_ln:
-            fee_pct = swap.fee_pct / 100  # % → 소수
-            fee_fixed_btc = (swap.fee_fixed_sat or 0) / 1e8  # sat → BTC
-
-            min_btc = (swap.min_amount_sat or 0) / 1e8
-            max_btc = (swap.max_amount_sat or float('inf')) / 1e8
-
-            for exchange in GROUPS['korea']:
-                ticker_row = ticker_by_exchange.get(exchange)
-                if ticker_row is None:
-                    continue
-                korean_btc_price_krw = float(ticker_row.price)
-                korean_taker = (ticker_row.taker_fee_pct / 100) if ticker_row.taker_fee_pct is not None else TRADING_FEES[exchange]['taker']
-
-                for row in withdrawals_by_key.get((exchange, 'BTC'), []):
-                    if not row.enabled or row.fee is None:
-                        continue
-                    suspension_reason = is_suspended(exchange, 'BTC', row.network_label)
-                    if suspension_reason:
-                        continue
-
-                    trading_fee_krw = round(amount_krw * korean_taker)
-                    btc_bought = (amount_krw - trading_fee_krw) / korean_btc_price_krw
-                    btc_after_wd = btc_bought - row.fee
-                    if btc_after_wd <= 0:
-                        continue
-                    if not (min_btc <= btc_after_wd <= max_btc):
-                        continue
-
-                    # Lightning 스왑 수수료
-                    ln_swap_fee_btc = btc_after_wd * fee_pct + fee_fixed_btc
-                    btc_received = btc_after_wd - ln_swap_fee_btc
-                    if btc_received <= 0:
-                        continue
-
-                    withdrawal_fee_krw = int(round(row.fee_krw)) if row.fee_krw is not None else round(row.fee * korean_btc_price_krw)
-                    ln_swap_fee_krw = round(ln_swap_fee_btc * korean_btc_price_krw)
-                    total_fee_krw = trading_fee_krw + withdrawal_fee_krw + ln_swap_fee_krw
-
-                    paths.append({
-                        'korean_exchange': exchange,
-                        'transfer_coin': 'BTC',
-                        'network': row.network_label,
-                        'path_type': 'lightning_exit',
-                        'swap_service': swap.service_name,
-                        'domestic_withdrawal_network': row.network_label,
-                        'global_exit_mode': 'lightning',
-                        'global_exit_network': 'Lightning Network',
-                        'lightning_exit_provider': swap.service_name,
-                        'path_id': _build_path_id(
-                            global_exchange=global_exchange,
-                            korean_exchange=exchange,
-                            transfer_coin='BTC',
-                            domestic_withdrawal_network=row.network_label,
-                            global_exit_mode='lightning',
-                            global_exit_network='Lightning Network',
-                            lightning_exit_provider=swap.service_name,
-                        ),
-                        'btc_received': round(btc_received, 8),
-                        'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
-                        'total_fee_krw': total_fee_krw,
-                        'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
-                        'lightning_swap_fee_krw': ln_swap_fee_krw,
-                        'breakdown': {
-                            'components': [
-                                fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
-                                fee_component('BTC 출금 수수료', withdrawal_fee_krw, amount_text=f'{row.fee} BTC', source_url=get_withdrawal_source_url(exchange, 'BTC', row.network_label)),
-                                fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', ln_swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(ln_swap_fee_btc, 8)} BTC'),
-                            ],
-                            'total_fee_krw': total_fee_krw,
-                        },
-                    })
-
-        # ------ Lightning 경로 B: 한국 USDT → 글로벌 거래소 BTC Lightning 출금 → ln_to_onchain 스왑 → 개인 on-chain 지갑 ------
+        # ------ Lightning 경로: 한국 USDT → 글로벌 거래소 BTC Lightning 출금 → ln_to_onchain 스왑 → 개인 on-chain 지갑 ------
         # 글로벌 거래소 BTC Lightning 출금 수수료 조회 (경로 B에 필요)
         global_btc_withdrawals = withdrawals_by_key.get((global_exchange, 'BTC'), [])
         global_ln_wd_row = None
