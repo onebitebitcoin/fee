@@ -185,7 +185,6 @@ describe('CheapestPathPage', () => {
 
     // 검색 버튼 클릭 없이 결과가 자동 로딩되어야 함
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '신원인증 최소화' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
@@ -196,7 +195,6 @@ describe('CheapestPathPage', () => {
     await renderAndSearch();
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByText('수수료율 비교 (상위 5개)')).toBeInTheDocument();
     expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
     expect(screen.getAllByText('cheap2').length).toBeGreaterThan(0);
     expect(screen.getAllByText('870,000 sats').length).toBeGreaterThan(0);

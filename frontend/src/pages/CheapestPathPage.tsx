@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, ChevronDown, Search, ShieldAlert, TrendingUp, Users, X, Zap } from 'lucide-react';
+import { ArrowRight, Building2, ChevronDown, Search, ShieldAlert, Users, X, Zap } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -632,9 +632,6 @@ export function CheapestPathPage() {
   };
 
 
-  const topFivePaths = filteredPaths.slice(0, 5);
-  const maxComparisonValue = Math.max(...topFivePaths.map((p) => mode === 'sell' ? (p.krw_received ?? 0) : p.fee_pct), 1);
-
   return (
     <div className="space-y-0 border border-dark-200">
       {/* Form */}
@@ -1090,50 +1087,6 @@ export function CheapestPathPage() {
             </section>
           ) : null}
 
-          {/* Bottom: Fee Velocity */}
-          <div className="bg-dark-500">
-              <div className="flex items-center gap-2 border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
-                <TrendingUp size={14} className="text-bnb-muted" />
-                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-bnb-muted">
-                  {mode === 'sell' ? 'KRW 수령 비교 (상위 5개)' : '수수료율 비교 (상위 5개)'}
-                </p>
-              </div>
-              <div className="p-4 sm:p-5">
-                <div className="space-y-4">
-                  {topFivePaths.map((path) => (
-                    <div key={`velocity-${path.path_id}`} className={carfBlackbox && data && isCarfAffected(path, data.global_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}>
-                      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-bnb-muted">
-                        <span className="inline-flex items-center gap-2">
-                          <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
-                          <span>{fmtEx(path.korean_exchange)} · {path.transfer_coin}</span>
-                        </span>
-                        <span className={mode === 'sell' ? 'text-brand-400' : getFeeTone(path.fee_pct)}>{mode === 'sell' ? formatCurrency(path.krw_received ?? 0) : formatPercent(path.fee_pct)}</span>
-                      </div>
-                      <div className="h-2 bg-dark-200">
-                        <div
-                          className="h-2 bg-brand-500"
-                          style={{ width: `${Math.max(((mode === 'sell' ? (path.krw_received ?? 0) : path.fee_pct) / maxComparisonValue) * 100, 8)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {(data.disabled_paths?.length ?? 0) > 0 ? (
-                  <div className="mt-6 border border-bnb-red/30 bg-bnb-red/5 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-bnb-red">비활성 경로</p>
-                    <ul className="mt-3 space-y-2 text-sm text-bnb-muted">
-                      {(data.disabled_paths ?? []).slice(0, 4).map((path, index) => (
-                        <li key={`${path.korean_exchange}-${path.transfer_coin}-${index}`}>
-                          {fmtEx(path.korean_exchange)} · {path.transfer_coin} / {path.network}
-                          {path.reason ? ` — ${path.reason}` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            </div>
         </>
       ) : null}
       {mobileRouteDetailOpen && selectedRoute ? (
