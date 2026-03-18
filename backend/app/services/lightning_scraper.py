@@ -509,6 +509,7 @@ def get_all_lightning_swap_fees() -> list[dict]:
     """
     fetchers = [
         fetch_boltz_fees,
+        fetch_boltz_reverse_fees,
         fetch_coinos_fees,
         fetch_bitflower_fees,
         fetch_bitfreezer_fees,
