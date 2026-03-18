@@ -99,14 +99,11 @@ def fetch_coinos_fees() -> dict:
     """
     Coinos.io Lightning→On-chain 스왑 수수료 조회.
     Coinos는 Lightning-native 지갑/결제 서비스.
-    공식 확인 수수료: 0.4% (Lightning→on-chain 스왑 기준)
     공개 API: https://coinos.io/api/info
     """
     service_name = 'Coinos'
     source_url = 'https://coinos.io'
     api_url = 'https://coinos.io/api/info'
-    _STATIC_FEE_PCT = 0.4
-    _STATIC_ERROR = '정적 검증값 (공식 확인: 0.4%)'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
@@ -129,18 +126,7 @@ def fetch_coinos_fees() -> dict:
                 break
 
         if fee_pct is None:
-            # API 응답에서 수수료 필드를 찾지 못한 경우 정적 검증값 사용
-            return {
-                'service_name': service_name,
-                'fee_pct': _STATIC_FEE_PCT,
-                'fee_fixed_sat': 0,
-                'min_amount_sat': 1_000,
-                'max_amount_sat': 50_000_000,
-                'enabled': True,
-                'source_url': source_url,
-                'error': _STATIC_ERROR,
-                'direction': 'ln_to_onchain',
-            }
+            return _error_result(service_name, source_url, 'API 응답에서 수수료 필드를 찾지 못함')
 
         return {
             'service_name': service_name,
@@ -155,31 +141,17 @@ def fetch_coinos_fees() -> dict:
         }
     except Exception as exc:
         logger.warning('Coinos 수수료 조회 실패: %s', exc)
-        return {
-            'service_name': service_name,
-            'fee_pct': _STATIC_FEE_PCT,
-            'fee_fixed_sat': 0,
-            'min_amount_sat': 1_000,
-            'max_amount_sat': 50_000_000,
-            'enabled': True,
-            'source_url': source_url,
-            'error': _STATIC_ERROR,
-            'direction': 'ln_to_onchain',
-        }
+        return _error_result(service_name, source_url, str(exc))
 
 
 def fetch_bitflower_fees() -> dict:
     """
     BitFlower Lightning 스왑 수수료 조회.
     BitFlower는 Lightning ↔ On-chain 스왑 서비스.
-    검증된 정적 수수료: -0.2% + 500 sats (BitFlower 공개 안내 기준)
     공개 API: https://bitflower.com/api/v1/fees 또는 웹 스크래핑
     """
     service_name = 'BitFlower'
     source_url = 'https://bitflower.com'
-    _STATIC_FEE_PCT = -0.2
-    _STATIC_FIXED_SAT = 500
-    _STATIC_ERROR = '정적 검증값 (BitFlower 안내 기준: -0.2% + 500 sats)'
     api_urls = [
         'https://bitflower.com/api/v1/fees',
         'https://bitflower.com/api/fees',
@@ -211,18 +183,16 @@ def fetch_bitflower_fees() -> dict:
 
     # 웹 스크래핑 시도
     try:
-        import re
         resp = requests.get(source_url, headers={**_HEADERS, 'Accept': 'text/html'}, timeout=_TIMEOUT)
         if resp.status_code == 200:
             text = resp.text.lower()
-            # 수수료 정보 패턴 탐지 (0.x%, fee, etc.)
             fee_matches = re.findall(r'(\d+(?:\.\d+)?)\s*%', text)
             if fee_matches:
                 fee_pct = float(fee_matches[0])
                 return {
                     'service_name': service_name,
                     'fee_pct': fee_pct,
-                    'fee_fixed_sat': _STATIC_FIXED_SAT,
+                    'fee_fixed_sat': 0,
                     'min_amount_sat': 10_000,
                     'max_amount_sat': 10_000_000,
                     'enabled': True,
@@ -233,30 +203,16 @@ def fetch_bitflower_fees() -> dict:
     except Exception as exc2:
         logger.warning('BitFlower 웹 스크래핑 실패: %s', exc2)
 
-    # 모든 시도 실패 시 검증된 정적 수수료 사용
-    return {
-        'service_name': service_name,
-        'fee_pct': _STATIC_FEE_PCT,
-        'fee_fixed_sat': _STATIC_FIXED_SAT,
-        'min_amount_sat': 10_000,
-        'max_amount_sat': 10_000_000,
-        'enabled': True,
-        'source_url': source_url,
-        'error': _STATIC_ERROR,
-        'direction': 'onchain_to_ln',
-    }
+    return _error_result(service_name, source_url, '모든 API 및 스크래핑 시도 실패')
 
 
 def fetch_wos_fees() -> dict:
     """
     Wallet of Satoshi (WoS) Lightning→On-chain 스왑 수수료 조회.
-    WoS on-chain exit 수수료: 1.95% (검증된 정적 값)
     공개 API: https://livingroomofsatoshi.com/api/v1/lnurl/pay (일부 정보)
     """
     service_name = 'WalletOfSatoshi'
     source_url = 'https://walletofsatoshi.com'
-    _STATIC_FEE_PCT = 1.95
-    _STATIC_ERROR = '정적 검증값 (WoS on-chain exit 기준: 1.95%)'
     api_url = 'https://livingroomofsatoshi.com/api/v1/lnurl/pay'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
@@ -276,33 +232,21 @@ def fetch_wos_fees() -> dict:
                     'error': None,
                     'direction': 'ln_to_onchain',
                 }
+            return _error_result(service_name, source_url, 'API 응답에서 fee_pct 필드 없음')
+        return _error_result(service_name, source_url, f'API 응답 오류: HTTP {resp.status_code}')
     except Exception as exc:
         logger.warning('WalletOfSatoshi API 조회 실패: %s', exc)
-
-    # API에서 수수료 정보를 얻지 못한 경우 검증된 정적 수수료 사용
-    return {
-        'service_name': service_name,
-        'fee_pct': _STATIC_FEE_PCT,
-        'fee_fixed_sat': 0,
-        'min_amount_sat': 1,
-        'max_amount_sat': 5_000_000,
-        'enabled': True,
-        'source_url': source_url,
-        'error': _STATIC_ERROR,
-        'direction': 'ln_to_onchain',
-    }
+        return _error_result(service_name, source_url, str(exc))
 
 
 def fetch_strike_fees() -> dict:
     """
     Strike Lightning 서비스 수수료 조회.
     Strike는 Lightning ↔ 법정화폐 환전 서비스.
-    수수료: 일반적으로 1% (프리미엄 플랜 0.5%)
-    공개 API: https://api.strike.me/v1/rates/conversion (인증 필요)
+    공개 API: https://api.strike.me/v1/currencies (인증 없이 응답 확인용)
     """
     service_name = 'Strike'
     source_url = 'https://strike.me'
-    # Strike 공개 API 시도 (인증 없이 접근 가능한 엔드포인트)
     api_url = 'https://api.strike.me/v1/currencies'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
@@ -319,21 +263,10 @@ def fetch_strike_fees() -> dict:
                 'error': None,
                 'direction': 'ln_to_onchain',
             }
+        return _error_result(service_name, source_url, f'API 응답 오류: HTTP {resp.status_code}')
     except Exception as exc:
         logger.warning('Strike API 조회 실패: %s', exc)
-
-    # Strike: Lightning BTC 수신 무료 (USD 환전 시에만 수수료)
-    return {
-        'service_name': service_name,
-        'fee_pct': 0.0,
-        'fee_fixed_sat': 0,
-        'min_amount_sat': 1_000,
-        'max_amount_sat': 100_000_000,
-        'enabled': True,
-        'source_url': source_url,
-        'error': '공개 API 인증 필요, Lightning BTC 수신 무료 적용',
-        'direction': 'ln_to_onchain',
-    }
+        return _error_result(service_name, source_url, str(exc))
 
 
 def fetch_strike_onchain_to_ln_fees() -> dict:
@@ -359,13 +292,9 @@ def fetch_oksusu_fees() -> dict:
     """
     Oksusu / Corn Wallet Lightning → on-chain 출금 수수료 조회.
     공식 사이트(team.oksu.su/ko)의 공개 안내 문구를 스크래핑한다.
-    2026-03 기준 공개 페이지에는 온체인 스왑/출금 수수료 0.49%가 표기되어 있고,
-    fee 전용 공개 API는 확인되지 않았다.
     """
     service_name = 'Oksusu'
     source_url = 'https://team.oksu.su/ko'
-    static_fee_pct = 0.49
-    static_error = '공식 사이트 정적 검증값 (공개 fee API 미확인, team.oksu.su/ko 기준 0.49%)'
     try:
         resp = requests.get(source_url, headers={**_HEADERS, 'Accept': 'text/html'}, timeout=_TIMEOUT)
         resp.raise_for_status()
@@ -373,31 +302,22 @@ def fetch_oksusu_fees() -> dict:
         match = re.search(r'온체인[^\d]{0,40}(\d+(?:\.\d+)?)\s*%', text)
         if not match:
             match = re.search(r'(\d+(?:\.\d+)?)\s*%[^\n<]{0,80}온체인', text)
-        fee_pct = float(match.group(1)) if match else static_fee_pct
+        if not match:
+            return _error_result(service_name, source_url, '페이지에서 수수료 정보를 찾지 못함')
         return {
             'service_name': service_name,
-            'fee_pct': fee_pct,
+            'fee_pct': float(match.group(1)),
             'fee_fixed_sat': 0,
             'min_amount_sat': 1_000,
             'max_amount_sat': 100_000_000,
             'enabled': True,
             'source_url': source_url,
-            'error': None if match else static_error,
+            'error': None,
             'direction': 'ln_to_onchain',
         }
     except Exception as exc:
         logger.warning('Oksusu 수수료 조회 실패: %s', exc)
-        return {
-            'service_name': service_name,
-            'fee_pct': static_fee_pct,
-            'fee_fixed_sat': 0,
-            'min_amount_sat': 1_000,
-            'max_amount_sat': 100_000_000,
-            'enabled': True,
-            'source_url': source_url,
-            'error': static_error,
-            'direction': 'ln_to_onchain',
-        }
+        return _error_result(service_name, source_url, str(exc))
 
 
 def fetch_boltz_reverse_fees() -> dict:
@@ -465,21 +385,19 @@ def fetch_bitfreezer_fees() -> dict:
     service_name = 'BitFreezer'
     source_url = 'https://bitfreezer.vercel.app'
     api_url = 'https://bitfreezer.vercel.app/api/status'
-    _STATIC_FEE_PCT = 0.44
-    _STATIC_ERROR = '정적 검증값 (BitFreezer API 기준: 0.44%)'
     try:
         resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
-        fee_pct = float(data.get('serviceFee', _STATIC_FEE_PCT))
-        min_amount_sat = int(data.get('min', 10_000))
-        max_amount_sat = int(data.get('max', 10_000_000))
+        fee_pct_raw = data.get('serviceFee')
+        if fee_pct_raw is None:
+            return _error_result(service_name, source_url, 'API 응답에서 serviceFee 필드 없음')
         return {
             'service_name': service_name,
-            'fee_pct': fee_pct,
+            'fee_pct': float(fee_pct_raw),
             'fee_fixed_sat': 0,
-            'min_amount_sat': min_amount_sat,
-            'max_amount_sat': max_amount_sat,
+            'min_amount_sat': int(data.get('min', 10_000)),
+            'max_amount_sat': int(data.get('max', 10_000_000)),
             'enabled': True,
             'source_url': source_url,
             'error': None,
@@ -487,17 +405,7 @@ def fetch_bitfreezer_fees() -> dict:
         }
     except Exception as exc:
         logger.warning('BitFreezer 수수료 조회 실패: %s', exc)
-        return {
-            'service_name': service_name,
-            'fee_pct': _STATIC_FEE_PCT,
-            'fee_fixed_sat': 0,
-            'min_amount_sat': 10_000,
-            'max_amount_sat': 10_000_000,
-            'enabled': True,
-            'source_url': source_url,
-            'error': _STATIC_ERROR,
-            'direction': 'ln_to_onchain',
-        }
+        return _error_result(service_name, source_url, str(exc))
 
 
 def get_all_lightning_swap_fees() -> list[dict]:

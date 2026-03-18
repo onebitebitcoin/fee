@@ -231,9 +231,16 @@ def test_fetch_strike_onchain_to_ln_fees_direction():
     assert result['enabled'] is True
 
 
-def test_get_all_lightning_swap_fees_includes_strike_both_directions():
-    """get_all_lightning_swap_fees()에 Strike의 양방향 항목이 모두 포함된다."""
+def test_get_all_lightning_swap_fees_includes_strike_both_directions(mocker):
+    """Strike API가 정상 응답할 때 get_all_lightning_swap_fees()에 양방향 항목이 모두 포함된다."""
+    import requests as _requests
     from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
+
+    mock_resp = mocker.MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.raise_for_status.return_value = None
+    mock_resp.json.return_value = [{'code': 'BTC'}]
+    mocker.patch.object(_requests, 'get', return_value=mock_resp)
 
     all_fees = get_all_lightning_swap_fees()
     strike_entries = [s for s in all_fees if s.get('service_name') == 'Strike']
