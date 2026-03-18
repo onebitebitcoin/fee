@@ -566,18 +566,21 @@ def find_cheapest_path(
 ) -> dict:
     """
     모든 한국 거래소 × 모든 출금 코인(BTC/USDT) × 모든 네트워크를 병렬 탐색하여
-    최대 BTC 수령량 기준으로 최적 경로를 찾습니다.
+    개인지갑 최종 도달 기준 최저비용 경로를 찾습니다.
 
     경로 유형:
-      - BTC 직접: 한국 거래소에서 BTC 매수 → BTC 온체인 출금 → 글로벌 거래소 도착
-      - USDT 경유: 한국 거래소에서 USDT 매수 → 네트워크별 출금 → 글로벌 거래소에서 BTC 매수
+      - BTC 직접: 한국 거래소에서 BTC 매수 → BTC 온체인 출금 → 개인지갑 도착
+      - USDT 경유 (온체인): 한국 USDT 매수 → 출금 → 글로벌 거래소 BTC 매수 → 온체인 출금 → 개인지갑
+      - USDT 경유 (라이트닝): 한국 USDT 매수 → 출금 → 글로벌 거래소 BTC 매수 → Lightning 출금 → 개인지갑
+
+    모든 경로의 total_fee_krw는 개인지갑 도달까지의 총비용입니다.
 
     Args:
         amount_krw: 투자 금액 (KRW, 기본값: 1,000,000원)
-        global_exchange: 목적지 글로벌 거래소 (binance, okx, coinbase, kraken, bitget)
+        global_exchange: 경유 글로벌 거래소 (binance, okx, coinbase, kraken, bitget)
 
     Returns:
-        전체 경로 비교 결과 및 최적 경로 TOP 5 (수령 BTC 내림차순)
+        전체 경로 비교 결과 및 최적 경로 TOP 5 (총수수료 오름차순)
     """
     global_exchange = global_exchange.lower()
     if global_exchange not in GROUPS["global"]:
@@ -600,6 +603,7 @@ def find_cheapest_path(
                 for ex in GROUPS["korea"]
                 for coin in ["BTC", "USDT"]
             }
+            fut_global_btc_wd = executor.submit(_get_withdrawal_data, global_exchange, "BTC")
 
         usd_krw_rate = fut_rate.result()
         global_btc_price_usd = float(fut_global.result()["price"])
@@ -610,6 +614,32 @@ def find_cheapest_path(
             if isinstance(global_fees_entry.get("spot"), dict)
             else global_fees_entry["taker"]
         )
+
+        # ── 0-a. 글로벌 거래소 BTC 출금 수수료 (개인지갑 최종 도달 비용) ─────
+        global_onchain_wd_fee_btc: float | None = None
+        global_onchain_wd_fee_krw: int = 0
+        global_onchain_wd_network_label: str = "Bitcoin"
+        global_ln_wd_fee_btc: float | None = None
+        global_ln_wd_fee_krw: int = 0
+        try:
+            global_btc_networks = fut_global_btc_wd.result()
+            for _net in global_btc_networks:
+                label_lower = (_net.get("label") or "").lower()
+                is_bitcoin_native = ("bitcoin" in label_lower or "btc" in label_lower) and "lightning" not in label_lower
+                is_non_btc_chain = any(x in label_lower for x in ("bep20", "erc20", "trc20", "solana", "aptos", "sui", "bnb"))
+                if _net.get("enabled", True) and _net.get("fee") is not None and is_bitcoin_native and not is_non_btc_chain:
+                    if global_onchain_wd_fee_btc is None:
+                        global_onchain_wd_fee_btc = _net["fee"]
+                        fee_krw_val = _net.get("fee_krw")
+                        global_onchain_wd_fee_krw = int(round(fee_krw_val)) if fee_krw_val is not None else round(_net["fee"] * global_btc_price_usd * usd_krw_rate)
+                        global_onchain_wd_network_label = _net.get("label", "Bitcoin")
+                elif "lightning" in label_lower and _net.get("enabled", True) and _net.get("fee") is not None:
+                    if global_ln_wd_fee_btc is None:
+                        global_ln_wd_fee_btc = _net["fee"]
+                        fee_krw_val = _net.get("fee_krw")
+                        global_ln_wd_fee_krw = int(round(fee_krw_val)) if fee_krw_val is not None else round(_net["fee"] * global_btc_price_usd * usd_krw_rate)
+        except Exception:
+            pass
 
         # ── 0. 점검 중인 네트워크 조회 ─────────────────────────────────────
         try:
@@ -715,42 +745,68 @@ def find_cheapest_path(
                         continue
                     global_trading_fee_usdt = usdt_after_withdrawal * global_taker
                     usdt_for_btc = usdt_after_withdrawal - global_trading_fee_usdt
-                    btc_received = usdt_for_btc / global_btc_price_usd
+                    btc_at_global = usdt_for_btc / global_btc_price_usd
                     withdrawal_fee_krw = round(withdrawal_fee_usdt * usd_krw_rate)
                     global_trading_fee_krw = round(global_trading_fee_usdt * usd_krw_rate)
-                    total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw
+
+                    # 온체인 출금 경로 (글로벌 거래소 → 개인지갑)
+                    if global_onchain_wd_fee_btc is not None:
+                        btc_received = btc_at_global - global_onchain_wd_fee_btc
+                        total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw + global_onchain_wd_fee_krw
+                        wd_components = [
+                            {"label": "국내 매수 수수료", "amount_krw": trading_fee_krw, "rate_pct": round(korean_taker * 100, 4), "amount_text": None},
+                            {"label": "USDT 출금 수수료", "amount_krw": withdrawal_fee_krw, "rate_pct": None, "amount_text": f"{withdrawal_fee_usdt} USDT"},
+                            {"label": "해외 BTC 매수 수수료", "amount_krw": global_trading_fee_krw, "rate_pct": round(global_taker * 100, 4), "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT"},
+                            {"label": f"해외 BTC 출금 수수료 ({global_exchange})", "amount_krw": global_onchain_wd_fee_krw, "rate_pct": None, "amount_text": f"{global_onchain_wd_fee_btc} BTC"},
+                        ]
+                    else:
+                        btc_received = btc_at_global
+                        total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw
+                        wd_components = [
+                            {"label": "국내 매수 수수료", "amount_krw": trading_fee_krw, "rate_pct": round(korean_taker * 100, 4), "amount_text": None},
+                            {"label": "USDT 출금 수수료", "amount_krw": withdrawal_fee_krw, "rate_pct": None, "amount_text": f"{withdrawal_fee_usdt} USDT"},
+                            {"label": "해외 BTC 매수 수수료", "amount_krw": global_trading_fee_krw, "rate_pct": round(global_taker * 100, 4), "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT"},
+                        ]
+                    if btc_received <= 0:
+                        continue
                     paths.append({
                         "korean_exchange": ex,
                         "transfer_coin": "USDT",
                         "network": net["label"],
+                        "global_exit_mode": "onchain",
+                        "global_exit_network": global_onchain_wd_network_label,
                         "btc_received": round(btc_received, 8),
                         "btc_received_usd": round(btc_received * global_btc_price_usd, 2),
                         "total_fee_krw": total_fee_krw,
                         "fee_pct": round(total_fee_krw / amount_krw * 100, 4),
-                        "breakdown": {
-                            "components": [
-                                {
-                                    "label": "국내 매수 수수료",
-                                    "amount_krw": trading_fee_krw,
-                                    "rate_pct": round(korean_taker * 100, 4),
-                                    "amount_text": None,
-                                },
-                                {
-                                    "label": "USDT 출금 수수료",
-                                    "amount_krw": withdrawal_fee_krw,
-                                    "rate_pct": None,
-                                    "amount_text": f"{withdrawal_fee_usdt} USDT",
-                                },
-                                {
-                                    "label": "해외 BTC 매수 수수료",
-                                    "amount_krw": global_trading_fee_krw,
-                                    "rate_pct": round(global_taker * 100, 4),
-                                    "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT",
-                                },
-                            ],
-                            "total_fee_krw": total_fee_krw,
-                        },
+                        "breakdown": {"components": wd_components, "total_fee_krw": total_fee_krw},
                     })
+
+                    # 라이트닝 출금 경로 (글로벌 거래소 → 개인지갑 Lightning)
+                    if global_ln_wd_fee_btc is not None:
+                        btc_received_ln = btc_at_global - global_ln_wd_fee_btc
+                        if btc_received_ln > 0:
+                            total_fee_krw_ln = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw + global_ln_wd_fee_krw
+                            paths.append({
+                                "korean_exchange": ex,
+                                "transfer_coin": "USDT",
+                                "network": net["label"],
+                                "global_exit_mode": "lightning",
+                                "global_exit_network": "Lightning Network",
+                                "btc_received": round(btc_received_ln, 8),
+                                "btc_received_usd": round(btc_received_ln * global_btc_price_usd, 2),
+                                "total_fee_krw": total_fee_krw_ln,
+                                "fee_pct": round(total_fee_krw_ln / amount_krw * 100, 4),
+                                "breakdown": {
+                                    "components": [
+                                        {"label": "국내 매수 수수료", "amount_krw": trading_fee_krw, "rate_pct": round(korean_taker * 100, 4), "amount_text": None},
+                                        {"label": "USDT 출금 수수료", "amount_krw": withdrawal_fee_krw, "rate_pct": None, "amount_text": f"{withdrawal_fee_usdt} USDT"},
+                                        {"label": "해외 BTC 매수 수수료", "amount_krw": global_trading_fee_krw, "rate_pct": round(global_taker * 100, 4), "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT"},
+                                        {"label": f"해외 BTC Lightning 출금 수수료 ({global_exchange})", "amount_krw": global_ln_wd_fee_krw, "rate_pct": None, "amount_text": f"{global_ln_wd_fee_btc} BTC"},
+                                    ],
+                                    "total_fee_krw": total_fee_krw_ln,
+                                },
+                            })
             except Exception:
                 pass
 
