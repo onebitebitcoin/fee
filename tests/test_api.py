@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.app.db.base import Base
-from backend.app.db.models import CrawlRun, LightningSwapFeeSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlRun, ExchangeCapabilitySnapshot, LightningSwapFeeSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.session import get_db
 from backend.app.main import app
 
@@ -155,6 +155,18 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
             enabled=True,
             source_url='https://coinos.io',
             direction='ln_to_onchain',
+        ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            supports_lightning_deposit=False,
+            supports_lightning_withdrawal=False,
+        ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            supports_lightning_deposit=True,
+            supports_lightning_withdrawal=True,
         ),
     ])
     db.commit()
@@ -428,6 +440,18 @@ def test_sell_cheapest_path_uses_btc_input(mocker):
             enabled=True,
             note='snapshot value',
         ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            supports_lightning_deposit=False,
+            supports_lightning_withdrawal=False,
+        ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            supports_lightning_deposit=True,
+            supports_lightning_withdrawal=True,
+        ),
     ])
     db.commit()
     db.close()
@@ -447,6 +471,147 @@ def test_sell_cheapest_path_uses_btc_input(mocker):
     assert payload['amount_btc'] == 0.01
     assert payload['best_path']['route_variant'] == 'btc_direct'
     assert payload['best_path']['krw_received'] > 0
+
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
+
+
+def test_sell_mode_lightning_excluded_without_capability(mocker):
+    """supports_lightning_deposit=False인 한국 거래소는 sell 모드 Lightning 경로에서 제외된다."""
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+
+    db.add_all([
+        TickerSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            pair='BTC/KRW',
+            market_type='spot',
+            currency='KRW',
+            price=100000000.0,
+            taker_fee_pct=0.05,
+            usd_krw_rate=1400.0,
+        ),
+        TickerSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            pair='BTC/USD',
+            market_type='spot',
+            currency='USD',
+            price=70000.0,
+            taker_fee_pct=0.1,
+            usd_krw_rate=1400.0,
+        ),
+        WithdrawalFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            coin='BTC',
+            source='scraped_page',
+            network_label='Bitcoin',
+            fee=0.0001,
+            fee_krw=10000.0,
+            enabled=True,
+        ),
+        LightningSwapFeeSnapshot(
+            crawl_run_id=crawl_run.id,
+            service_name='Boltz',
+            fee_pct=0.5,
+            fee_fixed_sat=0,
+            min_amount_sat=1,
+            max_amount_sat=1_000_000_000,
+            enabled=True,
+            direction='onchain_to_ln',
+        ),
+        # upbit: Lightning 입금 미지원 (False)
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            supports_lightning_deposit=False,
+            supports_lightning_withdrawal=False,
+        ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            supports_lightning_deposit=True,
+            supports_lightning_withdrawal=True,
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={})
+    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee_btc', return_value=0.00001)
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/path-finder/cheapest?mode=sell&amount_btc=0.01&global_exchange=binance')
+    assert response.status_code == 200
+    payload = response.json()
+
+    # lightning_direct 경로 없어야 함 (upbit은 Lightning 입금 미지원)
+    lightning_paths = [p for p in payload['all_paths'] if p.get('route_variant') == 'lightning_direct']
+    assert len(lightning_paths) == 0, f"upbit supports_lightning_deposit=False이므로 lightning_direct 없어야 함: {lightning_paths}"
+
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
+
+
+def test_exchange_capabilities_latest_endpoint():
+    """GET /exchange-capabilities/latest 엔드포인트가 거래소별 Lightning 지원 여부를 반환한다."""
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+
+    db.add_all([
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='upbit',
+            supports_lightning_deposit=False,
+            supports_lightning_withdrawal=False,
+        ),
+        ExchangeCapabilitySnapshot(
+            crawl_run_id=crawl_run.id,
+            exchange='binance',
+            supports_lightning_deposit=True,
+            supports_lightning_withdrawal=True,
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/exchange-capabilities/latest')
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['last_run'] is not None
+    items = {item['exchange']: item for item in payload['items']}
+    assert items['upbit']['supports_lightning_deposit'] is False
+    assert items['binance']['supports_lightning_deposit'] is True
+    assert items['binance']['supports_lightning_withdrawal'] is True
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)

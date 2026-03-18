@@ -26,6 +26,7 @@ class CrawlRun(Base):
     crawl_errors: Mapped[list['CrawlError']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     lightning_swap_fee_snapshots: Mapped[list['LightningSwapFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_notices: Mapped[list['ExchangeNotice']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    exchange_capability_snapshots: Mapped[list['ExchangeCapabilitySnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
 
 class TickerSnapshot(Base):
@@ -122,6 +123,19 @@ class LightningSwapFeeSnapshot(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='lightning_swap_fee_snapshots')
+
+
+class ExchangeCapabilitySnapshot(Base):
+    __tablename__ = 'exchange_capability_snapshots'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    exchange: Mapped[str] = mapped_column(String(32), index=True)
+    supports_lightning_deposit: Mapped[bool] = mapped_column(Boolean, default=False)
+    supports_lightning_withdrawal: Mapped[bool] = mapped_column(Boolean, default=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_capability_snapshots')
 
 
 class AccessLog(Base):

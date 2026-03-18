@@ -8,7 +8,7 @@ from sqlalchemy import desc, func as sqlfunc, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
-from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice
+from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -53,6 +53,13 @@ def list_lightning_swap_fees_for_run(db: Session, run_id: int) -> list[Lightning
     stmt = select(LightningSwapFeeSnapshot).where(
         LightningSwapFeeSnapshot.crawl_run_id == run_id
     ).order_by(LightningSwapFeeSnapshot.service_name)
+    return list(db.scalars(stmt))
+
+
+def list_exchange_capabilities_for_run(db: Session, run_id: int) -> list[ExchangeCapabilitySnapshot]:
+    stmt = select(ExchangeCapabilitySnapshot).where(
+        ExchangeCapabilitySnapshot.crawl_run_id == run_id
+    ).order_by(ExchangeCapabilitySnapshot.exchange)
     return list(db.scalars(stmt))
 
 

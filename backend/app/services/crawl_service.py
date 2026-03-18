@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 import logging
 
-from backend.app.db.models import CrawlError, CrawlRun, ExchangeNotice, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices
@@ -36,7 +36,9 @@ class CrawlService:
         withdrawal_count = 0
         network_count = 0
         lightning_count = 0
+        capability_count = 0
         error_count = 0
+        _ln_btc_exchanges: set[str] = set()  # BTC Lightning 출금 가능 거래소 추적
 
         try:
             usd_krw_rate = live_market.fetch_usd_krw_rate()
@@ -75,21 +77,27 @@ class CrawlService:
                         error_count += 1
                         continue
                     for network in withdrawal_payload['networks']:
+                        label = network.get('label', 'unknown')
+                        fee = network.get('fee')
+                        enabled = network.get('enabled', True)
                         self.db.add(WithdrawalFeeSnapshot(
                             crawl_run_id=crawl_run.id,
                             exchange=exchange,
                             coin=coin,
                             source=withdrawal_payload['source'],
-                            network_label=network.get('label', 'unknown'),
-                            fee=network.get('fee'),
+                            network_label=label,
+                            fee=fee,
                             fee_usd=network.get('fee_usd'),
                             fee_krw=network.get('fee_krw'),
                             min_withdrawal=network.get('min'),
                             max_withdrawal=network.get('max'),
-                            enabled=network.get('enabled', True),
+                            enabled=enabled,
                             note=network.get('note'),
                         ))
                         withdrawal_count += 1
+                        # BTC Lightning 출금 가능 여부 추적
+                        if coin == 'BTC' and enabled and fee is not None and 'lightning' in label.lower():
+                            _ln_btc_exchanges.add(exchange)
             network_payload = live_market.get_network_status('all')
             exchanges = network_payload.get('exchanges', {}) if isinstance(network_payload, dict) else {}
             for exchange, data in exchanges.items():
@@ -131,6 +139,17 @@ class CrawlService:
                 ))
                 lightning_count += 1
 
+            # 거래소별 Lightning 입출금 지원 여부 capability 저장
+            for ex in live_market.ALL_EXCHANGES:
+                has_ln = ex in _ln_btc_exchanges
+                self.db.add(ExchangeCapabilitySnapshot(
+                    crawl_run_id=crawl_run.id,
+                    exchange=ex,
+                    supports_lightning_deposit=has_ln,
+                    supports_lightning_withdrawal=has_ln,
+                ))
+                capability_count += 1
+
             # 공지사항 스크래핑 (오류가 나도 전체 크롤링 성공에 영향 없음)
             try:
                 notices = get_all_notices()
@@ -146,7 +165,7 @@ class CrawlService:
                 logger.warning('Notice scraping failed: %s', exc)
 
             crawl_run.status = 'partial_success' if error_count else 'success'
-            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, errors={error_count}'
+            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, errors={error_count}'
             _invalidate_market_cache()
         except Exception as exc:
             self.db.rollback()          # 부분 커밋 방지

@@ -199,6 +199,25 @@ def get_latest_lightning_swap_fees(db: Session = Depends(get_db)) -> dict:
     }
 
 
+@router.get('/exchange-capabilities/latest')
+def get_latest_exchange_capabilities(db: Session = Depends(get_db)) -> dict:
+    latest_run = repositories.get_latest_successful_run(db)
+    if latest_run is None:
+        return {'last_run': None, 'items': []}
+    rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id)
+    return {
+        'last_run': _serialize_run(latest_run),
+        'items': [
+            {
+                'exchange': row.exchange,
+                'supports_lightning_deposit': row.supports_lightning_deposit,
+                'supports_lightning_withdrawal': row.supports_lightning_withdrawal,
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.get('/path-finder/cheapest')
 def get_cheapest_path(
     amount_krw: int = Query(1000000, ge=10000),
@@ -251,6 +270,7 @@ def get_cheapest_path(
     if mode == 'sell':
         if amount_btc is None:
             raise HTTPException(status_code=422, detail='sell 모드에는 amount_btc가 필요합니다.')
+        exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
         payload = find_cheapest_sell_path_from_snapshot_rows(
             amount_btc=amount_btc,
             global_exchange=global_exchange,
@@ -259,6 +279,7 @@ def get_cheapest_path(
             withdrawal_rows=withdrawal_rows,
             network_rows=network_rows,
             lightning_swap_rows=lightning_swap_rows,
+            exchange_capability_rows=exchange_capability_rows,
         )
     else:
         payload = find_cheapest_path_from_snapshot_rows(

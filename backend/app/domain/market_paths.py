@@ -861,6 +861,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
     withdrawal_rows: list,
     network_rows: list,
     lightning_swap_rows: list | None = None,
+    exchange_capability_rows: list | None = None,
 ) -> dict:
     global_exchange = global_exchange.lower()
     if global_exchange not in GROUPS['global']:
@@ -945,6 +946,10 @@ def find_cheapest_sell_path_from_snapshot_rows(
     withdrawals_by_key: dict[tuple[str, str], list] = {}
     for row in withdrawal_rows:
         withdrawals_by_key.setdefault((row.exchange, row.coin), []).append(row)
+
+    capability_by_exchange: dict[str, object] = {
+        row.exchange: row for row in (exchange_capability_rows or [])
+    }
 
     maintenance_status: dict[str, list[dict]] = {}
     for row in network_rows:
@@ -1071,12 +1076,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 korean_btc_price_krw = float(ticker_row.price)
                 korean_taker = (ticker_row.taker_fee_pct / 100) if ticker_row.taker_fee_pct is not None else TRADING_FEES[exchange]['taker']
 
-                # Bug #2 fix: 한국 거래소의 Lightning 입금 지원 여부 확인 (출금 데이터를 proxy로 사용)
-                korean_has_lightning = any(
-                    row.enabled and row.fee is not None
-                    and 'lightning' in (row.network_label or '').lower()
-                    for row in withdrawals_by_key.get((exchange, 'BTC'), [])
-                )
+                # ExchangeCapabilitySnapshot으로 한국 거래소 Lightning 입금 지원 여부 확인
+                cap = capability_by_exchange.get(exchange)
+                korean_has_lightning = cap.supports_lightning_deposit if cap is not None else False
                 if not korean_has_lightning:
                     continue
 
