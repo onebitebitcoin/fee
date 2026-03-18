@@ -349,7 +349,6 @@ describe('CheapestPathPage', () => {
 
     await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
     await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
-    await user.click(await screen.findByRole('button', { name: '가장 낮은 수수료' }));
 
     expect(await screen.findByText('비트코인 팔 때 경로')).toBeInTheDocument();
     expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();

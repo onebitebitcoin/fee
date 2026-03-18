@@ -474,6 +474,10 @@ export function CheapestPathPage() {
   const [submitting, setSubmitting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [pathShortcut, setPathShortcut] = useState<'default' | 'non_kyc' | 'no_lightning'>('non_kyc');
+
+  useEffect(() => {
+    setPathShortcut(mode === 'sell' ? 'default' : 'non_kyc');
+  }, [mode]);
   const [error, setError] = useState<string | null>(null);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
   const [expandedPathId, setExpandedPathId] = useState('');
