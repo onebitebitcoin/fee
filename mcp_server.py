@@ -797,32 +797,11 @@ def find_cheapest_path(
                         "breakdown": {"components": wd_components, "total_fee_krw": total_fee_krw},
                     })
 
-                    # 라이트닝 출금 경로 (글로벌 거래소 → 개인지갑 Lightning)
+                    # ln_to_onchain 스왑 경로용 Lightning 출금 계산 (개인 온체인 지갑 종착 경로만 유지)
                     if global_ln_wd_fee_btc is not None:
                         btc_received_ln = btc_at_global - global_ln_wd_fee_btc
                         if btc_received_ln > 0:
                             total_fee_krw_ln = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw + global_ln_wd_fee_krw
-                            paths.append({
-                                "korean_exchange": ex,
-                                "transfer_coin": "USDT",
-                                "network": net["label"],
-                                "global_exit_mode": "lightning",
-                                "global_exit_network": "Lightning Network",
-                                "lightning_exit_provider": None,
-                                "btc_received": round(btc_received_ln, 8),
-                                "btc_received_usd": round(btc_received_ln * global_btc_price_usd, 2),
-                                "total_fee_krw": total_fee_krw_ln,
-                                "fee_pct": round(total_fee_krw_ln / amount_krw * 100, 4),
-                                "breakdown": {
-                                    "components": [
-                                        {"label": "국내 매수 수수료", "amount_krw": trading_fee_krw, "rate_pct": round(korean_taker * 100, 4), "amount_text": None},
-                                        {"label": "USDT 출금 수수료", "amount_krw": withdrawal_fee_krw, "rate_pct": None, "amount_text": f"{withdrawal_fee_usdt} USDT"},
-                                        {"label": "해외 BTC 매수 수수료", "amount_krw": global_trading_fee_krw, "rate_pct": round(global_taker * 100, 4), "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT"},
-                                        {"label": f"해외 BTC Lightning 출금 수수료 ({global_exchange})", "amount_krw": global_ln_wd_fee_krw, "rate_pct": None, "amount_text": f"{global_ln_wd_fee_btc} BTC"},
-                                    ],
-                                    "total_fee_krw": total_fee_krw_ln,
-                                },
-                            })
 
                         # ln_to_onchain 스왑 경로 (글로벌 거래소 Lightning 출금 → 스왑 → 개인 온체인 지갑)
                         for swap in ln_to_onchain_swaps:
