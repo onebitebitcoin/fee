@@ -15,6 +15,8 @@ from fastmcp import FastMCP
 # fee_checker.py의 함수들을 재사용
 sys.path.insert(0, os.path.dirname(__file__))
 
+from backend.app.services.lightning_scraper import get_all_lightning_swap_fees  # noqa: E402
+
 from fee_checker import (  # noqa: E402
     ALL_EXCHANGES,
     GROUPS,
@@ -604,6 +606,7 @@ def find_cheapest_path(
                 for coin in ["BTC", "USDT"]
             }
             fut_global_btc_wd = executor.submit(_get_withdrawal_data, global_exchange, "BTC")
+            fut_lightning_swaps = executor.submit(get_all_lightning_swap_fees)
 
         usd_krw_rate = fut_rate.result()
         global_btc_price_usd = float(fut_global.result()["price"])
@@ -640,6 +643,18 @@ def find_cheapest_path(
                         global_ln_wd_fee_krw = int(round(fee_krw_val)) if fee_krw_val is not None else round(_net["fee"] * global_btc_price_usd * usd_krw_rate)
         except Exception:
             pass
+
+        # ── 0-b. Lightning 스왑 서비스 (ln_to_onchain) 수수료 조회 ───────
+        try:
+            lightning_swap_data = fut_lightning_swaps.result()
+            ln_to_onchain_swaps = [
+                s for s in lightning_swap_data
+                if s.get("direction") == "ln_to_onchain"
+                and s.get("enabled")
+                and s.get("fee_pct") is not None
+            ]
+        except Exception:
+            ln_to_onchain_swaps = []
 
         # ── 0. 점검 중인 네트워크 조회 ─────────────────────────────────────
         try:
@@ -793,6 +808,7 @@ def find_cheapest_path(
                                 "network": net["label"],
                                 "global_exit_mode": "lightning",
                                 "global_exit_network": "Lightning Network",
+                                "lightning_exit_provider": None,
                                 "btc_received": round(btc_received_ln, 8),
                                 "btc_received_usd": round(btc_received_ln * global_btc_price_usd, 2),
                                 "total_fee_krw": total_fee_krw_ln,
@@ -805,6 +821,44 @@ def find_cheapest_path(
                                         {"label": f"해외 BTC Lightning 출금 수수료 ({global_exchange})", "amount_krw": global_ln_wd_fee_krw, "rate_pct": None, "amount_text": f"{global_ln_wd_fee_btc} BTC"},
                                     ],
                                     "total_fee_krw": total_fee_krw_ln,
+                                },
+                            })
+
+                        # ln_to_onchain 스왑 경로 (글로벌 거래소 Lightning 출금 → 스왑 → 개인 온체인 지갑)
+                        for swap in ln_to_onchain_swaps:
+                            fee_pct_swap = (swap.get("fee_pct") or 0) / 100
+                            fee_fixed_btc = (swap.get("fee_fixed_sat") or 0) / 1e8
+                            min_btc = (swap.get("min_amount_sat") or 0) / 1e8
+                            max_btc_limit = swap.get("max_amount_sat")
+                            max_btc = max_btc_limit / 1e8 if max_btc_limit else float("inf")
+                            if btc_received_ln < min_btc or btc_received_ln > max_btc:
+                                continue
+                            swap_fee_btc = btc_received_ln * fee_pct_swap + fee_fixed_btc
+                            btc_received_swap = btc_received_ln - swap_fee_btc
+                            if btc_received_swap <= 0:
+                                continue
+                            swap_fee_krw = round(swap_fee_btc * global_btc_price_usd * usd_krw_rate)
+                            total_fee_krw_swap = total_fee_krw_ln + swap_fee_krw
+                            paths.append({
+                                "korean_exchange": ex,
+                                "transfer_coin": "USDT",
+                                "network": net["label"],
+                                "global_exit_mode": "lightning",
+                                "global_exit_network": "Lightning Network",
+                                "lightning_exit_provider": swap.get("service_name"),
+                                "btc_received": round(btc_received_swap, 8),
+                                "btc_received_usd": round(btc_received_swap * global_btc_price_usd, 2),
+                                "total_fee_krw": total_fee_krw_swap,
+                                "fee_pct": round(total_fee_krw_swap / amount_krw * 100, 4),
+                                "breakdown": {
+                                    "components": [
+                                        {"label": "국내 매수 수수료", "amount_krw": trading_fee_krw, "rate_pct": round(korean_taker * 100, 4), "amount_text": None},
+                                        {"label": "USDT 출금 수수료", "amount_krw": withdrawal_fee_krw, "rate_pct": None, "amount_text": f"{withdrawal_fee_usdt} USDT"},
+                                        {"label": "해외 BTC 매수 수수료", "amount_krw": global_trading_fee_krw, "rate_pct": round(global_taker * 100, 4), "amount_text": f"{round(global_trading_fee_usdt, 8)} USDT"},
+                                        {"label": f"해외 BTC Lightning 출금 수수료 ({global_exchange})", "amount_krw": global_ln_wd_fee_krw, "rate_pct": None, "amount_text": f"{global_ln_wd_fee_btc} BTC"},
+                                        {"label": f"Lightning 스왑 수수료 ({swap.get('service_name')})", "amount_krw": swap_fee_krw, "rate_pct": swap.get("fee_pct"), "amount_text": f"{round(swap_fee_btc, 8)} BTC"},
+                                    ],
+                                    "total_fee_krw": total_fee_krw_swap,
                                 },
                             })
             except Exception:
