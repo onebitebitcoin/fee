@@ -222,6 +222,7 @@ def get_latest_exchange_capabilities(db: Session = Depends(get_db)) -> dict:
 def get_cheapest_path(
     amount_krw: int = Query(1000000, ge=10000),
     amount_btc: float | None = Query(None, gt=0),
+    wallet_utxo_count: int = Query(1, ge=1, le=200),
     mode: str = Query('buy'),
     global_exchange: str = Query('binance'),
     db: Session = Depends(get_db),
@@ -273,6 +274,7 @@ def get_cheapest_path(
         exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
         payload = find_cheapest_sell_path_from_snapshot_rows(
             amount_btc=amount_btc,
+            wallet_utxo_count=wallet_utxo_count,
             global_exchange=global_exchange,
             latest_run=latest_run,
             ticker_rows=ticker_rows,

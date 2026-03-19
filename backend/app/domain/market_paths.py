@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import math
 
 import requests
 
@@ -51,29 +52,63 @@ def _build_path_id(
         _slug_path_part(global_exit_network),
         _slug_path_part(lightning_exit_provider or 'none'),
     ])
+MEMPOOL_RECOMMENDED_FEES_URL = 'https://mempool.space/api/v1/fees/recommended'
+P2WPKH_INPUT_VBYTES = 68
+P2WPKH_OUTPUT_VBYTES = 31
+P2WPKH_BASE_TX_VBYTES = 10.5
+DEFAULT_SELL_TX_OUTPUT_COUNT = 2
 
 
+def _estimate_native_segwit_tx_vbytes(utxo_count: int, output_count: int = DEFAULT_SELL_TX_OUTPUT_COUNT) -> int:
+    if utxo_count <= 0:
+        raise ValueError('wallet_utxo_count는 1 이상이어야 합니다.')
+    if output_count <= 0:
+        raise ValueError('output_count는 1 이상이어야 합니다.')
+    return math.ceil(P2WPKH_BASE_TX_VBYTES + (P2WPKH_INPUT_VBYTES * utxo_count) + (P2WPKH_OUTPUT_VBYTES * output_count))
 
 
-def _estimate_wallet_btc_network_fee_btc() -> float:
-    attempts = [
-        ('https://mempool.space/api/v1/fees/recommended', lambda data: data.get('halfHourFee') or data.get('hourFee') or data.get('fastestFee')),
-        ('https://blockstream.info/api/fee-estimates', lambda data: data.get('6') or data.get('12') or data.get('24') or data.get('2')),
-    ]
-    last_error = None
-    for url, extractor in attempts:
-        try:
-            response = requests.get(url, timeout=10, headers={'Accept': 'application/json'})
-            if response.status_code != 200:
-                continue
-            sat_per_vbyte = extractor(response.json())
-            if sat_per_vbyte is None:
-                continue
-            return round(float(sat_per_vbyte) * 140 / 100_000_000, 8)
-        except Exception as exc:  # pragma: no cover - network fallback
-            last_error = exc
-            continue
-    raise ValueError(f'BTC 네트워크 수수료 추정 실패: {last_error or "fee source unavailable"}')
+def _fetch_mempool_recommended_fees() -> dict:
+    try:
+        response = requests.get(MEMPOOL_RECOMMENDED_FEES_URL, timeout=10, headers={'Accept': 'application/json'})
+        response.raise_for_status()
+        data = response.json()
+    except Exception as exc:  # pragma: no cover - network dependency
+        raise ValueError(f'mempool.space 수수료 조회 실패: {exc}') from exc
+
+    medium_fee_rate = data.get('halfHourFee') or data.get('hourFee') or data.get('fastestFee')
+    if medium_fee_rate is None:
+        raise ValueError('mempool.space 응답에 halfHourFee/hourFee/fastestFee가 없습니다.')
+
+    return {
+        'source': 'mempool.space',
+        'source_url': MEMPOOL_RECOMMENDED_FEES_URL,
+        'fee_target': 'medium',
+        'medium_fee_rate_sat_vb': float(medium_fee_rate),
+        'fastest_fee_sat_vb': float(data.get('fastestFee')) if data.get('fastestFee') is not None else None,
+        'hour_fee_sat_vb': float(data.get('hourFee')) if data.get('hourFee') is not None else None,
+        'economy_fee_sat_vb': float(data.get('economyFee')) if data.get('economyFee') is not None else None,
+        'minimum_fee_sat_vb': float(data.get('minimumFee')) if data.get('minimumFee') is not None else None,
+    }
+
+
+def _estimate_wallet_btc_network_fee(*, wallet_utxo_count: int = 1) -> dict:
+    fee_data = _fetch_mempool_recommended_fees()
+    tx_vbytes = _estimate_native_segwit_tx_vbytes(wallet_utxo_count)
+    fee_sats = max(math.ceil(fee_data['medium_fee_rate_sat_vb'] * tx_vbytes), 1)
+    fee_btc = round(fee_sats / 100_000_000, 8)
+    return {
+        **fee_data,
+        'address_type': 'p2wpkh',
+        'utxo_count': wallet_utxo_count,
+        'output_count': DEFAULT_SELL_TX_OUTPUT_COUNT,
+        'estimated_tx_vbytes': tx_vbytes,
+        'fee_sats': fee_sats,
+        'fee_btc': fee_btc,
+    }
+
+
+def _estimate_wallet_btc_network_fee_btc(wallet_utxo_count: int = 1) -> float:
+    return _estimate_wallet_btc_network_fee(wallet_utxo_count=wallet_utxo_count)['fee_btc']
 
 def _build_available_filters(paths: list[dict]) -> dict:
     domestic_networks = sorted({
@@ -862,6 +897,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
     network_rows: list,
     lightning_swap_rows: list | None = None,
     exchange_capability_rows: list | None = None,
+    wallet_utxo_count: int = 1,
 ) -> dict:
     global_exchange = global_exchange.lower()
     if global_exchange not in GROUPS['global']:
@@ -870,6 +906,8 @@ def find_cheapest_sell_path_from_snapshot_rows(
         return {'error': '최신 수집 결과가 없습니다. 먼저 수동 크롤링을 실행하세요.'}
     if amount_btc <= 0:
         return {'error': 'amount_btc는 0보다 커야 합니다.'}
+    if wallet_utxo_count <= 0:
+        return {'error': 'wallet_utxo_count는 1 이상이어야 합니다.'}
 
     def fee_component(label: str, amount_krw: int, *, rate_pct: float | None = None, amount_text: str | None = None, source_url: str | None = None) -> dict:
         return {
@@ -931,8 +969,20 @@ def find_cheapest_sell_path_from_snapshot_rows(
         return {'error': f'최신 수집 결과에 {global_exchange} spot 시세가 없습니다.'}
 
     global_btc_price_usd = float(global_row.price)
-    wallet_network_fee_btc = _estimate_wallet_btc_network_fee_btc()
+    try:
+        wallet_fee_estimate = _estimate_wallet_btc_network_fee(wallet_utxo_count=wallet_utxo_count)
+    except ValueError as exc:
+        return {'error': str(exc)}
+    wallet_network_fee_btc = wallet_fee_estimate['fee_btc']
     wallet_network_fee_krw = round(wallet_network_fee_btc * global_btc_price_usd * float(usd_krw_rate))
+    wallet_fee_estimate = {
+        **wallet_fee_estimate,
+        'fee_krw': wallet_network_fee_krw,
+    }
+    wallet_fee_amount_text = (
+        f"{wallet_fee_estimate['fee_sats']} sats · {wallet_fee_estimate['estimated_tx_vbytes']} vB @ "
+        f"{wallet_fee_estimate['medium_fee_rate_sat_vb']:g} sat/vB"
+    )
     global_taker = (global_row.taker_fee_pct / 100) if global_row.taker_fee_pct is not None else (
         TRADING_FEES[global_exchange]['spot']['taker'] if isinstance(TRADING_FEES[global_exchange].get('spot'), dict) else TRADING_FEES[global_exchange]['taker']
     )
@@ -1010,7 +1060,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 krw_received=krw_received,
                 total_fee_krw=total_fee_krw,
                 breakdown_components=[
-                    fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=f'{wallet_network_fee_btc} BTC'),
+                    fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                     fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_after_network, 8)} BTC'),
                 ],
             ))
@@ -1052,7 +1102,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 krw_received=krw_received,
                 total_fee_krw=total_fee_krw,
                 breakdown_components=[
-                    fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=f'{wallet_network_fee_btc} BTC'),
+                    fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                     fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(gross_usdt, 8)} USDT'),
                     fee_component('USDT 전송 수수료', usdt_transfer_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label)),
                     fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(usdt_at_korean, 8)} USDT'),
@@ -1107,7 +1157,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     krw_received=krw_received,
                     total_fee_krw=total_fee_krw,
                     breakdown_components=[
-                        fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=f'{wallet_network_fee_btc} BTC'),
+                        fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                         fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(swap_fee_btc, 8)} BTC'),
                         fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_at_korean, 8)} BTC'),
                     ],
@@ -1155,7 +1205,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                         krw_received=krw_received,
                         total_fee_krw=total_fee_krw,
                         breakdown_components=[
-                            fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=f'{wallet_network_fee_btc} BTC'),
+                            fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                             fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(swap_fee_btc, 8)} BTC'),
                             fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=global_taker * 100, amount_text=f'{round(gross_usdt, 8)} USDT'),
                             fee_component('USDT 전송 수수료', usdt_transfer_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label)),
@@ -1168,6 +1218,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
     return {
         'mode': 'sell',
         'amount_btc': amount_btc,
+        'wallet_fee_estimate': wallet_fee_estimate,
         'global_exchange': global_exchange,
         'global_btc_price_usd': global_btc_price_usd,
         'usd_krw_rate': round(float(usd_krw_rate)),

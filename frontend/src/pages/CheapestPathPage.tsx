@@ -46,6 +46,10 @@ function formatSats(value: number) {
   return `${formatNumber(Math.round(value * SATS_PER_BTC))} sats`;
 }
 
+function formatFeeRateSatVb(value: number) {
+  return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)} sat/vB`;
+}
+
 function formatPercent(value: number) {
   return `${value.toFixed(value >= 1 ? 2 : 3)}%`;
 }
@@ -278,7 +282,13 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
         switch (path.route_variant) {
           case 'lightning_direct':
             return [
-              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '개인 지갑',
+                sub: 'BTC 보유',
+                active: true,
+                kycStatus: path.wallet_kyc_status,
+                ...buildStepFeeDetails(components.slice(0, 1)),
+              },
               {
                 label: '라이트닝 스왑',
                 rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
@@ -286,6 +296,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'lightning' as const,
                 kycStatus: path.exit_service_kyc_status,
+                ...buildStepFeeDetails(components.slice(1, 2)),
               },
               {
                 label: fmtEx(path.korean_exchange),
@@ -294,11 +305,18 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.domestic_kyc_status,
+                ...buildStepFeeDetails(components.slice(2, 3)),
               },
             ];
           case 'lightning_via_global':
             return [
-              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '개인 지갑',
+                sub: 'BTC 보유',
+                active: true,
+                kycStatus: path.wallet_kyc_status,
+                ...buildStepFeeDetails(components.slice(0, 1)),
+              },
               {
                 label: '라이트닝 스왑',
                 rawName: path.lightning_exit_provider ?? path.swap_service ?? undefined,
@@ -306,6 +324,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'lightning' as const,
                 kycStatus: path.exit_service_kyc_status,
+                ...buildStepFeeDetails(components.slice(1, 2)),
               },
               {
                 label: fmtEx(globalExchange),
@@ -314,6 +333,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.global_kyc_status,
+                ...buildStepFeeDetails(components.slice(2, 3)),
               },
               {
                 label: fmtEx(path.korean_exchange),
@@ -322,11 +342,18 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.domestic_kyc_status,
+                ...buildStepFeeDetails(components.slice(3)),
               },
             ];
           case 'usdt_via_global':
             return [
-              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '개인 지갑',
+                sub: 'BTC 보유',
+                active: true,
+                kycStatus: path.wallet_kyc_status,
+                ...buildStepFeeDetails(components.slice(0, 1)),
+              },
               {
                 label: fmtEx(globalExchange),
                 rawName: globalExchange,
@@ -334,6 +361,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.global_kyc_status,
+                ...buildStepFeeDetails(components.slice(1, 2)),
               },
               {
                 label: fmtEx(path.korean_exchange),
@@ -342,12 +370,19 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.domestic_kyc_status,
+                ...buildStepFeeDetails(components.slice(2)),
               },
             ];
           case 'btc_direct':
           default:
             return [
-              { label: '개인 지갑', sub: 'BTC 보유', active: true, kycStatus: path.wallet_kyc_status },
+              {
+                label: '개인 지갑',
+                sub: 'BTC 보유',
+                active: true,
+                kycStatus: path.wallet_kyc_status,
+                ...buildStepFeeDetails(components.slice(0, 1)),
+              },
               {
                 label: fmtEx(path.korean_exchange),
                 rawName: path.korean_exchange,
@@ -355,6 +390,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 active: true,
                 variant: 'exchange' as const,
                 kycStatus: path.domestic_kyc_status,
+                ...buildStepFeeDetails(components.slice(1)),
               },
             ];
         }
@@ -481,6 +517,7 @@ export function CheapestPathPage() {
   const [mode, setMode] = useState<PathMode>('buy');
   const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
   const [amountBtcInput, setAmountBtcInput] = useState('0.01');
+  const [walletUtxoCountInput, setWalletUtxoCountInput] = useState('1');
   const [globalExchange] = useState('binance');
   const [selectedPathId, setSelectedPathId] = useState('');
   const [data, setData] = useState<CheapestPathResponse | null>(null);
@@ -520,7 +557,7 @@ export function CheapestPathPage() {
   const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
 
-  const load = useCallback(async (requestParams: { mode: PathMode; amountKrw?: number; amountBtc?: number; globalExchange: string }) => {
+  const load = useCallback(async (requestParams: { mode: PathMode; amountKrw?: number; amountBtc?: number; walletUtxoCount?: number; globalExchange: string }) => {
     try {
       setError(null);
       setLoading(true);
@@ -615,6 +652,7 @@ export function CheapestPathPage() {
         ? {
             mode,
             amountBtc: Math.max(Number(amountBtcInput) || 0.01, 0.00000001),
+            walletUtxoCount: Math.max(Math.floor(Number(walletUtxoCountInput) || 1), 1),
             globalExchange,
           }
         : {
@@ -716,6 +754,39 @@ export function CheapestPathPage() {
               {submitting ? '검색 중...' : '검색'}
             </button>
           </div>
+          {mode === 'sell' ? (
+            <div className="mt-4 grid gap-3 border border-dark-200 bg-dark-400/40 p-3 sm:grid-cols-[minmax(0,10rem)_1fr] sm:items-end">
+              <label className="flex flex-col gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">지갑 UTXO 개수</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={walletUtxoCountInput}
+                  onChange={(event) => setWalletUtxoCountInput(event.target.value)}
+                  className="w-full border border-dark-200 bg-dark-500 px-3 py-2 text-base font-semibold text-bnb-text outline-none transition-colors focus:border-bnb-red"
+                  aria-label="지갑 UTXO 개수"
+                />
+              </label>
+              <div className="space-y-1.5">
+                <p className="text-xs text-bnb-text">Native SegWit(P2WPKH) · 받는 주소 1개 + 거스름돈 1개 기준으로 전송 수수료를 추정합니다.</p>
+                {data?.mode === 'sell' && data.wallet_fee_estimate ? (
+                  <div className="space-y-1 text-xs text-bnb-muted">
+                    <p>
+                      mempool.space 중간 수수료 <span className="font-data text-bnb-text">{formatFeeRateSatVb(data.wallet_fee_estimate.medium_fee_rate_sat_vb)}</span>
+                      {' '}· 예상 크기 <span className="font-data text-bnb-text">{formatNumber(data.wallet_fee_estimate.estimated_tx_vbytes)} vB</span>
+                      {' '}· 전송 수수료 <span className="font-data text-bnb-red">{formatNumber(data.wallet_fee_estimate.fee_sats)} sats</span>
+                    </p>
+                    <p>
+                      {formatNumber(data.wallet_fee_estimate.utxo_count)} UTXO 입력 기준 · 약 <span className="font-data text-bnb-text">{formatCurrency(data.wallet_fee_estimate.fee_krw)}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-bnb-muted">검색 시 현재 mempool.space 중간 수수료율로 지갑 전송 수수료를 함께 계산합니다.</p>
+                )}
+              </div>
+            </div>
+          ) : null}
         </form>
       </div>
 
@@ -1095,32 +1166,6 @@ export function CheapestPathPage() {
               </table>
             </div>
           </div>
-
-          {/* Selected Route Detail */}
-          {selectedRoute ? (
-            <section
-              role="region"
-              aria-label="선택 경로 상세"
-              className="border-b border-dark-200 bg-dark-400 p-4 sm:p-5"
-            >
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-bnb-muted">선택 경로 상세</p>
-              <div className="flex flex-wrap items-center gap-3 mb-3">
-                <span className="border border-dark-200 bg-dark-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">
-                  {selectedRoute.rank}위
-                </span>
-                <ServiceLabel
-                  name={selectedRoute.path.korean_exchange}
-                  label={fmtEx(selectedRoute.path.korean_exchange)}
-                  variant="exchange"
-                  textClassName="text-base font-semibold text-bnb-text"
-                  logoClassName="h-6 w-6"
-                />
-              </div>
-              <div className="border border-dark-200 bg-dark-500/60 p-3">
-                <PathTimeline path={selectedRoute.path} globalExchange={data.global_exchange} mode={mode} />
-              </div>
-            </section>
-          ) : null}
 
         </>
       ) : null}

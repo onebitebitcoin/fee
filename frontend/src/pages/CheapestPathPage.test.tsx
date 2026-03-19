@@ -10,6 +10,7 @@ vi.mock('../lib/api', () => ({
   api: {
     getAccessCount: vi.fn().mockResolvedValue({ total: 42, today: 3 }),
     getCheapestPath: vi.fn().mockResolvedValue({
+      mode: 'buy',
       amount_krw: 1000000,
       global_exchange: 'binance',
       global_btc_price_usd: 95000,
@@ -260,16 +261,17 @@ describe('CheapestPathPage', () => {
     expect(screen.getByText('5/6')).toBeInTheDocument();
   });
 
-  it('updates the selected route detail when a route is chosen', async () => {
+  it('expands another route inline when a route is chosen', async () => {
     const user = await renderAndSearchAll();
 
     await screen.findByText('최적 경로');
-    await user.click(screen.getAllByRole('button', { name: 'mid2 경로 선택' })[0]);
+    const mid2RowLabel = screen.getAllByText('mid2').find((element) => element.closest('tr'));
+    expect(mid2RowLabel).toBeTruthy();
+    await user.click(mid2RowLabel!.closest('tr') as HTMLElement);
 
-    const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
-    expect(within(detailRegion).getAllByText('mid2').length).toBeGreaterThan(0);
-    expect(within(detailRegion).getAllByText('900,000 sats').length).toBeGreaterThan(0);
-    expect(within(detailRegion).getAllByText('수수료율 0.250%').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('region', { name: '선택 경로 상세' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('900,000 sats').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('수수료율 0.250%').length).toBeGreaterThan(0);
   });
 
   it('shows per-step fee rates when another route is expanded', async () => {
@@ -291,12 +293,8 @@ describe('CheapestPathPage', () => {
     await screen.findByText('최적 경로');
     await user.click(screen.getByRole('button', { name: /필터/i }));
     await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    await user.click(screen.getAllByRole('button', { name: 'mid1 경로 선택' })[0]);
-
-    const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
-    expect(within(detailRegion).getByText('1위')).toBeInTheDocument();
-    expect(within(detailRegion).queryByText('3위')).not.toBeInTheDocument();
     expect(screen.getAllByText('#001').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('region', { name: '선택 경로 상세' })).not.toBeInTheDocument();
   });
 
   it('renders service logos for exchanges and lightning providers', async () => {
@@ -308,10 +306,11 @@ describe('CheapestPathPage', () => {
     expect(binanceLogos.length).toBeGreaterThan(0);
     expect(binanceLogos[0]).toHaveAttribute('src', '/logos/binance.png');
 
-    await user.click(screen.getAllByRole('button', { name: 'cheap2 경로 선택' })[0]);
+    const cheap2RowLabel = screen.getAllByText('cheap2').find((element) => element.closest('tr'));
+    expect(cheap2RowLabel).toBeTruthy();
+    await user.click(cheap2RowLabel!.closest('tr') as HTMLElement);
 
-    const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
-    const providerLogos = within(detailRegion).getAllByAltText('BitFlower');
+    const providerLogos = screen.getAllByAltText('BitFlower');
     expect(providerLogos.length).toBeGreaterThan(0);
     expect(providerLogos[0]).toHaveAttribute('src', '/logos/bitflower.png');
   });
@@ -349,6 +348,23 @@ describe('CheapestPathPage', () => {
     vi.mocked(api.getCheapestPath).mockResolvedValueOnce({
       mode: 'sell',
       amount_btc: 0.01,
+      wallet_fee_estimate: {
+        source: 'mempool.space',
+        source_url: 'https://mempool.space/api/v1/fees/recommended',
+        fee_target: 'medium',
+        medium_fee_rate_sat_vb: 12,
+        fastest_fee_sat_vb: 15,
+        hour_fee_sat_vb: 10,
+        economy_fee_sat_vb: 6,
+        minimum_fee_sat_vb: 1,
+        address_type: 'p2wpkh',
+        utxo_count: 3,
+        output_count: 2,
+        estimated_tx_vbytes: 277,
+        fee_sats: 3324,
+        fee_btc: 0.00003324,
+        fee_krw: 4370,
+      },
       global_exchange: 'binance',
       global_btc_price_usd: 95000,
       usd_krw_rate: 1380,
@@ -375,7 +391,15 @@ describe('CheapestPathPage', () => {
         global_kyc_status: 'kyc',
         exit_service_kyc_status: 'kyc',
         wallet_kyc_status: 'non_kyc',
-        breakdown: { total_fee_krw: 22000, components: [{ label: '라이트닝 스왑 수수료', amount_krw: 5000 }] },
+        breakdown: {
+          total_fee_krw: 22000,
+          components: [
+            { label: '개인지갑 BTC 네트워크 수수료', amount_krw: 4370 },
+            { label: '라이트닝 스왑 수수료', amount_krw: 5000 },
+            { label: '해외 BTC 매도 수수료', amount_krw: 4000, rate_pct: 0.1 },
+            { label: '국내 KRW 전환 수수료', amount_krw: 8630, rate_pct: 0.05 },
+          ],
+        },
       },
       top5: [],
       all_paths: [{
@@ -395,18 +419,35 @@ describe('CheapestPathPage', () => {
         global_kyc_status: 'kyc',
         exit_service_kyc_status: 'kyc',
         wallet_kyc_status: 'non_kyc',
-        breakdown: { total_fee_krw: 22000, components: [{ label: '라이트닝 스왑 수수료', amount_krw: 5000 }] },
+        breakdown: {
+          total_fee_krw: 22000,
+          components: [
+            { label: '개인지갑 BTC 네트워크 수수료', amount_krw: 4370 },
+            { label: '라이트닝 스왑 수수료', amount_krw: 5000 },
+            { label: '해외 BTC 매도 수수료', amount_krw: 4000, rate_pct: 0.1 },
+            { label: '국내 KRW 전환 수수료', amount_krw: 8630, rate_pct: 0.05 },
+          ],
+        },
       }],
       disabled_paths: [],
     } as never);
 
     await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
+    await user.clear(screen.getByLabelText('지갑 UTXO 개수'));
+    await user.type(screen.getByLabelText('지갑 UTXO 개수'), '3');
     await user.click(screen.getByRole('button', { name: '검색' }));
 
     expect(await screen.findByText('비트코인 팔 때 경로')).toBeInTheDocument();
     expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
     expect(screen.getByText('예상 KRW 수령')).toBeInTheDocument();
     expect(screen.getAllByText('1,280,000 KRW').length).toBeGreaterThan(0);
+    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('12 sat/vB');
+    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('277 vB');
+    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('3,324 sats');
+    expect(vi.mocked(api.getCheapestPath)).toHaveBeenLastCalledWith(expect.objectContaining({
+      mode: 'sell',
+      walletUtxoCount: 3,
+    }));
   });
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
     const user = await renderAndSearchAll();

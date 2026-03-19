@@ -108,7 +108,22 @@ def test_sell_lightning_strike_included_when_lightning_deposit_supported(mocker)
         'bithumbbtc': {'is_kyc': True},
         'binancebtc': {'is_kyc': True},
     })
-    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee_btc', return_value=0.00001)
+    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+        'source': 'mempool.space',
+        'source_url': 'https://mempool.space/api/v1/fees/recommended',
+        'fee_target': 'medium',
+        'medium_fee_rate_sat_vb': 10.0,
+        'fastest_fee_sat_vb': 12.0,
+        'hour_fee_sat_vb': 8.0,
+        'economy_fee_sat_vb': 5.0,
+        'minimum_fee_sat_vb': 1.0,
+        'address_type': 'p2wpkh',
+        'utxo_count': 1,
+        'output_count': 2,
+        'estimated_tx_vbytes': 141,
+        'fee_sats': 1000,
+        'fee_btc': 0.00001,
+    })
 
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
@@ -205,7 +220,22 @@ def test_sell_lightning_strike_excluded_without_lightning_deposit(mocker):
     db.close()
 
     mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={})
-    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee_btc', return_value=0.00001)
+    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+        'source': 'mempool.space',
+        'source_url': 'https://mempool.space/api/v1/fees/recommended',
+        'fee_target': 'medium',
+        'medium_fee_rate_sat_vb': 10.0,
+        'fastest_fee_sat_vb': 12.0,
+        'hour_fee_sat_vb': 8.0,
+        'economy_fee_sat_vb': 5.0,
+        'minimum_fee_sat_vb': 1.0,
+        'address_type': 'p2wpkh',
+        'utxo_count': 1,
+        'output_count': 2,
+        'estimated_tx_vbytes': 141,
+        'fee_sats': 1000,
+        'fee_btc': 0.00001,
+    })
 
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)

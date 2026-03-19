@@ -80,6 +80,24 @@ export type CheapestPathBreakdown = {
   total_fee_krw: number;
 };
 
+export type WalletFeeEstimate = {
+  source: string;
+  source_url: string;
+  fee_target: 'medium';
+  medium_fee_rate_sat_vb: number;
+  fastest_fee_sat_vb?: number | null;
+  hour_fee_sat_vb?: number | null;
+  economy_fee_sat_vb?: number | null;
+  minimum_fee_sat_vb?: number | null;
+  address_type: 'p2wpkh';
+  utxo_count: number;
+  output_count: number;
+  estimated_tx_vbytes: number;
+  fee_sats: number;
+  fee_btc: number;
+  fee_krw: number;
+};
+
 export type CheapestPathEntry = {
   path_id: string;
   route_variant?: 'btc_direct' | 'usdt_via_global' | 'lightning_direct' | 'lightning_via_global';
@@ -117,6 +135,7 @@ export type CheapestPathResponse = {
   mode: PathMode;
   amount_krw?: number;
   amount_btc?: number;
+  wallet_fee_estimate?: WalletFeeEstimate | null;
   global_exchange: string;
   global_btc_price_usd: number;
   usd_krw_rate: number;

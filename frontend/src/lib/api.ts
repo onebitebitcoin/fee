@@ -29,13 +29,14 @@ export const api = {
     request('/api/v1/market/withdrawal-fees/latest'),
   getNetworkStatus: (): Promise<{ last_run: CrawlRun | null; exchanges: NetworkStatusMap; total_suspended: number }> => request('/api/v1/market/network-status/latest'),
   getRuns: (): Promise<{ items: CrawlRun[] }> => request('/api/v1/crawl-runs'),
-  getCheapestPath: (params: { mode: 'buy' | 'sell'; amountKrw?: number; amountBtc?: number; globalExchange: string }): Promise<CheapestPathResponse> => {
+  getCheapestPath: (params: { mode: 'buy' | 'sell'; amountKrw?: number; amountBtc?: number; walletUtxoCount?: number; globalExchange: string }): Promise<CheapestPathResponse> => {
     const qs = new URLSearchParams({
       mode: params.mode,
       global_exchange: params.globalExchange,
     });
     if (params.mode === 'sell') {
       qs.set('amount_btc', String(params.amountBtc ?? 0.01));
+      qs.set('wallet_utxo_count', String(params.walletUtxoCount ?? 1));
     } else {
       qs.set('amount_krw', String(params.amountKrw ?? 1000000));
     }
