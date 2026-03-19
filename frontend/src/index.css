@@ -92,6 +92,32 @@ body {
   from { width: 0 !important; }
 }
 
+/* ── Loading progress ── */
+.loading-progress-track {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.loading-progress-bar {
+  position: absolute;
+  inset: 0 auto 0 -35%;
+  width: 35%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(240, 185, 11, 0) 0%, #f0b90b 45%, #ffd24d 100%);
+  animation: loading-progress-slide 1.35s ease-in-out infinite;
+}
+
+@keyframes loading-progress-slide {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(390%);
+  }
+}
+
 /* ── Rank badge ── */
 .rank-badge {
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold;

@@ -190,6 +190,44 @@ describe('CheapestPathPage', () => {
     expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
   });
 
+  it('shows a progress bar while the cheapest path is loading', async () => {
+    let resolveRequest: ((value: Awaited<ReturnType<typeof api.getCheapestPath>>) => void) | undefined;
+    const pendingRequest = new Promise<Awaited<ReturnType<typeof api.getCheapestPath>>>((resolve) => {
+      resolveRequest = resolve;
+    });
+
+    vi.mocked(api.getCheapestPath).mockImplementationOnce(() => pendingRequest);
+
+    render(
+      <BrowserRouter>
+        <CheapestPathPage />
+      </BrowserRouter>,
+    );
+
+    expect(screen.getByRole('progressbar', { name: '최적 경로 로딩' })).toBeInTheDocument();
+    expect(screen.getByText('최적 경로 계산 중')).toBeInTheDocument();
+
+    resolveRequest?.({
+      mode: 'buy',
+      amount_krw: 1000000,
+      global_exchange: 'binance',
+      global_btc_price_usd: 95000,
+      usd_krw_rate: 1380,
+      total_paths_evaluated: 0,
+      best_path: null,
+      top5: [],
+      all_paths: [],
+      disabled_paths: [],
+      available_filters: {
+        domestic_withdrawal_networks: [],
+        global_exit_options: [],
+        lightning_exit_providers: [],
+      },
+    });
+
+    expect(await screen.findByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
+  });
+
   it('renders the current dashboard summary for the cheapest route', async () => {
     // 기본값이 non-KYC이므로 cheap2(Lightning)가 best visible path
     await renderAndSearch();

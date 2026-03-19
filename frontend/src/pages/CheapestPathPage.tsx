@@ -755,7 +755,24 @@ export function CheapestPathPage() {
       {/* Summary Strip */}
       {loading ? (
         <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
-          <div className="h-4 w-72 animate-pulse bg-dark-200" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand-400">최적 경로 계산 중</p>
+              <p className="mt-1 text-sm text-bnb-muted">거래소·네트워크별 수수료를 다시 비교하고 있습니다.</p>
+            </div>
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">
+              <span className="live-dot" aria-hidden="true" />
+              로딩 중
+            </div>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="최적 경로 로딩"
+            aria-valuetext="최적 경로를 계산하고 있습니다"
+            className="loading-progress-track mt-3 h-1.5 w-full"
+          >
+            <div className="loading-progress-bar" />
+          </div>
         </div>
       ) : null}
 
