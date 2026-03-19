@@ -2,12 +2,21 @@ export type CarfGroup = '2027' | '2028' | '2029' | 'not_member' | 'unclear';
 export type KoreaImpact = 'high' | 'medium' | 'low' | 'none';
 export type TravelRuleStatus = 'compatible' | 'partial' | 'none';
 
+export interface ExchangeMapLocation {
+  label: string;
+  latitude: number;
+  longitude: number;
+  focusLabel: string;
+  note?: string;
+}
+
 export interface ExchangeCarfInfo {
   id: string;
   name: string;
   shortName: string;
   type: 'korean' | 'global';
   registeredCountry: string;
+  mapLocation: ExchangeMapLocation;
   carfGroup: CarfGroup;
   carfDataCollectionStart: string | null;
   carfFirstExchange: string | null;
@@ -28,6 +37,12 @@ export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: '업비트',
     type: 'korean',
     registeredCountry: '대한민국',
+    mapLocation: {
+      label: '서울 중구, 대한민국',
+      latitude: 37.5665,
+      longitude: 126.978,
+      focusLabel: '국내 서비스 본사',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -42,6 +57,12 @@ export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: '빗썸',
     type: 'korean',
     registeredCountry: '대한민국',
+    mapLocation: {
+      label: '서울 강남구, 대한민국',
+      latitude: 37.4979,
+      longitude: 127.0276,
+      focusLabel: '국내 서비스 본사',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -56,6 +77,12 @@ export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: '코인원',
     type: 'korean',
     registeredCountry: '대한민국',
+    mapLocation: {
+      label: '서울 성동구, 대한민국',
+      latitude: 37.5446,
+      longitude: 127.0557,
+      focusLabel: '국내 서비스 본사',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -70,6 +97,12 @@ export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: '코빗',
     type: 'korean',
     registeredCountry: '대한민국',
+    mapLocation: {
+      label: '서울 강남구, 대한민국',
+      latitude: 37.5183,
+      longitude: 127.047,
+      focusLabel: '국내 서비스 본사',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -84,6 +117,12 @@ export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: '고팍스',
     type: 'korean',
     registeredCountry: '대한민국',
+    mapLocation: {
+      label: '서울 마포구, 대한민국',
+      latitude: 37.5563,
+      longitude: 126.9236,
+      focusLabel: '국내 서비스 본사',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -101,6 +140,13 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Binance',
     type: 'global',
     registeredCountry: '케이맨 제도',
+    mapLocation: {
+      label: '아부다비, UAE',
+      latitude: 24.4539,
+      longitude: 54.3773,
+      focusLabel: '글로벌 규제 허브',
+      note: '최신 운영·규제 허브는 Abu Dhabi ADGM 기준으로 표시하고, CARF 관할 표기는 기존 정책 데이터(케이맨)를 유지했습니다.',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -119,6 +165,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'OKX',
     type: 'global',
     registeredCountry: '세이셸',
+    mapLocation: {
+      label: '빅토리아, 세이셸',
+      latitude: -4.6191,
+      longitude: 55.4513,
+      focusLabel: '약관 법인 관할',
+    },
     carfGroup: '2028',
     carfDataCollectionStart: '2027-01-01',
     carfFirstExchange: '2028',
@@ -137,6 +189,13 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Bybit',
     type: 'global',
     registeredCountry: 'BVI',
+    mapLocation: {
+      label: '두바이, UAE',
+      latitude: 25.2048,
+      longitude: 55.2708,
+      focusLabel: '운영 허브',
+      note: '약관상 관할은 BVI지만, 시각 위치는 사용자 인지성이 높은 두바이 운영 허브로 표시합니다.',
+    },
     carfGroup: '2028',
     carfDataCollectionStart: '2027-01-01',
     carfFirstExchange: '2028',
@@ -155,6 +214,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Bitget',
     type: 'global',
     registeredCountry: '세이셸',
+    mapLocation: {
+      label: '빅토리아, 세이셸',
+      latitude: -4.6191,
+      longitude: 55.4513,
+      focusLabel: '약관 법인 관할',
+    },
     carfGroup: '2028',
     carfDataCollectionStart: '2027-01-01',
     carfFirstExchange: '2028',
@@ -173,6 +238,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Kraken',
     type: 'global',
     registeredCountry: '미국 (와이오밍)',
+    mapLocation: {
+      label: '샤이엔, 미국',
+      latitude: 41.14,
+      longitude: -104.8202,
+      focusLabel: '주요 법인 관할',
+    },
     carfGroup: '2029',
     carfDataCollectionStart: null,
     carfFirstExchange: '2029',
@@ -191,6 +262,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Coinbase',
     type: 'global',
     registeredCountry: '미국 (텍사스)',
+    mapLocation: {
+      label: '오스틴, 미국',
+      latitude: 30.2672,
+      longitude: -97.7431,
+      focusLabel: '주요 법인 관할',
+    },
     carfGroup: '2029',
     carfDataCollectionStart: null,
     carfFirstExchange: '2029',
@@ -209,6 +286,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Bitfinex',
     type: 'global',
     registeredCountry: 'BVI',
+    mapLocation: {
+      label: '로드타운, BVI',
+      latitude: 18.4286,
+      longitude: -64.6185,
+      focusLabel: '약관 법인 관할',
+    },
     carfGroup: '2028',
     carfDataCollectionStart: '2027-01-01',
     carfFirstExchange: '2028',
@@ -227,6 +310,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'KuCoin',
     type: 'global',
     registeredCountry: '터크스케이커스',
+    mapLocation: {
+      label: '프로비덴시알레스, 터크스케이커스',
+      latitude: 21.7833,
+      longitude: -72.2833,
+      focusLabel: '약관 법인 관할',
+    },
     carfGroup: 'not_member',
     carfDataCollectionStart: null,
     carfFirstExchange: null,
@@ -245,6 +334,13 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'Gate.io',
     type: 'global',
     registeredCountry: '케이맨 제도',
+    mapLocation: {
+      label: '조지타운, 케이맨 제도',
+      latitude: 19.2866,
+      longitude: -81.3674,
+      focusLabel: 'CARF 법인 관할',
+      note: '서울 오피스가 있지만, 지구본에서는 CARF 적용과 직접 연결되는 케이맨 법인 위치를 우선 표시합니다.',
+    },
     carfGroup: '2027',
     carfDataCollectionStart: '2026-01-01',
     carfFirstExchange: '2027',
@@ -263,6 +359,12 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     shortName: 'HTX',
     type: 'global',
     registeredCountry: '세이셸 (법인 말소)',
+    mapLocation: {
+      label: '빅토리아, 세이셸',
+      latitude: -4.6191,
+      longitude: 55.4513,
+      focusLabel: '과거 법인 관할',
+    },
     carfGroup: 'unclear',
     carfDataCollectionStart: null,
     carfFirstExchange: null,
@@ -276,6 +378,8 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     koreaUserJurisdictionNote: '세이셸 법인 말소로 적용 가능한 관할권 불명확, 리스크 최고',
   },
 ];
+
+export const ALL_EXCHANGES = [...KOREAN_EXCHANGES, ...GLOBAL_EXCHANGES];
 
 export const CARF_GROUP_LABELS: Record<CarfGroup, string> = {
   '2027': '2027년 교환',
