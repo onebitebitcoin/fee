@@ -7,7 +7,7 @@ import { GLOBAL_EXCHANGES, KOREAN_EXCHANGES } from '../data/carfData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import { localizeUiLabel } from '../lib/localizeUi';
-import type { AccessStats, CheapestPathEntry, CheapestPathResponse, PathMode } from '../types';
+import type { AccessStats, CheapestPathEntry, CheapestPathFeeComponent, CheapestPathResponse, PathMode } from '../types';
 
 const CARF_2027_IDS = new Set([
   ...KOREAN_EXCHANGES.filter((e) => e.carfGroup === '2027').map((e) => e.id),
@@ -177,7 +177,25 @@ type PathStep = {
   kycStatus?: CheapestPathEntry['domestic_kyc_status'];
   feeText?: string | null;
   feeLabel?: string | null;
+  feeRateText?: string | null;
 };
+
+function buildStepFeeDetails(components: CheapestPathFeeComponent[]): Pick<PathStep, 'feeText' | 'feeLabel' | 'feeRateText'> {
+  if (!components.length) {
+    return { feeText: null, feeLabel: null, feeRateText: null };
+  }
+
+  const feeRateText = components
+    .map((component) => (component.rate_pct == null ? null : formatPercent(component.rate_pct)))
+    .filter((value): value is string => value !== null)
+    .join(' + ');
+
+  return {
+    feeText: formatCurrency(components.reduce((sum, component) => sum + component.amount_krw, 0)),
+    feeLabel: components.map((component) => component.label).join(' + '),
+    feeRateText: feeRateText || null,
+  };
+}
 
 function RouteDetailPopup({
   selectedRoute,
@@ -349,15 +367,13 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
           active: true,
           variant: 'exchange' as const,
           kycStatus: path.domestic_kyc_status,
-          feeText: components[0] ? formatCurrency(components[0].amount_krw) : null,
-          feeLabel: components[0]?.label ?? null,
+          ...buildStepFeeDetails(components.slice(0, 1)),
         },
         {
           label: path.transfer_coin,
           sub: localizeUiLabel(path.domestic_withdrawal_network),
           active: true,
-          feeText: components[1] ? formatCurrency(components[1].amount_krw) : null,
-          feeLabel: components[1]?.label ?? null,
+          ...buildStepFeeDetails(components.slice(1, 2)),
         },
         {
           label: fmtEx(globalExchange),
@@ -366,8 +382,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
           active: true,
           variant: 'exchange' as const,
           kycStatus: path.global_kyc_status,
-          feeText: components[2] ? formatCurrency(components[2].amount_krw) : null,
-          feeLabel: components[2]?.label ?? null,
+          ...buildStepFeeDetails(components.slice(2, 3)),
         },
         {
           label: path.global_exit_mode === 'lightning' ? '라이트닝 출금' : '온체인 출금',
@@ -376,8 +391,7 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
           active: true,
           variant: path.lightning_exit_provider || path.swap_service ? ('lightning' as const) : undefined,
           kycStatus: path.exit_service_kyc_status,
-          feeText: components.length > 3 ? formatCurrency(components.slice(3).reduce((sum, component) => sum + component.amount_krw, 0)) : null,
-          feeLabel: components.length > 3 ? components.slice(3).map((component) => component.label).join(' + ') : null,
+          ...buildStepFeeDetails(components.slice(3)),
         },
         {
           label: '개인 지갑',
@@ -415,10 +429,11 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                   </div>
                   <p className="mt-1 text-xs text-bnb-muted">{step.sub}</p>
                 </div>
-                {step.feeText ? (
+                {step.feeText || step.feeRateText ? (
                   <div className="text-right">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-bnb-muted">단계 수수료</p>
-                    <p className="mt-1 text-sm font-semibold text-brand-400">{step.feeText}</p>
+                    {step.feeText ? <p className="mt-1 text-sm font-semibold text-brand-400">{step.feeText}</p> : null}
+                    {step.feeRateText ? <p className="mt-1 text-[11px] font-data text-bnb-muted">수수료율 {step.feeRateText}</p> : null}
                   </div>
                 ) : null}
               </div>
@@ -452,9 +467,8 @@ function PathTimeline({ path, globalExchange, mode }: { path: CheapestPathEntry;
                 <KycBadge status={step.kycStatus} />
               </div>
               <p className="mt-0.5 text-[10px] text-bnb-muted">{step.sub}</p>
-              {step.feeText ? (
-                <p className="mt-1 text-[10px] font-semibold text-brand-400">{step.feeText}</p>
-              ) : null}
+              {step.feeText ? <p className="mt-1 text-[10px] font-semibold text-brand-400">{step.feeText}</p> : null}
+              {step.feeRateText ? <p className="mt-0.5 text-[10px] font-data text-bnb-muted">수수료율 {step.feeRateText}</p> : null}
             </div>
           </div>
         ))}
@@ -699,7 +713,7 @@ export function CheapestPathPage() {
               className={`flex w-full items-center justify-center gap-2 px-5 py-2 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors disabled:opacity-50 sm:w-auto ${mode === 'sell' ? 'border border-bnb-red bg-bnb-red hover:bg-bnb-red/90' : 'border border-brand-600 bg-brand-600 hover:bg-brand-500'}`}
             >
               <Search size={13} />
-              {submitting ? '검색 중...' : mode === 'sell' ? '매도 경로 검색' : '검색'}
+              {submitting ? '검색 중...' : '검색'}
             </button>
           </div>
         </form>

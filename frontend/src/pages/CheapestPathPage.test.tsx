@@ -201,6 +201,7 @@ describe('CheapestPathPage', () => {
     expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
     expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
     expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('수수료율 0.070%').length).toBeGreaterThan(0);
   });
 
   it('filters routes by explicit path dimensions', async () => {
@@ -230,6 +231,20 @@ describe('CheapestPathPage', () => {
     const detailRegion = screen.getByRole('region', { name: '선택 경로 상세' });
     expect(within(detailRegion).getAllByText('mid2').length).toBeGreaterThan(0);
     expect(within(detailRegion).getAllByText('900,000 sats').length).toBeGreaterThan(0);
+    expect(within(detailRegion).getAllByText('수수료율 0.250%').length).toBeGreaterThan(0);
+  });
+
+  it('shows per-step fee rates when another route is expanded', async () => {
+    const user = await renderAndSearchAll();
+
+    await screen.findByText('최적 경로');
+
+    const mid1RowLabel = screen.getAllByText('mid1').find((element) => element.closest('tr'));
+    expect(mid1RowLabel).toBeTruthy();
+
+    await user.click(mid1RowLabel!.closest('tr') as HTMLElement);
+
+    expect(screen.getAllByText('수수료율 0.200%').length).toBeGreaterThan(0);
   });
 
   it('reindexes visible route ranks from 1 after filtering', async () => {
@@ -348,7 +363,7 @@ describe('CheapestPathPage', () => {
     } as never);
 
     await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
-    await user.click(screen.getByRole('button', { name: '매도 경로 검색' }));
+    await user.click(screen.getByRole('button', { name: '검색' }));
 
     expect(await screen.findByText('비트코인 팔 때 경로')).toBeInTheDocument();
     expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
