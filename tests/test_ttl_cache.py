@@ -18,7 +18,6 @@ def test_cache_hit_returns_data():
 
 
 def test_cache_expires_after_ttl(monkeypatch):
-    import backend.app.api.routes.market as market_module
     cache = _make_cache(ttl=1)
     original_time = time.time()
     cache.set('status', {'data': 'ok'})
