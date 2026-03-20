@@ -154,8 +154,18 @@ def calculate_btc_purchase_cost(
                 withdrawal_fee_note = net.get('note', chosen_network_label)
                 break
 
+        korean_trading_fee_krw = round(amount_krw * korean_taker)
+        common_breakdown = {
+            'korean_trading_fee_krw': korean_trading_fee_krw,
+            'korean_trading_fee_pct': round(korean_taker * 100, 4),
+            'withdrawal_fee_krw': None,
+            'withdrawal_fee_coin': withdrawal_fee_coin,
+            'withdrawal_coin': transfer_coin,
+            'withdrawal_network': chosen_network_label or 'N/A',
+            'withdrawal_note': withdrawal_fee_note,
+        }
+
         if transfer_coin == 'BTC':
-            korean_trading_fee_krw = round(amount_krw * korean_taker)
             btc_bought = (amount_krw - korean_trading_fee_krw) / korean_btc_price_krw
             if withdrawal_fee_coin is not None:
                 withdrawal_fee_krw = round(withdrawal_fee_coin * korean_btc_price_krw)
@@ -165,18 +175,12 @@ def calculate_btc_purchase_cost(
                 btc_received = None
             global_trading_fee_krw = 0
             cost_breakdown = {
-                'korean_trading_fee_krw': korean_trading_fee_krw,
-                'korean_trading_fee_pct': round(korean_taker * 100, 4),
+                **common_breakdown,
                 'withdrawal_fee_krw': withdrawal_fee_krw,
-                'withdrawal_fee_coin': withdrawal_fee_coin,
-                'withdrawal_coin': transfer_coin,
-                'withdrawal_network': chosen_network_label or 'N/A',
-                'withdrawal_note': withdrawal_fee_note,
                 'global_trading_fee_krw': global_trading_fee_krw,
                 'total_fee_krw': korean_trading_fee_krw + (withdrawal_fee_krw or 0) if withdrawal_fee_krw is not None else None,
             }
         else:
-            korean_trading_fee_krw = round(amount_krw * korean_taker)
             usdt_bought = (amount_krw - korean_trading_fee_krw) / usd_krw_rate
             if withdrawal_fee_coin is not None:
                 withdrawal_fee_krw = round(withdrawal_fee_coin * usd_krw_rate)
@@ -193,13 +197,8 @@ def calculate_btc_purchase_cost(
                 global_trading_fee_krw = None
                 btc_received = None
             cost_breakdown = {
-                'korean_trading_fee_krw': korean_trading_fee_krw,
-                'korean_trading_fee_pct': round(korean_taker * 100, 4),
+                **common_breakdown,
                 'withdrawal_fee_krw': withdrawal_fee_krw,
-                'withdrawal_fee_coin': withdrawal_fee_coin,
-                'withdrawal_coin': transfer_coin,
-                'withdrawal_network': chosen_network_label or 'N/A',
-                'withdrawal_note': withdrawal_fee_note,
                 'global_trading_fee_krw': global_trading_fee_krw,
                 'global_trading_fee_pct': round(global_taker * 100, 4),
                 'total_fee_krw': korean_trading_fee_krw + (withdrawal_fee_krw or 0) + (global_trading_fee_krw or 0) if withdrawal_fee_krw is not None and global_trading_fee_krw is not None else None,
