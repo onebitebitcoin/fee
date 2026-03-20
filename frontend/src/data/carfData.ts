@@ -10,6 +10,12 @@ export interface ExchangeMapLocation {
   note?: string;
 }
 
+export interface ExchangeSource {
+  label: string;
+  url: string;
+  type: 'tos' | 'regulatory' | 'news' | 'official';
+}
+
 export interface ExchangeCarfInfo {
   id: string;
   name: string;
@@ -28,6 +34,7 @@ export interface ExchangeCarfInfo {
   travelRuleNote?: string;
   koreaUserJurisdiction?: string;
   koreaUserJurisdictionNote?: string;
+  sources?: ExchangeSource[];
 }
 
 export const KOREAN_EXCHANGES: ExchangeCarfInfo[] = [
@@ -139,25 +146,47 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     name: 'Binance',
     shortName: 'Binance',
     type: 'global',
-    registeredCountry: '케이맨 제도',
+    registeredCountry: 'UAE (ADGM)',
     mapLocation: {
       label: '아부다비, UAE',
       latitude: 24.4539,
       longitude: 54.3773,
-      focusLabel: '글로벌 규제 허브',
-      note: '최신 운영·규제 허브는 Abu Dhabi ADGM 기준으로 표시하고, CARF 관할 표기는 기존 정책 데이터(케이맨)를 유지했습니다.',
+      focusLabel: '글로벌 규제 허브 (ADGM)',
+      note: '2026년 1월 5일부터 계약 법인이 케이맨 Nest Services Ltd.에서 UAE ADGM의 Nest Exchange Ltd.로 이전 완료.',
     },
-    carfGroup: '2027',
-    carfDataCollectionStart: '2026-01-01',
-    carfFirstExchange: '2027',
+    carfGroup: '2028',
+    carfDataCollectionStart: '2027-01-01',
+    carfFirstExchange: '2028',
     koreaService: false,
     koreaBlocked: true,
     koreaImpact: 'medium',
-    impactDetail: '한국 FIU 미등록, 앱 차단. 케이맨 CARF 2027 적용.',
+    impactDetail: '한국 FIU 미등록, 앱 차단. 2026년 1월 UAE ADGM 이전 완료 — UAE CARF 2028 적용.',
     travelRuleKorea: 'compatible',
     travelRuleNote: 'VerifyVASP 참여 — 한국 거래소와 트래블룰 정보 교환 가능',
-    koreaUserJurisdiction: '케이맨 제도',
-    koreaUserJurisdictionNote: '한국 FIU 미등록, 한국 사용자는 Binance Holdings Ltd.(케이맨) 약관 적용',
+    koreaUserJurisdiction: 'UAE (ADGM)',
+    koreaUserJurisdictionNote: '2026-01-05부터 Nest Exchange Ltd.(UAE ADGM) 약관 적용. 케이맨 Binance Holdings Ltd.에서 novation 완료.',
+    sources: [
+      {
+        label: 'Binance ADGM 전환 공식 발표 (2026-01-05)',
+        url: 'https://www.binance.com/en/support/announcement/detail/f4f57a010f074dae9d34718635aba926',
+        type: 'official',
+      },
+      {
+        label: 'ADGM FSRA: Binance 라이선스 승인 발표',
+        url: 'https://www.adgm.com/media/announcements/binance-becomes-first-crypto-exchange-to-secure-a-global-license-under-adgm-framework-setting-a-new-standard-in-digital-asset-regulation',
+        type: 'regulatory',
+      },
+      {
+        label: 'UAE CARF 서명 및 2028년 첫 교환 (Ministry of Finance)',
+        url: 'https://mof.gov.ae/en/news/uae-signs-multilateral-competent-authority-agreement-on-the-automatic-exchange-of-information-under-the-crypto-asset-reporting-framework/',
+        type: 'regulatory',
+      },
+      {
+        label: 'Binance 2026 이용약관 (ADGM 법인 기준)',
+        url: 'https://www.binance.com/en/terms',
+        type: 'tos',
+      },
+    ],
   },
   {
     id: 'okx',
@@ -182,6 +211,23 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: 'TRISA·VerifyVASP 일부 지원, 한국 차단으로 실질 미적용',
     koreaUserJurisdiction: '세이셸',
     koreaUserJurisdictionNote: 'Aux Cayes FinTech Co. Ltd.(세이셸) 약관 적용, EU 이용자는 OKX EU(몰타) 별도',
+    sources: [
+      {
+        label: 'OKX 이용약관 (Aux Cayes FinTech Co. Ltd., 세이셸)',
+        url: 'https://www.okx.com/en/terms-of-service',
+        type: 'tos',
+      },
+      {
+        label: '세이셸 FSA: CARF 의무 준수 지침 (2028년 첫 교환)',
+        url: 'https://fsaseychelles.sc/digital-assets',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 세이셸 포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'bybit',
@@ -206,7 +252,24 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleKorea: 'partial',
     travelRuleNote: '자체 Travel Rule 솔루션 보유, 한국 VerifyVASP 네트워크 미참여',
     koreaUserJurisdiction: 'BVI',
-    koreaUserJurisdictionNote: 'Bybit Fintech Limited(BVI) 약관 적용, 실질 HQ는 UAE 두바이',
+    koreaUserJurisdictionNote: 'Bybit Technology Limited(BVI) 약관 적용, 실질 HQ는 UAE 두바이. 구 법인 Bybit Fintech Limited는 2021년 말소.',
+    sources: [
+      {
+        label: 'Bybit 이용약관 (Bybit Technology Limited, BVI)',
+        url: 'https://www.bybit.com/en/terms-service/terms-of-service/',
+        type: 'tos',
+      },
+      {
+        label: 'BVI FSC: 가상자산 규제 및 CARF 2028 시행',
+        url: 'https://www.bvifsc.vg/virtual-assets',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — BVI 포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'bitget',
@@ -231,6 +294,23 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: 'VerifyVASP 참여 — 한국 거래소와 트래블룰 정보 교환 가능',
     koreaUserJurisdiction: '세이셸',
     koreaUserJurisdictionNote: 'Bitget Limited(세이셸) 약관 적용',
+    sources: [
+      {
+        label: 'Bitget 이용약관 (Bitget Limited, 세이셸)',
+        url: 'https://www.bitget.com/en/support/articles/12560603794013',
+        type: 'tos',
+      },
+      {
+        label: '세이셸 FSA: CARF 의무 준수 지침 (2028년 첫 교환)',
+        url: 'https://fsaseychelles.sc/digital-assets',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 세이셸 포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'kraken',
@@ -255,6 +335,23 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: 'Travel Rule Protocol(TRP) 지원, 한국 VerifyVASP 네트워크 미참여',
     koreaUserJurisdiction: '미국 (와이오밍)',
     koreaUserJurisdictionNote: 'Payward Inc.(미국) 약관 적용, 한국 공식 서비스 미제공',
+    sources: [
+      {
+        label: 'Kraken 이용약관 (Payward Inc., 미국 캘리포니아)',
+        url: 'https://www.kraken.com/legal/terms-of-service',
+        type: 'tos',
+      },
+      {
+        label: '미국 재무부: CARF 미채택 — OECD 동참 여부 미결정',
+        url: 'https://home.treasury.gov/news/press-releases/jy1978',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 미국 미포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'coinbase',
@@ -278,7 +375,24 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleKorea: 'partial',
     travelRuleNote: 'Travel Rule Protocol(TRP) 지원, 한국 VerifyVASP 네트워크 미참여',
     koreaUserJurisdiction: '미국 (텍사스)',
-    koreaUserJurisdictionNote: 'Coinbase Global, Inc.(미국) 약관 적용, 한국 공식 서비스 미제공',
+    koreaUserJurisdictionNote: 'Coinbase Global, Inc.(미국 텍사스) 약관 적용. 2025-12-15 델라웨어→텍사스 재편입 완료. 한국 공식 서비스 미제공.',
+    sources: [
+      {
+        label: 'Coinbase 이용약관 (미국 사용자 계약)',
+        url: 'https://www.coinbase.com/legal/user_agreement/united_states',
+        type: 'tos',
+      },
+      {
+        label: 'Coinbase SEC 8-K: 텍사스 재편입 완료 (2025-12-15)',
+        url: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=COIN&type=8-K&dateb=&owner=include&count=10',
+        type: 'official',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 미국 미포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'bitfinex',
@@ -303,6 +417,23 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: '트래블룰 지원 미확인, CFTC 제재 이력으로 규제 리스크 높음',
     koreaUserJurisdiction: 'BVI',
     koreaUserJurisdictionNote: 'iFinex Inc.(BVI) 약관 적용',
+    sources: [
+      {
+        label: 'Bitfinex 이용약관 (iFinex Inc., BVI)',
+        url: 'https://www.bitfinex.com/legal/terms',
+        type: 'tos',
+      },
+      {
+        label: 'BVI FSC: 가상자산 규제 및 CARF 2028 시행',
+        url: 'https://www.bvifsc.vg/virtual-assets',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — BVI 포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
   {
     id: 'kucoin',
@@ -327,6 +458,23 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: '트래블룰 미지원, DOJ $297M 합의 이력. 규제 회피 이전 이력',
     koreaUserJurisdiction: '터크스케이커스',
     koreaUserJurisdictionNote: 'Peken Global Ltd.(터크스케이커스) 약관 적용, CARF·트래블룰 모두 사각지대',
+    sources: [
+      {
+        label: 'KuCoin 이용약관 (Peken Global Ltd., 터크스케이커스)',
+        url: 'https://www.kucoin.com/legal/user-agreement',
+        type: 'tos',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 터크스케이커스 미포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+      {
+        label: 'DOJ: KuCoin 자금세탁 기소 및 $297M 합의 (2024)',
+        url: 'https://www.justice.gov/opa/pr/kucoin-and-its-founders-charged-money-laundering-and-operating-unlicensed-money-transmitting',
+        type: 'news',
+      },
+    ],
   },
   {
     id: 'gate',
@@ -352,30 +500,60 @@ export const GLOBAL_EXCHANGES: ExchangeCarfInfo[] = [
     travelRuleNote: 'VerifyVASP 참여, 한국 공식 서비스 제공 — 트래블룰 완전 적용',
     koreaUserJurisdiction: '케이맨 제도 / 대한민국',
     koreaUserJurisdictionNote: '서울 오피스 운영, 한국 사용자는 한국 법 및 케이맨 약관 이중 적용 가능',
+    sources: [
+      {
+        label: 'Gate.io 라이선스 및 법인 정보 (Gate Technology Inc., 케이맨)',
+        url: 'https://www.gate.io/licenses',
+        type: 'official',
+      },
+      {
+        label: 'CIMA: Gate.io와의 관계 부인 공고 (2023)',
+        url: 'https://www.cima.ky/news/cima-disclaimer-gate-technology-inc',
+        type: 'regulatory',
+      },
+      {
+        label: '케이맨 DITC: CARF 2027 시행 (Cayman 세금정보청)',
+        url: 'https://www.ditc.ky/carf',
+        type: 'regulatory',
+      },
+    ],
   },
   {
     id: 'htx',
     name: 'HTX (Huobi)',
     shortName: 'HTX',
     type: 'global',
-    registeredCountry: '세이셸 (법인 말소)',
+    registeredCountry: '파나마',
     mapLocation: {
-      label: '빅토리아, 세이셸',
-      latitude: -4.6191,
-      longitude: 55.4513,
-      focusLabel: '과거 법인 관할',
+      label: '파나마시티, 파나마',
+      latitude: 8.9936,
+      longitude: -79.5197,
+      focusLabel: '현 법인 관할',
+      note: '구 세이셸 법인(Huobi Technology Co. Ltd.)은 2023년 말소. 현재 Huobi Global S.A.(파나마)로 운영 중.',
     },
-    carfGroup: 'unclear',
+    carfGroup: 'not_member',
     carfDataCollectionStart: null,
     carfFirstExchange: null,
     koreaService: false,
     koreaBlocked: false,
     koreaImpact: 'none',
-    impactDetail: '세이셸 법인 말소 상태. 규제 공백. CARF 사각지대.',
+    impactDetail: '구 세이셸 법인 2023년 말소 후 파나마 법인(Huobi Global S.A.)으로 전환. 파나마 CARF 미가입. 규제 공백 및 CARF 사각지대.',
     travelRuleKorea: 'none',
-    travelRuleNote: '법인 말소로 트래블룰 준수 불가, 규제 공백 상태',
-    koreaUserJurisdiction: '불명확',
-    koreaUserJurisdictionNote: '세이셸 법인 말소로 적용 가능한 관할권 불명확, 리스크 최고',
+    travelRuleNote: '파나마 법인 전환 후 트래블룰 준수 불명확, 규제 공백 상태',
+    koreaUserJurisdiction: '파나마',
+    koreaUserJurisdictionNote: 'Huobi Global S.A.(파나마) 약관 적용. 세이셸 법인 말소로 전환. 파나마 CARF 미가입.',
+    sources: [
+      {
+        label: 'FCA: HTX(Huobi Global) 경고 및 법인 현황',
+        url: 'https://www.fca.org.uk/consumers/warning-list-retail-investments',
+        type: 'regulatory',
+      },
+      {
+        label: 'OECD CARF 가입국 목록 — 파나마 미포함',
+        url: 'https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf',
+        type: 'official',
+      },
+    ],
   },
 ];
 
@@ -395,6 +573,7 @@ export const KEY_INSIGHTS = [
   'Gate.io가 한국 공식 서비스 제공 유일 글로벌 거래소 + 케이맨 CARF 2027 적용',
   'KuCoin·HTX는 CARF 완전 사각지대 — 세금 추적 불가',
   '가상자산 과세(2027-01) + CARF 첫 교환(2027) 동시 시행 예정',
+  'Binance: 2026-01-05 UAE ADGM 이전 완료 → CARF 2028 적용 (케이맨 2027에서 변경)',
 ];
 
 export interface SourceLink {
@@ -422,6 +601,14 @@ export const SOURCES: SourceLink[] = [
   {
     label: '케이맨 제도 CARF 규정 시행 (2026-01)',
     url: 'https://www.loebsmith.com/insight/the-cayman-islands-implements-crypto-asset-reporting-framework/',
+  },
+  {
+    label: 'Binance ADGM 전환 완료 — UAE CARF 2028 적용',
+    url: 'https://www.binance.com/en/support/announcement/detail/f4f57a010f074dae9d34718635aba926',
+  },
+  {
+    label: 'UAE CARF MCAA 서명 (UAE 재무부)',
+    url: 'https://mof.gov.ae/en/news/uae-signs-multilateral-competent-authority-agreement-on-the-automatic-exchange-of-information-under-the-crypto-asset-reporting-framework/',
   },
   {
     label: '한국 거래소 VASP 갱신 현황 (디일렉)',

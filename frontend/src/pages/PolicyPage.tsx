@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDown, ArrowRight, Ban, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowRight, Ban, BookOpen, ChevronDown, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { ExchangeCarfGlobe } from '../components/ExchangeCarfGlobe';
@@ -7,6 +7,7 @@ import {
   CARF_GROUP_LABELS,
   CarfGroup,
   ExchangeCarfInfo,
+  ExchangeSource,
   GLOBAL_EXCHANGES,
   KEY_INSIGHTS,
   KOREAN_EXCHANGES,
@@ -76,6 +77,25 @@ function combinedYear(src: ExchangeCarfInfo, dst: ExchangeCarfInfo): { label: st
   return { label: `${earliest}년부터 정보교환 시작`, cls: 'text-bnb-muted' };
 }
 
+function SourcesList({ sources }: { sources: ExchangeSource[] }) {
+  return (
+    <div className="flex flex-col gap-1 py-1">
+      {sources.map((source, index) => (
+        <a
+          key={index}
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group inline-flex items-center gap-1.5 text-[10px] text-bnb-muted transition-colors hover:text-brand-400"
+        >
+          <ExternalLink size={9} className="shrink-0" />
+          <span className="underline-offset-2 group-hover:underline">{source.label}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '출발' | '도착' }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-dark-400/30">
@@ -116,6 +136,7 @@ function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '�
 export function PolicyPage() {
   const [srcId, setSrcId] = useState<string>(KOREAN_EXCHANGES[0].id);
   const [dstId, setDstId] = useState<string>(GLOBAL_EXCHANGES[0].id);
+  const [showSources, setShowSources] = useState(false);
 
   const src = KOREAN_EXCHANGES.find((exchange) => exchange.id === srcId) ?? KOREAN_EXCHANGES[0];
   const dst = GLOBAL_EXCHANGES.find((exchange) => exchange.id === dstId) ?? GLOBAL_EXCHANGES[0];
@@ -155,7 +176,7 @@ export function PolicyPage() {
             <label className="mb-1 block text-[10px] uppercase tracking-wider text-bnb-muted">도착 (글로벌)</label>
             <select
               value={dstId}
-              onChange={(event) => setDstId(event.target.value)}
+              onChange={(event) => { setDstId(event.target.value); setShowSources(false); }}
               className="w-full border border-dark-200 bg-dark-400 px-2.5 py-1.5 text-sm text-bnb-text focus:border-brand-500 focus:outline-none"
             >
               {GLOBAL_EXCHANGES.map((exchange) => (
@@ -198,6 +219,20 @@ export function PolicyPage() {
         <div className="px-4 py-2.5">
           <p className="text-[11px] leading-relaxed text-bnb-muted">{dst.impactDetail}</p>
         </div>
+        {dst.sources && dst.sources.length > 0 && (
+          <div className="border-t border-dark-200 px-4 py-2.5">
+            <button
+              type="button"
+              onClick={() => setShowSources((v) => !v)}
+              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-bnb-muted transition-colors hover:text-brand-400"
+            >
+              <BookOpen size={10} />
+              출처 보기
+              <ChevronDown size={10} className={`ml-0.5 transition-transform duration-150 ${showSources ? 'rotate-180' : ''}`} />
+            </button>
+            {showSources && <SourcesList sources={dst.sources} />}
+          </div>
+        )}
       </div>
 
       <ExchangeCarfGlobe exchanges={ALL_EXCHANGES} selectedSourceId={src.id} selectedDestinationId={dst.id} />
@@ -278,7 +313,17 @@ export function PolicyPage() {
               </tr>
               {GLOBAL_EXCHANGES.map((exchange) => (
                 <tr key={exchange.id} className="group transition-colors hover:bg-dark-400/30">
-                  <td className="whitespace-nowrap px-4 py-2.5 font-medium text-bnb-text">{exchange.name}</td>
+                  <td className="px-4 py-2.5 font-medium text-bnb-text">
+                    <span className="whitespace-nowrap">{exchange.name}</span>
+                    {exchange.sources && exchange.sources.length > 0 && (
+                      <details className="mt-0.5">
+                        <summary className="flex cursor-pointer list-none items-center gap-1 text-[10px] text-bnb-muted hover:text-brand-400">
+                          <BookOpen size={8} />출처
+                        </summary>
+                        <SourcesList sources={exchange.sources} />
+                      </details>
+                    )}
+                  </td>
                   <td className="hidden whitespace-nowrap px-4 py-2.5 text-bnb-muted sm:table-cell">{exchange.registeredCountry}</td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold ${carfBadgeClass(exchange.carfGroup)}`}>

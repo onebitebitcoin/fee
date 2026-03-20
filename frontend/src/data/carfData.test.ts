@@ -19,6 +19,6 @@ describe('carfData globe metadata', () => {
 
     expect(binance?.mapLocation.label).toBe('아부다비, UAE');
     expect(binance?.mapLocation.note).toMatch(/ADGM/);
-    expect(binance?.registeredCountry).toBe('케이맨 제도');
+    expect(binance?.registeredCountry).toBe('UAE (ADGM)');
   });
 });
