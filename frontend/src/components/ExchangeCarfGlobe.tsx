@@ -95,7 +95,11 @@ export function ExchangeCarfGlobe({
   selectedSourceId,
   selectedDestinationId,
 }: ExchangeCarfGlobeProps) {
+  // rotationRef = source of truth (written by both RAF and pointer events)
+  // rotation state = triggers re-render, only written by RAF loop once per frame
+  const rotationRef = useRef<Rotation>(INITIAL_ROTATION);
   const [rotation, setRotation] = useState<Rotation>(INITIAL_ROTATION);
+  const dirtyRef = useRef(false);
   const isDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const autoRotateActive = useRef(true);
@@ -107,18 +111,29 @@ export function ExchangeCarfGlobe({
   const selectedDestination =
     exchanges.find((e) => e.id === selectedDestinationId) ?? exchanges[0];
 
-  // Auto-rotation at ~30fps
+  // Single RAF loop: drives both auto-rotation and drag rendering.
+  // Pointer events only write to rotationRef (no setState), so React never
+  // re-renders mid-drag. setState is called at most once per frame here.
   useEffect(() => {
     let lastTime = 0;
-    const FRAME_INTERVAL = 33;
 
     const tick = (time: number) => {
-      if (time - lastTime >= FRAME_INTERVAL) {
-        if (autoRotateActive.current) {
-          setRotation((r) => [r[0] - 0.25, r[1], r[2]]);
-        }
-        lastTime = time;
+      const elapsed = lastTime === 0 ? 16 : time - lastTime;
+      lastTime = time;
+
+      if (autoRotateActive.current) {
+        // Frame-rate-independent step: 0.25 deg per 16ms reference frame
+        const step = 0.25 * (elapsed / 16);
+        const r = rotationRef.current;
+        rotationRef.current = [r[0] - step, r[1], r[2]];
+        dirtyRef.current = true;
       }
+
+      if (dirtyRef.current) {
+        setRotation([...rotationRef.current] as Rotation);
+        dirtyRef.current = false;
+      }
+
       animRef.current = requestAnimationFrame(tick);
     };
 
@@ -145,11 +160,15 @@ export function ExchangeCarfGlobe({
       const dx = e.clientX - lastPos.current.x;
       const dy = e.clientY - lastPos.current.y;
       lastPos.current = { x: e.clientX, y: e.clientY };
-      setRotation((r) => [
+      // Only update the ref — RAF loop will commit to state next frame.
+      // This prevents 60-120 setState calls per second during drag.
+      const r = rotationRef.current;
+      rotationRef.current = [
         r[0] - dx * 0.4,
         Math.max(-80, Math.min(80, r[1] + dy * 0.4)),
         r[2],
-      ]);
+      ];
+      dirtyRef.current = true;
     },
     [],
   );
@@ -164,6 +183,7 @@ export function ExchangeCarfGlobe({
   }, []);
 
   const handleReset = useCallback(() => {
+    rotationRef.current = [...INITIAL_ROTATION] as Rotation;
     setRotation(INITIAL_ROTATION);
     autoRotateActive.current = true;
   }, []);
