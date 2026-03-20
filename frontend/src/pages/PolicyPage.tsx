@@ -70,10 +70,11 @@ function travelRuleBadge(status: TravelRuleStatus) {
 function combinedYear(src: ExchangeCarfInfo, dst: ExchangeCarfInfo): { label: string; cls: string } {
   const years = [src.carfFirstExchange, dst.carfFirstExchange].filter(Boolean) as string[];
   if (years.length === 0) return { label: '교환 없음 (사각지대)', cls: 'text-bnb-red' };
-  const earliest = years.sort()[0];
-  if (earliest === '2027') return { label: `${earliest}년부터 양측 정보교환`, cls: 'text-bnb-green' };
-  if (earliest === '2028') return { label: `${earliest}년부터 정보교환 시작`, cls: 'text-brand-400' };
-  return { label: `${earliest}년부터 정보교환 시작`, cls: 'text-bnb-muted' };
+  const sorted = years.sort();
+  const latest = sorted[sorted.length - 1];
+  if (latest === '2027') return { label: `${latest}년부터 양측 정보교환`, cls: 'text-bnb-green' };
+  if (latest === '2028') return { label: `${latest}년부터 정보교환 시작`, cls: 'text-brand-400' };
+  return { label: `${latest}년부터 정보교환 시작`, cls: 'text-bnb-muted' };
 }
 
 function SourcesList({ sources }: { sources: ExchangeSource[] }) {
