@@ -1,3 +1,8 @@
+"""
+.. deprecated::
+    이 모듈은 더 이상 사용되지 않습니다.
+    실시간 데이터 조회는 market_core.py를 직접 사용하세요.
+"""
 from backend.app.domain.market_core import (
     ALL_EXCHANGES,
     GLOBAL_FETCHERS,

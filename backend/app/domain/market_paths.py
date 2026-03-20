@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import logging
 import math
 
 import requests
@@ -17,41 +18,18 @@ from backend.app.domain.market_core import (
     get_withdrawal_source_url,
     get_withdrawal_data,
 )
+from backend.app.domain.path_helpers import (
+    _build_path_id,
+    build_maintenance_status,
+    build_ticker_by_exchange,
+    build_withdrawals_by_key,
+    fee_component,
+    is_suspended,
+    is_bitcoin_native_network,
+    resolve_global_onchain_wd_fee,
+)
 
-
-def _slug_path_part(value: str | None) -> str:
-    raw = (value or 'na').strip().lower()
-    parts = []
-    prev_dash = False
-    for char in raw:
-        if char.isalnum():
-            parts.append(char)
-            prev_dash = False
-        elif not prev_dash:
-            parts.append('-')
-            prev_dash = True
-    return ''.join(parts).strip('-') or 'na'
-
-
-def _build_path_id(
-    *,
-    global_exchange: str,
-    korean_exchange: str,
-    transfer_coin: str,
-    domestic_withdrawal_network: str | None,
-    global_exit_mode: str | None,
-    global_exit_network: str | None,
-    lightning_exit_provider: str | None,
-) -> str:
-    return '__'.join([
-        _slug_path_part(global_exchange),
-        _slug_path_part(korean_exchange),
-        _slug_path_part(transfer_coin),
-        _slug_path_part(domestic_withdrawal_network),
-        _slug_path_part(global_exit_mode),
-        _slug_path_part(global_exit_network),
-        _slug_path_part(lightning_exit_provider or 'none'),
-    ])
+logger = logging.getLogger(__name__)
 MEMPOOL_RECOMMENDED_FEES_URL = 'https://mempool.space/api/v1/fees/recommended'
 P2WPKH_INPUT_VBYTES = 68
 P2WPKH_OUTPUT_VBYTES = 31
@@ -365,14 +343,12 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
         try:
             for _net in fut_global_btc_withdrawal.result():
                 label_lower = (_net.get('label', '') or '').lower()
-                is_bitcoin_native = ('bitcoin' in label_lower or 'btc' in label_lower) and 'lightning' not in label_lower
-                is_non_btc_chain = any(x in label_lower for x in ('bep20', 'erc20', 'trc20', 'solana', 'aptos', 'sui', 'x layer', 'bnb'))
-                if _net.get('enabled', True) and _net.get('fee') is not None and is_bitcoin_native and not is_non_btc_chain:
+                if _net.get('enabled', True) and _net.get('fee') is not None and is_bitcoin_native_network(label_lower):
                     global_onchain_wd_fee = _net['fee']
                     global_onchain_wd_fee_krw = round(global_onchain_wd_fee * global_btc_price_usd * usd_krw_rate)
                     break
         except Exception:
-            pass
+            logger.warning('글로벌 거래소 BTC 출금 수수료 조회 실패', exc_info=True)
 
         try:
             maintenance_status = check_maintenance_status(list(GROUPS['korea']))
@@ -380,21 +356,6 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
         except Exception:
             maintenance_status = {}
             maintenance_checked_at = None
-
-        def is_suspended(exchange: str, coin: str, network_label: str):
-            for item in maintenance_status.get(exchange, []):
-                if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
-                    return item.get('reason', '점검 중')
-            return None
-
-        def fee_component(label: str, amount_krw: int, *, rate_pct: float | None = None, amount_text: str | None = None, source_url: str | None = None) -> dict:
-            return {
-                'label': label,
-                'amount_krw': amount_krw,
-                'rate_pct': round(rate_pct, 4) if rate_pct is not None else None,
-                'amount_text': amount_text,
-                'source_url': source_url,
-            }
 
         paths = []
         disabled_paths = []
@@ -410,7 +371,7 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                 for network in fut_withdrawals[(exchange, 'BTC')].result():
                     if not network.get('enabled', True) or network.get('fee') is None:
                         continue
-                    suspension_reason = is_suspended(exchange, 'BTC', network['label'])
+                    suspension_reason = is_suspended(maintenance_status, exchange, 'BTC', network['label'])
                     if suspension_reason:
                         disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'BTC', 'network': network['label'], 'reason': suspension_reason})
                         continue
@@ -454,13 +415,13 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                         },
                     })
             except Exception:
-                pass
+                logger.warning('BTC 출금 경로 계산 중 오류 (exchange=%s)', exchange, exc_info=True)
 
             try:
                 for network in fut_withdrawals[(exchange, 'USDT')].result():
                     if not network.get('enabled', True) or network.get('fee') is None:
                         continue
-                    suspension_reason = is_suspended(exchange, 'USDT', network['label'])
+                    suspension_reason = is_suspended(maintenance_status, exchange, 'USDT', network['label'])
                     if suspension_reason:
                         disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'USDT', 'network': network['label'], 'reason': suspension_reason})
                         continue
@@ -524,7 +485,7 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
                         },
                     })
             except Exception:
-                pass
+                logger.warning('USDT 출금 경로 계산 중 오류 (exchange=%s)', exchange, exc_info=True)
 
         paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
         return {
@@ -559,15 +520,6 @@ def find_cheapest_path_from_snapshot_rows(
     if latest_run is None:
         return {'error': '최신 수집 결과가 없습니다. 먼저 수동 크롤링을 실행하세요.'}
 
-    def fee_component(label: str, amount_krw: int, *, rate_pct: float | None = None, amount_text: str | None = None, source_url: str | None = None) -> dict:
-        return {
-            'label': label,
-            'amount_krw': amount_krw,
-            'rate_pct': round(rate_pct, 4) if rate_pct is not None else None,
-            'amount_text': amount_text,
-            'source_url': source_url,
-        }
-
     usd_krw_rate = latest_run.usd_krw_rate or next((row.usd_krw_rate for row in ticker_rows if getattr(row, 'usd_krw_rate', None)), None)
     if usd_krw_rate is None:
         return {'error': '최신 수집 결과에 환율 정보가 없습니다.'}
@@ -581,47 +533,16 @@ def find_cheapest_path_from_snapshot_rows(
         TRADING_FEES[global_exchange]['spot']['taker'] if isinstance(TRADING_FEES[global_exchange].get('spot'), dict) else TRADING_FEES[global_exchange]['taker']
     )
 
-    ticker_by_exchange = {
-        row.exchange: row
-        for row in ticker_rows
-        if row.exchange in GROUPS['korea'] and row.market_type == 'spot' and row.currency == 'KRW'
-    }
-
-    withdrawals_by_key: dict[tuple[str, str], list] = {}
-    for row in withdrawal_rows:
-        withdrawals_by_key.setdefault((row.exchange, row.coin), []).append(row)
+    ticker_by_exchange = build_ticker_by_exchange(ticker_rows, GROUPS['korea'])
+    withdrawals_by_key = build_withdrawals_by_key(withdrawal_rows)
 
     # 글로벌 거래소 BTC Bitcoin on-chain 출금 수수료 (USDT 경유 일반 경로에 포함)
     # Bitcoin 네트워크만 선택 (BNB Smart Chain, ERC20 등 wrapped BTC 제외)
-    _global_btc_wds = withdrawals_by_key.get((global_exchange, 'BTC'), [])
-    global_onchain_wd_fee: float | None = None
-    global_onchain_wd_fee_krw: int = 0
-    global_onchain_network_label: str | None = None
-    for _wd in _global_btc_wds:
-        label_lower = (_wd.network_label or '').lower()
-        is_bitcoin_native = ('bitcoin' in label_lower or 'btc' in label_lower) and 'lightning' not in label_lower
-        is_non_btc_chain = any(x in label_lower for x in ('bep20', 'erc20', 'trc20', 'solana', 'aptos', 'sui', 'x layer', 'bnb'))
-        if _wd.enabled and _wd.fee is not None and is_bitcoin_native and not is_non_btc_chain:
-            global_onchain_wd_fee = _wd.fee
-            global_onchain_wd_fee_krw = int(round(_wd.fee_krw)) if _wd.fee_krw is not None else round(_wd.fee * global_btc_price_usd * float(usd_krw_rate))
-            global_onchain_network_label = _wd.network_label
-            break
+    global_onchain_wd_fee, global_onchain_wd_fee_krw, global_onchain_network_label = resolve_global_onchain_wd_fee(
+        withdrawals_by_key, global_exchange, global_btc_price_usd, float(usd_krw_rate)
+    )
 
-    maintenance_status: dict[str, list[dict]] = {}
-    for row in network_rows:
-        if row.status == 'ok':
-            continue
-        maintenance_status.setdefault(row.exchange, []).append({
-            'coin': row.coin or '',
-            'network': row.network or '',
-            'reason': row.reason or row.status,
-        })
-
-    def is_suspended(exchange: str, coin: str, network_label: str):
-        for item in maintenance_status.get(exchange, []):
-            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
-                return item.get('reason', '점검 중')
-        return None
+    maintenance_status = build_maintenance_status(network_rows)
 
     maintenance_checked_at = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     paths = []
@@ -638,7 +559,7 @@ def find_cheapest_path_from_snapshot_rows(
         for row in withdrawals_by_key.get((exchange, 'BTC'), []):
             if not row.enabled or row.fee is None:
                 continue
-            suspension_reason = is_suspended(exchange, 'BTC', row.network_label)
+            suspension_reason = is_suspended(maintenance_status, exchange, 'BTC', row.network_label)
             if suspension_reason:
                 disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'BTC', 'network': row.network_label, 'reason': suspension_reason})
                 continue
@@ -684,7 +605,7 @@ def find_cheapest_path_from_snapshot_rows(
         for row in withdrawals_by_key.get((exchange, 'USDT'), []):
             if not row.enabled or row.fee is None:
                 continue
-            suspension_reason = is_suspended(exchange, 'USDT', row.network_label)
+            suspension_reason = is_suspended(maintenance_status, exchange, 'USDT', row.network_label)
             if suspension_reason:
                 disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'USDT', 'network': row.network_label, 'reason': suspension_reason})
                 continue
@@ -789,7 +710,7 @@ def find_cheapest_path_from_snapshot_rows(
                 for row in withdrawals_by_key.get((exchange, 'USDT'), []):
                     if not row.enabled or row.fee is None:
                         continue
-                    suspension_reason = is_suspended(exchange, 'USDT', row.network_label)
+                    suspension_reason = is_suspended(maintenance_status, exchange, 'USDT', row.network_label)
                     if suspension_reason:
                         continue
 
@@ -909,15 +830,6 @@ def find_cheapest_sell_path_from_snapshot_rows(
     if wallet_utxo_count <= 0:
         return {'error': 'wallet_utxo_count는 1 이상이어야 합니다.'}
 
-    def fee_component(label: str, amount_krw: int, *, rate_pct: float | None = None, amount_text: str | None = None, source_url: str | None = None) -> dict:
-        return {
-            'label': label,
-            'amount_krw': amount_krw,
-            'rate_pct': round(rate_pct, 4) if rate_pct is not None else None,
-            'amount_text': amount_text,
-            'source_url': source_url,
-        }
-
     def build_entry(
         *,
         route_variant: str,
@@ -987,35 +899,14 @@ def find_cheapest_sell_path_from_snapshot_rows(
         TRADING_FEES[global_exchange]['spot']['taker'] if isinstance(TRADING_FEES[global_exchange].get('spot'), dict) else TRADING_FEES[global_exchange]['taker']
     )
 
-    ticker_by_exchange = {
-        row.exchange: row
-        for row in ticker_rows
-        if row.exchange in GROUPS['korea'] and row.market_type == 'spot' and row.currency == 'KRW'
-    }
-
-    withdrawals_by_key: dict[tuple[str, str], list] = {}
-    for row in withdrawal_rows:
-        withdrawals_by_key.setdefault((row.exchange, row.coin), []).append(row)
+    ticker_by_exchange = build_ticker_by_exchange(ticker_rows, GROUPS['korea'])
+    withdrawals_by_key = build_withdrawals_by_key(withdrawal_rows)
 
     capability_by_exchange: dict[str, object] = {
         row.exchange: row for row in (exchange_capability_rows or [])
     }
 
-    maintenance_status: dict[str, list[dict]] = {}
-    for row in network_rows:
-        if row.status == 'ok':
-            continue
-        maintenance_status.setdefault(row.exchange, []).append({
-            'coin': row.coin or '',
-            'network': row.network or '',
-            'reason': row.reason or row.status,
-        })
-
-    def is_suspended(exchange: str, coin: str, network_label: str):
-        for item in maintenance_status.get(exchange, []):
-            if item.get('coin', '').upper() == coin.upper() and item.get('network', '').lower() in network_label.lower():
-                return item.get('reason', '점검 중')
-        return None
+    maintenance_status = build_maintenance_status(network_rows)
 
     maintenance_checked_at = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     paths: list[dict] = []
@@ -1032,7 +923,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
         for row in withdrawals_by_key.get((exchange, 'BTC'), []):
             if not row.enabled or row.fee is None:
                 continue
-            suspension_reason = is_suspended(exchange, 'BTC', row.network_label)
+            suspension_reason = is_suspended(maintenance_status, exchange, 'BTC', row.network_label)
             if suspension_reason:
                 disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'BTC', 'network': row.network_label, 'reason': suspension_reason})
                 continue
@@ -1069,7 +960,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
         for row in withdrawals_by_key.get((global_exchange, 'USDT'), []):
             if not row.enabled or row.fee is None:
                 continue
-            suspension_reason = is_suspended(global_exchange, 'USDT', row.network_label)
+            suspension_reason = is_suspended(maintenance_status, global_exchange, 'USDT', row.network_label)
             if suspension_reason:
                 disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'USDT', 'network': row.network_label, 'reason': suspension_reason})
                 continue
@@ -1167,7 +1058,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 for row in withdrawals_by_key.get((global_exchange, 'USDT'), []):
                     if not row.enabled or row.fee is None:
                         continue
-                    suspension_reason = is_suspended(global_exchange, 'USDT', row.network_label)
+                    suspension_reason = is_suspended(maintenance_status, global_exchange, 'USDT', row.network_label)
                     if suspension_reason:
                         continue
 

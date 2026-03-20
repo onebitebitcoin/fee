@@ -8,17 +8,12 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
+import { SATS_PER_BTC, formatNumber } from '../lib/formatBtc';
 import { formatTs } from '../lib/formatTs';
 import { localizeUiLabel } from '../lib/localizeUi';
 import type { ExchangeNoticeItem, ExchangeStatusNode, ExchangeStatusWithdrawalRow, SuspendedNetwork } from '../types';
 
 const DOMESTIC_EXCHANGES = new Set(['upbit', 'bithumb', 'coinone', 'korbit', 'gopax']);
-
-const SATS_PER_BTC = 100_000_000;
-
-function formatNumber(value: number, maximumFractionDigits = 8) {
-  return new Intl.NumberFormat('ko-KR', { maximumFractionDigits }).format(value);
-}
 
 function formatFee(row: ExchangeStatusWithdrawalRow): string {
   // 라이트닝 스왑 행
@@ -32,7 +27,7 @@ function formatFee(row: ExchangeStatusWithdrawalRow): string {
   if (row.coin.toUpperCase() === 'BTC') {
     return `${formatNumber(Math.round(row.fee * SATS_PER_BTC), 0)} sats`;
   }
-  return formatNumber(row.fee);
+  return formatNumber(row.fee, 8);
 }
 
 function formatFeeKrw(row: ExchangeStatusWithdrawalRow): string {

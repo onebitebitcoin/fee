@@ -16,14 +16,6 @@ vi.mock('./pages/TickersPage', () => ({
   TickersPage: () => <h1>시세 페이지</h1>,
 }));
 
-vi.mock('./pages/WithdrawalsPage', () => ({
-  WithdrawalsPage: () => <h1>출금 페이지</h1>,
-}));
-
-vi.mock('./pages/NetworkStatusPage', () => ({
-  NetworkStatusPage: () => <h1>네트워크 페이지</h1>,
-}));
-
 vi.mock('./pages/RunsPage', () => ({
   RunsPage: () => <h1>이력 페이지</h1>,
 }));
