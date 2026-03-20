@@ -172,7 +172,7 @@ async function renderAndSearch() {
 async function renderAndSearchAll() {
   const user = await renderAndSearch();
   await screen.findByText('최적 경로');
-  await user.click(screen.getByRole('button', { name: '가장 낮은 수수료' }));
+  await user.click(screen.getByRole('button', { name: '최저 수수료만' }));
   return user;
 }
 
@@ -186,9 +186,9 @@ describe('CheapestPathPage', () => {
 
     // 검색 버튼 클릭 없이 결과가 자동 로딩되어야 함
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '신원인증 최소화' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '최저 수수료만' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '신원인증 최소화 + 최저 수수료' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '라이트닝 제외 + 최저 수수료' })).toBeInTheDocument();
   });
 
   it('shows a progress bar while the cheapest path is loading', async () => {
@@ -226,21 +226,22 @@ describe('CheapestPathPage', () => {
       },
     });
 
-    expect(await screen.findByRole('button', { name: '가장 낮은 수수료' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '최저 수수료만' })).toBeInTheDocument();
   });
 
   it('renders the current dashboard summary for the cheapest route', async () => {
-    // 기본값이 non-KYC이므로 cheap2(Lightning)가 best visible path
+    // CARF 미발효 글로벌 거래소(binance, carfFirstExchange=2028)를 허용하므로
+    // 온체인 cheap1(2000원)이 라이트닝 cheap2(2500원)보다 낮은 수수료로 best visible path
     await renderAndSearch();
 
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
-    expect(screen.getAllByText('cheap2').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('870,000 sats').length).toBeGreaterThan(0);
+    expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
+    expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
     expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
     expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
     expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('수수료율 0.070%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('수수료율 0.050%').length).toBeGreaterThan(0);
   });
 
   it('filters routes by explicit path dimensions', async () => {
@@ -319,15 +320,19 @@ describe('CheapestPathPage', () => {
   it('applies the non-KYC shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: '신원인증 최소화' }));
+    await user.click(screen.getByRole('button', { name: '신원인증 최소화 + 최저 수수료' }));
 
-    expect(screen.getByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).toBeInTheDocument();
+    // CARF 미발효 글로벌 거래소(binance, carfFirstExchange=2028)이므로
+    // 온체인 KYC 경로(cheap1)도 허용 → cheap1이 저렴하므로 최상위 best path
+    expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
+    // 라이트닝 경로(cheap2)도 필터 통과하므로 목록에 존재
+    expect(screen.getAllByText('cheap2').length).toBeGreaterThan(0);
   });
 
   it('applies the without-lightning shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: '라이트닝 제외' }));
+    await user.click(screen.getByRole('button', { name: '라이트닝 제외 + 최저 수수료' }));
 
     expect(screen.queryByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).not.toBeInTheDocument();
     expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
