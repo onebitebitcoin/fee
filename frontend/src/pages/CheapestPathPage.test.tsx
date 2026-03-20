@@ -238,10 +238,10 @@ describe('CheapestPathPage', () => {
     expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
     expect(screen.getAllByText('cheap1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('880,000 sats').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('개인 지갑').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('KYC').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('NON-KYC').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('수수료율 0.050%').length).toBeGreaterThan(0);
+    // 수수료 3분류 표시 확인
+    expect(screen.getByText('거래 수수료')).toBeInTheDocument();
+    expect(screen.getByText('출금 수수료')).toBeInTheDocument();
+    expect(screen.getByText('스왑 수수료')).toBeInTheDocument();
   });
 
   it('filters routes by explicit path dimensions', async () => {

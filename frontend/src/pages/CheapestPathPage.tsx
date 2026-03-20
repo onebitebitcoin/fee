@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { PathFilterBar } from '../components/cheapest-path/PathFilterBar';
 import { PathMobileList } from '../components/cheapest-path/PathMobileList';
 import { PathTable } from '../components/cheapest-path/PathTable';
-import { PathTimeline } from '../components/cheapest-path/PathTimeline';
 import { RouteDetailPopup } from '../components/cheapest-path/RouteDetailPopup';
 import { GLOBAL_EXCHANGES, KOREAN_EXCHANGES } from '../data/carfData';
 import { api } from '../lib/api';
@@ -264,9 +263,6 @@ export function CheapestPathPage() {
                     <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
                     <p className="text-lg font-semibold text-bnb-text sm:text-xl">{formatTopPathSequence(bestVisiblePath, activeGlobalExchange, mode)}</p>
                   </div>
-                  <div className="border border-dark-200 bg-dark-500/60 p-3">
-                    <PathTimeline path={bestVisiblePath} globalExchange={activeGlobalExchange} mode={mode} />
-                  </div>
                   <div className="divide-y divide-dark-200 border border-dark-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                     <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
@@ -285,17 +281,17 @@ export function CheapestPathPage() {
                     const { tradingFee, withdrawalFee, swapFee } = categorizeFees(bestVisiblePath.breakdown.components);
                     return (
                       <div className="divide-y divide-dark-200 border border-dark-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">거래 수수료</p>
-                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{tradingFee > 0 ? formatCurrency(tradingFee) : '—'}</p>
+                        <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">거래 수수료</p>
+                          <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-lg">{tradingFee > 0 ? formatCurrency(tradingFee) : '—'}</p>
                         </div>
-                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">출금 수수료</p>
-                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{withdrawalFee > 0 ? formatCurrency(withdrawalFee) : '—'}</p>
+                        <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">출금 수수료</p>
+                          <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-lg">{withdrawalFee > 0 ? formatCurrency(withdrawalFee) : '—'}</p>
                         </div>
-                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">스왑 수수료</p>
-                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{swapFee > 0 ? formatCurrency(swapFee) : '—'}</p>
+                        <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">스왑 수수료</p>
+                          <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-lg">{swapFee > 0 ? formatCurrency(swapFee) : '—'}</p>
                         </div>
                       </div>
                     );
