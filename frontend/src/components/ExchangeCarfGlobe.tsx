@@ -1,6 +1,18 @@
-import { Clock3, MapPin, Route } from 'lucide-react';
+import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
+import { feature } from 'topojson-client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Clock3, MapPin, RotateCcw, Route } from 'lucide-react';
 
 import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo } from '../data/carfData';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import worldData from 'world-atlas/countries-110m.json';
+
+// Pre-compute land feature once (topojson → geojson, expensive)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const LAND_FEATURE = feature(worldData as any, (worldData as any).objects.land);
+
+type Rotation = [number, number, number];
 
 type ExchangeCarfGlobeProps = {
   exchanges: ExchangeCarfInfo[];
@@ -8,16 +20,9 @@ type ExchangeCarfGlobeProps = {
   selectedDestinationId: string;
 };
 
-type Point = { x: number; y: number };
-
-const MERIDIAN_LONGITUDES = [-120, -60, 0, 60, 120];
-const PARALLEL_LATITUDES = [-45, 0, 45];
-const GLOBE_BOUNDS = { left: 12, top: 12, width: 76, height: 76 };
-const CONTINENT_PATHS = [
-  'M20 28C18 23 19 18 24 15C30 11 38 13 40 19C42 24 39 29 35 32C31 35 30 40 31 45C32 51 30 58 24 63C19 67 13 65 11 59C9 53 12 47 15 43C18 39 22 35 20 28Z',
-  'M43 18C48 14 56 15 61 20C65 24 66 29 63 34C61 38 61 43 64 46C68 49 70 56 66 61C61 67 52 67 48 61C45 57 43 51 41 47C38 42 34 38 35 31C35 25 38 21 43 18Z',
-  'M63 24C68 20 76 20 82 24C87 28 89 35 86 41C83 47 76 48 72 45C68 42 64 42 60 44C56 46 50 45 48 40C45 33 52 28 57 28C60 27 61 26 63 24Z',
-];
+const GLOBE_SIZE = 400;
+const GLOBE_SCALE = 175;
+const INITIAL_ROTATION: Rotation = [-80, -20, 0];
 
 function carfTone(group: CarfGroup): string {
   if (group === '2027') return 'text-bnb-green';
@@ -33,33 +38,24 @@ function markerFill(group: CarfGroup): string {
   return '#F6465D';
 }
 
-function projectPoint(latitude: number, longitude: number): Point {
-  const x = GLOBE_BOUNDS.left + ((longitude + 180) / 360) * GLOBE_BOUNDS.width;
-  const y = GLOBE_BOUNDS.top + ((90 - latitude) / 180) * GLOBE_BOUNDS.height;
-  return { x, y };
-}
-
 function formatTiming(exchange: ExchangeCarfInfo): string {
-  const collection = exchange.carfDataCollectionStart ? `${exchange.carfDataCollectionStart} 수집` : '수집 시기 미정';
-  const first = exchange.carfFirstExchange ? `${exchange.carfFirstExchange} 첫 교환` : '교환 일정 미정';
+  const collection = exchange.carfDataCollectionStart
+    ? `${exchange.carfDataCollectionStart} 수집`
+    : '수집 시기 미정';
+  const first = exchange.carfFirstExchange
+    ? `${exchange.carfFirstExchange} 첫 교환`
+    : '교환 일정 미정';
   return `${collection} · ${first}`;
 }
 
-function selectionWeight(exchangeId: string, selectedSourceId: string, selectedDestinationId: string) {
-  if (exchangeId === selectedSourceId || exchangeId === selectedDestinationId) return 0;
-  return 1;
-}
-
-function buildGraticuleLine(longitude: number): string {
-  const start = projectPoint(75, longitude);
-  const end = projectPoint(-75, longitude);
-  return `M${start.x} ${start.y} L${end.x} ${end.y}`;
-}
-
-function buildParallelArc(latitude: number): string {
-  const left = projectPoint(latitude, -170);
-  const right = projectPoint(latitude, 170);
-  return `M${left.x} ${left.y} Q50 ${left.y - (latitude === 0 ? 0 : 2)} ${right.x} ${right.y}`;
+/** 구면 법칙(코사인)으로 점이 현재 보이는 반구에 있는지 판별. */
+function isOnFrontHemisphere(lng: number, lat: number, rotation: Rotation): boolean {
+  const centerLng = -rotation[0];
+  const centerLat = -rotation[1];
+  const Δλ = (lng - centerLng) * (Math.PI / 180);
+  const φc = centerLat * (Math.PI / 180);
+  const φp = lat * (Math.PI / 180);
+  return Math.sin(φc) * Math.sin(φp) + Math.cos(φc) * Math.cos(φp) * Math.cos(Δλ) > 0;
 }
 
 function SelectedExchangeCard({ exchange, label }: { exchange: ExchangeCarfInfo; label: string }) {
@@ -74,7 +70,6 @@ function SelectedExchangeCard({ exchange, label }: { exchange: ExchangeCarfInfo;
           {CARF_GROUP_LABELS[exchange.carfGroup]}
         </span>
       </div>
-
       <div className="mt-3 space-y-2 text-xs text-bnb-muted">
         <div className="flex items-start gap-2">
           <MapPin size={12} className="mt-0.5 shrink-0 text-brand-400" />
@@ -95,101 +90,339 @@ function SelectedExchangeCard({ exchange, label }: { exchange: ExchangeCarfInfo;
   );
 }
 
-export function ExchangeCarfGlobe({ exchanges, selectedSourceId, selectedDestinationId }: ExchangeCarfGlobeProps) {
-  const selectedSource = exchanges.find((exchange) => exchange.id === selectedSourceId) ?? exchanges[0];
-  const selectedDestination = exchanges.find((exchange) => exchange.id === selectedDestinationId) ?? exchanges[0];
-  const selectedLineStart = projectPoint(selectedSource.mapLocation.latitude, selectedSource.mapLocation.longitude);
-  const selectedLineEnd = projectPoint(selectedDestination.mapLocation.latitude, selectedDestination.mapLocation.longitude);
-  const sortedExchanges = [...exchanges].sort((left, right) => {
-    const weightDiff = selectionWeight(left.id, selectedSourceId, selectedDestinationId) - selectionWeight(right.id, selectedSourceId, selectedDestinationId);
-    if (weightDiff !== 0) return weightDiff;
-    return left.name.localeCompare(right.name, 'ko');
-  });
+export function ExchangeCarfGlobe({
+  exchanges,
+  selectedSourceId,
+  selectedDestinationId,
+}: ExchangeCarfGlobeProps) {
+  const [rotation, setRotation] = useState<Rotation>(INITIAL_ROTATION);
+  const isDragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+  const autoRotateActive = useRef(true);
+  const autoRotateTimer = useRef<ReturnType<typeof setTimeout>>();
+  const animRef = useRef<number>();
+
+  const selectedSource =
+    exchanges.find((e) => e.id === selectedSourceId) ?? exchanges[0];
+  const selectedDestination =
+    exchanges.find((e) => e.id === selectedDestinationId) ?? exchanges[0];
+
+  // Auto-rotation at ~30fps
+  useEffect(() => {
+    let lastTime = 0;
+    const FRAME_INTERVAL = 33;
+
+    const tick = (time: number) => {
+      if (time - lastTime >= FRAME_INTERVAL) {
+        if (autoRotateActive.current) {
+          setRotation((r) => [r[0] - 0.25, r[1], r[2]]);
+        }
+        lastTime = time;
+      }
+      animRef.current = requestAnimationFrame(tick);
+    };
+
+    animRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      isDragging.current = true;
+      autoRotateActive.current = false;
+      clearTimeout(autoRotateTimer.current);
+      lastPos.current = { x: e.clientX, y: e.clientY };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      if (!isDragging.current) return;
+      const dx = e.clientX - lastPos.current.x;
+      const dy = e.clientY - lastPos.current.y;
+      lastPos.current = { x: e.clientX, y: e.clientY };
+      setRotation((r) => [
+        r[0] - dx * 0.4,
+        Math.max(-80, Math.min(80, r[1] + dy * 0.4)),
+        r[2],
+      ]);
+    },
+    [],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    clearTimeout(autoRotateTimer.current);
+    autoRotateTimer.current = setTimeout(() => {
+      autoRotateActive.current = true;
+    }, 3000);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setRotation(INITIAL_ROTATION);
+    autoRotateActive.current = true;
+  }, []);
+
+  // Compute all globe paths and visible marker positions
+  const { landPath, gratPath, arcPath, markers } = useMemo(() => {
+    const projection = geoOrthographic()
+      .scale(GLOBE_SCALE)
+      .translate([GLOBE_SIZE / 2, GLOBE_SIZE / 2])
+      .rotate(rotation)
+      .clipAngle(90);
+
+    const pathGen = geoPath(projection);
+    const graticule = geoGraticule()();
+
+    const srcLng = selectedSource.mapLocation.longitude;
+    const srcLat = selectedSource.mapLocation.latitude;
+    const dstLng = selectedDestination.mapLocation.longitude;
+    const dstLat = selectedDestination.mapLocation.latitude;
+
+    const arcInterp = geoInterpolate([srcLng, srcLat], [dstLng, dstLat]);
+    const arcLine = {
+      type: 'LineString' as const,
+      coordinates: Array.from({ length: 64 }, (_, i) => arcInterp(i / 63)),
+    };
+
+    const visible = exchanges
+      .map((exchange) => {
+        const { longitude, latitude } = exchange.mapLocation;
+        if (!isOnFrontHemisphere(longitude, latitude, rotation)) return null;
+        const pt = projection([longitude, latitude]);
+        if (!pt) return null;
+        return { exchange, x: pt[0], y: pt[1] };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+      // Render selected markers last so they appear on top
+      .sort((a, b) => {
+        const aSelected =
+          a.exchange.id === selectedSourceId ||
+          a.exchange.id === selectedDestinationId;
+        const bSelected =
+          b.exchange.id === selectedSourceId ||
+          b.exchange.id === selectedDestinationId;
+        return (aSelected ? 1 : 0) - (bSelected ? 1 : 0);
+      });
+
+    return {
+      landPath: pathGen(LAND_FEATURE) ?? '',
+      gratPath: pathGen(graticule) ?? '',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      arcPath: pathGen(arcLine as any) ?? '',
+      markers: visible,
+    };
+  }, [
+    rotation,
+    exchanges,
+    selectedSource,
+    selectedDestination,
+    selectedSourceId,
+    selectedDestinationId,
+  ]);
+
+  const sortedExchanges = useMemo(
+    () =>
+      [...exchanges].sort((a, b) => {
+        const aSelected =
+          a.id === selectedSourceId || a.id === selectedDestinationId;
+        const bSelected =
+          b.id === selectedSourceId || b.id === selectedDestinationId;
+        if (aSelected !== bSelected) return aSelected ? -1 : 1;
+        return a.name.localeCompare(b.name, 'ko');
+      }),
+    [exchanges, selectedSourceId, selectedDestinationId],
+  );
 
   return (
     <div className="border border-dark-200 bg-dark-500/40" data-testid="exchange-globe-section">
       <div className="border-b border-dark-200 px-4 py-2.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">지구본 보기</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
+          지구본 보기
+        </span>
       </div>
 
       <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        <div className="overflow-hidden rounded border border-dark-200 bg-[radial-gradient(circle_at_top,_rgba(240,185,11,0.12),_rgba(12,14,18,0.08)_35%,_rgba(12,14,18,0.92)_75%)]">
-          <div className="border-b border-dark-200 px-4 py-3">
-            <h2 className="text-sm font-semibold text-bnb-text">지구본으로 보는 거래소 위치</h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-bnb-muted">
-              각 거래소의 주요 거점 또는 CARF 관련 관할 위치를 한 화면에서 보고, 선택한 경로를 바로 강조합니다.
-            </p>
+        {/* 3D Globe */}
+        <div className="overflow-hidden rounded border border-dark-200 bg-[radial-gradient(circle_at_30%_30%,_rgba(240,185,11,0.08),_rgba(8,12,20,0.98)_70%)]">
+          <div className="flex items-center justify-between border-b border-dark-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-bnb-text">
+                지구본으로 보는 거래소 위치
+              </h2>
+              <p className="mt-0.5 text-[11px] text-bnb-muted">
+                드래그하여 회전 · 3초 후 자동 회전 재개
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="flex items-center gap-1.5 rounded border border-dark-200 bg-dark-400/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-bnb-muted transition-colors hover:border-brand-500/40 hover:text-brand-400"
+            >
+              <RotateCcw size={10} />
+              초기화
+            </button>
           </div>
 
           <div className="px-3 pb-3 pt-4">
             <svg
-              viewBox="0 0 100 100"
-              className="mx-auto block aspect-square w-full max-w-[420px]"
+              viewBox={`0 0 ${GLOBE_SIZE} ${GLOBE_SIZE}`}
+              className="mx-auto block aspect-square w-full max-w-[420px] cursor-grab select-none active:cursor-grabbing"
               role="img"
               aria-label="거래소 위치 지구본"
               data-testid="exchange-globe"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
             >
               <defs>
-                <clipPath id="exchange-globe-clip">
-                  <circle cx="50" cy="50" r="38" />
+                <radialGradient id="globe-sphere-grad" cx="38%" cy="32%" r="65%">
+                  <stop offset="0%" stopColor="rgba(22,36,60,1)" />
+                  <stop offset="55%" stopColor="rgba(10,16,28,0.99)" />
+                  <stop offset="100%" stopColor="rgba(4,7,14,1)" />
+                </radialGradient>
+                <radialGradient id="globe-rim" cx="50%" cy="50%" r="50%">
+                  <stop offset="82%" stopColor="transparent" />
+                  <stop offset="100%" stopColor="rgba(240,185,11,0.12)" />
+                </radialGradient>
+                <clipPath id="globe-clip-3d">
+                  <circle cx={GLOBE_SIZE / 2} cy={GLOBE_SIZE / 2} r={GLOBE_SCALE} />
                 </clipPath>
               </defs>
 
-              <circle cx="50" cy="50" r="38" fill="rgba(17,24,39,0.85)" stroke="rgba(240,185,11,0.18)" strokeWidth="0.8" />
-              <circle cx="50" cy="50" r="36" fill="rgba(17,24,39,0.55)" stroke="rgba(255,255,255,0.05)" strokeWidth="0.4" />
+              {/* Base sphere */}
+              <circle
+                cx={GLOBE_SIZE / 2}
+                cy={GLOBE_SIZE / 2}
+                r={GLOBE_SCALE}
+                fill="url(#globe-sphere-grad)"
+                stroke="rgba(240,185,11,0.18)"
+                strokeWidth="1"
+              />
 
-              <g clipPath="url(#exchange-globe-clip)">
-                {CONTINENT_PATHS.map((path, index) => (
-                  <path key={index} d={path} fill="rgba(240,185,11,0.08)" stroke="rgba(240,185,11,0.08)" strokeWidth="0.2" />
-                ))}
+              <g clipPath="url(#globe-clip-3d)">
+                {/* Graticule grid */}
+                {gratPath && (
+                  <path
+                    d={gratPath}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.055)"
+                    strokeWidth="0.5"
+                  />
+                )}
 
-                {MERIDIAN_LONGITUDES.map((longitude) => (
-                  <path key={`meridian-${longitude}`} d={buildGraticuleLine(longitude)} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.25" />
-                ))}
-                {PARALLEL_LATITUDES.map((latitude) => (
-                  <path key={`parallel-${latitude}`} d={buildParallelArc(latitude)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.25" />
-                ))}
+                {/* Land masses */}
+                {landPath && (
+                  <path
+                    d={landPath}
+                    fill="rgba(240,185,11,0.09)"
+                    stroke="rgba(240,185,11,0.25)"
+                    strokeWidth="0.5"
+                  />
+                )}
 
-                <line
-                  x1={selectedLineStart.x}
-                  y1={selectedLineStart.y}
-                  x2={selectedLineEnd.x}
-                  y2={selectedLineEnd.y}
-                  stroke="rgba(240,185,11,0.65)"
-                  strokeWidth="0.7"
-                  strokeDasharray="1.6 1.2"
-                />
+                {/* Great circle arc */}
+                {arcPath && (
+                  <path
+                    d={arcPath}
+                    fill="none"
+                    stroke="rgba(240,185,11,0.80)"
+                    strokeWidth="1.8"
+                    strokeDasharray="5 3"
+                    strokeLinecap="round"
+                  />
+                )}
+
+                {/* Exchange markers */}
+                {markers.map(({ exchange, x, y }) => {
+                  const isSelected =
+                    exchange.id === selectedSourceId ||
+                    exchange.id === selectedDestinationId;
+                  const fill = markerFill(exchange.carfGroup);
+                  return (
+                    <g key={exchange.id} transform={`translate(${x},${y})`}>
+                      {isSelected && (
+                        <>
+                          <circle r={12} fill={`${fill}12`} />
+                          <circle
+                            r={8}
+                            fill={`${fill}22`}
+                            stroke={fill}
+                            strokeWidth="0.5"
+                            strokeOpacity="0.6"
+                          />
+                        </>
+                      )}
+                      <circle
+                        r={isSelected ? 5.5 : 3.5}
+                        fill={fill}
+                        stroke="rgba(0,0,0,0.88)"
+                        strokeWidth={isSelected ? 1.4 : 0.9}
+                      />
+                      <title>{`${exchange.name} · ${exchange.mapLocation.label} · ${formatTiming(exchange)}`}</title>
+                    </g>
+                  );
+                })}
               </g>
 
-              {sortedExchanges.map((exchange) => {
-                const point = projectPoint(exchange.mapLocation.latitude, exchange.mapLocation.longitude);
-                const isSelected = exchange.id === selectedSourceId || exchange.id === selectedDestinationId;
+              {/* Atmosphere rim */}
+              <circle
+                cx={GLOBE_SIZE / 2}
+                cy={GLOBE_SIZE / 2}
+                r={GLOBE_SCALE}
+                fill="url(#globe-rim)"
+                stroke="rgba(240,185,11,0.12)"
+                strokeWidth="2"
+                pointerEvents="none"
+              />
 
-                return (
-                  <g key={exchange.id} transform={`translate(${point.x} ${point.y})`}>
-                    {isSelected ? <circle r="2.7" fill="rgba(240,185,11,0.18)" stroke="rgba(240,185,11,0.55)" strokeWidth="0.25" /> : null}
-                    <circle r={isSelected ? '1.65' : '1.2'} fill={markerFill(exchange.carfGroup)} stroke="rgba(12,14,18,0.95)" strokeWidth="0.4" />
-                    <title>{`${exchange.name} · ${exchange.mapLocation.label} · ${formatTiming(exchange)}`}</title>
-                  </g>
-                );
-              })}
+              {/* Specular highlight */}
+              <ellipse
+                cx={GLOBE_SIZE / 2 - GLOBE_SCALE * 0.28}
+                cy={GLOBE_SIZE / 2 - GLOBE_SCALE * 0.32}
+                rx={GLOBE_SCALE * 0.18}
+                ry={GLOBE_SCALE * 0.13}
+                fill="rgba(255,255,255,0.045)"
+                pointerEvents="none"
+              />
             </svg>
           </div>
 
           <div className="flex flex-wrap gap-2 border-t border-dark-200 px-4 py-3 text-[11px] text-bnb-muted">
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-bnb-green" />2027년 교환</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-brand-400" />2028년 교환</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-bnb-muted" />2029년 교환</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-bnb-red" />미가입 / 불명확</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-bnb-green" />
+              2027년 교환
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-brand-400" />
+              2028년 교환
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-bnb-muted" />
+              2029년 교환
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-bnb-red" />
+              미가입 / 불명확
+            </span>
           </div>
         </div>
 
+        {/* Right panel */}
         <div className="space-y-4">
           <div className="rounded border border-dark-200 bg-dark-400/30" data-testid="selected-route-summary">
             <div className="border-b border-dark-200 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <Route size={13} className="text-brand-400" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">선택 경로 포커스</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
+                  선택 경로 포커스
+                </span>
               </div>
             </div>
             <div className="space-y-3 p-3">
@@ -200,11 +433,15 @@ export function ExchangeCarfGlobe({ exchanges, selectedSourceId, selectedDestina
 
           <div className="rounded border border-dark-200 bg-dark-400/30">
             <div className="border-b border-dark-200 px-4 py-2.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">전체 거래소 위치와 CARF 시기</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
+                전체 거래소 위치와 CARF 시기
+              </span>
             </div>
             <div className="max-h-[360px] divide-y divide-dark-200 overflow-auto">
               {sortedExchanges.map((exchange) => {
-                const isSelected = exchange.id === selectedSourceId || exchange.id === selectedDestinationId;
+                const isSelected =
+                  exchange.id === selectedSourceId ||
+                  exchange.id === selectedDestinationId;
 
                 return (
                   <div
@@ -215,24 +452,32 @@ export function ExchangeCarfGlobe({ exchanges, selectedSourceId, selectedDestina
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-bnb-text">{exchange.name}</p>
-                        <p className="mt-1 text-[11px] text-bnb-muted">{exchange.mapLocation.label} · {exchange.mapLocation.focusLabel}</p>
+                        <p className="mt-1 text-[11px] text-bnb-muted">
+                          {exchange.mapLocation.label} · {exchange.mapLocation.focusLabel}
+                        </p>
                       </div>
-                      <span className={`shrink-0 rounded border border-current/20 px-2 py-0.5 text-[10px] font-semibold ${carfTone(exchange.carfGroup)}`}>
+                      <span
+                        className={`shrink-0 rounded border border-current/20 px-2 py-0.5 text-[10px] font-semibold ${carfTone(exchange.carfGroup)}`}
+                      >
                         {CARF_GROUP_LABELS[exchange.carfGroup]}
                       </span>
                     </div>
 
                     <div className="mt-2 grid gap-2 text-[11px] text-bnb-muted md:grid-cols-2">
                       <p>
-                        <span className="text-bnb-text">CARF 관할:</span> {exchange.registeredCountry}
+                        <span className="text-bnb-text">CARF 관할:</span>{' '}
+                        {exchange.registeredCountry}
                       </p>
                       <p>
-                        <span className="text-bnb-text">적용 시기:</span> {formatTiming(exchange)}
+                        <span className="text-bnb-text">적용 시기:</span>{' '}
+                        {formatTiming(exchange)}
                       </p>
                     </div>
 
                     {exchange.mapLocation.note ? (
-                      <p className="mt-2 text-[11px] leading-relaxed text-bnb-muted">{exchange.mapLocation.note}</p>
+                      <p className="mt-2 text-[11px] leading-relaxed text-bnb-muted">
+                        {exchange.mapLocation.note}
+                      </p>
                     ) : null}
                   </div>
                 );
