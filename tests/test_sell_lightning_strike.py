@@ -108,7 +108,7 @@ def test_sell_lightning_strike_included_when_lightning_deposit_supported(mocker)
         'bithumbbtc': {'is_kyc': True},
         'binancebtc': {'is_kyc': True},
     })
-    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+    mocker.patch('backend.app.domain.paths_sell._estimate_wallet_btc_network_fee', return_value={
         'source': 'mempool.space',
         'source_url': 'https://mempool.space/api/v1/fees/recommended',
         'fee_target': 'medium',
@@ -220,7 +220,7 @@ def test_sell_lightning_strike_excluded_without_lightning_deposit(mocker):
     db.close()
 
     mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={})
-    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+    mocker.patch('backend.app.domain.paths_sell._estimate_wallet_btc_network_fee', return_value={
         'source': 'mempool.space',
         'source_url': 'https://mempool.space/api/v1/fees/recommended',
         'fee_target': 'medium',

@@ -460,7 +460,7 @@ def test_sell_cheapest_path_uses_btc_input(mocker):
         'upbitbtc': {'is_kyc': True},
         'binancebtc': {'is_kyc': True},
     })
-    wallet_fee_mock = mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+    wallet_fee_mock = mocker.patch('backend.app.domain.paths_sell._estimate_wallet_btc_network_fee', return_value={
         'source': 'mempool.space',
         'source_url': 'https://mempool.space/api/v1/fees/recommended',
         'fee_target': 'medium',
@@ -570,7 +570,7 @@ def test_sell_mode_lightning_excluded_without_capability(mocker):
     db.close()
 
     mocker.patch('backend.app.api.routes.market.kyc_registry.get_kyc_registry', return_value={})
-    mocker.patch('backend.app.domain.market_paths._estimate_wallet_btc_network_fee', return_value={
+    mocker.patch('backend.app.domain.paths_sell._estimate_wallet_btc_network_fee', return_value={
         'source': 'mempool.space',
         'source_url': 'https://mempool.space/api/v1/fees/recommended',
         'fee_target': 'medium',
