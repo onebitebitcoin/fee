@@ -102,6 +102,8 @@ export function ExchangeCarfGlobe({
   const dirtyRef = useRef(false);
   const isDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  // velocity[0] = λ deg/frame, velocity[1] = φ deg/frame (for momentum)
+  const velocityRef = useRef<[number, number]>([0, 0]);
   const autoRotateActive = useRef(true);
   const autoRotateTimer = useRef<ReturnType<typeof setTimeout>>();
   const animRef = useRef<number>();
@@ -117,16 +119,33 @@ export function ExchangeCarfGlobe({
   useEffect(() => {
     let lastTime = 0;
 
+    const MOMENTUM_DECAY = 0.88; // per 16ms frame
+
     const tick = (time: number) => {
       const elapsed = lastTime === 0 ? 16 : time - lastTime;
       lastTime = time;
+      const frameScale = elapsed / 16;
 
       if (autoRotateActive.current) {
         // Frame-rate-independent step: 0.25 deg per 16ms reference frame
-        const step = 0.25 * (elapsed / 16);
+        const step = 0.25 * frameScale;
         const r = rotationRef.current;
         rotationRef.current = [r[0] - step, r[1], r[2]];
         dirtyRef.current = true;
+      } else if (!isDragging.current) {
+        // Apply momentum (inertia) after drag release
+        const [vx, vy] = velocityRef.current;
+        if (Math.abs(vx) > 0.02 || Math.abs(vy) > 0.02) {
+          const r = rotationRef.current;
+          rotationRef.current = [
+            r[0] + vx * frameScale,
+            Math.max(-80, Math.min(80, r[1] - vy * frameScale)),
+            r[2],
+          ];
+          const decay = Math.pow(MOMENTUM_DECAY, frameScale);
+          velocityRef.current = [vx * decay, vy * decay];
+          dirtyRef.current = true;
+        }
       }
 
       if (dirtyRef.current) {
@@ -149,10 +168,13 @@ export function ExchangeCarfGlobe({
       autoRotateActive.current = false;
       clearTimeout(autoRotateTimer.current);
       lastPos.current = { x: e.clientX, y: e.clientY };
+      velocityRef.current = [0, 0]; // reset momentum on new drag
       e.currentTarget.setPointerCapture(e.pointerId);
     },
     [],
   );
+
+  const DRAG_SENSITIVITY = 0.35;
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
@@ -160,12 +182,24 @@ export function ExchangeCarfGlobe({
       const dx = e.clientX - lastPos.current.x;
       const dy = e.clientY - lastPos.current.y;
       lastPos.current = { x: e.clientX, y: e.clientY };
-      // Only update the ref — RAF loop will commit to state next frame.
-      // This prevents 60-120 setState calls per second during drag.
+
+      // Trackball model: surface follows hand.
+      // drag right (dx>0) → λ increases (center moves west, western content appears)
+      // drag down  (dy>0) → φ decreases (center moves north, northern content appears)
+      const dLambda = dx * DRAG_SENSITIVITY;
+      const dPhi = dy * DRAG_SENSITIVITY;
+
+      // Track velocity with exponential smoothing for momentum on release
+      const ALPHA = 0.5;
+      velocityRef.current = [
+        velocityRef.current[0] * (1 - ALPHA) + dLambda * ALPHA,
+        velocityRef.current[1] * (1 - ALPHA) + dPhi * ALPHA,
+      ];
+
       const r = rotationRef.current;
       rotationRef.current = [
-        r[0] - dx * 0.4,
-        Math.max(-80, Math.min(80, r[1] + dy * 0.4)),
+        r[0] + dLambda,
+        Math.max(-80, Math.min(80, r[1] - dPhi)),
         r[2],
       ];
       dirtyRef.current = true;
@@ -184,6 +218,7 @@ export function ExchangeCarfGlobe({
 
   const handleReset = useCallback(() => {
     rotationRef.current = [...INITIAL_ROTATION] as Rotation;
+    velocityRef.current = [0, 0];
     setRotation(INITIAL_ROTATION);
     autoRotateActive.current = true;
   }, []);
@@ -296,6 +331,7 @@ export function ExchangeCarfGlobe({
               role="img"
               aria-label="거래소 위치 지구본"
               data-testid="exchange-globe"
+              data-rotation={rotation.join(',')}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
