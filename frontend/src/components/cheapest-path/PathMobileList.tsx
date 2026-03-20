@@ -1,3 +1,6 @@
+import { ChevronsDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import { fmtEx } from '../../lib/exchangeNames';
 import { formatCurrency, formatPercent, formatSats } from '../../lib/formatBtc';
 import { localizeUiLabel } from '../../lib/localizeUi';
@@ -17,6 +20,8 @@ type Props = {
   onOpenDetail: (pathId: string) => void;
 };
 
+const PAGE_SIZE = 5;
+
 export function PathMobileList({
   filteredPaths,
   selectedPathId,
@@ -26,9 +31,18 @@ export function PathMobileList({
   onSelectPath,
   onOpenDetail,
 }: Props) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filteredPaths.length]);
+
+  const visiblePaths = filteredPaths.slice(0, visibleCount);
+  const remaining = filteredPaths.length - visibleCount;
+
   return (
     <div className="divide-y divide-dark-200 md:hidden">
-      {filteredPaths.map((path) => {
+      {visiblePaths.map((path) => {
         const isHighlighted = selectedPathId === path.path_id;
         const dimmed = carfBlackbox && isCarfAffected(path.korean_exchange);
         return (
@@ -79,6 +93,16 @@ export function PathMobileList({
       {filteredPaths.length === 0 ? (
         <div className="px-4 py-8 text-center text-sm text-bnb-muted">필터 조건에 해당하는 경로가 없습니다.</div>
       ) : null}
+      {remaining > 0 && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          className="flex w-full items-center justify-center gap-1.5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-bnb-muted transition-colors hover:bg-dark-400 hover:text-bnb-text"
+        >
+          <ChevronsDown size={13} />
+          더 불러오기 ({remaining}개 남음)
+        </button>
+      )}
     </div>
   );
 }

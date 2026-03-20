@@ -1,5 +1,5 @@
-import { ArrowRight, ChevronDown, Zap } from 'lucide-react';
-import { Fragment } from 'react';
+import { ArrowRight, ChevronDown, ChevronsDown, Zap } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
 
 import { fmtEx } from '../../lib/exchangeNames';
 import { formatCurrency, formatPercent, formatSats } from '../../lib/formatBtc';
@@ -20,6 +20,8 @@ type Props = {
   onToggleExpand: (pathId: string) => void;
 };
 
+const PAGE_SIZE = 5;
+
 export function PathTable({
   filteredPaths,
   expandedPathId,
@@ -29,6 +31,15 @@ export function PathTable({
   isCarfAffected,
   onToggleExpand,
 }: Props) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filteredPaths.length]);
+
+  const visiblePaths = filteredPaths.slice(0, visibleCount);
+  const remaining = filteredPaths.length - visibleCount;
+
   return (
     <div className="hidden overflow-x-auto md:block">
       <table className="min-w-full text-sm">
@@ -43,7 +54,7 @@ export function PathTable({
           </tr>
         </thead>
         <tbody>
-          {filteredPaths.map((path) => {
+          {visiblePaths.map((path) => {
             const isExpanded = expandedPathId === path.path_id;
             const dimmed = carfBlackbox && isCarfAffected(path.korean_exchange);
             return (
@@ -156,6 +167,18 @@ export function PathTable({
           )}
         </tbody>
       </table>
+      {remaining > 0 && (
+        <div className="border-t border-dark-200">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="flex w-full items-center justify-center gap-1.5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-bnb-muted transition-colors hover:bg-dark-400 hover:text-bnb-text"
+          >
+            <ChevronsDown size={13} />
+            더 불러오기 ({remaining}개 남음)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
