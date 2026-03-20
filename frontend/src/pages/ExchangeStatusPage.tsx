@@ -381,7 +381,7 @@ export function ExchangeStatusPage() {
       {filteredDomestic.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <h3 className="section-label">국내 거래소</h3>
+            <h3 className="section-label">비트코인 거래 수수료</h3>
             <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
               {filteredDomestic.length}
             </span>
@@ -397,7 +397,7 @@ export function ExchangeStatusPage() {
       {filteredGlobal.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <h3 className="section-label">해외 거래소</h3>
+            <h3 className="section-label">출금 수수료</h3>
             <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
               {filteredGlobal.length}
             </span>
@@ -413,7 +413,7 @@ export function ExchangeStatusPage() {
       {data.lightning_services.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <h3 className="section-label">라이트닝 스왑</h3>
+            <h3 className="section-label">스왑 수수료</h3>
             <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
               {filteredLightning.length}
             </span>
