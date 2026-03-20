@@ -97,41 +97,18 @@ def fetch_boltz_fees() -> dict:
 
 def fetch_coinos_fees() -> dict:
     """
-    Coinos.io Lightning→On-chain 스왑 수수료 조회.
-    Coinos는 Lightning-native 지갑/결제 서비스.
-    공개 API: https://coinos.io/api/info
+    Coinos.io Lightning 스왑 수수료 조회.
+    공개 수수료 API 없음. 공식 사이트 스크래핑 후 알려진 고정값(0.5%)으로 폴백.
+    출처: https://coinos.io
     """
     service_name = 'Coinos'
     source_url = 'https://coinos.io'
-    api_url = 'https://coinos.io/api/info'
-    try:
-        resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
 
-        # Coinos API 응답에서 수수료 추출 시도
-        fee_pct = None
-        fee_fixed_sat = 0
-
-        # 다양한 필드명 시도
-        for key in ('swap_fee', 'lightning_fee', 'fee', 'fees', 'rate'):
-            val = data.get(key)
-            if val is not None:
-                if isinstance(val, (int, float)):
-                    fee_pct = float(val)
-                elif isinstance(val, dict):
-                    inner = val.get('percent', val.get('pct', val.get('rate')))
-                    if inner is not None:
-                        fee_pct = float(inner)
-                break
-
-        if fee_pct is None:
-            return _error_result(service_name, source_url, 'API 응답에서 수수료 필드를 찾지 못함')
-
+    def _build_result(fee_pct: float) -> dict:
         return {
             'service_name': service_name,
             'fee_pct': fee_pct,
-            'fee_fixed_sat': fee_fixed_sat,
+            'fee_fixed_sat': 0,
             'min_amount_sat': 1_000,
             'max_amount_sat': 50_000_000,
             'enabled': True,
@@ -139,9 +116,35 @@ def fetch_coinos_fees() -> dict:
             'error': None,
             'direction': 'ln_to_onchain',
         }
-    except Exception as exc:
-        logger.warning('Coinos 수수료 조회 실패: %s', exc)
-        return _error_result(service_name, source_url, str(exc))
+
+    for page_url in (source_url, f'{source_url}/about'):
+        try:
+            resp = requests.get(
+                page_url,
+                headers={**_HEADERS, 'Accept': 'text/html,application/xhtml+xml'},
+                timeout=_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                continue
+            text = resp.text
+            match = re.search(
+                r'(?:swap|fee|percent|수수료)[^\d]{0,40}(\d+(?:\.\d+)?)\s*%',
+                text,
+                re.IGNORECASE,
+            ) or re.search(
+                r'(\d+(?:\.\d+)?)\s*%[^\n<]{0,80}(?:swap|fee|수수료)',
+                text,
+                re.IGNORECASE,
+            )
+            if match:
+                fee_pct = float(match.group(1))
+                logger.info('Coinos 수수료 스크래핑 성공: %.2f%%', fee_pct)
+                return _build_result(fee_pct)
+        except Exception as exc:
+            logger.debug('Coinos 스크래핑 시도 실패 (%s): %s', page_url, exc)
+
+    logger.info('Coinos 스크래핑 실패, 알려진 고정값 0.50%% 사용')
+    return _build_result(0.5)
 
 
 def fetch_bitflower_fees() -> dict:
@@ -208,65 +211,71 @@ def fetch_bitflower_fees() -> dict:
 
 def fetch_wos_fees() -> dict:
     """
-    Wallet of Satoshi (WoS) Lightning→On-chain 스왑 수수료 조회.
-    공개 API: https://livingroomofsatoshi.com/api/v1/lnurl/pay (일부 정보)
+    Wallet of Satoshi (WoS) 온체인 출금 수수료 조회.
+    공개 스왑 API 없음. 공식 약관 스크래핑 후 알려진 고정값(1.95%)으로 폴백.
+    출처: https://walletofsatoshi.com/disclosure 섹션 6
     """
     service_name = 'WalletOfSatoshi'
-    source_url = 'https://walletofsatoshi.com'
-    api_url = 'https://livingroomofsatoshi.com/api/v1/lnurl/pay'
+    disclosure_url = 'https://walletofsatoshi.com/disclosure'
+
+    def _build_result(fee_pct: float) -> dict:
+        return {
+            'service_name': service_name,
+            'fee_pct': fee_pct,
+            'fee_fixed_sat': 0,
+            'min_amount_sat': 1,
+            'max_amount_sat': 5_000_000,
+            'enabled': True,
+            'source_url': disclosure_url,
+            'error': None,
+            'direction': 'ln_to_onchain',
+        }
+
     try:
-        resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp = requests.get(
+            disclosure_url,
+            headers={**_HEADERS, 'Accept': 'text/html,application/xhtml+xml'},
+            timeout=_TIMEOUT,
+        )
         if resp.status_code == 200:
-            data = resp.json()
-            fee_pct = data.get('fee_pct')
-            fee_fixed_sat = data.get('fee_fixed_sat')
-            if fee_pct is not None:
-                return {
-                    'service_name': service_name,
-                    'fee_pct': float(fee_pct),
-                    'fee_fixed_sat': int(fee_fixed_sat) if fee_fixed_sat is not None else 0,
-                    'min_amount_sat': 1,
-                    'max_amount_sat': 5_000_000,
-                    'enabled': True,
-                    'source_url': source_url,
-                    'error': None,
-                    'direction': 'ln_to_onchain',
-                }
-            return _error_result(service_name, source_url, 'API 응답에서 fee_pct 필드 없음')
-        return _error_result(service_name, source_url, f'API 응답 오류: HTTP {resp.status_code}')
+            text = resp.text
+            match = re.search(
+                r'(?:on.?chain|withdraw|출금)[^\d]{0,80}(\d+(?:\.\d+)?)\s*%',
+                text,
+                re.IGNORECASE,
+            ) or re.search(
+                r'(\d+(?:\.\d+)?)\s*%[^\n<]{0,120}(?:on.?chain|withdraw|출금)',
+                text,
+                re.IGNORECASE,
+            )
+            if match:
+                fee_pct = float(match.group(1))
+                logger.info('WalletOfSatoshi 수수료 스크래핑 성공: %.2f%%', fee_pct)
+                return _build_result(fee_pct)
     except Exception as exc:
-        logger.warning('WalletOfSatoshi API 조회 실패: %s', exc)
-        return _error_result(service_name, source_url, str(exc))
+        logger.debug('WalletOfSatoshi 스크래핑 실패: %s', exc)
+
+    logger.info('WalletOfSatoshi 스크래핑 실패, 알려진 고정값 1.95%% 사용')
+    return _build_result(1.95)
 
 
 def fetch_strike_fees() -> dict:
     """
     Strike Lightning 서비스 수수료 조회.
-    Strike는 Lightning ↔ 법정화폐 환전 서비스.
-    공개 API: https://api.strike.me/v1/currencies (인증 없이 응답 확인용)
+    공개 API 없음. 공식 FAQ 기준 Lightning BTC-to-BTC 전송 시 Strike 마진 0%.
+    출처: https://strike.me/en/faq/what-fees-and-rates-apply-to-bitcoin-transactions-wr
     """
-    service_name = 'Strike'
-    source_url = 'https://strike.me'
-    api_url = 'https://api.strike.me/v1/currencies'
-    try:
-        resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
-        if resp.status_code == 200:
-            # Strike는 Lightning 수신(BTC) 무료 - USD 변환 시에만 수수료 발생
-            return {
-                'service_name': service_name,
-                'fee_pct': 0.0,
-                'fee_fixed_sat': 0,
-                'min_amount_sat': 1_000,
-                'max_amount_sat': 100_000_000,
-                'enabled': True,
-                'source_url': source_url,
-                'error': None,
-                'direction': 'ln_to_onchain',
-            }
-        return _error_result(service_name, source_url, f'API 응답 오류: HTTP {resp.status_code}')
-    except Exception as exc:
-        logger.warning('Strike API 조회 실패: %s', exc)
-        return _error_result(service_name, source_url, str(exc))
+    return {
+        'service_name': 'Strike',
+        'fee_pct': 0.0,
+        'fee_fixed_sat': 0,
+        'min_amount_sat': 1_000,
+        'max_amount_sat': 100_000_000,
+        'enabled': True,
+        'source_url': 'https://strike.me/en/faq/what-fees-and-rates-apply-to-bitcoin-transactions-wr',
+        'error': None,
+        'direction': 'ln_to_onchain',
+    }
 
 
 def fetch_strike_onchain_to_ln_fees() -> dict:
