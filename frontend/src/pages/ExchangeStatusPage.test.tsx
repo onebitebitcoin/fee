@@ -100,7 +100,7 @@ describe('ExchangeStatusPage', () => {
     expect(screen.getByText('BitFreezer')).toBeInTheDocument();
   });
 
-  it('shows 3 section headers: 국내, 해외, Lightning', async () => {
+  it('shows 2 section headers: 출금 수수료, 스왑 수수료', async () => {
     render(
       <BrowserRouter>
         <ExchangeStatusPage />
@@ -108,7 +108,6 @@ describe('ExchangeStatusPage', () => {
     );
 
     await screen.findByText('현황');
-    expect(screen.getByText('비트코인 거래 수수료')).toBeInTheDocument();
     expect(screen.getByText('출금 수수료')).toBeInTheDocument();
     expect(screen.getByText('스왑 수수료')).toBeInTheDocument();
   });

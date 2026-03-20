@@ -69,6 +69,13 @@ function NetworkRows({ rows }: NetworkRowsProps) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:shrink-0">
                 <span className="font-data text-sm font-semibold text-brand-400">{formatFee(row)}</span>
                 <span className="font-data text-xs text-bnb-muted">{formatFeeKrw(row)}</span>
+                {row.min_withdrawal != null && (
+                  <span className="font-data text-xs text-bnb-muted">
+                    최소 {row.coin.toUpperCase() === 'BTC'
+                      ? `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 8 }).format(row.min_withdrawal)} BTC`
+                      : `${new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(row.min_withdrawal)} ${row.coin.toUpperCase()}`}
+                  </span>
+                )}
                 {row.max_withdrawal != null && (
                   <span className="font-data text-xs text-bnb-muted">
                     최대 {row.coin.toUpperCase() === 'BTC'
@@ -280,6 +287,7 @@ export function ExchangeStatusPage() {
 
   const filteredDomestic = useMemo(() => filterNodes(domestic), [domestic, filterNodes]);
   const filteredGlobal = useMemo(() => filterNodes(globalExchanges), [globalExchanges, filterNodes]);
+  const filteredAllExchanges = useMemo(() => [...filteredDomestic, ...filteredGlobal], [filteredDomestic, filteredGlobal]);
   const filteredLightning = useMemo(() => {
     const nodes = filterNodes(data.lightning_services);
     return nodes.filter(node => {
@@ -378,32 +386,16 @@ export function ExchangeStatusPage() {
         </div>
       </div>
 
-      {filteredDomestic.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <h3 className="section-label">비트코인 거래 수수료</h3>
-            <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
-              {filteredDomestic.length}
-            </span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredDomestic.map(node => (
-              <NodeCard key={`exchange-${node.exchange}`} node={node} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {filteredGlobal.length > 0 && (
+      {filteredAllExchanges.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
             <h3 className="section-label">출금 수수료</h3>
             <span className="rounded-full bg-dark-200 px-2 py-0.5 text-[10px] font-data text-bnb-muted">
-              {filteredGlobal.length}
+              {filteredAllExchanges.length}
             </span>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredGlobal.map(node => (
+            {filteredAllExchanges.map(node => (
               <NodeCard key={`exchange-${node.exchange}`} node={node} />
             ))}
           </div>
