@@ -355,7 +355,11 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     ))
 
     paths.sort(key=lambda item: (-item['krw_received'], item['total_fee_krw']))
-    lightning_services = sorted({s.service_name for s in (lightning_swap_rows or []) if s.enabled and s.fee_pct is not None})
+    lightning_services = sorted({
+        s.service_name for s in (lightning_swap_rows or [])
+        if s.enabled and s.fee_pct is not None
+        and getattr(s, 'direction', None) == 'onchain_to_ln'
+    })
     return {
         'mode': 'sell',
         'amount_btc': amount_btc,
