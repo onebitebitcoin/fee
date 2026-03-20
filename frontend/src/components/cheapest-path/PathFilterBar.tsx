@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Zap } from 'lucide-react';
 
 import { localizeUiLabel } from '../../lib/localizeUi';
 
@@ -83,7 +83,7 @@ export function PathFilterBar({
                     : 'border-brand-500/40 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20'
                 }`}
               >
-                {option.mode === 'lightning' ? '⚡ ' : ''}{localizeUiLabel(option.network)}
+                {option.mode === 'lightning' ? <Zap size={10} className="inline mr-0.5" /> : null}{localizeUiLabel(option.network)}
               </button>
             );
           })}
@@ -100,7 +100,7 @@ export function PathFilterBar({
                     : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'
                 }`}
               >
-                ⚡ {provider}
+                <Zap size={10} className="inline mr-0.5" />{provider}
               </button>
             );
           })}

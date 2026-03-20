@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, Zap } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { fmtEx } from '../../lib/exchangeNames';
@@ -137,7 +137,7 @@ export function PathTable({
                           <div className="bg-dark-500 p-3">
                             <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">코인 / 네트워크</p>
                             <p className="mt-1 text-sm text-bnb-text">{path.transfer_coin} <span className="text-bnb-muted">{localizeUiLabel(path.domestic_withdrawal_network)}</span></p>
-                            <p className="text-xs text-bnb-muted">{path.global_exit_mode === 'lightning' ? '⚡ 라이트닝' : '온체인'} · {localizeUiLabel(path.global_exit_network)}</p>
+                            <p className="text-xs text-bnb-muted">{path.global_exit_mode === 'lightning' ? <><Zap size={10} className="inline mr-0.5" />라이트닝</> : '온체인'} · {localizeUiLabel(path.global_exit_network)}</p>
                           </div>
                         </div>
                       </div>
