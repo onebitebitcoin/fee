@@ -128,6 +128,10 @@ export function CheapestPathPage() {
             <button type="button" onClick={() => setMode('sell')} className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${mode === 'sell' ? 'border-bnb-red/40 bg-bnb-red/10 text-bnb-red' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>
               비트코인 팔 때
             </button>
+            <span className="text-dark-100">|</span>
+            <button type="button" onClick={() => setCarfBlackbox((v) => !v)} className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${carfBlackbox ? 'border-amber-500/40 bg-amber-500/10 text-amber-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>
+              CARF 2027 블랙박스
+            </button>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3">
             <label className="flex max-w-[8rem] flex-col gap-2">
@@ -139,7 +143,30 @@ export function CheapestPathPage() {
               )}
             </label>
             <span className="text-sm font-medium leading-relaxed text-bnb-muted sm:text-lg">
-              {mode === 'sell' ? '개인지갑의 비트코인을 한국 거래소 원화로 되돌리는 역방향 매도 경로를 비교합니다.' : '원화로 비트코인을 살 때 가장 저렴한 이동 경로를 바로 비교합니다.'}
+              {mode === 'sell' ? (
+                '개인지갑의 비트코인을 한국 거래소 원화로 되돌리는 역방향 매도 경로를 비교합니다.'
+              ) : (
+                <span className="flex flex-wrap items-baseline gap-x-1 gap-y-1">
+                  <span>원화로 비트코인을 살 때</span>
+                  {(['non_kyc', 'default', 'no_lightning'] as const).map((shortcut, i) => {
+                    const labels = { non_kyc: '신원인증 최소화 + 최저 수수료', default: '최저 수수료만', no_lightning: '라이트닝 제외 + 최저 수수료' };
+                    const isActive = pathShortcut === shortcut;
+                    return (
+                      <span key={shortcut} className="inline-flex items-baseline gap-x-1">
+                        {i > 0 && <span className="text-dark-100">/</span>}
+                        <button
+                          type="button"
+                          onClick={() => setPathShortcut(shortcut)}
+                          className={`underline-offset-2 transition-colors ${isActive ? 'font-semibold text-brand-400 underline' : 'text-bnb-muted hover:text-bnb-text'}`}
+                        >
+                          {labels[shortcut]}
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <span>기준으로 경로를 비교합니다.</span>
+                </span>
+              )}
             </span>
             <button type="submit" disabled={submitting} className={`flex w-full items-center justify-center gap-2 px-5 py-2 text-sm font-semibold uppercase tracking-[0.24em] text-dark-500 transition-colors disabled:opacity-50 sm:w-auto ${mode === 'sell' ? 'border border-bnb-red bg-bnb-red hover:bg-bnb-red/90' : 'border border-brand-600 bg-brand-600 hover:bg-brand-500'}`}>
               <Search size={13} />
@@ -170,23 +197,6 @@ export function CheapestPathPage() {
             </div>
           ) : null}
         </form>
-      </div>
-
-      {/* Shortcut Filters */}
-      <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          {(['non_kyc', 'default', 'no_lightning'] as const).map((shortcut) => {
-            const labels = { non_kyc: '신원인증 최소화', default: '가장 낮은 수수료', no_lightning: '라이트닝 제외' };
-            return (
-              <button key={shortcut} type="button" onClick={() => setPathShortcut(shortcut)} className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${pathShortcut === shortcut ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>
-                {labels[shortcut]}
-              </button>
-            );
-          })}
-          <button type="button" onClick={() => setCarfBlackbox((v) => !v)} className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${carfBlackbox ? 'border-amber-500/40 bg-amber-500/10 text-amber-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>
-            CARF 2027 블랙박스
-          </button>
-        </div>
       </div>
 
       {/* Loading */}
