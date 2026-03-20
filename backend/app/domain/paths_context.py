@@ -51,7 +51,7 @@ def build_snapshot_context(
         return {'error': f'최신 수집 결과에 {global_exchange} spot 시세가 없습니다.'}
 
     global_btc_price_usd = float(global_row.price)
-    fees_entry = TRADING_FEES[global_exchange]
+    fees_entry = TRADING_FEES.get(global_exchange, {})
     if global_row.taker_fee_pct is not None:
         global_taker = global_row.taker_fee_pct / 100
     elif isinstance(fees_entry.get('spot'), dict):
@@ -59,6 +59,7 @@ def build_snapshot_context(
     else:
         global_taker = fees_entry['taker']
 
+    completed_ts = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     return SnapshotContext(
         usd_krw_rate=float(usd_krw_rate),
         global_btc_price_usd=global_btc_price_usd,
@@ -66,10 +67,10 @@ def build_snapshot_context(
         ticker_by_exchange=build_ticker_by_exchange(ticker_rows, GROUPS['korea']),
         withdrawals_by_key=build_withdrawals_by_key(withdrawal_rows),
         maintenance_status=build_maintenance_status(network_rows),
-        maintenance_checked_at=int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
+        maintenance_checked_at=completed_ts,
         last_run={
             'id': latest_run.id,
             'status': latest_run.status,
-            'completed_at': int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None,
+            'completed_at': completed_ts,
         },
     )

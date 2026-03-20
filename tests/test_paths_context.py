@@ -16,8 +16,12 @@ def _make_ticker_row(exchange, market_type, currency, price, taker_fee_pct):
     class R:
         pass
     r = R()
-    r.exchange = exchange; r.market_type = market_type; r.currency = currency
-    r.price = price; r.taker_fee_pct = taker_fee_pct; r.usd_krw_rate = None
+    r.exchange = exchange
+    r.market_type = market_type
+    r.currency = currency
+    r.price = price
+    r.taker_fee_pct = taker_fee_pct
+    r.usd_krw_rate = None
     return r
 
 
@@ -25,8 +29,10 @@ def _make_run(usd_krw_rate=1400.0, completed_at=None):
     class R:
         pass
     r = R()
-    r.usd_krw_rate = usd_krw_rate; r.completed_at = completed_at
-    r.id = 1; r.status = 'success'
+    r.usd_krw_rate = usd_krw_rate
+    r.completed_at = completed_at
+    r.id = 1
+    r.status = 'success'
     return r
 
 
@@ -38,6 +44,17 @@ def test_build_snapshot_context_returns_error_if_no_latest_run():
 def test_build_snapshot_context_returns_error_if_no_global_row():
     run = _make_run()
     result = build_snapshot_context('binance', run, [], [], [])
+    assert 'error' in result
+
+
+def test_build_snapshot_context_returns_error_if_no_usd_krw_rate():
+    """usd_krw_rate가 None이면 error 반환."""
+    class Run:
+        usd_krw_rate = None
+        completed_at = None
+        id = 1
+        status = 'success'
+    result = build_snapshot_context('binance', Run(), [], [], [])
     assert 'error' in result
 
 
