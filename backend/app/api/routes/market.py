@@ -15,23 +15,37 @@ from backend.app.domain.market_core import get_withdrawal_source_url
 
 router = APIRouter()
 
-_STATUS_CACHE: dict = {}
-_STATUS_CACHE_TTL = 60  # seconds
+class _TtlCache:
+    def __init__(self, ttl: int):
+        self._ttl = ttl
+        self._store: dict = {}
+
+    def get(self, key: str):
+        entry = self._store.get(key)
+        if entry and time.time() - entry['ts'] < self._ttl:
+            return entry['data']
+        return None
+
+    def set(self, key: str, data) -> None:
+        self._store[key] = {'data': data, 'ts': time.time()}
+
+    def invalidate(self, key: str) -> None:
+        self._store.pop(key, None)
+
+
+_status_cache = _TtlCache(ttl=60)
 
 
 def _get_status_cache() -> dict | None:
-    entry = _STATUS_CACHE.get('status')
-    if entry and time.time() - entry['ts'] < _STATUS_CACHE_TTL:
-        return entry['data']
-    return None
+    return _status_cache.get('status')
 
 
 def _set_status_cache(data: dict) -> None:
-    _STATUS_CACHE['status'] = {'data': data, 'ts': time.time()}
+    _status_cache.set('status', data)
 
 
 def invalidate_status_cache() -> None:
-    _STATUS_CACHE.pop('status', None)
+    _status_cache.invalidate('status')
 
 
 def _ts(dt_val) -> int | None:
