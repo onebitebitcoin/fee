@@ -442,6 +442,7 @@ def find_cheapest_path_from_snapshot_rows(
     lightning_services = sorted({
         s.service_name for s in (lightning_swap_rows or [])
         if s.enabled and s.fee_pct is not None
+        and getattr(s, 'direction', None) == 'ln_to_onchain'
     })
     return {
         'amount_krw': amount_krw,
