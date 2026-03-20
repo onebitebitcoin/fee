@@ -26,6 +26,18 @@ function formatFeeRateSatVb(value: number) {
   return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)} sat/vB`;
 }
 
+function categorizeFees(components: { label: string; amount_krw: number }[]) {
+  let tradingFee = 0;
+  let withdrawalFee = 0;
+  let swapFee = 0;
+  for (const c of components) {
+    if (c.label.includes('스왑')) swapFee += c.amount_krw;
+    else if (c.label.includes('출금') || c.label.includes('전송') || c.label.includes('네트워크')) withdrawalFee += c.amount_krw;
+    else if (c.label.includes('매수') || c.label.includes('매도') || c.label.includes('KRW 전환')) tradingFee += c.amount_krw;
+  }
+  return { tradingFee, withdrawalFee, swapFee };
+}
+
 export function CheapestPathPage() {
   const [mode, setMode] = useState<PathMode>('buy');
   const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
@@ -269,6 +281,25 @@ export function CheapestPathPage() {
                       <p className={`font-data font-semibold sm:mt-1 sm:text-xl ${getFeeTone(bestVisiblePath.fee_pct)}`}>{formatPercent(bestVisiblePath.fee_pct)}</p>
                     </div>
                   </div>
+                  {bestVisiblePath.breakdown?.components && (() => {
+                    const { tradingFee, withdrawalFee, swapFee } = categorizeFees(bestVisiblePath.breakdown.components);
+                    return (
+                      <div className="divide-y divide-dark-200 border border-dark-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">거래 수수료</p>
+                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{tradingFee > 0 ? formatCurrency(tradingFee) : '—'}</p>
+                        </div>
+                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">출금 수수료</p>
+                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{withdrawalFee > 0 ? formatCurrency(withdrawalFee) : '—'}</p>
+                        </div>
+                        <div className="flex items-center justify-between bg-dark-500/60 px-3 py-2 sm:flex-col sm:items-start sm:p-3">
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-bnb-muted">스왑 수수료</p>
+                          <p className="font-data text-sm font-semibold text-bnb-text sm:mt-1">{swapFee > 0 ? formatCurrency(swapFee) : '—'}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
