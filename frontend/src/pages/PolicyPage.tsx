@@ -11,7 +11,6 @@ import {
   GLOBAL_EXCHANGES,
   KEY_INSIGHTS,
   KOREAN_EXCHANGES,
-  SOURCES,
   TravelRuleStatus,
 } from '../data/carfData';
 
@@ -372,26 +371,6 @@ export function PolicyPage() {
         </div>
       </div>
 
-      <div className="divide-y divide-dark-200 border border-dark-200">
-        <div className="px-2 py-2.5 sm:px-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">데이터 출처</span>
-        </div>
-        {SOURCES.map((source, index) => (
-          <a
-            key={index}
-            href={source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center justify-between gap-3 px-2 py-2.5 transition-colors hover:bg-dark-400/30 sm:px-4"
-          >
-            <span className="text-xs leading-relaxed text-bnb-muted transition-colors group-hover:text-bnb-text">{source.label}</span>
-            <ExternalLink size={11} className="shrink-0 text-bnb-muted transition-colors group-hover:text-brand-400" />
-          </a>
-        ))}
-        <div className="flex justify-end px-2 py-2 sm:px-4">
-          <span className="text-[10px] text-bnb-muted">조사 기준일 2026-03-16</span>
-        </div>
-      </div>
     </div>
   );
 }
