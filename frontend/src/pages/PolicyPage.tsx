@@ -98,18 +98,15 @@ function SourcesList({ sources }: { sources: ExchangeSource[] }) {
 
 function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '출발' | '도착' }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-dark-400/30">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="w-14 shrink-0">
-          <span className="text-[11px] text-bnb-muted">{side}</span>
-        </div>
-        <div className="min-w-0">
-          <span className="text-sm font-semibold text-bnb-text">{exchange.name}</span>
-          <span className="ml-2 hidden text-xs text-bnb-muted sm:inline">
-            <Globe size={10} className="mr-0.5 inline" />
-            {exchange.registeredCountry}
+    <div className="flex items-center justify-between gap-3 px-2 py-3 transition-colors hover:bg-dark-400/30 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="w-10 shrink-0 text-[11px] text-bnb-muted">{side}</span>
+        <span className="truncate text-sm font-semibold text-bnb-text">
+          {exchange.name}
+          <span className="ml-2 hidden text-xs font-normal text-bnb-muted sm:inline">
+            <Globe size={10} className="mr-0.5 inline" />{exchange.registeredCountry}
           </span>
-        </div>
+        </span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold ${carfBadgeClass(exchange.carfGroup)}`}>
@@ -118,14 +115,12 @@ function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '�
         </span>
         {exchange.koreaBlocked ? (
           <span className="hidden sm:inline-flex items-center gap-1 rounded border border-bnb-red/30 bg-bnb-red/10 px-2 py-0.5 text-[11px] font-semibold text-bnb-red">
-            <XCircle size={10} />
-            차단
+            <XCircle size={10} /> 차단
           </span>
         ) : null}
         {exchange.koreaService && !exchange.koreaBlocked ? (
           <span className="hidden sm:inline-flex items-center gap-1 rounded border border-bnb-green/30 bg-bnb-green/10 px-2 py-0.5 text-[11px] font-semibold text-bnb-green">
-            <CheckCircle size={10} />
-            한국
+            <CheckCircle size={10} /> 한국
           </span>
         ) : null}
       </div>
@@ -151,7 +146,7 @@ export function PolicyPage() {
       </div>
 
       <div className="divide-y divide-dark-200 border border-dark-200">
-        <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2 px-2 py-3 sm:flex-nowrap sm:px-4">
           <div className="min-w-[120px] flex-1">
             <label className="mb-1 block text-[10px] uppercase tracking-wider text-bnb-muted">출발 (한국)</label>
             <select
@@ -195,7 +190,7 @@ export function PolicyPage() {
         </div>
 
         {isImpossible ? (
-          <div className="flex items-center gap-3 border-t border-bnb-red/20 bg-bnb-red/10 px-4 py-3">
+          <div className="flex items-center gap-3 border-t border-bnb-red/20 bg-bnb-red/10 px-2 py-3 sm:px-4">
             <Ban size={14} className="shrink-0 text-bnb-red" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-bnb-red">불가능한 경로</p>
@@ -205,7 +200,7 @@ export function PolicyPage() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-3 bg-dark-400/40 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 bg-dark-400/40 px-2 py-3 sm:px-4">
             <div className="flex items-center gap-2 text-xs text-bnb-muted">
               <span className={`h-2 w-2 rounded-full ${impactDotClass(dst.koreaImpact)}`} />
               <span>
@@ -216,11 +211,11 @@ export function PolicyPage() {
           </div>
         )}
 
-        <div className="px-4 py-2.5">
+        <div className="px-2 py-2.5 sm:px-4">
           <p className="text-[11px] leading-relaxed text-bnb-muted">{dst.impactDetail}</p>
         </div>
         {dst.sources && dst.sources.length > 0 && (
-          <div className="border-t border-dark-200 px-4 py-2.5">
+          <div className="border-t border-dark-200 px-2 py-2.5 sm:px-4">
             <button
               type="button"
               onClick={() => setShowSources((v) => !v)}
@@ -238,11 +233,11 @@ export function PolicyPage() {
       <ExchangeCarfGlobe exchanges={ALL_EXCHANGES} selectedSourceId={src.id} selectedDestinationId={dst.id} />
 
       <div className="divide-y divide-dark-200 border border-dark-200">
-        <div className="px-4 py-2.5">
+        <div className="px-2 py-2.5 sm:px-4">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">요약</span>
         </div>
         {KEY_INSIGHTS.map((insight, index) => (
-          <div key={index} className="flex items-start gap-2.5 px-4 py-2.5">
+          <div key={index} className="flex items-start gap-2.5 px-2 py-2.5 sm:px-4">
             <AlertTriangle size={12} className="mt-0.5 shrink-0 text-brand-400" />
             <p className="text-xs leading-relaxed text-bnb-text">{insight}</p>
           </div>
@@ -250,7 +245,7 @@ export function PolicyPage() {
       </div>
 
       <div className="border border-dark-200">
-        <div className="border-b border-dark-200 px-4 py-2.5">
+        <div className="border-b border-dark-200 px-2 py-2.5 sm:px-4">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">전체 거래소 CARF 현황</span>
         </div>
         <div className="overflow-x-auto">
@@ -378,7 +373,7 @@ export function PolicyPage() {
       </div>
 
       <div className="divide-y divide-dark-200 border border-dark-200">
-        <div className="px-4 py-2.5">
+        <div className="px-2 py-2.5 sm:px-4">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">데이터 출처</span>
         </div>
         {SOURCES.map((source, index) => (
@@ -387,13 +382,13 @@ export function PolicyPage() {
             href={source.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-dark-400/30"
+            className="group flex items-center justify-between gap-3 px-2 py-2.5 transition-colors hover:bg-dark-400/30 sm:px-4"
           >
             <span className="text-xs leading-relaxed text-bnb-muted transition-colors group-hover:text-bnb-text">{source.label}</span>
             <ExternalLink size={11} className="shrink-0 text-bnb-muted transition-colors group-hover:text-brand-400" />
           </a>
         ))}
-        <div className="flex justify-end px-4 py-2">
+        <div className="flex justify-end px-2 py-2 sm:px-4">
           <span className="text-[10px] text-bnb-muted">조사 기준일 2026-03-16</span>
         </div>
       </div>
