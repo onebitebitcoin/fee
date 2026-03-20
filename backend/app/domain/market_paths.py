@@ -28,7 +28,6 @@ from backend.app.domain.paths_buy import (
 # paths_sell.py로 이동된 함수 re-export
 from backend.app.domain.paths_sell import (
     find_cheapest_sell_path_from_snapshot_rows,  # noqa: F401
-    MEMPOOL_RECOMMENDED_FEES_URL,  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
