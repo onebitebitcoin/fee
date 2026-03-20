@@ -70,6 +70,11 @@ export function Layout() {
         <Outlet />
       </main>
 
+      {/* Version footer (desktop only — hidden on mobile behind bottom nav) */}
+      <footer className="hidden md:block border-t border-dark-200 py-2 text-center text-[11px] text-bnb-muted/50">
+        v{__APP_VERSION__}
+      </footer>
+
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-dark-200 bg-dark-400/95 backdrop-blur-md md:hidden">
         <div className="mx-auto grid max-w-7xl grid-cols-4">
