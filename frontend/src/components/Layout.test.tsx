@@ -12,7 +12,6 @@ describe('Layout branding', () => {
     );
 
     expect(screen.getByText('한입 비트코인 경로')).toBeInTheDocument();
-    expect(screen.getByText('실시간 수수료 비교')).toBeInTheDocument();
 
     const logo = screen.getByAltText('한입 로고');
     expect(logo).toHaveAttribute('src', '/logos/hanip.png');

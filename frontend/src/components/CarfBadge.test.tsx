@@ -20,16 +20,23 @@ describe('CarfBadge', () => {
     expect(badge.className).toMatch(/text-bnb-red/);
   });
 
-  it('renders orange badge for next year (2027)', () => {
+  it('renders red badge for 2027 (data collection starts from 2026)', () => {
     render(<CarfBadge carfFirstExchange="2027" />);
     const badge = screen.getByText('CARF 2027');
+    expect(badge).toBeInTheDocument();
+    expect(badge.className).toMatch(/text-bnb-red/);
+  });
+
+  it('renders orange badge for 2028', () => {
+    render(<CarfBadge carfFirstExchange="2028" />);
+    const badge = screen.getByText('CARF 2028');
     expect(badge).toBeInTheDocument();
     expect(badge.className).toMatch(/text-brand-400/);
   });
 
-  it('renders grey badge for 2028', () => {
-    render(<CarfBadge carfFirstExchange="2028" />);
-    const badge = screen.getByText('CARF 2028');
+  it('renders grey badge for 2029+', () => {
+    render(<CarfBadge carfFirstExchange="2029" />);
+    const badge = screen.getByText('CARF 2029');
     expect(badge).toBeInTheDocument();
     expect(badge.className).toMatch(/text-bnb-muted/);
   });

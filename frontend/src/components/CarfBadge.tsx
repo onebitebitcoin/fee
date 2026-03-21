@@ -4,10 +4,10 @@ type Props = {
 
 function getStyle(year: number): string {
   const current = new Date().getFullYear();
-  if (year <= current) {
+  if (year <= current + 1) {
     return 'border-bnb-red/40 bg-bnb-red/10 text-bnb-red';
   }
-  if (year === current + 1) {
+  if (year === current + 2) {
     return 'border-brand-500/40 bg-brand-500/10 text-brand-400';
   }
   return 'border-dark-200 bg-dark-400 text-bnb-muted';
