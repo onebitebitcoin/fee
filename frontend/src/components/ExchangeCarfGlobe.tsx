@@ -97,10 +97,15 @@ export function ExchangeCarfGlobe({
 }: ExchangeCarfGlobeProps) {
   // rotationRef = source of truth (written by both RAF and pointer events)
   // rotation state = triggers re-render, only written by RAF loop once per frame
+  const [clickedExchangeId, setClickedExchangeId] = useState<string | null>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const rotationRef = useRef<Rotation>(INITIAL_ROTATION);
   const [rotation, setRotation] = useState<Rotation>(INITIAL_ROTATION);
   const dirtyRef = useRef(false);
   const isDragging = useRef(false);
+  const hasDragged = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   // velocity[0] = λ deg/frame, velocity[1] = φ deg/frame (for momentum)
   const velocityRef = useRef<[number, number]>([0, 0]);
@@ -165,6 +170,7 @@ export function ExchangeCarfGlobe({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
       isDragging.current = true;
+      hasDragged.current = false;
       autoRotateActive.current = false;
       clearTimeout(autoRotateTimer.current);
       lastPos.current = { x: e.clientX, y: e.clientY };
@@ -181,6 +187,7 @@ export function ExchangeCarfGlobe({
       if (!isDragging.current) return;
       const dx = e.clientX - lastPos.current.x;
       const dy = e.clientY - lastPos.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
 
       // Trackball model: surface follows hand.
@@ -215,6 +222,17 @@ export function ExchangeCarfGlobe({
       autoRotateActive.current = true;
     }, 3000);
   }, []);
+
+  const handleMarkerClick = useCallback((exchangeId: string) => {
+    if (hasDragged.current) return;
+    setClickedExchangeId((prev) => (prev === exchangeId ? null : exchangeId));
+  }, []);
+
+  useEffect(() => {
+    if (!clickedExchangeId) return;
+    const el = itemRefs.current[clickedExchangeId];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [clickedExchangeId]);
 
   const handleReset = useCallback(() => {
     rotationRef.current = [...INITIAL_ROTATION] as Rotation;
@@ -305,7 +323,7 @@ export function ExchangeCarfGlobe({
                 지구본으로 보는 거래소 위치
               </h2>
               <p className="mt-0.5 text-[11px] text-bnb-muted">
-                드래그하여 회전 · 3초 후 자동 회전 재개
+                드래그하여 회전 · 마커 클릭 시 목록 하이라이트
               </p>
             </div>
             <button
@@ -394,9 +412,15 @@ export function ExchangeCarfGlobe({
                   const isSelected =
                     exchange.id === selectedSourceId ||
                     exchange.id === selectedDestinationId;
+                  const isClicked = exchange.id === clickedExchangeId;
                   const fill = markerFill(exchange.carfGroup);
                   return (
-                    <g key={exchange.id} transform={`translate(${x},${y})`}>
+                    <g
+                      key={exchange.id}
+                      transform={`translate(${x},${y})`}
+                      onClick={() => handleMarkerClick(exchange.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {isSelected && (
                         <>
                           <circle r={12} fill={`${fill}12`} />
@@ -409,8 +433,11 @@ export function ExchangeCarfGlobe({
                           />
                         </>
                       )}
+                      {isClicked && !isSelected && (
+                        <circle r={10} fill="none" stroke={fill} strokeWidth="1.2" strokeOpacity="0.7" />
+                      )}
                       <circle
-                        r={isSelected ? 5.5 : 3.5}
+                        r={isSelected ? 5.5 : isClicked ? 4.5 : 3.5}
                         fill={fill}
                         stroke="rgba(0,0,0,0.88)"
                         strokeWidth={isSelected ? 1.4 : 0.9}
@@ -472,16 +499,18 @@ export function ExchangeCarfGlobe({
                 전체 거래소 위치와 CARF 시기
               </span>
             </div>
-            <div className="max-h-[360px] divide-y divide-dark-200 overflow-auto">
+            <div ref={listScrollRef} className="max-h-[360px] divide-y divide-dark-200 overflow-auto">
               {sortedExchanges.map((exchange) => {
                 const isSelected =
                   exchange.id === selectedSourceId ||
                   exchange.id === selectedDestinationId;
+                const isClicked = exchange.id === clickedExchangeId;
 
                 return (
                   <div
                     key={exchange.id}
-                    className={`px-4 py-3 ${isSelected ? 'bg-brand-500/5' : 'bg-transparent'}`}
+                    ref={(el) => { itemRefs.current[exchange.id] = el; }}
+                    className={`px-4 py-3 transition-colors ${isClicked ? 'bg-brand-500/10 ring-1 ring-inset ring-brand-500/30' : isSelected ? 'bg-brand-500/5' : 'bg-transparent'}`}
                     data-testid={isSelected ? `selected-exchange-${exchange.id}` : undefined}
                   >
                     <div className="flex items-start justify-between gap-3">
