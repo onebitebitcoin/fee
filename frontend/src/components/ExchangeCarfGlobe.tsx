@@ -313,10 +313,10 @@ export function ExchangeCarfGlobe({
   );
 
   return (
-    <div data-testid="exchange-globe-section">
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+    <div data-testid="exchange-globe-section" className="border border-dark-200">
+      <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:divide-x xl:divide-dark-200">
         {/* 3D Globe */}
-        <div className="overflow-hidden rounded border border-dark-200 bg-[radial-gradient(circle_at_30%_30%,_rgba(240,185,11,0.08),_rgba(8,12,20,0.98)_70%)]">
+        <div className="bg-[radial-gradient(circle_at_30%_30%,_rgba(240,185,11,0.08),_rgba(8,12,20,0.98)_70%)]">
           <div className="flex items-center justify-between border-b border-dark-200 px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold text-bnb-text">
@@ -492,14 +492,14 @@ export function ExchangeCarfGlobe({
         </div>
 
         {/* Right panel */}
-        <div className="space-y-4">
-          <div className="rounded border border-dark-200 bg-dark-400/30">
+        <div className="flex flex-col border-t border-dark-200 xl:border-t-0">
+          <div className="flex flex-col flex-1 bg-dark-400/30">
             <div className="border-b border-dark-200 px-4 py-2.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
                 전체 거래소 위치와 CARF 시기
               </span>
             </div>
-            <div ref={listScrollRef} className="max-h-[360px] divide-y divide-dark-200 overflow-auto">
+            <div ref={listScrollRef} className="divide-y divide-dark-200 overflow-auto" style={{ maxHeight: '100%' }}>
               {sortedExchanges.map((exchange) => {
                 const isSelected =
                   exchange.id === selectedSourceId ||
