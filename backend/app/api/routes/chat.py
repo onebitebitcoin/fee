@@ -111,7 +111,7 @@ def chat_message(body: ChatRequest, db: Session = Depends(get_db)) -> ChatRespon
     response = client.chat.completions.create(
         model="gpt-5-mini",
         messages=messages,
-        max_tokens=1024,
+        max_completion_tokens=1024,
         temperature=0.3,
     )
 
