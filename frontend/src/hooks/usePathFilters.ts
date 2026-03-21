@@ -23,12 +23,21 @@ export type PathShortcut = 'default' | 'non_kyc' | 'no_lightning';
 export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [excludedDomesticNetworks, setExcludedDomesticNetworks] = useState<string[]>(DEFAULT_EXCLUDED_NETWORKS);
+  const [includeAllUsdtNetworks, setIncludeAllUsdtNetworks] = useState(false);
   const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
   const [pathShortcut, setPathShortcut] = useState<PathShortcut>('non_kyc');
   const [includeLightning, setIncludeLightning] = useState(true);
   const [lightningOnly, setLightningOnly] = useState(false);
   const [cheapestComboOnly, setCheapestComboOnly] = useState(false);
+
+  const toggleAllUsdtNetworks = () => {
+    setIncludeAllUsdtNetworks((prev) => {
+      const next = !prev;
+      setExcludedDomesticNetworks(next ? [] : DEFAULT_EXCLUDED_NETWORKS);
+      return next;
+    });
+  };
 
   const rankedPaths = useMemo(
     () => (data ? sortAllPaths(data.all_paths ?? [], data.mode ?? mode) : []),
@@ -124,6 +133,8 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
     setLightningOnly,
     cheapestComboOnly,
     setCheapestComboOnly,
+    includeAllUsdtNetworks,
+    toggleAllUsdtNetworks,
     excludedDomesticNetworks,
     excludedGlobalExitOptions,
     excludedLightningProviders,

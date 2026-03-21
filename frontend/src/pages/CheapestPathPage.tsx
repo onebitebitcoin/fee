@@ -1,7 +1,6 @@
 import { Search, ShieldAlert, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 
-import { PathFilterBar } from '../components/cheapest-path/PathFilterBar';
 import { PathMobileList } from '../components/cheapest-path/PathMobileList';
 import { PathTable } from '../components/cheapest-path/PathTable';
 import { RouteDetailPopup } from '../components/cheapest-path/RouteDetailPopup';
@@ -49,15 +48,12 @@ export function CheapestPathPage() {
 
   const { data, loading, submitting, setSubmitting, error, load } = useCheapestPath();
   const {
-    filtersOpen, setFiltersOpen,
     setPathShortcut,
     includeLightning, setIncludeLightning,
     setLightningOnly,
     cheapestComboOnly, setCheapestComboOnly,
+    includeAllUsdtNetworks, toggleAllUsdtNetworks,
     rankedPaths, filteredPaths,
-    allDomesticNetworks, allGlobalExitOptions, allLightningProviders,
-    excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders,
-    toggleDomesticNetwork, toggleGlobalExitOption, toggleLightningProvider,
   } = usePathFilters(data, mode);
 
   const activeGlobalExchange = data?.global_exchange ?? globalExchange;
@@ -147,6 +143,13 @@ export function CheapestPathPage() {
                 {p.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={toggleAllUsdtNetworks}
+              className={`px-2.5 py-1 text-xs font-semibold transition-colors border ${includeAllUsdtNetworks ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}
+            >
+              모든 USDT 네트워크 포함
+            </button>
             <button type="submit" disabled={submitting} className="ml-auto flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-dark-500 transition-colors disabled:opacity-50 bg-brand-600 hover:bg-brand-500">
               <Search size={11} />
               {submitting ? '검색 중' : '검색'}
@@ -247,25 +250,6 @@ export function CheapestPathPage() {
           ) : null}
 
           <div className="border-b border-dark-200 bg-dark-500">
-            <PathFilterBar
-              filtersOpen={filtersOpen}
-              onToggleOpen={() => setFiltersOpen((v) => !v)}
-              excludedDomesticNetworks={excludedDomesticNetworks}
-              excludedGlobalExitOptions={excludedGlobalExitOptions}
-              excludedLightningProviders={excludedLightningProviders}
-              allDomesticNetworks={allDomesticNetworks}
-              allGlobalExitOptions={allGlobalExitOptions}
-              allLightningProviders={allLightningProviders}
-              filteredCount={filteredPaths.length}
-              totalCount={rankedPaths.length}
-              includeLightning={includeLightning}
-              cheapestComboOnly={cheapestComboOnly}
-              onToggleDomesticNetwork={toggleDomesticNetwork}
-              onToggleGlobalExitOption={toggleGlobalExitOption}
-              onToggleLightningProvider={toggleLightningProvider}
-              onToggleIncludeLightning={() => setIncludeLightning((v) => !v)}
-              onToggleCheapestComboOnly={() => setCheapestComboOnly((v) => !v)}
-            />
             <PathMobileList
               filteredPaths={filteredPaths}
               selectedPathId={selectedPathId}

@@ -244,23 +244,6 @@ describe('CheapestPathPage', () => {
     expect(screen.getByText('스왑 수수료')).toBeInTheDocument();
   });
 
-  it('filters routes by explicit path dimensions', async () => {
-    const user = await renderAndSearchAll();
-
-    await screen.findByText('최적 경로');
-
-    // 필터가 기본 접힘 상태이므로 먼저 열기
-    await user.click(screen.getByRole('button', { name: /필터/i }));
-
-    await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    expect(screen.getByText('4/6')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    expect(screen.getByText('6/6')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /라이트닝 네트워크/i }));
-    expect(screen.getByText('5/6')).toBeInTheDocument();
-  });
 
   it('expands another route inline when a route is chosen', async () => {
     const user = await renderAndSearchAll();
@@ -288,15 +271,6 @@ describe('CheapestPathPage', () => {
     expect(screen.getAllByText('수수료율 0.200%').length).toBeGreaterThan(0);
   });
 
-  it('reindexes visible route ranks from 1 after filtering', async () => {
-    const user = await renderAndSearchAll();
-
-    await screen.findByText('최적 경로');
-    await user.click(screen.getByRole('button', { name: /필터/i }));
-    await user.click(screen.getByRole('button', { name: /TRC20/i }));
-    expect(screen.getAllByText('#001').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('region', { name: '선택 경로 상세' })).not.toBeInTheDocument();
-  });
 
   it('renders service logos for exchanges and lightning providers', async () => {
     const user = await renderAndSearchAll();
