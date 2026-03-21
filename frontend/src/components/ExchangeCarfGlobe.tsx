@@ -284,13 +284,28 @@ export function ExchangeCarfGlobe({
       <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:divide-x xl:divide-dark-200">
         {/* 3D Globe */}
         <div className="bg-[radial-gradient(circle_at_30%_30%,_rgba(240,185,11,0.08),_rgba(8,12,20,0.98)_70%)]">
-          <div className="border-b border-dark-200 px-4 py-3">
+          <div className="px-4 py-3">
             <h2 className="text-sm font-semibold text-bnb-text">
               지구본으로 보는 거래소 위치
             </h2>
-            <p className="mt-0.5 text-[11px] text-bnb-muted">
-              거래소별 CARF 적용 시기
-            </p>
+            <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] text-bnb-muted">
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-bnb-green" />
+                2027년 교환
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-brand-400" />
+                2028년 교환
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-bnb-muted" />
+                2029년 교환
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-bnb-red" />
+                미가입 / 불명확
+              </span>
+            </div>
           </div>
 
           <div className="px-3 pb-3 pt-4">
@@ -428,24 +443,6 @@ export function ExchangeCarfGlobe({
             </svg>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-dark-200 px-4 py-3 text-[11px] text-bnb-muted">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-bnb-green" />
-              2027년 교환
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-400" />
-              2028년 교환
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-bnb-muted" />
-              2029년 교환
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-bnb-red" />
-              미가입 / 불명확
-            </span>
-          </div>
         </div>
 
         {/* Right panel — position:absolute fills the grid cell height exactly */}
