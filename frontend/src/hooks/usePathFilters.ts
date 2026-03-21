@@ -26,6 +26,8 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
   const [excludedGlobalExitOptions, setExcludedGlobalExitOptions] = useState<string[]>([]);
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
   const [pathShortcut, setPathShortcut] = useState<PathShortcut>('non_kyc');
+  const [includeLightning, setIncludeLightning] = useState(true);
+  const [cheapestComboOnly, setCheapestComboOnly] = useState(false);
 
   const rankedPaths = useMemo(
     () => (data ? sortAllPaths(data.all_paths ?? [], data.mode ?? mode) : []),
@@ -52,11 +54,12 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
   );
 
   const filteredPaths = useMemo<VisibleRankedPath[]>(() => {
-    return rankedPaths.filter((path) => {
+    let paths = rankedPaths.filter((path) => {
       const globalExitKey = `${path.global_exit_mode}::${path.global_exit_network}`;
       if (excludedDomesticNetworks.includes(canonicalNetwork(path.domestic_withdrawal_network))) return false;
       if (excludedGlobalExitOptions.includes(globalExitKey)) return false;
       if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
+      if (!includeLightning && path.global_exit_mode === 'lightning') return false;
       if (pathShortcut === 'no_lightning' && path.global_exit_mode === 'lightning') return false;
       if (pathShortcut === 'non_kyc') {
         if (mode === 'sell') {
@@ -74,8 +77,20 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
         }
       }
       return true;
-    }).map((path, index) => ({ ...path, visibleRank: index + 1 }));
-  }, [excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, mode, pathShortcut, rankedPaths]);
+    });
+
+    if (cheapestComboOnly) {
+      const seen = new Set<string>();
+      paths = paths.filter((path) => {
+        const key = path.route_variant ?? `${path.transfer_coin}::${path.global_exit_mode}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    return paths.map((path, index) => ({ ...path, visibleRank: index + 1 }));
+  }, [cheapestComboOnly, excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, includeLightning, mode, pathShortcut, rankedPaths]);
 
   const toggleDomesticNetwork = (network: string) => {
     setExcludedDomesticNetworks((prev) =>
@@ -101,6 +116,10 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
     setFiltersOpen,
     pathShortcut,
     setPathShortcut,
+    includeLightning,
+    setIncludeLightning,
+    cheapestComboOnly,
+    setCheapestComboOnly,
     excludedDomesticNetworks,
     excludedGlobalExitOptions,
     excludedLightningProviders,

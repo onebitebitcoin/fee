@@ -54,6 +54,8 @@ export function CheapestPathPage() {
   const {
     filtersOpen, setFiltersOpen,
     pathShortcut, setPathShortcut,
+    includeLightning, setIncludeLightning,
+    cheapestComboOnly, setCheapestComboOnly,
     rankedPaths, filteredPaths,
     allDomesticNetworks, allGlobalExitOptions, allLightningProviders,
     excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders,
@@ -313,9 +315,13 @@ export function CheapestPathPage() {
               allLightningProviders={allLightningProviders}
               filteredCount={filteredPaths.length}
               totalCount={rankedPaths.length}
+              includeLightning={includeLightning}
+              cheapestComboOnly={cheapestComboOnly}
               onToggleDomesticNetwork={toggleDomesticNetwork}
               onToggleGlobalExitOption={toggleGlobalExitOption}
               onToggleLightningProvider={toggleLightningProvider}
+              onToggleIncludeLightning={() => setIncludeLightning((v) => !v)}
+              onToggleCheapestComboOnly={() => setCheapestComboOnly((v) => !v)}
             />
             <PathMobileList
               filteredPaths={filteredPaths}

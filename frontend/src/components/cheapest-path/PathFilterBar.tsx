@@ -1,4 +1,4 @@
-import { ChevronDown, Zap } from 'lucide-react';
+import { ChevronDown, Layers, Zap } from 'lucide-react';
 
 import { localizeUiLabel } from '../../lib/localizeUi';
 
@@ -15,9 +15,13 @@ type Props = {
   allLightningProviders: string[];
   filteredCount: number;
   totalCount: number;
+  includeLightning: boolean;
+  cheapestComboOnly: boolean;
   onToggleDomesticNetwork: (network: string) => void;
   onToggleGlobalExitOption: (mode: 'onchain' | 'lightning', network: string) => void;
   onToggleLightningProvider: (provider: string) => void;
+  onToggleIncludeLightning: () => void;
+  onToggleCheapestComboOnly: () => void;
 };
 
 export function PathFilterBar({
@@ -31,9 +35,13 @@ export function PathFilterBar({
   allLightningProviders,
   filteredCount,
   totalCount,
+  includeLightning,
+  cheapestComboOnly,
   onToggleDomesticNetwork,
   onToggleGlobalExitOption,
   onToggleLightningProvider,
+  onToggleIncludeLightning,
+  onToggleCheapestComboOnly,
 }: Props) {
   return (
     <div className="border-b border-dark-200 bg-dark-400 px-4 py-3 sm:px-5">
@@ -52,6 +60,31 @@ export function PathFilterBar({
       </button>
       {filtersOpen && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleIncludeLightning}
+            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
+              includeLightning
+                ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'
+                : 'border-dark-100 bg-dark-300 text-bnb-muted/40 line-through'
+            }`}
+          >
+            <Zap size={10} />
+            라이트닝 포함
+          </button>
+          <button
+            type="button"
+            onClick={onToggleCheapestComboOnly}
+            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors border ${
+              cheapestComboOnly
+                ? 'border-brand-500/60 bg-brand-500/15 text-brand-300 hover:bg-brand-500/25'
+                : 'border-dark-100 bg-dark-300 text-bnb-muted/40'
+            }`}
+          >
+            <Layers size={10} />
+            최저 수수료 조합
+          </button>
+          <div className="h-4 w-px bg-dark-200" />
           {allDomesticNetworks.map((network) => {
             const excluded = excludedDomesticNetworks.includes(network);
             return (
