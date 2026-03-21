@@ -1,7 +1,6 @@
 import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
 
 import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo } from '../data/carfData';
 
@@ -285,23 +284,13 @@ export function ExchangeCarfGlobe({
       <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:divide-x xl:divide-dark-200">
         {/* 3D Globe */}
         <div className="bg-[radial-gradient(circle_at_30%_30%,_rgba(240,185,11,0.08),_rgba(8,12,20,0.98)_70%)]">
-          <div className="flex items-center justify-between border-b border-dark-200 px-4 py-3">
-            <div>
-              <h2 className="text-sm font-semibold text-bnb-text">
-                지구본으로 보는 거래소 위치
-              </h2>
-              <p className="mt-0.5 text-[11px] text-bnb-muted">
-                드래그하여 회전 · 마커 클릭 시 목록 하이라이트
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="flex items-center gap-1.5 rounded border border-dark-200 bg-dark-400/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-bnb-muted transition-colors hover:border-brand-500/40 hover:text-brand-400"
-            >
-              <RotateCcw size={10} />
-              초기화
-            </button>
+          <div className="border-b border-dark-200 px-4 py-3">
+            <h2 className="text-sm font-semibold text-bnb-text">
+              지구본으로 보는 거래소 위치
+            </h2>
+            <p className="mt-0.5 text-[11px] text-bnb-muted">
+              거래소별 CARF 적용 시기
+            </p>
           </div>
 
           <div className="px-3 pb-3 pt-4">
