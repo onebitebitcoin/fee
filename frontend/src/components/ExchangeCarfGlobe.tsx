@@ -491,15 +491,15 @@ export function ExchangeCarfGlobe({
           </div>
         </div>
 
-        {/* Right panel */}
-        <div className="flex flex-col border-t border-dark-200 xl:border-t-0">
-          <div className="flex flex-col flex-1 bg-dark-400/30">
-            <div className="border-b border-dark-200 px-4 py-2.5">
+        {/* Right panel — position:absolute fills the grid cell height exactly */}
+        <div className="relative border-t border-dark-200 xl:border-t-0">
+          <div className="xl:absolute xl:inset-0 flex flex-col bg-dark-400/30">
+            <div className="shrink-0 border-b border-dark-200 px-4 py-2.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
                 전체 거래소 위치와 CARF 시기
               </span>
             </div>
-            <div ref={listScrollRef} className="divide-y divide-dark-200 overflow-auto" style={{ maxHeight: '100%' }}>
+            <div ref={listScrollRef} className="flex-1 min-h-0 divide-y divide-dark-200 overflow-y-auto">
               {sortedExchanges.map((exchange) => {
                 const isSelected =
                   exchange.id === selectedSourceId ||
