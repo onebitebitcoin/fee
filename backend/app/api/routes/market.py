@@ -1,6 +1,6 @@
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
@@ -240,6 +240,7 @@ def get_latest_exchange_capabilities(db: Session = Depends(get_db)) -> dict:
 
 @router.get('/path-finder/cheapest')
 def get_cheapest_path(
+    background_tasks: BackgroundTasks,
     amount_krw: int = Query(1000000, ge=10000),
     amount_btc: float | None = Query(None, gt=0),
     wallet_utxo_count: int = Query(1, ge=1, le=200),
@@ -247,7 +248,7 @@ def get_cheapest_path(
     global_exchange: str = Query('binance'),
     db: Session = Depends(get_db),
 ) -> dict:
-    repositories.record_access(db)
+    background_tasks.add_task(repositories.record_access, db)
     latest_run = repositories.get_latest_successful_run(db)
     _run_id = latest_run.id if latest_run else None
     _cache_key = f"{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{global_exchange}:{_run_id}"
