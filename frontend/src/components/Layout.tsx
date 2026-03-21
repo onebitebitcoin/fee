@@ -12,8 +12,9 @@ export function Layout() {
   return (
     <div className="flex min-h-screen flex-col bg-dark-500">
       <header className="border-b border-dark-200 bg-dark-400/80 backdrop-blur-sm sticky top-0 z-30">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <NavLink to="/cheapest-path" className="flex items-center gap-3 group">
+        <div className="mx-auto flex max-w-7xl items-stretch gap-3 px-4">
+          {/* Logo */}
+          <NavLink to="/cheapest-path" className="flex items-center gap-3 group py-3 shrink-0">
             <div className="relative">
               <img
                 src="/logos/hanip.png"
@@ -29,11 +30,9 @@ export function Layout() {
               <p className="text-[11px] text-bnb-muted tracking-wide">실시간 수수료 비교</p>
             </div>
           </NavLink>
-        </div>
 
-        {/* Desktop nav */}
-        <nav className="mx-auto hidden max-w-7xl overflow-x-auto px-4 md:block">
-          <div className="flex gap-0.5">
+          {/* Desktop nav — same row as logo */}
+          <nav className="hidden md:flex items-stretch overflow-x-auto gap-0.5 ml-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -41,7 +40,7 @@ export function Layout() {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                    `relative flex items-center gap-1.5 px-4 text-sm font-medium whitespace-nowrap transition-colors ${
                       isActive
                         ? 'text-brand-500'
                         : 'text-bnb-muted hover:text-bnb-text'
@@ -62,8 +61,8 @@ export function Layout() {
                 </NavLink>
               );
             })}
-          </div>
-        </nav>
+          </nav>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:py-6 md:pb-6">
