@@ -115,7 +115,7 @@ function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '�
         </span>
         {exchange.koreaBlocked ? (
           <span className="hidden sm:inline-flex items-center gap-1 rounded border border-bnb-red/30 bg-bnb-red/10 px-2 py-0.5 text-[11px] font-semibold text-bnb-red">
-            <XCircle size={10} /> 차단
+            <XCircle size={10} /> 국내 미신고 가상자산사업자
           </span>
         ) : null}
         {exchange.koreaService && !exchange.koreaBlocked ? (
@@ -335,7 +335,7 @@ export function PolicyPage() {
                       </span>
                     ) : exchange.koreaBlocked ? (
                       <span className="inline-flex items-center gap-1 text-bnb-red">
-                        <XCircle size={11} /> 차단
+                        <XCircle size={11} /> 국내 미신고 가상자산사업자
                       </span>
                     ) : (
                       <span className="text-bnb-muted">미제공</span>
