@@ -334,9 +334,12 @@ export function PolicyPage() {
                         <CheckCircle size={11} /> 제공
                       </span>
                     ) : exchange.koreaBlocked ? (
-                      <span title="국내 가상자산 사업자 미신고" className="inline-flex items-center gap-1 text-bnb-red cursor-help">
-                        <XCircle size={11} /> 미신고
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span title="국내 가상자산 사업자 미신고" className="inline-flex items-center gap-1 text-bnb-red cursor-help">
+                          <XCircle size={11} /> 미신고
+                        </span>
+                        <span className="text-[10px] text-bnb-muted">국내 사용자 이용 가능</span>
+                      </div>
                     ) : (
                       <span className="text-bnb-muted">미제공</span>
                     )}
