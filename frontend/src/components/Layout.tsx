@@ -1,5 +1,6 @@
-import { Building2, Mail, RefreshCw, Route, Shield } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Building2, Mail, Menu, RefreshCw, Route, Shield, X } from 'lucide-react';
+import { useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 const navItems = [
   { to: '/fee', label: '수수료', icon: Route },
@@ -10,12 +11,18 @@ const navItems = [
 ];
 
 export function Layout() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close menu on navigation
+  const handleNavClick = () => setMenuOpen(false);
+
   return (
     <div className="flex min-h-screen flex-col bg-dark-500">
       <header className="border-b border-dark-200 bg-dark-400/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="mx-auto flex max-w-7xl items-stretch gap-3 px-4">
           {/* Logo */}
-          <NavLink to="/fee" className="flex items-center gap-3 group py-3 shrink-0">
+          <NavLink to="/fee" className="flex items-center gap-3 group py-3 shrink-0" onClick={handleNavClick}>
             <div className="relative">
               <img
                 src="/logos/hanip.png"
@@ -61,47 +68,49 @@ export function Layout() {
               );
             })}
           </nav>
+
+          {/* Mobile hamburger button */}
+          <button
+            className="ml-auto flex md:hidden items-center justify-center p-2 text-bnb-muted hover:text-bnb-text transition-colors"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="메뉴"
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {menuOpen && (
+          <nav className="md:hidden border-t border-dark-200 bg-dark-400/95 backdrop-blur-md">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={handleNavClick}
+                  className={`flex items-center gap-3 px-5 py-3.5 text-sm font-medium border-b border-dark-200/50 last:border-b-0 transition-colors ${
+                    isActive ? 'text-brand-500 bg-brand-500/5' : 'text-bnb-muted hover:text-bnb-text hover:bg-dark-300/30'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {item.label}
+                  {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-500" />}
+                </NavLink>
+              );
+            })}
+          </nav>
+        )}
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:py-6 md:pb-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:py-6">
         <Outlet />
       </main>
 
-      {/* Version footer (desktop only — hidden on mobile behind bottom nav) */}
-      <footer className="hidden md:block border-t border-dark-200 py-2 text-center text-[11px] text-bnb-muted/50">
+      <footer className="border-t border-dark-200 py-2 text-center text-[11px] text-bnb-muted/50">
         v{__APP_VERSION__}
       </footer>
-
-      {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-dark-200 bg-dark-400/95 backdrop-blur-md md:hidden">
-        <div className="mx-auto grid max-w-7xl grid-cols-4">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors ${
-                    isActive ? 'text-brand-500' : 'text-bnb-muted'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-b-full bg-brand-500" />
-                    )}
-                    <Icon size={17} />
-                    <span className="text-center leading-tight">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-        </div>
-      </nav>
     </div>
   );
 }
