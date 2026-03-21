@@ -1,4 +1,5 @@
 import { KycBadge } from '../KycBadge';
+import { CarfBadge } from '../CarfBadge';
 import { ServiceLabel } from './ServiceLabel';
 import { buildPathSteps } from '../../lib/pathUtils';
 import type { CheapestPathEntry, PathMode } from '../../types';
@@ -31,6 +32,7 @@ export function PathTimeline({ path, globalExchange, mode }: { path: CheapestPat
                       <p className="text-sm font-semibold text-bnb-text">{step.label}</p>
                     )}
                     <KycBadge status={step.kycStatus} />
+                    <CarfBadge carfFirstExchange={step.carfFirstExchange} />
                   </div>
                   <p className="mt-1 text-xs text-bnb-muted">{step.sub}</p>
                 </div>
@@ -70,6 +72,7 @@ export function PathTimeline({ path, globalExchange, mode }: { path: CheapestPat
                   <p className="text-[11px] font-semibold text-bnb-text">{step.label}</p>
                 )}
                 <KycBadge status={step.kycStatus} />
+                <CarfBadge carfFirstExchange={step.carfFirstExchange} />
               </div>
               <p className="mt-0.5 text-[10px] text-bnb-muted">{step.sub}</p>
               {step.feeText ? <p className="mt-1 text-[10px] font-semibold text-brand-400">{step.feeText}</p> : null}
