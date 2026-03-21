@@ -1,7 +1,7 @@
 import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Clock3, MapPin, RotateCcw, Route } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo } from '../data/carfData';
 
@@ -56,38 +56,6 @@ function isOnFrontHemisphere(lng: number, lat: number, rotation: Rotation): bool
   const φc = centerLat * (Math.PI / 180);
   const φp = lat * (Math.PI / 180);
   return Math.sin(φc) * Math.sin(φp) + Math.cos(φc) * Math.cos(φp) * Math.cos(Δλ) > 0;
-}
-
-function SelectedExchangeCard({ exchange, label }: { exchange: ExchangeCarfInfo; label: string }) {
-  return (
-    <div className="border-t border-dark-200/50 px-3 py-2.5 first:border-t-0">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-bnb-muted">{label}</p>
-          <p className="mt-1 text-sm font-semibold text-bnb-text">{exchange.name}</p>
-        </div>
-        <span className={`rounded border border-current/20 px-2 py-0.5 text-[10px] font-semibold ${carfTone(exchange.carfGroup)}`}>
-          {CARF_GROUP_LABELS[exchange.carfGroup]}
-        </span>
-      </div>
-      <div className="mt-3 space-y-2 text-xs text-bnb-muted">
-        <div className="flex items-start gap-2">
-          <MapPin size={12} className="mt-0.5 shrink-0 text-brand-400" />
-          <div>
-            <p className="text-bnb-text">{exchange.mapLocation.label}</p>
-            <p className="text-[11px]">{exchange.mapLocation.focusLabel}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-2">
-          <Clock3 size={12} className="mt-0.5 shrink-0 text-brand-400" />
-          <div>
-            <p className="text-bnb-text">{formatTiming(exchange)}</p>
-            <p className="text-[11px]">CARF 관할: {exchange.registeredCountry}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function ExchangeCarfGlobe({

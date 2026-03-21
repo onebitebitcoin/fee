@@ -7,7 +7,7 @@ import { PathTable } from '../components/cheapest-path/PathTable';
 import { RouteDetailPopup } from '../components/cheapest-path/RouteDetailPopup';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
-import { formatCurrency, formatNumber, formatPercent, formatSats } from '../lib/formatBtc';
+import { formatCurrency, formatPercent, formatSats } from '../lib/formatBtc';
 import { formatTopPathSequence, getFeeTone } from '../lib/pathUtils';
 import { useCheapestPath } from '../hooks/useCheapestPath';
 import { usePathFilters } from '../hooks/usePathFilters';
@@ -22,10 +22,6 @@ const FILTER_PRESETS = [
   { id: 'with_lightning',label: '라이트닝 포함' },
 ] as const;
 type FilterPresetId = typeof FILTER_PRESETS[number]['id'];
-
-function formatFeeRateSatVb(value: number) {
-  return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)} sat/vB`;
-}
 
 function categorizeFees(components: { label: string; amount_krw: number }[]) {
   let tradingFee = 0;
@@ -54,8 +50,9 @@ export function CheapestPathPage() {
   const { data, loading, submitting, setSubmitting, error, load } = useCheapestPath();
   const {
     filtersOpen, setFiltersOpen,
-    pathShortcut, setPathShortcut,
+    setPathShortcut,
     includeLightning, setIncludeLightning,
+    setLightningOnly,
     cheapestComboOnly, setCheapestComboOnly,
     rankedPaths, filteredPaths,
     allDomesticNetworks, allGlobalExitOptions, allLightningProviders,
@@ -108,15 +105,15 @@ export function CheapestPathPage() {
     setActivePreset(preset);
     switch (preset) {
       case 'non_kyc':
-        setPathShortcut('non_kyc'); setIncludeLightning(true); setCheapestComboOnly(false); break;
+        setPathShortcut('non_kyc'); setIncludeLightning(true); setLightningOnly(false); setCheapestComboOnly(false); break;
       case 'cheapest':
-        setPathShortcut('default'); setIncludeLightning(true); setCheapestComboOnly(true); break;
+        setPathShortcut('default'); setIncludeLightning(true); setLightningOnly(false); setCheapestComboOnly(true); break;
       case 'no_lightning':
-        setPathShortcut('default'); setIncludeLightning(false); setCheapestComboOnly(false); break;
+        setPathShortcut('default'); setIncludeLightning(false); setLightningOnly(false); setCheapestComboOnly(false); break;
       case 'with_lightning':
-        setPathShortcut('default'); setIncludeLightning(true); setCheapestComboOnly(false); break;
+        setPathShortcut('default'); setIncludeLightning(true); setLightningOnly(true); setCheapestComboOnly(false); break;
     }
-  }, [setPathShortcut, setIncludeLightning, setCheapestComboOnly]);
+  }, [setPathShortcut, setIncludeLightning, setLightningOnly, setCheapestComboOnly]);
 
   const handleSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

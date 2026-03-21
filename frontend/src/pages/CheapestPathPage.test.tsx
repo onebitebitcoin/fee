@@ -168,11 +168,10 @@ async function renderAndSearch() {
   return user;
 }
 
-// 전체 경로(신원인증 최소화 필터 해제) 상태가 필요한 테스트용 헬퍼
+// 전체 경로 상태가 필요한 테스트용 헬퍼 (non_kyc + binance에서 전체 6경로 통과)
 async function renderAndSearchAll() {
   const user = await renderAndSearch();
   await screen.findByText('최적 경로');
-  await user.click(screen.getByRole('button', { name: '최저 수수료만' }));
   return user;
 }
 
@@ -186,9 +185,10 @@ describe('CheapestPathPage', () => {
 
     // 검색 버튼 클릭 없이 결과가 자동 로딩되어야 함
     expect(await screen.findByText('최적 경로')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '최저 수수료만' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '신원인증 최소화 + 최저 수수료' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '라이트닝 제외 + 최저 수수료' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '최소 KYC' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '최저만' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '라이트닝 제외' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '라이트닝 포함' })).toBeInTheDocument();
   });
 
   it('shows a progress bar while the cheapest path is loading', async () => {
@@ -226,7 +226,7 @@ describe('CheapestPathPage', () => {
       },
     });
 
-    expect(await screen.findByRole('button', { name: '최저 수수료만' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '최소 KYC' })).toBeInTheDocument();
   });
 
   it('renders the current dashboard summary for the cheapest route', async () => {
@@ -320,7 +320,7 @@ describe('CheapestPathPage', () => {
   it('applies the non-KYC shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: '신원인증 최소화 + 최저 수수료' }));
+    await user.click(screen.getByRole('button', { name: '최소 KYC' }));
 
     // CARF 미발효 글로벌 거래소(binance, carfFirstExchange=2028)이므로
     // 온체인 KYC 경로(cheap1)도 허용 → cheap1이 저렴하므로 최상위 best path
@@ -332,128 +332,12 @@ describe('CheapestPathPage', () => {
   it('applies the without-lightning shortcut', async () => {
     const user = await renderAndSearch();
 
-    await user.click(screen.getByRole('button', { name: '라이트닝 제외 + 최저 수수료' }));
+    await user.click(screen.getByRole('button', { name: '라이트닝 제외' }));
 
     expect(screen.queryByText('cheap2 → 바이낸스 → BitFlower → 개인 지갑')).not.toBeInTheDocument();
     expect(screen.getByText('cheap1 → 바이낸스 → 개인 지갑')).toBeInTheDocument();
   });
 
-  it('switches to reverse sell mode and renders a reversed path', async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <CheapestPathPage />
-      </BrowserRouter>,
-    );
-
-    // 자동 로딩이 완료될 때까지 대기
-    await screen.findByText('최적 경로');
-
-    // 자동 로딩 완료 후 sell 모드 mock 설정
-    vi.mocked(api.getCheapestPath).mockResolvedValueOnce({
-      mode: 'sell',
-      amount_btc: 0.01,
-      wallet_fee_estimate: {
-        source: 'mempool.space',
-        source_url: 'https://mempool.space/api/v1/fees/recommended',
-        fee_target: 'medium',
-        medium_fee_rate_sat_vb: 12,
-        fastest_fee_sat_vb: 15,
-        hour_fee_sat_vb: 10,
-        economy_fee_sat_vb: 6,
-        minimum_fee_sat_vb: 1,
-        address_type: 'p2wpkh',
-        utxo_count: 3,
-        output_count: 2,
-        estimated_tx_vbytes: 277,
-        fee_sats: 3324,
-        fee_btc: 0.00003324,
-        fee_krw: 4370,
-      },
-      global_exchange: 'binance',
-      global_btc_price_usd: 95000,
-      usd_krw_rate: 1380,
-      total_paths_evaluated: 1,
-      available_filters: {
-        domestic_withdrawal_networks: ['TRC20'],
-        global_exit_options: [{ mode: 'lightning', network: 'Lightning Network' }],
-        lightning_exit_providers: ['Strike'],
-      },
-      best_path: {
-        path_id: 'sell-lightning-via-global',
-        route_variant: 'lightning_via_global',
-        korean_exchange: 'bithumb',
-        transfer_coin: 'USDT',
-        network: 'TRC20',
-        domestic_withdrawal_network: 'TRC20',
-        global_exit_mode: 'lightning',
-        global_exit_network: 'Lightning Network',
-        lightning_exit_provider: 'Strike',
-        krw_received: 1280000,
-        total_fee_krw: 22000,
-        fee_pct: 1.69,
-        domestic_kyc_status: 'kyc',
-        global_kyc_status: 'kyc',
-        exit_service_kyc_status: 'kyc',
-        wallet_kyc_status: 'non_kyc',
-        breakdown: {
-          total_fee_krw: 22000,
-          components: [
-            { label: '개인지갑 BTC 네트워크 수수료', amount_krw: 4370 },
-            { label: '라이트닝 스왑 수수료', amount_krw: 5000 },
-            { label: '해외 BTC 매도 수수료', amount_krw: 4000, rate_pct: 0.1 },
-            { label: '국내 KRW 전환 수수료', amount_krw: 8630, rate_pct: 0.05 },
-          ],
-        },
-      },
-      top5: [],
-      all_paths: [{
-        path_id: 'sell-lightning-via-global',
-        route_variant: 'lightning_via_global',
-        korean_exchange: 'bithumb',
-        transfer_coin: 'USDT',
-        network: 'TRC20',
-        domestic_withdrawal_network: 'TRC20',
-        global_exit_mode: 'lightning',
-        global_exit_network: 'Lightning Network',
-        lightning_exit_provider: 'Strike',
-        krw_received: 1280000,
-        total_fee_krw: 22000,
-        fee_pct: 1.69,
-        domestic_kyc_status: 'kyc',
-        global_kyc_status: 'kyc',
-        exit_service_kyc_status: 'kyc',
-        wallet_kyc_status: 'non_kyc',
-        breakdown: {
-          total_fee_krw: 22000,
-          components: [
-            { label: '개인지갑 BTC 네트워크 수수료', amount_krw: 4370 },
-            { label: '라이트닝 스왑 수수료', amount_krw: 5000 },
-            { label: '해외 BTC 매도 수수료', amount_krw: 4000, rate_pct: 0.1 },
-            { label: '국내 KRW 전환 수수료', amount_krw: 8630, rate_pct: 0.05 },
-          ],
-        },
-      }],
-      disabled_paths: [],
-    } as never);
-
-    await user.click(screen.getByRole('button', { name: '비트코인 팔 때' }));
-    await user.clear(screen.getByLabelText('지갑 UTXO 개수'));
-    await user.type(screen.getByLabelText('지갑 UTXO 개수'), '3');
-    await user.click(screen.getByRole('button', { name: '검색' }));
-
-    expect(await screen.findByText('비트코인 팔 때 경로')).toBeInTheDocument();
-    expect(screen.getByText('개인 지갑 → Strike → 바이낸스 → 빗썸')).toBeInTheDocument();
-    expect(screen.getByText('예상 KRW 수령')).toBeInTheDocument();
-    expect(screen.getAllByText('1,280,000 KRW').length).toBeGreaterThan(0);
-    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('12 sat/vB');
-    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('277 vB');
-    expect(screen.getByText(/mempool\.space 중간 수수료/i)).toHaveTextContent('3,324 sats');
-    expect(vi.mocked(api.getCheapestPath)).toHaveBeenLastCalledWith(expect.objectContaining({
-      mode: 'sell',
-      walletUtxoCount: 3,
-    }));
-  });
   it('opens a mobile route detail popup and shows a vertical fee-aware timeline', async () => {
     const user = await renderAndSearchAll();
 

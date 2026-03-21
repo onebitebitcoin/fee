@@ -27,6 +27,7 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
   const [excludedLightningProviders, setExcludedLightningProviders] = useState<string[]>([]);
   const [pathShortcut, setPathShortcut] = useState<PathShortcut>('non_kyc');
   const [includeLightning, setIncludeLightning] = useState(true);
+  const [lightningOnly, setLightningOnly] = useState(false);
   const [cheapestComboOnly, setCheapestComboOnly] = useState(false);
 
   const rankedPaths = useMemo(
@@ -60,6 +61,7 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
       if (excludedGlobalExitOptions.includes(globalExitKey)) return false;
       if (path.lightning_exit_provider && excludedLightningProviders.includes(path.lightning_exit_provider)) return false;
       if (!includeLightning && path.global_exit_mode === 'lightning') return false;
+      if (lightningOnly && path.global_exit_mode !== 'lightning') return false;
       if (pathShortcut === 'no_lightning' && path.global_exit_mode === 'lightning') return false;
       if (pathShortcut === 'non_kyc') {
         if (mode === 'sell') {
@@ -90,7 +92,7 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
     }
 
     return paths.map((path, index) => ({ ...path, visibleRank: index + 1 }));
-  }, [cheapestComboOnly, excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, includeLightning, mode, pathShortcut, rankedPaths]);
+  }, [cheapestComboOnly, excludedDomesticNetworks, excludedGlobalExitOptions, excludedLightningProviders, includeLightning, lightningOnly, mode, pathShortcut, rankedPaths]);
 
   const toggleDomesticNetwork = (network: string) => {
     setExcludedDomesticNetworks((prev) =>
@@ -118,6 +120,8 @@ export function usePathFilters(data: CheapestPathResponse | null, mode: PathMode
     setPathShortcut,
     includeLightning,
     setIncludeLightning,
+    lightningOnly,
+    setLightningOnly,
     cheapestComboOnly,
     setCheapestComboOnly,
     excludedDomesticNetworks,
