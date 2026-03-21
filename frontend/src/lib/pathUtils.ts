@@ -2,6 +2,11 @@ import type { CheapestPathEntry, CheapestPathFeeComponent, PathMode } from '../t
 import { formatCurrency, formatPercent, formatSats } from './formatBtc';
 import { fmtEx } from './exchangeNames';
 import { localizeUiLabel } from './localizeUi';
+import { ALL_EXCHANGES } from '../data/carfData';
+
+function lookupCarfFirstExchange(exchangeId: string): string | null {
+  return ALL_EXCHANGES.find((e) => e.id === exchangeId)?.carfFirstExchange ?? null;
+}
 
 export type RankedPath = CheapestPathEntry & { rank: number };
 export type VisibleRankedPath = RankedPath & { visibleRank: number };
@@ -16,6 +21,7 @@ export type PathStep = {
   feeText?: string | null;
   feeLabel?: string | null;
   feeRateText?: string | null;
+  carfFirstExchange?: string | null;
 };
 
 // 비트코인 네트워크 변형을 단일 canonical key로 통일
@@ -132,6 +138,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.domestic_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
             ...buildStepFeeDetails(components.slice(2, 3)),
           },
         ];
@@ -160,6 +167,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.global_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(globalExchange),
             ...buildStepFeeDetails(components.slice(2, 3)),
           },
           {
@@ -169,6 +177,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.domestic_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
             ...buildStepFeeDetails(components.slice(3)),
           },
         ];
@@ -188,6 +197,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.global_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(globalExchange),
             ...buildStepFeeDetails(components.slice(1, 2)),
           },
           {
@@ -197,6 +207,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.domestic_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
             ...buildStepFeeDetails(components.slice(2)),
           },
         ];
@@ -217,6 +228,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
             active: true,
             variant: 'exchange' as const,
             kycStatus: path.domestic_kyc_status,
+            carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
             ...buildStepFeeDetails(components.slice(1)),
           },
         ];
@@ -231,6 +243,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
       active: true,
       variant: 'exchange' as const,
       kycStatus: path.domestic_kyc_status,
+      carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
       ...buildStepFeeDetails(components.slice(0, 1)),
     },
     {
@@ -246,6 +259,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
       active: true,
       variant: 'exchange' as const,
       kycStatus: path.global_kyc_status,
+      carfFirstExchange: lookupCarfFirstExchange(globalExchange),
       ...buildStepFeeDetails(components.slice(2, 3)),
     },
     {
