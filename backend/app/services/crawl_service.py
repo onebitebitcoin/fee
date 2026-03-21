@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
@@ -63,7 +64,7 @@ class CrawlService:
         return crawl_run
 
     def _crawl_tickers_and_withdrawals(self, crawl_run: CrawlRun) -> tuple[int, int, int, set[str]]:
-        """티커 및 출금 수수료를 수집하고 (ticker_count, withdrawal_count, error_count, ln_btc_exchanges)를 반환한다."""
+        """티커 및 출금 수수료를 병렬 수집하고 (ticker_count, withdrawal_count, error_count, ln_btc_exchanges)를 반환한다."""
         usd_krw_rate = live_market.fetch_usd_krw_rate()
         crawl_run.usd_krw_rate = usd_krw_rate
 
@@ -72,8 +73,37 @@ class CrawlService:
         error_count = 0
         ln_btc_exchanges: set[str] = set()
 
+        def _fetch_one(exchange: str) -> dict:
+            """단일 거래소의 ticker + BTC/USDT withdrawal을 반환한다."""
+            return {
+                'exchange': exchange,
+                'ticker': live_market.get_ticker(exchange),
+                'btc_wd': live_market.get_withdrawal_fees(exchange, 'BTC'),
+                'usdt_wd': live_market.get_withdrawal_fees(exchange, 'USDT'),
+            }
+
+        # 병렬 fetch (최대 10개 스레드)
+        fetch_results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_exchange = {executor.submit(_fetch_one, ex): ex for ex in live_market.ALL_EXCHANGES}
+            for future in as_completed(future_to_exchange):
+                ex = future_to_exchange[future]
+                try:
+                    fetch_results[ex] = future.result()
+                except Exception as exc:
+                    logger.error('Exchange fetch failed for %s: %s', ex, exc)
+                    fetch_results[ex] = {
+                        'exchange': ex,
+                        'ticker': {'error': str(exc)},
+                        'btc_wd': {'error': str(exc)},
+                        'usdt_wd': {'error': str(exc)},
+                    }
+
+        # DB 저장은 메인 스레드에서 순차적으로 (Session 스레드 안전 보장)
         for exchange in live_market.ALL_EXCHANGES:
-            ticker_payload = live_market.get_ticker(exchange)
+            result = fetch_results[exchange]
+            ticker_payload = result['ticker']
+
             if 'error' in ticker_payload:
                 self._add_error(crawl_run.id, exchange, None, 'ticker', ticker_payload['error'])
                 error_count += 1
@@ -99,8 +129,9 @@ class CrawlService:
                         usd_krw_rate=market.get('usd_krw_rate'),
                     ))
                     ticker_count += 1
-            for coin in ['BTC', 'USDT']:
-                withdrawal_payload = live_market.get_withdrawal_fees(exchange, coin)
+
+            for coin, wd_key in [('BTC', 'btc_wd'), ('USDT', 'usdt_wd')]:
+                withdrawal_payload = result[wd_key]
                 if 'error' in withdrawal_payload:
                     self._add_error(crawl_run.id, exchange, coin, 'withdrawal', withdrawal_payload['error'])
                     error_count += 1
@@ -124,7 +155,6 @@ class CrawlService:
                         note=network.get('note'),
                     ))
                     withdrawal_count += 1
-                    # BTC Lightning 출금 가능 여부 추적
                     if coin == 'BTC' and enabled and fee is not None and 'lightning' in label.lower():
                         ln_btc_exchanges.add(exchange)
 
