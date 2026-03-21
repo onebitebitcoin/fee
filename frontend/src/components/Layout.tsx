@@ -2,9 +2,9 @@ import { Building2, RefreshCw, Route, Shield } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/cheapest-path', label: '최적 경로', icon: Route },
+  { to: '/fee', label: '수수료', icon: Route },
   { to: '/status', label: '현황', icon: Building2 },
-  { to: '/policy', label: '정책', icon: Shield },
+  { to: '/carf', label: 'CARF', icon: Shield },
   { to: '/runs', label: '크롤링', icon: RefreshCw },
 ];
 
@@ -14,7 +14,7 @@ export function Layout() {
       <header className="border-b border-dark-200 bg-dark-400/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="mx-auto flex max-w-7xl items-stretch gap-3 px-4">
           {/* Logo */}
-          <NavLink to="/cheapest-path" className="flex items-center gap-3 group py-3 shrink-0">
+          <NavLink to="/fee" className="flex items-center gap-3 group py-3 shrink-0">
             <div className="relative">
               <img
                 src="/logos/hanip.png"

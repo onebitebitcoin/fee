@@ -6,7 +6,7 @@ import { Layout } from './Layout';
 describe('Layout branding', () => {
   it('renders Hanip Korean bitcoin route branding with the Hanip logo', () => {
     render(
-      <MemoryRouter initialEntries={['/cheapest-path']}>
+      <MemoryRouter initialEntries={['/fee']}>
         <Layout />
       </MemoryRouter>,
     );

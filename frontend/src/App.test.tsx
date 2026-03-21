@@ -21,7 +21,7 @@ vi.mock('./pages/RunsPage', () => ({
 }));
 
 describe('App routing', () => {
-  it('redirects the root path to /cheapest-path', async () => {
+  it('redirects the root path to /fee', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -31,7 +31,7 @@ describe('App routing', () => {
     expect(await screen.findByRole('heading', { name: '최적 경로 페이지' })).toBeInTheDocument();
   });
 
-  it('redirects unknown paths to /cheapest-path', async () => {
+  it('redirects unknown paths to /fee', async () => {
     render(
       <MemoryRouter initialEntries={['/missing']}>
         <App />
@@ -41,7 +41,7 @@ describe('App routing', () => {
     expect(await screen.findByRole('heading', { name: '최적 경로 페이지' })).toBeInTheDocument();
   });
 
-  it('redirects legacy /overview to /cheapest-path', async () => {
+  it('redirects legacy /overview to /fee', async () => {
     render(
       <MemoryRouter initialEntries={['/overview']}>
         <App />

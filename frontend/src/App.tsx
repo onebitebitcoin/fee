@@ -8,7 +8,7 @@ import { PolicyPage } from './pages/PolicyPage';
 import { RunsPage } from './pages/RunsPage';
 import { TickersPage } from './pages/TickersPage';
 
-const DEFAULT_ROUTE = '/cheapest-path';
+const DEFAULT_ROUTE = '/fee';
 
 export default function App() {
   return (
@@ -16,12 +16,14 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
         <Route path="/overview" element={<Navigate to={DEFAULT_ROUTE} replace />} />
-        <Route path="/cheapest-path" element={<CheapestPathPage />} />
+        <Route path="/cheapest-path" element={<Navigate to="/fee" replace />} />
+        <Route path="/fee" element={<CheapestPathPage />} />
         <Route path="/tickers" element={<TickersPage />} />
         <Route path="/withdrawals" element={<Navigate to="/status" replace />} />
         <Route path="/network-status" element={<Navigate to="/status" replace />} />
         <Route path="/status" element={<ExchangeStatusPage />} />
-        <Route path="/policy" element={<PolicyPage />} />
+        <Route path="/policy" element={<Navigate to="/carf" replace />} />
+        <Route path="/carf" element={<PolicyPage />} />
         <Route path="/runs" element={<AdminGuard><RunsPage /></AdminGuard>} />
       </Route>
       <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
