@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 
 import requests
 
@@ -19,6 +20,9 @@ P2WPKH_OUTPUT_VBYTES = 31
 P2WPKH_BASE_TX_VBYTES = 10.5
 DEFAULT_SELL_TX_OUTPUT_COUNT = 2
 
+_mempool_cache: dict[str, dict] = {}
+_MEMPOOL_CACHE_TTL = 30  # seconds
+
 
 def _estimate_native_segwit_tx_vbytes(utxo_count: int, output_count: int = DEFAULT_SELL_TX_OUTPUT_COUNT) -> int:
     if utxo_count <= 0:
@@ -29,12 +33,17 @@ def _estimate_native_segwit_tx_vbytes(utxo_count: int, output_count: int = DEFAU
 
 
 def _fetch_mempool_recommended_fees() -> dict:
-    try:
-        response = requests.get(MEMPOOL_RECOMMENDED_FEES_URL, timeout=10, headers={'Accept': 'application/json'})
-        response.raise_for_status()
-        data = response.json()
-    except Exception as exc:  # pragma: no cover - network dependency
-        raise ValueError(f'mempool.space 수수료 조회 실패: {exc}') from exc
+    cached = _mempool_cache.get('fees')
+    if cached and time.time() - cached['ts'] < _MEMPOOL_CACHE_TTL:
+        data = cached['data']
+    else:
+        try:
+            response = requests.get(MEMPOOL_RECOMMENDED_FEES_URL, timeout=10, headers={'Accept': 'application/json'})
+            response.raise_for_status()
+            data = response.json()
+            _mempool_cache['fees'] = {'data': data, 'ts': time.time()}
+        except Exception as exc:  # pragma: no cover - network dependency
+            raise ValueError(f'mempool.space 수수료 조회 실패: {exc}') from exc
 
     medium_fee_rate = data.get('halfHourFee') or data.get('hourFee') or data.get('fastestFee')
     if medium_fee_rate is None:
