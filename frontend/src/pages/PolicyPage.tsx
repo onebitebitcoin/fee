@@ -1,9 +1,7 @@
 import { AlertTriangle, ArrowDown, ArrowRight, Ban, BookOpen, ChevronDown, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
-import { ExchangeCarfGlobe } from '../components/ExchangeCarfGlobe';
 import {
-  ALL_EXCHANGES,
   CARF_GROUP_LABELS,
   CarfGroup,
   ExchangeCarfInfo,
@@ -229,8 +227,6 @@ export function PolicyPage() {
           </div>
         )}
       </div>
-
-      <ExchangeCarfGlobe exchanges={ALL_EXCHANGES} selectedSourceId={src.id} selectedDestinationId={dst.id} />
 
       <div className="divide-y divide-dark-200 border border-dark-200">
         <div className="px-2 py-2.5 sm:px-4">
