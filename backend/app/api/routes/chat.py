@@ -12,6 +12,35 @@ from backend.app.db.session import get_db
 
 router = APIRouter()
 
+_CARF_SECTION = """## 거래소별 CARF(암호자산 보고 프레임워크) 적용 현황
+※ CARF = OECD Crypto-Asset Reporting Framework. 데이터 수집 시작일 이후 거래부터 해당 연도에 첫 정보교환.
+
+### 한국 원화 거래소 (모두 2027년 첫 교환)
+- 업비트: 데이터수집 2026-01-01~, 첫교환 2027, 한국법인, 한국 거주자 데이터 교환 대상
+- 빗썸: 데이터수집 2026-01-01~, 첫교환 2027, VASP 갱신 심사 중
+- 코인원: 데이터수집 2026-01-01~, 첫교환 2027
+- 코빗: 데이터수집 2026-01-01~, 첫교환 2027
+- 고팍스: 데이터수집 2026-01-01~, 첫교환 2027
+
+### 글로벌 거래소
+- Binance: 첫교환 2028, UAE ADGM 법인(2026-01-05 케이맨→UAE 이전 완료), 데이터수집 2027-01-01~, 한국 FIU 미등록·앱 차단
+- OKX: 첫교환 2028, 세이셸, 데이터수집 2027-01-01~, 한국 차단
+- Bybit: 첫교환 2028, BVI, 데이터수집 2027-01-01~, 한국 차단
+- Bitget: 첫교환 2028, 세이셸, 데이터수집 2027-01-01~, 한국 차단
+- Bitfinex: 첫교환 2028, BVI, 데이터수집 2027-01-01~
+- Gate.io: 첫교환 2027, 케이맨, 데이터수집 2026-01-01~, 한국을 서비스 제한 지역 명시
+- Kraken: 첫교환 2029, 미국(미국은 CARF 미채택, 자체 일정), 한국 공식 서비스 없음
+- Coinbase: 첫교환 2029, 미국, 한국 공식 서비스 없음
+- KuCoin: CARF 미가입(터크스케이커스), 세금추적 사각지대, 한국 차단
+- HTX(Huobi): CARF 미가입(파나마), 세금추적 사각지대
+
+### 핵심 요약
+- 한국 5대 거래소: 2026-01-01부터 데이터 수집 중, 2027년 첫 교환
+- Binance: 2026-01-05 UAE 이전으로 케이맨 2027→UAE 2028로 변경됨
+- KuCoin·HTX: CARF 완전 사각지대
+- 한국 가상자산 과세(2027-01) + CARF 첫 교환(2027) 동시 시행 예정
+"""
+
 
 class ChatMessage(BaseModel):
     role: str
@@ -42,7 +71,8 @@ def _build_system_prompt(db: Session) -> str:
     ]
 
     if latest_run is None:
-        lines.append("현재 최신 데이터가 없습니다. 아직 크롤링이 실행되지 않았습니다.")
+        lines.append("현재 수수료/시세 데이터가 없습니다. 아직 크롤링이 실행되지 않았습니다.")
+        lines.append(_CARF_SECTION)
         return "\n".join(lines)
 
     # 티커 데이터
@@ -93,6 +123,8 @@ def _build_system_prompt(db: Session) -> str:
                 fee_str += f" + {r.fee_fixed_sat} sat"
             lines.append(f"- {r.service_name}: {fee_str}")
         lines.append("")
+
+    lines.append(_CARF_SECTION)
 
     return "\n".join(lines)
 
