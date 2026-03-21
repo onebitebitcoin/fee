@@ -15,8 +15,6 @@ type Props = {
   expandedPathId: string;
   globalExchange: string;
   mode: PathMode;
-  carfBlackbox: boolean;
-  isCarfAffected: (koreanExchange: string) => boolean;
   onToggleExpand: (pathId: string) => void;
 };
 
@@ -27,8 +25,6 @@ export function PathTable({
   expandedPathId,
   globalExchange,
   mode,
-  carfBlackbox,
-  isCarfAffected,
   onToggleExpand,
 }: Props) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -56,11 +52,10 @@ export function PathTable({
         <tbody>
           {visiblePaths.map((path) => {
             const isExpanded = expandedPathId === path.path_id;
-            const dimmed = carfBlackbox && isCarfAffected(path.korean_exchange);
             return (
               <Fragment key={path.path_id}>
                 <tr
-                  className={`cursor-pointer border-b border-dark-200 transition-colors ${isExpanded ? 'bg-dark-400' : 'bg-dark-500 hover:bg-dark-400'} ${dimmed ? 'opacity-30 grayscale pointer-events-none' : ''}`}
+                  className={`cursor-pointer border-b border-dark-200 transition-colors ${isExpanded ? 'bg-dark-400' : 'bg-dark-500 hover:bg-dark-400'}`}
                   onClick={() => onToggleExpand(path.path_id)}
                 >
                   <td className="px-5 py-3.5">

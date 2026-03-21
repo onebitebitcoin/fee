@@ -5,7 +5,6 @@ import { PathFilterBar } from '../components/cheapest-path/PathFilterBar';
 import { PathMobileList } from '../components/cheapest-path/PathMobileList';
 import { PathTable } from '../components/cheapest-path/PathTable';
 import { RouteDetailPopup } from '../components/cheapest-path/RouteDetailPopup';
-import { GLOBAL_EXCHANGES, KOREAN_EXCHANGES } from '../data/carfData';
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import { formatCurrency, formatNumber, formatPercent, formatSats } from '../lib/formatBtc';
@@ -13,11 +12,6 @@ import { formatTopPathSequence, getFeeTone } from '../lib/pathUtils';
 import { useCheapestPath } from '../hooks/useCheapestPath';
 import { usePathFilters } from '../hooks/usePathFilters';
 import type { AccessStats, PathMode } from '../types';
-
-const CARF_2027_IDS = new Set([
-  ...KOREAN_EXCHANGES.filter((e) => e.carfGroup === '2027').map((e) => e.id),
-  ...GLOBAL_EXCHANGES.filter((e) => e.carfGroup === '2027').map((e) => e.id),
-]);
 
 const DEFAULT_AMOUNT_MANWON = 100;
 
@@ -46,18 +40,15 @@ function categorizeFees(components: { label: string; amount_krw: number }[]) {
 }
 
 export function CheapestPathPage() {
-  const [mode, setMode] = useState<PathMode>('buy');
+  const mode: PathMode = 'buy';
   const [amountKrwInput, setAmountKrwInput] = useState(String(DEFAULT_AMOUNT_MANWON));
   const [amountUnit, setAmountUnit] = useState<'만원' | '억원'>('만원');
-  const [amountBtcInput, setAmountBtcInput] = useState('0.01');
-  const [walletUtxoCountInput, setWalletUtxoCountInput] = useState('1');
   const [globalExchange] = useState('binance');
   const [selectedPathId, setSelectedPathId] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [mobileRouteDetailOpen, setMobileRouteDetailOpen] = useState(false);
   const [expandedPathId, setExpandedPathId] = useState('');
   const [accessStats, setAccessStats] = useState<AccessStats | null>(null);
-  const [carfBlackbox, setCarfBlackbox] = useState(false);
   const [activePreset, setActivePreset] = useState<FilterPresetId>('non_kyc');
 
   const { data, loading, submitting, setSubmitting, error, load } = useCheapestPath();
@@ -74,18 +65,9 @@ export function CheapestPathPage() {
 
   const activeGlobalExchange = data?.global_exchange ?? globalExchange;
 
-  const isCarfAffected = useCallback(
-    (koreanExchange: string) => CARF_2027_IDS.has(koreanExchange) || CARF_2027_IDS.has(activeGlobalExchange),
-    [activeGlobalExchange],
-  );
-
   useEffect(() => {
     api.getAccessCount().then(setAccessStats).catch(() => setAccessStats(null));
   }, []);
-
-  useEffect(() => {
-    setPathShortcut(mode === 'sell' ? 'default' : 'non_kyc');
-  }, [mode, setPathShortcut]);
 
   // 페이지 최초 로딩 시 기본값으로 자동 검색
   useEffect(() => {
@@ -141,81 +123,38 @@ export function CheapestPathPage() {
     setHasSearched(true);
     setSubmitting(true);
     const unitMultiplier = amountUnit === '만원' ? 10000 : 100000000;
-    await load(
-      mode === 'sell'
-        ? { mode, amountBtc: Math.max(Number(amountBtcInput) || 0.01, 0.00000001), walletUtxoCount: Math.max(Math.floor(Number(walletUtxoCountInput) || 1), 1), globalExchange }
-        : { mode, amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * unitMultiplier, 10000), globalExchange },
-    );
-  }, [mode, amountBtcInput, walletUtxoCountInput, amountKrwInput, amountUnit, globalExchange, load, setSubmitting]);
+    await load({ mode, amountKrw: Math.max((Number(amountKrwInput) || DEFAULT_AMOUNT_MANWON) * unitMultiplier, 10000), globalExchange });
+  }, [amountKrwInput, amountUnit, globalExchange, load, mode, setSubmitting]);
 
   return (
     <div className="space-y-0 border border-dark-200">
       {/* Form */}
       <div className="border-b border-dark-200 bg-dark-500 px-4 py-3 sm:px-5">
-        {/* Mode + stats */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setMode('buy')} className={`px-2.5 py-1 text-xs font-semibold transition-colors border ${mode === 'buy' ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>살 때</button>
-          <button type="button" onClick={() => setMode('sell')} className={`px-2.5 py-1 text-xs font-semibold transition-colors border ${mode === 'sell' ? 'border-bnb-red/40 bg-bnb-red/10 text-bnb-red' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>팔 때</button>
-          <div className="ml-auto flex items-center gap-1.5 text-xs text-bnb-muted">
-            <Users size={11} />
-            <span>누적 {accessStats?.total.toLocaleString('ko-KR') ?? '-'}회 · 오늘 {accessStats?.today.toLocaleString('ko-KR') ?? '-'}회</span>
-          </div>
+        <div className="mb-2 flex items-center gap-1.5 text-xs text-bnb-muted">
+          <Users size={11} />
+          <span>누적 {accessStats?.total.toLocaleString('ko-KR') ?? '-'}회 · 오늘 {accessStats?.today.toLocaleString('ko-KR') ?? '-'}회</span>
         </div>
-
         <form onSubmit={handleSubmit}>
           <div className="flex flex-wrap items-center gap-2">
             {/* Input 1: amount */}
-            {mode === 'sell' ? (
-              <input type="number" min={0.00000001} step={0.00000001} value={amountBtcInput} onChange={(e) => setAmountBtcInput(e.target.value)} className="w-20 border-b-2 border-bnb-red bg-transparent pb-1 text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted" placeholder="0.01" />
-            ) : (
-              <input type="number" min={1} step={1} value={amountKrwInput} onChange={(e) => setAmountKrwInput(e.target.value)} className="w-20 border-b-2 border-brand-500 bg-transparent pb-1 text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted" placeholder="100" />
-            )}
-
+            <input type="number" min={1} step={1} value={amountKrwInput} onChange={(e) => setAmountKrwInput(e.target.value)} className="w-20 border-b-2 border-brand-500 bg-transparent pb-1 text-2xl font-bold text-bnb-text outline-none placeholder:text-bnb-muted" placeholder="100" />
             {/* Input 2: unit */}
-            {mode === 'sell' ? (
-              <span className="text-sm font-medium text-bnb-muted">BTC</span>
-            ) : (
-              <select value={amountUnit} onChange={(e) => setAmountUnit(e.target.value as '만원' | '억원')} className="border border-dark-200 bg-dark-400 px-2 py-1 text-sm font-semibold text-bnb-text outline-none focus:border-brand-500/50 cursor-pointer">
-                <option value="만원">만원</option>
-                <option value="억원">억원</option>
-              </select>
-            )}
-
+            <select value={amountUnit} onChange={(e) => setAmountUnit(e.target.value as '만원' | '억원')} className="border border-dark-200 bg-dark-400 px-2 py-1 text-sm font-semibold text-bnb-text outline-none focus:border-brand-500/50 cursor-pointer">
+              <option value="만원">만원</option>
+              <option value="억원">억원</option>
+            </select>
             <div className="h-4 w-px bg-dark-200 mx-0.5" />
-
-            {/* Input 3: filter preset (buy only) */}
-            {mode === 'buy' && FILTER_PRESETS.map((p) => (
+            {/* Input 3: filter preset */}
+            {FILTER_PRESETS.map((p) => (
               <button key={p.id} type="button" onClick={() => applyPreset(p.id)} className={`px-2.5 py-1 text-xs font-semibold transition-colors border ${activePreset === p.id ? 'border-brand-500/40 bg-brand-500/10 text-brand-400' : 'border-dark-200 text-bnb-muted hover:text-bnb-text'}`}>
                 {p.label}
               </button>
             ))}
-
-            <button type="submit" disabled={submitting} className={`ml-auto flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-dark-500 transition-colors disabled:opacity-50 ${mode === 'sell' ? 'bg-bnb-red hover:bg-bnb-red/90' : 'bg-brand-600 hover:bg-brand-500'}`}>
+            <button type="submit" disabled={submitting} className="ml-auto flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-dark-500 transition-colors disabled:opacity-50 bg-brand-600 hover:bg-brand-500">
               <Search size={11} />
               {submitting ? '검색 중' : '검색'}
             </button>
           </div>
-
-          {/* Sell mode: UTXO input */}
-          {mode === 'sell' ? (
-            <div className="mt-3 grid gap-3 border border-dark-200 bg-dark-400/40 p-3 sm:grid-cols-[minmax(0,10rem)_1fr] sm:items-end">
-              <label className="flex flex-col gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-bnb-muted">지갑 UTXO 개수</span>
-                <input type="number" min={1} step={1} value={walletUtxoCountInput} onChange={(e) => setWalletUtxoCountInput(e.target.value)} className="w-full border border-dark-200 bg-dark-500 px-3 py-2 text-base font-semibold text-bnb-text outline-none transition-colors focus:border-bnb-red" aria-label="지갑 UTXO 개수" />
-              </label>
-              <div className="space-y-1.5">
-                <p className="text-xs text-bnb-text">Native SegWit(P2WPKH) · 받는 주소 1개 + 거스름돈 1개 기준</p>
-                {data?.mode === 'sell' && data.wallet_fee_estimate ? (
-                  <div className="space-y-1 text-xs text-bnb-muted">
-                    <p>mempool.space 중간 수수료 <span className="font-data text-bnb-text">{formatFeeRateSatVb(data.wallet_fee_estimate.medium_fee_rate_sat_vb)}</span> · 예상 크기 <span className="font-data text-bnb-text">{formatNumber(data.wallet_fee_estimate.estimated_tx_vbytes)} vB</span> · 전송 수수료 <span className="font-data text-bnb-red">{formatNumber(data.wallet_fee_estimate.fee_sats)} sats</span></p>
-                    <p>{formatNumber(data.wallet_fee_estimate.utxo_count)} UTXO 입력 기준 · 약 <span className="font-data text-bnb-text">{formatCurrency(data.wallet_fee_estimate.fee_krw)}</span></p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-bnb-muted">검색 시 현재 mempool.space 중간 수수료율로 지갑 전송 수수료를 함께 계산합니다.</p>
-                )}
-              </div>
-            </div>
-          ) : null}
         </form>
       </div>
 
@@ -264,9 +203,9 @@ export function CheapestPathPage() {
       {!loading && hasSearched && data && !error ? (
         <>
           {bestVisiblePath ? (
-            <div className={`border-b border-dark-200 ${carfBlackbox && isCarfAffected(bestVisiblePath.korean_exchange) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+            <div className="border-b border-dark-200">
               <div className="bg-dark-400 p-4 sm:p-5">
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.3em] ${mode === 'sell' ? 'text-bnb-red' : 'text-brand-400'}`}>{mode === 'sell' ? '비트코인 팔 때 경로' : '최적 경로'}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand-400">최적 경로</p>
                 <div className="mt-3 space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="border border-brand-400/40 bg-brand-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-400">1위</span>
@@ -274,8 +213,8 @@ export function CheapestPathPage() {
                   </div>
                   <div className="divide-y divide-dark-200 border border-dark-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                     <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">{mode === 'sell' ? '예상 KRW 수령' : '수령 sats'}</p>
-                      <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-xl">{mode === 'sell' ? formatCurrency(bestVisiblePath.krw_received ?? 0) : formatSats(bestVisiblePath.btc_received ?? 0)}</p>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">수령 sats</p>
+                      <p className="font-data font-semibold text-bnb-text sm:mt-1 sm:text-xl">{formatSats(bestVisiblePath.btc_received ?? 0)}</p>
                     </div>
                     <div className="flex items-center justify-between bg-dark-500 px-3 py-2.5 sm:flex-col sm:items-start sm:p-4">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-bnb-muted">총 수수료</p>
@@ -335,8 +274,6 @@ export function CheapestPathPage() {
               selectedPathId={selectedPathId}
               globalExchange={activeGlobalExchange}
               mode={mode}
-              carfBlackbox={carfBlackbox}
-              isCarfAffected={isCarfAffected}
               onSelectPath={setSelectedPathId}
               onOpenDetail={(pathId) => { setSelectedPathId(pathId); setMobileRouteDetailOpen(true); }}
             />
@@ -345,8 +282,6 @@ export function CheapestPathPage() {
               expandedPathId={expandedPathId}
               globalExchange={activeGlobalExchange}
               mode={mode}
-              carfBlackbox={carfBlackbox}
-              isCarfAffected={isCarfAffected}
               onToggleExpand={(pathId) => setExpandedPathId((prev) => prev === pathId ? '' : pathId)}
             />
           </div>

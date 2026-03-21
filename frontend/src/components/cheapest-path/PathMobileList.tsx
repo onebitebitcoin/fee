@@ -14,8 +14,6 @@ type Props = {
   selectedPathId: string;
   globalExchange: string;
   mode: PathMode;
-  carfBlackbox: boolean;
-  isCarfAffected: (koreanExchange: string) => boolean;
   onSelectPath: (pathId: string) => void;
   onOpenDetail: (pathId: string) => void;
 };
@@ -26,8 +24,6 @@ export function PathMobileList({
   filteredPaths,
   selectedPathId,
   mode,
-  carfBlackbox,
-  isCarfAffected,
   onSelectPath,
   onOpenDetail,
 }: Props) {
@@ -44,11 +40,10 @@ export function PathMobileList({
     <div className="divide-y divide-dark-200 md:hidden">
       {visiblePaths.map((path) => {
         const isHighlighted = selectedPathId === path.path_id;
-        const dimmed = carfBlackbox && isCarfAffected(path.korean_exchange);
         return (
           <article
             key={`mobile-${path.path_id}`}
-            className={`space-y-2.5 p-3 ${isHighlighted ? 'bg-brand-500/10' : 'bg-dark-500'} ${dimmed ? 'opacity-30 grayscale pointer-events-none' : ''}`}
+            className={`space-y-2.5 p-3 ${isHighlighted ? 'bg-brand-500/10' : 'bg-dark-500'}`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
