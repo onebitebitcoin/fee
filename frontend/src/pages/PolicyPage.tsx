@@ -114,8 +114,8 @@ function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '�
           {CARF_GROUP_LABELS[exchange.carfGroup]}
         </span>
         {exchange.koreaBlocked ? (
-          <span className="hidden sm:inline-flex items-center gap-1 rounded border border-bnb-red/30 bg-bnb-red/10 px-2 py-0.5 text-[11px] font-semibold text-bnb-red">
-            <XCircle size={10} /> 국내 미신고 가상자산사업자
+          <span title="국내 가상자산 사업자 미신고" className="hidden sm:inline-flex items-center gap-1 rounded border border-bnb-red/30 bg-bnb-red/10 px-2 py-0.5 text-[11px] font-semibold text-bnb-red cursor-help">
+            <XCircle size={10} /> 미신고
           </span>
         ) : null}
         {exchange.koreaService && !exchange.koreaBlocked ? (
@@ -334,8 +334,8 @@ export function PolicyPage() {
                         <CheckCircle size={11} /> 제공
                       </span>
                     ) : exchange.koreaBlocked ? (
-                      <span className="inline-flex items-center gap-1 text-bnb-red">
-                        <XCircle size={11} /> 국내 미신고 가상자산사업자
+                      <span title="국내 가상자산 사업자 미신고" className="inline-flex items-center gap-1 text-bnb-red cursor-help">
+                        <XCircle size={11} /> 미신고
                       </span>
                     ) : (
                       <span className="text-bnb-muted">미제공</span>
