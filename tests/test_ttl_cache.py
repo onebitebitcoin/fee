@@ -38,3 +38,12 @@ def test_cache_invalidate_removes_entry():
 def test_cache_invalidate_nonexistent_key_no_error():
     cache = _make_cache(ttl=60)
     cache.invalidate('nonexistent')  # 오류 없이 실행되어야 함
+
+
+def test_cache_clear_removes_all_entries():
+    cache = _make_cache(ttl=60)
+    cache.set('a', 1)
+    cache.set('b', 2)
+    cache.clear()
+    assert cache.get('a') is None
+    assert cache.get('b') is None

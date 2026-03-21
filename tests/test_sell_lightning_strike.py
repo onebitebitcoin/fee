@@ -12,8 +12,18 @@ from backend.app.db.models import (
     TickerSnapshot,
     WithdrawalFeeSnapshot,
 )
+import pytest
+
+from backend.app.api.routes.market import _cheapest_path_cache
 from backend.app.db.session import get_db
 from backend.app.main import app
+
+
+@pytest.fixture(autouse=True)
+def clear_cheapest_path_cache():
+    _cheapest_path_cache.clear()
+    yield
+    _cheapest_path_cache.clear()
 
 
 def _make_session():

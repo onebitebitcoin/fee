@@ -32,8 +32,12 @@ class _TtlCache:
     def invalidate(self, key: str) -> None:
         self._store.pop(key, None)
 
+    def clear(self) -> None:
+        self._store.clear()
+
 
 _status_cache = _TtlCache(ttl=60)
+_cheapest_path_cache = _TtlCache(ttl=30)
 
 
 def _get_status_cache() -> dict | None:
@@ -46,6 +50,7 @@ def _set_status_cache(data: dict) -> None:
 
 def invalidate_status_cache() -> None:
     _status_cache.invalidate('status')
+    _cheapest_path_cache.clear()
 
 
 def _ts(dt_val) -> int | None:
@@ -244,6 +249,11 @@ def get_cheapest_path(
 ) -> dict:
     repositories.record_access(db)
     latest_run = repositories.get_latest_successful_run(db)
+    _run_id = latest_run.id if latest_run else None
+    _cache_key = f"{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{global_exchange}:{_run_id}"
+    _cached = _cheapest_path_cache.get(_cache_key)
+    if _cached is not None:
+        return _cached
     ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
     withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
     network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
@@ -310,7 +320,9 @@ def get_cheapest_path(
         )
     if payload.get('error'):
         raise HTTPException(status_code=503, detail=payload['error'])
-    return _enrich_path_payload_with_kyc(payload, global_exchange)
+    result = _enrich_path_payload_with_kyc(payload, global_exchange)
+    _cheapest_path_cache.set(_cache_key, result)
+    return result
 
 
 @router.get('/scrape-status')
