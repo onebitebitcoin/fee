@@ -109,7 +109,7 @@ def chat_message(body: ChatRequest, db: Session = Depends(get_db)) -> ChatRespon
     messages.append({"role": "user", "content": body.message})
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
         messages=messages,
         max_tokens=1024,
         temperature=0.3,
