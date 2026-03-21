@@ -466,21 +466,6 @@ export function ExchangeCarfGlobe({
 
         {/* Right panel */}
         <div className="space-y-4">
-          <div className="rounded border border-dark-200 bg-dark-400/30" data-testid="selected-route-summary">
-            <div className="border-b border-dark-200 px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <Route size={13} className="text-brand-400" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
-                  선택 경로 포커스
-                </span>
-              </div>
-            </div>
-            <div>
-              <SelectedExchangeCard exchange={selectedSource} label="출발 거래소" />
-              <SelectedExchangeCard exchange={selectedDestination} label="도착 거래소" />
-            </div>
-          </div>
-
           <div className="rounded border border-dark-200 bg-dark-400/30">
             <div className="border-b border-dark-200 px-4 py-2.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-bnb-muted">
