@@ -1,10 +1,11 @@
-import { Building2, RefreshCw, Route, Shield } from 'lucide-react';
+import { Building2, Mail, RefreshCw, Route, Shield } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
   { to: '/fee', label: '수수료', icon: Route },
   { to: '/status', label: '현황', icon: Building2 },
   { to: '/carf', label: 'CARF', icon: Shield },
+  { to: '/contact', label: '문의', icon: Mail },
   { to: '/runs', label: '크롤링', icon: RefreshCw },
 ];
 

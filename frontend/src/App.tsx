@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminGuard } from './components/AdminGuard';
 import { Layout } from './components/Layout';
 import { CheapestPathPage } from './pages/CheapestPathPage';
+import { ContactPage } from './pages/ContactPage';
 import { ExchangeStatusPage } from './pages/ExchangeStatusPage';
 import { PolicyPage } from './pages/PolicyPage';
 import { RunsPage } from './pages/RunsPage';
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/network-status" element={<Navigate to="/status" replace />} />
         <Route path="/status" element={<ExchangeStatusPage />} />
         <Route path="/carf" element={<PolicyPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/runs" element={<AdminGuard><RunsPage /></AdminGuard>} />
       </Route>
       <Route path="*" element={<Navigate to={DEFAULT_ROUTE} replace />} />
