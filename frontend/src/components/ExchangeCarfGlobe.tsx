@@ -2,7 +2,7 @@ import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo } from '../data/carfData';
+import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo } from '../types/carf';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import worldData from 'world-atlas/countries-110m.json';
@@ -200,13 +200,6 @@ export function ExchangeCarfGlobe({
     const el = itemRefs.current[clickedExchangeId];
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [clickedExchangeId]);
-
-  const handleReset = useCallback(() => {
-    rotationRef.current = [...INITIAL_ROTATION] as Rotation;
-    velocityRef.current = [0, 0];
-    setRotation(INITIAL_ROTATION);
-    autoRotateActive.current = true;
-  }, []);
 
   // Compute all globe paths and visible marker positions
   const { landPath, gratPath, arcPath, markers } = useMemo(() => {

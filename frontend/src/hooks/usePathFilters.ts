@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react';
 
-import { GLOBAL_EXCHANGES } from '../data/carfData';
 import { canonicalNetwork, getSellFirstHopKyc, sortAllPaths } from '../lib/pathUtils';
 import type { CheapestPathResponse, PathMode } from '../types';
 import type { VisibleRankedPath } from '../lib/pathUtils';
+
+const CARF_FIRST_EXCHANGE: Record<string, string> = {
+  upbit: '2027', bithumb: '2027', coinone: '2027', korbit: '2027', gopax: '2027',
+  binance: '2028', okx: '2028', bybit: '2028', bitget: '2028', bitfinex: '2028',
+  gate: '2027', kraken: '2029', coinbase: '2029',
+};
 
 /**
  * 글로벌 거래소의 CARF 정보 교환이 현재 연도 기준으로 이미 발효되었는지 반환.
@@ -11,9 +16,9 @@ import type { VisibleRankedPath } from '../lib/pathUtils';
  * not_member 또는 carfFirstExchange가 null이면 false (비회원 → 발효 안 됨).
  */
 function isGlobalExchangeCarfActive(exchangeId: string): boolean {
-  const exchange = GLOBAL_EXCHANGES.find((e) => e.id === exchangeId);
-  if (!exchange || !exchange.carfFirstExchange || exchange.carfGroup === 'not_member') return false;
-  return parseInt(exchange.carfFirstExchange, 10) <= new Date().getFullYear();
+  const year = CARF_FIRST_EXCHANGE[exchangeId];
+  if (!year) return false;
+  return parseInt(year, 10) <= new Date().getFullYear();
 }
 
 const DEFAULT_EXCLUDED_NETWORKS = ['Aptos', 'Kaia', 'ERC20'];

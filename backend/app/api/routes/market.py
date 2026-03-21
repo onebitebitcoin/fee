@@ -422,3 +422,33 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
             for row in rows
         ]
     }
+
+
+@router.get('/carf-exchanges')
+def get_carf_exchanges(db: Session = Depends(get_db)) -> dict:
+    """CARF 거래소 정보 목록 반환"""
+    import json
+    rows = repositories.list_carf_exchanges(db)
+    exchanges = []
+    for r in rows:
+        exchanges.append({
+            'id': r.id,
+            'name': r.name,
+            'shortName': r.short_name,
+            'type': r.type,
+            'registeredCountry': r.registered_country,
+            'carfGroup': r.carf_group,
+            'carfDataCollectionStart': r.carf_data_collection_start,
+            'carfFirstExchange': r.carf_first_exchange,
+            'koreaService': r.korea_service,
+            'koreaBlocked': r.korea_blocked,
+            'koreaImpact': r.korea_impact,
+            'impactDetail': r.impact_detail,
+            'travelRuleKorea': r.travel_rule_korea,
+            'travelRuleNote': r.travel_rule_note,
+            'koreaUserJurisdiction': r.korea_user_jurisdiction,
+            'koreaUserJurisdictionNote': r.korea_user_jurisdiction_note,
+            'mapLocation': json.loads(r.map_location_json) if r.map_location_json else None,
+            'sources': json.loads(r.sources_json) if r.sources_json else None,
+        })
+    return {'exchanges': exchanges}

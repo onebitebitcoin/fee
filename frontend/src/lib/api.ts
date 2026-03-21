@@ -1,3 +1,4 @@
+import type { ExchangeCarfInfo } from '../types/carf';
 import type {
   AccessStats,
   CheapestPathResponse,
@@ -57,4 +58,6 @@ export const api = {
   getExchangeStatus: (): Promise<ExchangeStatusResponse> => request('/api/v1/market/status'),
   getLatestNotices: (): Promise<{ items: ExchangeNoticeItem[] }> =>
     request('/api/v1/market/notices/latest'),
+  getCARFExchanges: (): Promise<{ exchanges: ExchangeCarfInfo[] }> =>
+    request('/api/v1/market/carf-exchanges'),
 };

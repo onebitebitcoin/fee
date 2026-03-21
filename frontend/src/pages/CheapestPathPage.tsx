@@ -49,9 +49,9 @@ export function CheapestPathPage() {
   const { data, loading, submitting, setSubmitting, error, load } = useCheapestPath();
   const {
     setPathShortcut,
-    includeLightning, setIncludeLightning,
+    setIncludeLightning,
     setLightningOnly,
-    cheapestComboOnly, setCheapestComboOnly,
+    setCheapestComboOnly,
     includeAllUsdtNetworks, toggleAllUsdtNetworks,
     rankedPaths, filteredPaths,
   } = usePathFilters(data, mode);

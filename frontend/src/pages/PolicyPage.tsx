@@ -1,18 +1,18 @@
 import { AlertTriangle, ArrowDown, ArrowRight, Ban, BookOpen, ChevronDown, CheckCircle, ExternalLink, Globe, ShieldAlert, ShieldCheck, ShieldOff, Shuffle, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ExchangeCarfGlobe } from '../components/ExchangeCarfGlobe';
-import {
-  ALL_EXCHANGES,
-  CARF_GROUP_LABELS,
-  CarfGroup,
-  ExchangeCarfInfo,
-  ExchangeSource,
-  GLOBAL_EXCHANGES,
-  KEY_INSIGHTS,
-  KOREAN_EXCHANGES,
-  TravelRuleStatus,
-} from '../data/carfData';
+import { api } from '../lib/api';
+import { CARF_GROUP_LABELS, CarfGroup, ExchangeCarfInfo, ExchangeSource, TravelRuleStatus } from '../types/carf';
+
+const KEY_INSIGHTS = [
+  '한국 5대 원화 거래소는 모두 2027년 CARF 첫 교환 대상',
+  '2026년 1월 1일부터 데이터 수집 이미 시작 — 현재 모든 거래 기록 중',
+  'Gate.io가 한국 공식 서비스 제공 유일 글로벌 거래소 + 케이맨 CARF 2027 적용',
+  'KuCoin·HTX는 CARF 완전 사각지대 — 세금 추적 불가',
+  '가상자산 과세(2027-01) + CARF 첫 교환(2027) 동시 시행 예정',
+  'Binance: 2026-01-05 UAE ADGM 이전 완료 → CARF 2028 적용 (케이맨 2027에서 변경)',
+];
 
 function carfBadgeClass(group: CarfGroup): string {
   if (group === '2027') return 'border-bnb-green/30 bg-bnb-green/10 text-bnb-green';
@@ -129,12 +129,69 @@ function ExchangeRow({ exchange, side }: { exchange: ExchangeCarfInfo; side: '�
 }
 
 export function PolicyPage() {
-  const [srcId, setSrcId] = useState<string>(KOREAN_EXCHANGES[0].id);
-  const [dstId, setDstId] = useState<string>(GLOBAL_EXCHANGES[0].id);
+  const [exchanges, setExchanges] = useState<ExchangeCarfInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
 
-  const src = KOREAN_EXCHANGES.find((exchange) => exchange.id === srcId) ?? KOREAN_EXCHANGES[0];
-  const dst = GLOBAL_EXCHANGES.find((exchange) => exchange.id === dstId) ?? GLOBAL_EXCHANGES[0];
+  const [srcId, setSrcId] = useState<string>('');
+  const [dstId, setDstId] = useState<string>('');
+
+  useEffect(() => {
+    api.getCARFExchanges()
+      .then((data) => {
+        setExchanges(data.exchanges);
+        const korean = data.exchanges.filter((e) => e.type === 'korean');
+        const global = data.exchanges.filter((e) => e.type === 'global');
+        if (korean.length > 0) setSrcId(korean[0].id);
+        if (global.length > 0) setDstId(global[0].id);
+        setLoading(false);
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  const koreanExchanges = exchanges.filter((e) => e.type === 'korean');
+  const globalExchanges = exchanges.filter((e) => e.type === 'global');
+
+  if (loading) {
+    return (
+      <div className="animate-fade-in-up space-y-5">
+        <div className="border-b border-dark-200 pb-4">
+          <h1 className="font-display text-xl font-bold tracking-tight text-bnb-text">CARF 정책 현황</h1>
+        </div>
+        <div className="py-8 text-center text-sm text-bnb-muted">데이터 로딩 중...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="animate-fade-in-up space-y-5">
+        <div className="border-b border-dark-200 pb-4">
+          <h1 className="font-display text-xl font-bold tracking-tight text-bnb-text">CARF 정책 현황</h1>
+        </div>
+        <div className="py-8 text-center text-sm text-bnb-red">{error}</div>
+      </div>
+    );
+  }
+
+  const src = koreanExchanges.find((e) => e.id === srcId) ?? koreanExchanges[0];
+  const dst = globalExchanges.find((e) => e.id === dstId) ?? globalExchanges[0];
+
+  if (!src || !dst) {
+    return (
+      <div className="animate-fade-in-up space-y-5">
+        <div className="border-b border-dark-200 pb-4">
+          <h1 className="font-display text-xl font-bold tracking-tight text-bnb-text">CARF 정책 현황</h1>
+        </div>
+        <div className="py-8 text-center text-sm text-bnb-muted">거래소 데이터가 없습니다.</div>
+      </div>
+    );
+  }
+
   const combined = combinedYear(src, dst);
   const isImpossible = dst.travelRuleKorea === 'none';
 
@@ -154,7 +211,7 @@ export function PolicyPage() {
               onChange={(event) => setSrcId(event.target.value)}
               className="w-full border border-dark-200 bg-dark-400 px-2.5 py-1.5 text-sm text-bnb-text focus:border-brand-500 focus:outline-none"
             >
-              {KOREAN_EXCHANGES.map((exchange) => (
+              {koreanExchanges.map((exchange) => (
                 <option key={exchange.id} value={exchange.id}>
                   {exchange.name}
                 </option>
@@ -174,7 +231,7 @@ export function PolicyPage() {
               onChange={(event) => { setDstId(event.target.value); setShowSources(false); }}
               className="w-full border border-dark-200 bg-dark-400 px-2.5 py-1.5 text-sm text-bnb-text focus:border-brand-500 focus:outline-none"
             >
-              {GLOBAL_EXCHANGES.map((exchange) => (
+              {globalExchanges.map((exchange) => (
                 <option key={exchange.id} value={exchange.id}>
                   {exchange.name}
                 </option>
@@ -230,7 +287,7 @@ export function PolicyPage() {
         )}
       </div>
 
-      <ExchangeCarfGlobe exchanges={ALL_EXCHANGES} selectedSourceId={src.id} selectedDestinationId={dst.id} />
+      <ExchangeCarfGlobe exchanges={exchanges} selectedSourceId={src.id} selectedDestinationId={dst.id} />
 
       <div className="divide-y divide-dark-200 border border-dark-200">
         <div className="px-4 py-2.5">
@@ -269,7 +326,7 @@ export function PolicyPage() {
                   한국 거래소
                 </td>
               </tr>
-              {KOREAN_EXCHANGES.map((exchange) => (
+              {koreanExchanges.map((exchange) => (
                 <tr key={exchange.id} className="transition-colors hover:bg-dark-400/30">
                   <td className="whitespace-nowrap px-4 py-2.5 font-medium text-bnb-text">{exchange.name}</td>
                   <td className="hidden whitespace-nowrap px-4 py-2.5 text-bnb-muted sm:table-cell">{exchange.registeredCountry}</td>
@@ -306,7 +363,7 @@ export function PolicyPage() {
                   글로벌 거래소
                 </td>
               </tr>
-              {GLOBAL_EXCHANGES.map((exchange) => (
+              {globalExchanges.map((exchange) => (
                 <tr key={exchange.id} className="group transition-colors hover:bg-dark-400/30">
                   <td className="px-4 py-2.5 font-medium text-bnb-text">
                     <span className="whitespace-nowrap">{exchange.name}</span>

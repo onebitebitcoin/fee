@@ -1,7 +1,7 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ExchangeCarfGlobe } from './ExchangeCarfGlobe';
-import type { ExchangeCarfInfo } from '../data/carfData';
+import type { ExchangeCarfInfo } from '../types/carf';
 
 const MOCK_EXCHANGES: ExchangeCarfInfo[] = [
   {

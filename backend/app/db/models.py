@@ -157,3 +157,27 @@ class ExchangeNotice(Base):
     noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_notices')
+
+
+class CarfExchangeInfo(Base):
+    __tablename__ = 'carf_exchange_info'
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    short_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    registered_country: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    carf_group: Mapped[str] = mapped_column(String(16), nullable=False)
+    carf_data_collection_start: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    carf_first_exchange: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    korea_service: Mapped[bool] = mapped_column(Boolean, default=False)
+    korea_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    korea_impact: Mapped[str] = mapped_column(String(16), nullable=False)
+    impact_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    travel_rule_korea: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    travel_rule_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    korea_user_jurisdiction: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    korea_user_jurisdiction_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    map_location_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sources_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

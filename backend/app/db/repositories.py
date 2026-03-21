@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
+from backend.app.db.models import CarfExchangeInfo
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -140,4 +141,9 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
         .order_by(nullslast(desc(ExchangeNotice.published_at)), desc(ExchangeNotice.noticed_at))
         .limit(limit)
     )
+    return list(db.scalars(stmt))
+
+
+def list_carf_exchanges(db: Session) -> list[CarfExchangeInfo]:
+    stmt = select(CarfExchangeInfo).order_by(CarfExchangeInfo.type, CarfExchangeInfo.id)
     return list(db.scalars(stmt))

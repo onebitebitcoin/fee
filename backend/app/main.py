@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.api.router import api_router
 from backend.app.core.config import get_settings
 from backend.app.db.bootstrap import init_db
+from backend.app.db.carf_seed import seed_carf_exchanges
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def _warm_withdrawal_cache() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    seed_carf_exchanges()
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor(max_workers=1)
     loop.run_in_executor(executor, _warm_withdrawal_cache)

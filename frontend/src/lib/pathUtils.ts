@@ -2,10 +2,14 @@ import type { CheapestPathEntry, CheapestPathFeeComponent, PathMode } from '../t
 import { formatCurrency, formatPercent, formatSats } from './formatBtc';
 import { fmtEx } from './exchangeNames';
 import { localizeUiLabel } from './localizeUi';
-import { ALL_EXCHANGES } from '../data/carfData';
+const CARF_FIRST_EXCHANGE: Record<string, string> = {
+  upbit: '2027', bithumb: '2027', coinone: '2027', korbit: '2027', gopax: '2027',
+  binance: '2028', okx: '2028', bybit: '2028', bitget: '2028', bitfinex: '2028',
+  gate: '2027', kraken: '2029', coinbase: '2029',
+};
 
 function lookupCarfFirstExchange(exchangeId: string): string | null {
-  return ALL_EXCHANGES.find((e) => e.id === exchangeId)?.carfFirstExchange ?? null;
+  return CARF_FIRST_EXCHANGE[exchangeId] ?? null;
 }
 
 export type RankedPath = CheapestPathEntry & { rank: number };
