@@ -24,11 +24,9 @@ export function Layout() {
                 width={36}
                 height={36}
               />
-              <span className="live-dot absolute -bottom-0.5 -right-0.5" aria-label="실시간" />
             </div>
             <div>
               <p className="text-sm font-bold text-bnb-text font-display tracking-tight">한입 비트코인 경로</p>
-              <p className="text-[11px] text-bnb-muted tracking-wide">실시간 수수료 비교</p>
             </div>
           </NavLink>
 

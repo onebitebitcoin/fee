@@ -17,7 +17,7 @@ const DEFAULT_AMOUNT_MANWON = 100;
 
 const FILTER_PRESETS = [
   { id: 'non_kyc',       label: '최소 KYC' },
-  { id: 'cheapest',      label: '최저만' },
+  { id: 'cheapest',      label: '최소 수수료' },
   { id: 'no_lightning',  label: '라이트닝 제외' },
   { id: 'with_lightning',label: '라이트닝 포함' },
 ] as const;
