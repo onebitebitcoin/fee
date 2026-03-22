@@ -259,7 +259,7 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
     {
       label: fmtEx(globalExchange),
       rawName: globalExchange,
-      sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT 입금' : '글로벌 거래소 · 비트코인 입금',
+      sub: path.transfer_coin === 'USDT' ? '글로벌 거래소 · USDT → BTC 매수' : '글로벌 거래소 · 비트코인 입금',
       active: true,
       variant: 'exchange' as const,
       kycStatus: path.global_kyc_status,
