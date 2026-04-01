@@ -87,6 +87,10 @@ export function formatTopPathSequence(path: CheapestPathEntry, globalExchange: s
     }
   }
 
+  const isBtcDirect = path.transfer_coin === 'BTC' && !path.lightning_exit_provider;
+  if (isBtcDirect) {
+    return [fmtEx(path.korean_exchange), '개인 지갑'].join(' → ');
+  }
   const parts = [fmtEx(path.korean_exchange), fmtEx(globalExchange)];
   if (path.lightning_exit_provider) {
     parts.push(path.lightning_exit_provider);
@@ -237,6 +241,33 @@ export function buildPathSteps(path: CheapestPathEntry, globalExchange: string, 
           },
         ];
     }
+  }
+
+  if (path.transfer_coin === 'BTC' && !path.lightning_exit_provider) {
+    return [
+      {
+        label: fmtEx(path.korean_exchange),
+        rawName: path.korean_exchange,
+        sub: '한국 거래소',
+        active: true,
+        variant: 'exchange' as const,
+        kycStatus: path.domestic_kyc_status,
+        carfFirstExchange: lookupCarfFirstExchange(path.korean_exchange),
+        ...buildStepFeeDetails(components.slice(0, 1)),
+      },
+      {
+        label: path.transfer_coin,
+        sub: localizeUiLabel(path.domestic_withdrawal_network),
+        active: true,
+        ...buildStepFeeDetails(components.slice(1, 2)),
+      },
+      {
+        label: '개인 지갑',
+        sub: formatSats(path.btc_received ?? 0),
+        active: true,
+        kycStatus: path.wallet_kyc_status,
+      },
+    ];
   }
 
   return [

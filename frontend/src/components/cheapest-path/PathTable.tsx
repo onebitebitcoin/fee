@@ -97,8 +97,12 @@ export function PathTable({
                           <ServiceLogo name={path.korean_exchange} variant="exchange" className="h-4 w-4" />
                           <ArrowRight size={10} className="text-dark-100 shrink-0" />
                           <span className="rounded border border-dark-100 px-1 py-0.5 text-[10px] font-medium text-bnb-muted">{path.transfer_coin}</span>
-                          <ArrowRight size={10} className="text-dark-100 shrink-0" />
-                          <ServiceLogo name={globalExchange} variant="exchange" className="h-4 w-4" />
+                          {(path.transfer_coin !== 'BTC' || path.lightning_exit_provider) && (
+                            <>
+                              <ArrowRight size={10} className="text-dark-100 shrink-0" />
+                              <ServiceLogo name={globalExchange} variant="exchange" className="h-4 w-4" />
+                            </>
+                          )}
                           {path.lightning_exit_provider && (
                             <>
                               <ArrowRight size={10} className="text-dark-100 shrink-0" />

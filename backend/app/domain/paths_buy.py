@@ -196,7 +196,7 @@ def _build_usdt_paths(
                 ),
                 fee_component(
                     '해외 BTC 매수 수수료',
-                    round(global_trading_fee_usdt * ctx.usd_krw_rate, 1),
+                    round(global_trading_fee_usdt * ctx.usd_krw_rate),
                     rate_pct=ctx.global_taker * 100,
                     amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
                 ),
@@ -219,7 +219,7 @@ def _build_usdt_paths(
                 ),
                 fee_component(
                     '해외 BTC 매수 수수료',
-                    round(global_trading_fee_usdt * ctx.usd_krw_rate, 1),
+                    round(global_trading_fee_usdt * ctx.usd_krw_rate),
                     rate_pct=ctx.global_taker * 100,
                     amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
                 ),
@@ -390,7 +390,7 @@ def find_cheapest_path_from_snapshot_rows(
                         ),
                         fee_component(
                             '해외 BTC 매수 수수료',
-                            round(global_trading_fee_usdt * ctx.usd_krw_rate, 1),
+                            round(global_trading_fee_usdt * ctx.usd_krw_rate),
                             rate_pct=ctx.global_taker * 100,
                             amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
                         ),
