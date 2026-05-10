@@ -7,6 +7,11 @@
     - title: str
     - url: str | None
     - published_at: datetime | None
+
+다국어 지원 설계:
+  글로벌 거래소(Binance 등)는 _BINANCE_NOTICE_LOCALE 상수로 기본 언어를 제어한다.
+  향후 한국어 공지 추가 시 상수를 'ko'로 변경하거나, get_all_notices()에서
+  locale='ko' 호출을 병행 추가하면 된다.
 """
 from __future__ import annotations
 
@@ -26,6 +31,28 @@ _HEADERS = {
 }
 _MAX_NOTICES = 5   # 반환할 최대 건수
 _MAX_FETCH = 30    # 필터링 전 최대 수집 건수
+
+# --- Binance 다국어 설정 ---
+# 'en' → 영어 공지, 'ko' → 한국어 공지
+# 한국어 지원 시: 이 값을 'ko'로 변경하거나 get_all_notices()에서 병행 호출
+_BINANCE_NOTICE_LOCALE: str = 'en'
+
+_BINANCE_LOCALE_HEADERS: dict[str, dict] = {
+    'en': {'Accept-Language': 'en-US,en;q=0.9'},
+    'ko': {'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'},
+}
+_BINANCE_LOCALE_URL_PREFIX: dict[str, str] = {
+    'en': 'https://www.binance.com/en/support/announcement',
+    'ko': 'https://www.binance.com/ko/support/announcement',
+}
+
+# Binance 수수료 특화 키워드 (공통 _BTC_KEYWORDS 외에 추가)
+_BINANCE_FEE_KEYWORDS: list[str] = [
+    'zero fee', 'zero-fee', '0% fee', '0% maker', '0% taker',
+    'fee promotion', 'fee update', 'trading fee',
+    'fee structure', 'fee change', 'fee rate', 'fee waiver',
+    'FDUSD',
+]
 
 # BTC/USDT/Lightning 관련 공지 필터 키워드
 _BTC_KEYWORDS = [
@@ -55,6 +82,14 @@ def _is_relevant(title: str) -> bool:
         if kw in title:
             return True
     return False
+
+
+def _is_relevant_for_binance(title: str) -> bool:
+    """Binance 공지 관련성 판단: 공통 키워드 + 수수료 특화 키워드"""
+    if _is_relevant(title):
+        return True
+    lower = title.lower()
+    return any(kw.lower() in lower for kw in _BINANCE_FEE_KEYWORDS)
 
 
 def _parse_iso(s: str | None) -> datetime | None:
@@ -193,6 +228,83 @@ def fetch_coinone_notices() -> list[dict]:
         return []
 
 
+def fetch_binance_notices(locale: str = _BINANCE_NOTICE_LOCALE) -> list[dict]:
+    """Binance 공지사항 API 스크래핑 (비공개 CMS API 사용)
+
+    Args:
+        locale: 'en' (기본값) 또는 'ko'. 한국어 공지 추가 시 'ko' 전달.
+
+    Binance API 응답 구조:
+      data.catalogs[].articles[] 또는 data.articles[]
+      releaseDate는 밀리초 단위 Unix 타임스탬프
+    """
+    exchange = 'binance'
+    api_url = 'https://www.binance.com/bapi/composite/v1/public/cms/article/list/query'
+    url_prefix = _BINANCE_LOCALE_URL_PREFIX.get(locale, _BINANCE_LOCALE_URL_PREFIX['en'])
+
+    headers = {
+        **_HEADERS,
+        **_BINANCE_LOCALE_HEADERS.get(locale, _BINANCE_LOCALE_HEADERS['en']),
+        'Referer': 'https://www.binance.com/',
+        'Origin': 'https://www.binance.com',
+    }
+    params: dict[str, str] = {
+        'type': '1',
+        'pageNo': '1',
+        'pageSize': str(_MAX_FETCH),
+    }
+
+    try:
+        resp = requests.get(api_url, headers=headers, params=params, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get('code') != '000000':
+            logger.warning('Binance notice API non-success code: %s', data.get('code'))
+            return []
+
+        # catalogs 배열이 있으면 각 catalog의 articles를 합산, 없으면 최상위 articles 사용
+        data_body: dict = data.get('data') or {}
+        catalogs: list[dict] = data_body.get('catalogs') or []
+        articles: list[dict] = []
+        if catalogs:
+            for catalog in catalogs:
+                articles.extend(catalog.get('articles') or [])
+        else:
+            articles = data_body.get('articles') or []
+
+        results: list[dict] = []
+        for item in articles:
+            title = (item.get('title') or '').strip()
+            article_code = item.get('code') or str(item.get('id') or '')
+            if not title or not article_code:
+                continue
+            if not _is_relevant_for_binance(title):
+                continue
+
+            release_ms: int | None = item.get('releaseDate')
+            published_at: datetime | None = None
+            if release_ms:
+                try:
+                    published_at = datetime.fromtimestamp(release_ms / 1000, tz=timezone.utc).replace(tzinfo=None)
+                except (OSError, OverflowError, ValueError):
+                    published_at = None
+
+            results.append({
+                'exchange': exchange,
+                'title': title,
+                'url': f'{url_prefix}/{article_code}',
+                'published_at': published_at,
+            })
+            if len(results) >= _MAX_NOTICES:
+                break
+
+        return results
+    except Exception as e:
+        logger.warning('Binance notice scrape failed: %s', e)
+        return []
+
+
 def fetch_korbit_notices() -> list[dict]:
     """Korbit 공지사항 스크래핑 (현재 모든 접근 방법이 홈으로 리다이렉트됨)"""
     # Korbit의 /announce 페이지는 headless browser 접근 시 홈으로 리다이렉트되어
@@ -202,17 +314,22 @@ def fetch_korbit_notices() -> list[dict]:
 
 
 def get_all_notices() -> list[dict]:
-    """모든 거래소 공지사항을 병렬로 스크래핑"""
+    """모든 거래소 공지사항을 병렬로 스크래핑
+
+    한국어 Binance 공지 추가 시:
+      scrapers에 lambda: fetch_binance_notices(locale='ko') 를 병행 추가
+    """
     scrapers = [
         fetch_upbit_notices,
         fetch_bithumb_notices,
         fetch_coinone_notices,
         fetch_korbit_notices,
+        fetch_binance_notices,  # 글로벌: 기본 locale(_BINANCE_NOTICE_LOCALE) 사용
     ]
 
     all_notices: list[dict] = []
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {executor.submit(fn): fn.__name__ for fn in scrapers}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fn): getattr(fn, '__name__', repr(fn)) for fn in scrapers}
         for future in as_completed(futures):
             try:
                 results = future.result()
