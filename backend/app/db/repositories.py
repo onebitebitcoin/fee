@@ -133,8 +133,10 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
     from sqlalchemy import nullslast, or_
     btc_keywords = ['BTC', 'Bitcoin', '비트코인', 'USDT', 'Tether', '테더', 'Lightning', '라이트닝', 'SegWit', '세그윗', 'halving', '반감기']
     major_keywords = ['전체 점검', '전체점검', '서비스 점검', '서비스점검', '시스템 점검', '시스템점검', '거래소 점검', '긴급 점검', '긴급점검']
+    binance_fee_keywords = ['zero fee', 'zero-fee', '0% fee', '0% maker', '0% taker', 'fee promotion', 'fee update', 'trading fee', 'fee structure', 'fee change', 'fee rate', 'fee waiver', 'FDUSD']
     conditions = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in btc_keywords]
     conditions += [ExchangeNotice.title.contains(kw) for kw in major_keywords]
+    conditions += [ExchangeNotice.title.ilike(f'%{kw}%') for kw in binance_fee_keywords]
     stmt = (
         select(ExchangeNotice)
         .where(or_(*conditions))

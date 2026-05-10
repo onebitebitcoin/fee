@@ -30,7 +30,8 @@ _HEADERS = {
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 _MAX_NOTICES = 5   # 반환할 최대 건수
-_MAX_FETCH = 30    # 필터링 전 최대 수집 건수
+_MAX_FETCH = 30    # 필터링 전 최대 수집 건수 (국내 거래소용)
+_BINANCE_MAX_FETCH = 20  # Binance API pageSize 최대 허용값 (25 이상 400 에러)
 
 # --- Binance 다국어 설정 ---
 # 'en' → 영어 공지, 'ko' → 한국어 공지
@@ -251,7 +252,7 @@ def fetch_binance_notices(locale: str = _BINANCE_NOTICE_LOCALE) -> list[dict]:
     params: dict[str, str] = {
         'type': '1',
         'pageNo': '1',
-        'pageSize': str(_MAX_FETCH),
+        'pageSize': str(_BINANCE_MAX_FETCH),
     }
 
     try:
