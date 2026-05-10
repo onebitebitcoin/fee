@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from backend.app.services.notice_scraper import (
     _BINANCE_LOCALE_URL_PREFIX,
+    _binance_catalog_filter,
     _is_relevant_for_binance,
     fetch_binance_notices,
     get_all_notices,
@@ -44,6 +45,77 @@ class TestIsRelevantForBinance:
     def test_case_insensitive(self) -> None:
         assert _is_relevant_for_binance('ZERO FEE PROMOTION') is True
         assert _is_relevant_for_binance('zero-fee event') is True
+
+
+# ---------------------------------------------------------------------------
+# _binance_catalog_filter
+# ---------------------------------------------------------------------------
+
+class TestBinanceCatalogFilter:
+    # catalog 48 — btc_only
+    def test_catalog48_btc_passes(self) -> None:
+        assert _binance_catalog_filter(48, 'Binance Will Launch BTC/USDT Spot Trading') is True
+
+    def test_catalog48_usdt_perpetual_rejected(self) -> None:
+        assert _binance_catalog_filter(48, 'Binance Futures Will Launch BILLUSDT Perpetual Contract') is False
+
+    def test_catalog48_usdt_kzt_pair_rejected(self) -> None:
+        assert _binance_catalog_filter(48, 'Binance Adds USDT/KZT Spot Trading Pair') is False
+
+    # catalog 49 — keyword (BTC/USDT/fee)
+    def test_catalog49_fee_update_passes(self) -> None:
+        assert _binance_catalog_filter(49, 'Binance Trading Fee Update for March') is True
+
+    def test_catalog49_usdt_news_passes(self) -> None:
+        assert _binance_catalog_filter(49, 'USDT Network Upgrade Announcement') is True
+
+    def test_catalog49_unrelated_rejected(self) -> None:
+        assert _binance_catalog_filter(49, 'Binance Partners with Sports Club') is False
+
+    # catalog 50, 51, 128 — skip
+    def test_catalog50_always_rejected(self) -> None:
+        assert _binance_catalog_filter(50, 'Buy BTC Directly Using Credit Card') is False
+
+    def test_catalog51_always_rejected(self) -> None:
+        assert _binance_catalog_filter(51, 'BTC WebSocket API Update') is False
+
+    def test_catalog128_always_rejected(self) -> None:
+        assert _binance_catalog_filter(128, 'BTC Airdrop for HODLers') is False
+
+    # catalog 93 — fee_or_btc
+    def test_catalog93_btc_reward_passes(self) -> None:
+        assert _binance_catalog_filter(93, 'Binance Academy Bitcoin Page: Earn BTC Rewards') is True
+
+    def test_catalog93_zero_fee_passes(self) -> None:
+        assert _binance_catalog_filter(93, 'Zero fee trading event this week') is True
+
+    def test_catalog93_usdt_earn_rejected(self) -> None:
+        assert _binance_catalog_filter(93, 'Subscribe to USDT Simple Earn for New Users') is False
+
+    def test_catalog93_usdt_loan_rejected(self) -> None:
+        assert _binance_catalog_filter(93, 'Borrow USDT or USDC to Win a Share') is False
+
+    # catalog 157 — maintenance
+    def test_catalog157_btc_maintenance_passes(self) -> None:
+        assert _binance_catalog_filter(157, 'Wallet Maintenance for Bitcoin (BTC) Network') is True
+
+    def test_catalog157_usdt_withdrawal_passes(self) -> None:
+        assert _binance_catalog_filter(157, 'Binance Will Cease USDT Withdrawal Support') is True
+
+    def test_catalog157_altcoin_swap_rejected(self) -> None:
+        assert _binance_catalog_filter(157, 'Binance Will Support the Chiliz Fan Tokens Contract Swap') is False
+
+    # catalog 161 — btc_only
+    def test_catalog161_btc_delisting_passes(self) -> None:
+        assert _binance_catalog_filter(161, 'Notice of Removal of BTC Spot Trading Pairs') is True
+
+    def test_catalog161_altcoin_delisting_rejected(self) -> None:
+        assert _binance_catalog_filter(161, 'Notice of Removal of Spot Trading Pairs - 2026-05-08') is False
+
+    # 미등록 카탈로그 — keyword 기본값
+    def test_unknown_catalog_uses_keyword_strategy(self) -> None:
+        assert _binance_catalog_filter(999, 'BTC deposit suspended') is True
+        assert _binance_catalog_filter(999, 'New altcoin listing XYZ') is False
 
 
 # ---------------------------------------------------------------------------

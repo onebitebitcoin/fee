@@ -93,6 +93,49 @@ def _is_relevant_for_binance(title: str) -> bool:
     return any(kw.lower() in lower for kw in _BINANCE_FEE_KEYWORDS)
 
 
+# 카탈로그별 필터 전략
+#   skip        → 무관 카탈로그, 전량 제외
+#   btc_only    → 제목에 BTC/Bitcoin 직접 언급 필수
+#   keyword     → 공통 BTC/USDT + 수수료 특화 키워드 (_is_relevant_for_binance)
+#   fee_or_btc  → 수수료 이벤트 키워드 또는 BTC 직접 언급 (활동/프로모션용)
+#   maintenance → BTC 무조건 통과, USDT는 출금/점검 맥락일 때만
+_BINANCE_CATALOG_STRATEGY: dict[int, str] = {
+    48: 'btc_only',      # New Cryptocurrency Listing — XYZUSDT 선물 상장 제외
+    49: 'keyword',       # Latest Binance News — 수수료/BTC/USDT 뉴스
+    50: 'skip',          # New Fiat Listings — 무관
+    51: 'skip',          # API Updates — 무관
+    93: 'fee_or_btc',    # Latest Activities — BTC 리워드·수수료 이벤트만
+    128: 'skip',         # Crypto Airdrop — 무관
+    157: 'maintenance',  # Maintenance Updates — BTC/USDT 네트워크 점검만
+    161: 'btc_only',     # Delisting — BTC/USDT 직접 관련만
+}
+_BINANCE_CATALOG_DEFAULT_STRATEGY = 'keyword'  # 미등록 카탈로그 기본값
+
+_MAINTENANCE_CONTEXT_KEYWORDS = ('withdrawal', 'deposit', 'maintenance', 'suspend', 'cease', 'halt')
+
+
+def _binance_catalog_filter(catalog_id: int, title: str) -> bool:
+    """카탈로그 ID별 관련성 판단 — USDT→BTC 경로에 영향을 주는 공지인지 확인"""
+    strategy = _BINANCE_CATALOG_STRATEGY.get(catalog_id, _BINANCE_CATALOG_DEFAULT_STRATEGY)
+    lower = title.lower()
+
+    if strategy == 'skip':
+        return False
+    if strategy == 'btc_only':
+        return 'btc' in lower or 'bitcoin' in lower
+    if strategy == 'keyword':
+        return _is_relevant_for_binance(title)
+    if strategy == 'fee_or_btc':
+        return ('btc' in lower or 'bitcoin' in lower) or any(kw.lower() in lower for kw in _BINANCE_FEE_KEYWORDS)
+    if strategy == 'maintenance':
+        if 'btc' in lower or 'bitcoin' in lower:
+            return True
+        if 'usdt' in lower:
+            return any(kw in lower for kw in _MAINTENANCE_CONTEXT_KEYWORDS)
+        return False
+    return _is_relevant_for_binance(title)
+
+
 def _parse_iso(s: str | None) -> datetime | None:
     """ISO 8601 문자열을 UTC datetime으로 파싱"""
     if not s:
@@ -264,43 +307,50 @@ def fetch_binance_notices(locale: str = _BINANCE_NOTICE_LOCALE) -> list[dict]:
             logger.warning('Binance notice API non-success code: %s', data.get('code'))
             return []
 
-        # catalogs 배열이 있으면 각 catalog의 articles를 합산, 없으면 최상위 articles 사용
         data_body: dict = data.get('data') or {}
         catalogs: list[dict] = data_body.get('catalogs') or []
-        articles: list[dict] = []
-        if catalogs:
-            for catalog in catalogs:
-                articles.extend(catalog.get('articles') or [])
-        else:
-            articles = data_body.get('articles') or []
 
         results: list[dict] = []
-        for item in articles:
+
+        def _parse_article(item: dict, catalog_id: int) -> dict | None:
             title = (item.get('title') or '').strip()
             article_code = item.get('code') or str(item.get('id') or '')
             if not title or not article_code:
-                continue
-            if not _is_relevant_for_binance(title):
-                continue
-
+                return None
+            if not _binance_catalog_filter(catalog_id, title):
+                return None
             release_ms: int | None = item.get('releaseDate')
             published_at: datetime | None = None
             if release_ms:
                 try:
                     published_at = datetime.fromtimestamp(release_ms / 1000, tz=timezone.utc).replace(tzinfo=None)
                 except (OSError, OverflowError, ValueError):
-                    published_at = None
-
-            results.append({
+                    pass
+            return {
                 'exchange': exchange,
                 'title': title,
                 'url': f'{url_prefix}/{article_code}',
                 'published_at': published_at,
-            })
-            if len(results) >= _MAX_NOTICES:
-                break
+            }
 
-        return results
+        if catalogs:
+            # 카탈로그별 전략 적용
+            for catalog in catalogs:
+                catalog_id = int(catalog.get('catalogId') or -1)
+                for item in catalog.get('articles') or []:
+                    entry = _parse_article(item, catalog_id)
+                    if entry:
+                        results.append(entry)
+        else:
+            # flat articles 구조: 카탈로그 정보 없으므로 keyword 전략 사용
+            for item in data_body.get('articles') or []:
+                entry = _parse_article(item, -1)
+                if entry:
+                    results.append(entry)
+
+        # 전체 매칭 중 최신순 상위 _MAX_NOTICES개 반환
+        results.sort(key=lambda x: x['published_at'] or datetime.min, reverse=True)
+        return results[:_MAX_NOTICES]
     except Exception as e:
         logger.warning('Binance notice scrape failed: %s', e)
         return []
