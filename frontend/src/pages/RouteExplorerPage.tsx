@@ -17,10 +17,12 @@ type Phase = 'input' | 'loading' | 'domestic' | 'coin' | 'global' | 'network' | 
 type CoinType = 'USDT' | 'BTC';
 type TradeMethod = 'usdt_taker' | 'fdusd_maker';
 type ExitMode = 'onchain' | 'lightning';
+type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
 interface AllData {
   byGlobal: Record<string, CheapestPathResponse>;
   tickers: TickerRow[];
+  latestRunAt: number | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -33,10 +35,35 @@ function bestByBtc(paths: CheapestPathEntry[]): CheapestPathEntry | null {
   return paths.length ? paths.reduce((a, b) => (a.btc_received ?? 0) > (b.btc_received ?? 0) ? a : b) : null;
 }
 
+function applyPreference(paths: CheapestPathEntry[], pref: Preference): CheapestPathEntry[] {
+  if (pref === 'lightning') {
+    const f = paths.filter(p => p.global_exit_mode === 'lightning');
+    return f.length ? f : paths;
+  }
+  if (pref === 'non_kyc') {
+    const f = paths.filter(p =>
+      p.domestic_kyc_status !== 'kyc' &&
+      p.global_kyc_status !== 'kyc' &&
+      (p.exit_service_kyc_status == null || p.exit_service_kyc_status === 'non_kyc'),
+    );
+    return f.length ? f : paths;
+  }
+  return paths;
+}
+
 const SWAP_DISPLAY: Record<string, string> = {
   strike: 'Strike', boltz: 'Boltz', oksusu: 'CornWallet',
   coinos: 'Coinos', walletofsatoshi: 'WalletOfSatoshi',
 };
+
+function fmtTime(ts: number | null): string {
+  if (!ts) return '-';
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Seoul',
+  }).format(new Date(ts * 1000));
+}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -53,6 +80,7 @@ export function RouteExplorerPage() {
   const [selectedTradeMethod, setSelectedTradeMethod] = useState<TradeMethod | null>(null);
   const [selectedExitMode, setSelectedExitMode] = useState<ExitMode | null>(null);
   const [selectedSwapService, setSelectedSwapService] = useState<string | null>(null);
+  const [preference, setPreference]             = useState<Preference>('cheapest');
   const [error, setError]                       = useState<string | null>(null);
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
@@ -69,6 +97,63 @@ export function RouteExplorerPage() {
     }
     return fees;
   }, [allData]);
+
+  // ── Recommendations (per-step, based on preference) ──────────────────────
+
+  // All paths tagged with their global exchange key
+  const allTaggedPaths = useMemo(() => {
+    if (!allData) return [] as (CheapestPathEntry & { _g: string })[];
+    return Object.entries(allData.byGlobal).flatMap(([g, d]) =>
+      d.all_paths.map(p => ({ ...p, _g: g })),
+    );
+  }, [allData]);
+
+  const recDomestic = useMemo(() => {
+    const best = bestByBtc(applyPreference(allTaggedPaths, preference));
+    return best?.korean_exchange ?? null;
+  }, [allTaggedPaths, preference]);
+
+  const recGlobal = useMemo(() => {
+    if (!selectedDomestic) return null;
+    const paths = allTaggedPaths.filter(p => p.korean_exchange === selectedDomestic);
+    const best = bestByBtc(applyPreference(paths, preference)) as (CheapestPathEntry & { _g: string }) | null;
+    return best?._g ?? null;
+  }, [allTaggedPaths, selectedDomestic, preference]);
+
+  const recNetwork = useMemo(() => {
+    if (!selectedDomestic || !selectedGlobal) return null;
+    const paths = (allData?.byGlobal[selectedGlobal]?.all_paths ?? [])
+      .filter(p => p.korean_exchange === selectedDomestic && p.transfer_coin === (selectedCoin ?? 'USDT'));
+    const best = bestByBtc(applyPreference(paths, preference));
+    return best?.network ?? null;
+  }, [allData, selectedDomestic, selectedGlobal, selectedCoin, preference]);
+
+  const recTradeMethod = useMemo(() => {
+    if (!selectedDomestic || !selectedGlobal || !selectedNetwork) return null;
+    const paths = (allData?.byGlobal[selectedGlobal]?.all_paths ?? [])
+      .filter(p => p.korean_exchange === selectedDomestic && p.transfer_coin === 'USDT' && p.network === selectedNetwork);
+    const best = bestByBtc(applyPreference(paths, preference));
+    if (!best) return null;
+    return isFdusdPath(best) ? 'fdusd_maker' : 'usdt_taker';
+  }, [allData, selectedDomestic, selectedGlobal, selectedNetwork, preference]);
+
+  const recExitMode = useMemo(() => {
+    if (!selectedDomestic || !selectedGlobal || !selectedNetwork) return null;
+    const paths = (allData?.byGlobal[selectedGlobal]?.all_paths ?? [])
+      .filter(p => p.korean_exchange === selectedDomestic && p.transfer_coin === 'USDT' && p.network === selectedNetwork);
+    const best = bestByBtc(applyPreference(paths, preference));
+    return (best?.global_exit_mode as ExitMode | undefined) ?? null;
+  }, [allData, selectedDomestic, selectedGlobal, selectedNetwork, preference]);
+
+  const recSwapService = useMemo(() => {
+    if (!selectedDomestic || !selectedGlobal || !selectedNetwork) return null;
+    const paths = (allData?.byGlobal[selectedGlobal]?.all_paths ?? [])
+      .filter(p => p.korean_exchange === selectedDomestic && p.transfer_coin === 'USDT' && p.network === selectedNetwork && p.global_exit_mode === 'lightning');
+    const best = bestByBtc(applyPreference(paths, preference));
+    return best ? (best.lightning_exit_provider ?? best.swap_service ?? null) : null;
+  }, [allData, selectedDomestic, selectedGlobal, selectedNetwork, preference]);
+
+  // ── Domestic options ──────────────────────────────────────────────────────
 
   const domesticOptions = useMemo(() => {
     if (!allData) return [] as { exchange: string; bestBtc: number }[];
@@ -236,7 +321,8 @@ export function RouteExplorerPage() {
       });
       if (Object.keys(byGlobal).length === 0) throw new Error('모든 거래소 조회 실패');
       if (failed.length) setFailedExchanges(failed);
-      setAllData({ byGlobal, tickers: tickerRes.items });
+      const latestRunAt = Object.values(byGlobal)[0]?.last_run?.completed_at ?? null;
+      setAllData({ byGlobal, tickers: tickerRes.items, latestRunAt });
       setPhase('domestic');
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터 로드 오류');
@@ -362,8 +448,16 @@ export function RouteExplorerPage() {
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-3">
 
-        {/* Step 0: Amount */}
+        {/* Step 0: Amount + Preference */}
         <StepCard dimmed={showSteps}>
+          {/* Data timestamp */}
+          {allData?.latestRunAt && (
+            <div className="flex items-center gap-1.5 text-xs text-bnb-muted mb-3 pb-2.5 border-b border-dark-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-bnb-green inline-block" />
+              데이터 기준: {fmtTime(allData.latestRunAt)} KST
+            </div>
+          )}
+
           <p className="text-xs text-bnb-muted mb-2">투자 금액</p>
           <div className="flex items-center gap-3">
             <span className="text-brand-500 text-xl font-bold">₩</span>
@@ -381,6 +475,33 @@ export function RouteExplorerPage() {
             </div>
           </div>
           <p className="text-xs text-bnb-muted mt-1">= ₩{(amountKrw || 0).toLocaleString('ko-KR')}</p>
+
+          {/* Preference selector */}
+          <div className="mt-4">
+            <p className="text-xs text-bnb-muted mb-2">경로 우선순위</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { id: 'cheapest' as Preference, icon: '💰', label: '최저 수수료', sub: 'KYC 무관' },
+                { id: 'non_kyc'  as Preference, icon: '🛡️', label: '비KYC 우선', sub: '신원 미제출' },
+                { id: 'lightning' as Preference, icon: '⚡', label: 'Lightning', sub: 'LN 경유' },
+              ] as const).map(opt => (
+                <button key={opt.id}
+                  onClick={() => { if (!showSteps) setPreference(opt.id); }}
+                  disabled={showSteps}
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                    preference === opt.id
+                      ? 'border-brand-500 bg-brand-500/10'
+                      : 'border-dark-200 hover:border-dark-100'
+                  }`}
+                >
+                  <div className="text-sm">{opt.icon}</div>
+                  <div className={`text-xs font-semibold mt-1 ${preference === opt.id ? 'text-brand-400' : 'text-bnb-text'}`}>{opt.label}</div>
+                  <div className="text-[10px] text-bnb-muted mt-0.5">{opt.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {phase === 'input' && (
             <button onClick={handleSearch} disabled={!amountKrw || amountKrw < 10_000}
               className="mt-4 w-full py-2.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-dark-500 font-bold text-sm transition-all active:scale-[0.98]"
@@ -416,7 +537,7 @@ export function RouteExplorerPage() {
               onEdit={isPast('domestic') ? () => goBackTo('domestic') : undefined}
             />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-              {domesticOptions.map(({ exchange, bestBtc }, idx) => {
+              {domesticOptions.map(({ exchange, bestBtc }) => {
                 const takerFee = domesticTakerFees[exchange];
                 const refGlobalKrw = (() => {
                   const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
@@ -434,8 +555,8 @@ export function RouteExplorerPage() {
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
-                      {idx === 0 && (
-                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">최적</span>
+                      {exchange === recDomestic && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>
                       )}
                     </div>
                     <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
@@ -499,6 +620,7 @@ export function RouteExplorerPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                       {hasLightning && <Zap className="w-3 h-3 text-yellow-400" />}
+                      {exchange === recGlobal && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{hasLightning ? 'Lightning 출금 지원' : '온체인 출금'}</div>
                   </div>
@@ -524,7 +646,10 @@ export function RouteExplorerPage() {
                   horizontal
                 >
                   <div>
-                    <div className="font-semibold text-sm">{network}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm">{network}</span>
+                      {network === recNetwork && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                    </div>
                     {best.breakdown?.components.find(c => c.label.includes('출금')) && (
                       <div className="text-xs text-bnb-muted mt-0.5">
                         출금 수수료: {best.breakdown.components.find(c => c.label.includes('출금'))?.amount_text}
@@ -552,7 +677,10 @@ export function RouteExplorerPage() {
                   horizontal
                 >
                   <div>
-                    <div className="font-semibold text-sm">{label}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm">{label}</span>
+                      {id === recTradeMethod && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                    </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                   </div>
                   <FeeTag path={best} align="right" />
@@ -580,6 +708,7 @@ export function RouteExplorerPage() {
                     <div className="flex items-center gap-1.5 font-semibold text-sm">
                       {id === 'lightning' && <Zap className="w-3.5 h-3.5 text-yellow-400" />}
                       <span>{label}</span>
+                      {id === recExitMode && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                   </div>
@@ -606,7 +735,10 @@ export function RouteExplorerPage() {
                     horizontal
                   >
                     <div>
-                      <div className="font-semibold text-sm">{display}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm">{display}</span>
+                        {service === recSwapService && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                      </div>
                       <div className="text-xs text-bnb-muted mt-0.5">
                         스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
                         {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
