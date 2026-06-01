@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import {
-  ArrowDown, ArrowRight, Award, Bitcoin, ChevronDown,
-  Globe, MapPin, RefreshCw, Shield, TrendingDown, Zap,
+  ArrowDown, ArrowRight, Award, Bitcoin,
+  DollarSign, EyeOff, Globe, MapPin, RefreshCw,
+  Shield, TrendingDown, Zap,
 } from 'lucide-react';
 
 import { api } from '../lib/api';
@@ -57,30 +58,29 @@ const SWAP_DISPLAY: Record<string, string> = {
 };
 
 // CARF / jurisdiction data (source: OECD 2025 Monitoring Update)
-// All global exchanges: confirmed_2028 group
-const EXCHANGE_CARF: Record<string, { flag: string; country: string; carfYear: number; fatca: boolean; risk: 'low' | 'med' | 'high' }> = {
-  binance:  { flag: '🇦🇪', country: 'UAE (Abu Dhabi)',  carfYear: 2028, fatca: false, risk: 'med'  },
-  okx:      { flag: '🇸🇨', country: '세이셸',            carfYear: 2028, fatca: false, risk: 'low'  },
-  bybit:    { flag: '🇦🇪', country: 'UAE / BVI',         carfYear: 2028, fatca: false, risk: 'low'  },
-  bitget:   { flag: '🇸🇨', country: '세이셸',            carfYear: 2028, fatca: false, risk: 'low'  },
-  kraken:   { flag: '🇺🇸', country: '미국',              carfYear: 2028, fatca: true,  risk: 'high' },
-  coinbase: { flag: '🇺🇸', country: '미국',              carfYear: 2028, fatca: true,  risk: 'high' },
+const EXCHANGE_CARF: Record<string, { country: string; carfYear: number; fatca: boolean; risk: 'low' | 'med' | 'high' }> = {
+  binance:  { country: 'UAE',    carfYear: 2028, fatca: false, risk: 'med'  },
+  okx:      { country: '세이셸', carfYear: 2028, fatca: false, risk: 'low'  },
+  bybit:    { country: 'UAE',    carfYear: 2028, fatca: false, risk: 'low'  },
+  bitget:   { country: '세이셸', carfYear: 2028, fatca: false, risk: 'low'  },
+  kraken:   { country: '미국',   carfYear: 2028, fatca: true,  risk: 'high' },
+  coinbase: { country: '미국',   carfYear: 2028, fatca: true,  risk: 'high' },
 };
 
 // Swap service metadata
-const SWAP_META: Record<string, { kyc: boolean; custodial: boolean; risk: 'low' | 'med' | 'high'; riskNote: string }> = {
-  strike:          { kyc: true,  custodial: true,  risk: 'med', riskNote: '미국 규제, KYC 필수'           },
-  boltz:           { kyc: false, custodial: false, risk: 'low', riskNote: '비수탁, 오픈소스 서브마린 스왑' },
-  oksusu:          { kyc: false, custodial: false, risk: 'low', riskNote: '비수탁, 비KYC'                  },
-  coinos:          { kyc: false, custodial: true,  risk: 'med', riskNote: '수탁형, 비KYC'                  },
-  walletofsatoshi: { kyc: false, custodial: true,  risk: 'med', riskNote: '수탁형, 비KYC, 상대방 위험'     },
+const SWAP_META: Record<string, { kyc: boolean; custodial: boolean; risk: 'low' | 'med' | 'high' }> = {
+  strike:          { kyc: true,  custodial: true,  risk: 'med' },
+  boltz:           { kyc: false, custodial: false, risk: 'low' },
+  oksusu:          { kyc: false, custodial: false, risk: 'low' },
+  coinos:          { kyc: false, custodial: true,  risk: 'med' },
+  walletofsatoshi: { kyc: false, custodial: true,  risk: 'med' },
 };
 
-const RISK_LABEL: Record<string, { dot: string; text: string; cls: string }> = {
-  low:  { dot: '🟢', text: '낮음', cls: 'text-bnb-green'  },
-  med:  { dot: '🟡', text: '중간', cls: 'text-brand-400'  },
-  high: { dot: '🔴', text: '높음', cls: 'text-bnb-red'    },
-};
+const PREF_OPTIONS = [
+  { id: 'cheapest'  as Preference, Icon: TrendingDown, label: '최저 수수료', sub: 'KYC 무관'   },
+  { id: 'non_kyc'   as Preference, Icon: EyeOff,       label: '비KYC 우선', sub: '신원 미제출' },
+  { id: 'lightning' as Preference, Icon: Zap,          label: 'Lightning',  sub: 'LN 경유'    },
+];
 
 function fmtTime(ts: number | null): string {
   if (!ts) return '-';
@@ -94,20 +94,20 @@ function fmtTime(ts: number | null): string {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function RouteExplorerPage() {
-  const [phase, setPhase]                       = useState<Phase>('input');
-  const [amountInput, setAmountInput]           = useState('100');
-  const [amountUnit, setAmountUnit]             = useState<'만원' | '억원'>('만원');
-  const [allData, setAllData]                   = useState<AllData | null>(null);
-  const [failedExchanges, setFailedExchanges]   = useState<string[]>([]);
-  const [selectedDomestic, setSelectedDomestic] = useState<string | null>(null);
-  const [selectedCoin, setSelectedCoin]         = useState<CoinType | null>(null);
-  const [selectedGlobal, setSelectedGlobal]     = useState<GlobalExchange | null>(null);
-  const [selectedNetwork, setSelectedNetwork]   = useState<string | null>(null);
+  const [phase, setPhase]                             = useState<Phase>('input');
+  const [amountInput, setAmountInput]                 = useState('100');
+  const [amountUnit, setAmountUnit]                   = useState<'만원' | '억원'>('만원');
+  const [allData, setAllData]                         = useState<AllData | null>(null);
+  const [failedExchanges, setFailedExchanges]         = useState<string[]>([]);
+  const [selectedDomestic, setSelectedDomestic]       = useState<string | null>(null);
+  const [selectedCoin, setSelectedCoin]               = useState<CoinType | null>(null);
+  const [selectedGlobal, setSelectedGlobal]           = useState<GlobalExchange | null>(null);
+  const [selectedNetwork, setSelectedNetwork]         = useState<string | null>(null);
   const [selectedTradeMethod, setSelectedTradeMethod] = useState<TradeMethod | null>(null);
-  const [selectedExitMode, setSelectedExitMode] = useState<ExitMode | null>(null);
+  const [selectedExitMode, setSelectedExitMode]       = useState<ExitMode | null>(null);
   const [selectedSwapService, setSelectedSwapService] = useState<string | null>(null);
-  const [preference, setPreference]             = useState<Preference>('cheapest');
-  const [error, setError]                       = useState<string | null>(null);
+  const [preference, setPreference]                   = useState<Preference>('cheapest');
+  const [error, setError]                             = useState<string | null>(null);
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
 
@@ -124,9 +124,6 @@ export function RouteExplorerPage() {
     return fees;
   }, [allData]);
 
-  // ── Recommendations (per-step, based on preference) ──────────────────────
-
-  // All paths tagged with their global exchange key
   const allTaggedPaths = useMemo(() => {
     if (!allData) return [] as (CheapestPathEntry & { _g: string })[];
     return Object.entries(allData.byGlobal).flatMap(([g, d]) =>
@@ -178,8 +175,6 @@ export function RouteExplorerPage() {
     const best = bestByBtc(applyPreference(paths, preference));
     return best ? (best.lightning_exit_provider ?? best.swap_service ?? null) : null;
   }, [allData, selectedDomestic, selectedGlobal, selectedNetwork, preference]);
-
-  // ── Domestic options ──────────────────────────────────────────────────────
 
   const domesticOptions = useMemo(() => {
     if (!allData) return [] as { exchange: string; bestBtc: number }[];
@@ -253,8 +248,8 @@ export function RouteExplorerPage() {
     const opts: { id: TradeMethod; label: string; sublabel: string; best: CheapestPathEntry }[] = [];
     const takerBest = bestByBtc(paths.filter(p => !isFdusdPath(p)));
     const fdusdBest = bestByBtc(paths.filter(p =>  isFdusdPath(p)));
-    if (takerBest) opts.push({ id: 'usdt_taker',   label: 'USDT → BTC',          sublabel: 'Taker 시장가 매수',               best: takerBest });
-    if (fdusdBest) opts.push({ id: 'fdusd_maker', label: 'USDT → FDUSD → BTC', sublabel: 'FDUSD Maker 0% 프로모션 적용',     best: fdusdBest });
+    if (takerBest) opts.push({ id: 'usdt_taker',  label: 'USDT → BTC',         sublabel: 'Taker 시장가 매수',            best: takerBest });
+    if (fdusdBest) opts.push({ id: 'fdusd_maker', label: 'USDT → FDUSD → BTC', sublabel: 'FDUSD Maker 0% 프로모션 적용', best: fdusdBest });
     return opts;
   }, [allData, selectedDomestic, selectedCoin, selectedGlobal, selectedNetwork]);
 
@@ -274,10 +269,10 @@ export function RouteExplorerPage() {
       (selectedTradeMethod === 'fdusd_maker' ? isFdusdPath(p) : !isFdusdPath(p)),
     );
     const opts: { id: ExitMode; label: string; sublabel: string; best: CheapestPathEntry }[] = [];
-    const onchainBest  = bestByBtc(paths.filter(p => p.global_exit_mode === 'onchain'));
+    const onchainBest   = bestByBtc(paths.filter(p => p.global_exit_mode === 'onchain'));
     const lightningBest = bestByBtc(paths.filter(p => p.global_exit_mode === 'lightning'));
-    if (onchainBest)   opts.push({ id: 'onchain',   label: '온체인 출금',   sublabel: 'Bitcoin 주소로 직접 출금',    best: onchainBest });
-    if (lightningBest) opts.push({ id: 'lightning', label: '⚡ Lightning 출금', sublabel: 'LN 채널 → 스왑 서비스 → 온체인', best: lightningBest });
+    if (onchainBest)   opts.push({ id: 'onchain',   label: '온체인 출금',    sublabel: 'Bitcoin 주소로 직접 출금',        best: onchainBest });
+    if (lightningBest) opts.push({ id: 'lightning', label: 'Lightning 출금', sublabel: 'LN 채널 → 스왑 서비스 → 온체인', best: lightningBest });
     return opts;
   }, [allData, selectedDomestic, selectedCoin, selectedGlobal, selectedNetwork, selectedTradeMethod]);
 
@@ -416,20 +411,18 @@ export function RouteExplorerPage() {
 
   function goBackTo(p: Phase) {
     setPhase(p);
-    if (p === 'domestic') { setSelectedCoin(null); setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
-    if (p === 'coin')     { setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
-    if (p === 'global')   { setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
-    if (p === 'network')  { setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
+    if (p === 'domestic')     { setSelectedCoin(null); setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
+    if (p === 'coin')         { setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
+    if (p === 'global')       { setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
+    if (p === 'network')      { setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
     if (p === 'trade_method') { setSelectedExitMode(null); setSelectedSwapService(null); }
     if (p === 'exit_mode')    { setSelectedSwapService(null); }
   }
 
-  // ── Phase ordering for "is step done" check ────────────────────────────────
-
   const PHASE_ORDER: Phase[] = ['input', 'loading', 'domestic', 'coin', 'global', 'network', 'trade_method', 'exit_mode', 'swap_service', 'result'];
-  const phaseIdx = (p: Phase) => PHASE_ORDER.indexOf(p);
-  const isPast = (p: Phase) => phaseIdx(phase) > phaseIdx(p);
-  const isActive = (p: Phase) => phase === p;
+  const phaseIdx  = (p: Phase) => PHASE_ORDER.indexOf(p);
+  const isPast    = (p: Phase) => phaseIdx(phase) > phaseIdx(p);
+  const isActive  = (p: Phase) => phase === p;
 
   const showSteps = phase !== 'input' && phase !== 'loading';
 
@@ -439,35 +432,45 @@ export function RouteExplorerPage() {
     <div className="min-h-screen bg-dark-500 text-bnb-text">
 
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-dark-400 border-b border-dark-200">
+      <header className="sticky top-0 z-10 bg-dark-400/95 backdrop-blur-sm border-b border-dark-200">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bitcoin className="w-5 h-5 text-brand-500" />
-            <span className="font-semibold text-sm">BTC 출금 경로 탐색</span>
+            <span className="font-semibold text-sm tracking-tight">BTC 출금 경로 탐색</span>
           </div>
           {allData && (
-            <button onClick={handleReset} className="flex items-center gap-1 text-xs text-bnb-muted hover:text-bnb-text transition-colors">
-              <RefreshCw className="w-3 h-3" /> 초기화
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>초기화</span>
             </button>
           )}
         </div>
+
+        {/* Breadcrumb — full-width scroll on mobile, hidden scrollbar */}
         {showSteps && (
-          <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center gap-1 text-xs overflow-x-auto">
-            {[
-              { label: `₩${amountInput}${amountUnit}`, done: true },
-              { label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic },
-              { label: selectedCoin ?? '출금 코인', done: !!selectedCoin },
-              ...(selectedCoin !== 'BTC' ? [{ label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal }] : []),
-              { label: selectedNetwork ?? '네트워크', done: !!selectedNetwork },
-              ...(selectedCoin !== 'BTC' ? [{ label: selectedTradeMethod === 'fdusd_maker' ? 'FDUSD' : selectedTradeMethod ? 'Taker' : '매수 방식', done: !!selectedTradeMethod }] : []),
-              { label: selectedExitMode ?? '출금 방식', done: !!selectedExitMode },
-              ...(selectedExitMode === 'lightning' ? [{ label: selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : '스왑 서비스', done: !!selectedSwapService }] : []),
-            ].map((s, i, arr) => (
-              <span key={i} className="flex items-center gap-1 whitespace-nowrap">
-                <span className={s.done ? 'text-brand-500 font-medium' : 'text-bnb-muted'}>{s.label}</span>
-                {i < arr.length - 1 && <ArrowRight className={`w-3 h-3 flex-shrink-0 ${s.done ? 'text-brand-500' : 'text-dark-100'}`} />}
-              </span>
-            ))}
+          <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-dark-200/40">
+            <div className="flex items-center gap-1 text-xs px-4 py-2 min-w-max">
+              {[
+                { label: `₩${amountInput}${amountUnit}`, done: true },
+                { label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic },
+                { label: selectedCoin ?? '출금 코인', done: !!selectedCoin },
+                ...(selectedCoin !== 'BTC' ? [{ label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal }] : []),
+                { label: selectedNetwork ?? '네트워크', done: !!selectedNetwork },
+                ...(selectedCoin !== 'BTC' ? [{ label: selectedTradeMethod === 'fdusd_maker' ? 'FDUSD' : selectedTradeMethod ? 'Taker' : '매수 방식', done: !!selectedTradeMethod }] : []),
+                { label: selectedExitMode ?? '출금 방식', done: !!selectedExitMode },
+                ...(selectedExitMode === 'lightning' ? [{ label: selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : '스왑 서비스', done: !!selectedSwapService }] : []),
+              ].map((s, i, arr) => (
+                <span key={i} className="flex items-center gap-1 whitespace-nowrap">
+                  <span className={s.done ? 'text-brand-500 font-medium' : 'text-bnb-muted'}>{s.label}</span>
+                  {i < arr.length - 1 && (
+                    <ArrowRight className={`w-3 h-3 flex-shrink-0 ${s.done ? 'text-brand-500' : 'text-dark-100'}`} />
+                  )}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </header>
@@ -475,28 +478,36 @@ export function RouteExplorerPage() {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-3">
 
         {/* Step 0: Amount + Preference */}
-        <StepCard dimmed={showSteps}>
-          {/* Data timestamp */}
+        <StepCard active={isActive('input')} dimmed={showSteps && !isActive('input')}>
           {allData?.latestRunAt && (
             <div className="flex items-center gap-1.5 text-xs text-bnb-muted mb-3 pb-2.5 border-b border-dark-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-bnb-green inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full bg-bnb-green flex-shrink-0" />
               데이터 기준: {fmtTime(allData.latestRunAt)} KST
             </div>
           )}
 
           <p className="text-xs text-bnb-muted mb-2">투자 금액</p>
           <div className="flex items-center gap-3">
-            <span className="text-brand-500 text-xl font-bold">₩</span>
-            <input type="number" value={amountInput} onChange={e => setAmountInput(e.target.value)}
+            <span className="text-brand-500 text-xl font-bold flex-shrink-0">₩</span>
+            <input
+              type="number"
+              value={amountInput}
+              onChange={e => setAmountInput(e.target.value)}
               disabled={showSteps}
-              className="flex-1 bg-transparent text-2xl font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              placeholder="100" min="1"
+              className="flex-1 min-w-0 bg-transparent text-2xl font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              placeholder="100"
+              min="1"
             />
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               {(['만원', '억원'] as const).map(u => (
-                <button key={u} onClick={() => setAmountUnit(u)} disabled={showSteps}
+                <button
+                  key={u}
+                  onClick={() => setAmountUnit(u)}
+                  disabled={showSteps}
                   className={`text-xs px-2 py-1 rounded transition-all ${amountUnit === u ? 'bg-brand-500 text-dark-500 font-bold' : 'text-bnb-muted hover:text-bnb-text'}`}
-                >{u}</button>
+                >
+                  {u}
+                </button>
               ))}
             </div>
           </div>
@@ -506,30 +517,29 @@ export function RouteExplorerPage() {
           <div className="mt-4">
             <p className="text-xs text-bnb-muted mb-2">경로 우선순위</p>
             <div className="grid grid-cols-3 gap-2">
-              {([
-                { id: 'cheapest' as Preference, icon: '💰', label: '최저 수수료', sub: 'KYC 무관' },
-                { id: 'non_kyc'  as Preference, icon: '🛡️', label: '비KYC 우선', sub: '신원 미제출' },
-                { id: 'lightning' as Preference, icon: '⚡', label: 'Lightning', sub: 'LN 경유' },
-              ] as const).map(opt => (
-                <button key={opt.id}
-                  onClick={() => { if (!showSteps) setPreference(opt.id); }}
+              {PREF_OPTIONS.map(({ id, Icon, label, sub }) => (
+                <button
+                  key={id}
+                  onClick={() => { if (!showSteps) setPreference(id); }}
                   disabled={showSteps}
                   className={`p-2.5 rounded-lg border text-left transition-all ${
-                    preference === opt.id
+                    preference === id
                       ? 'border-brand-500 bg-brand-500/10'
                       : 'border-dark-200 hover:border-dark-100'
                   }`}
                 >
-                  <div className="text-sm">{opt.icon}</div>
-                  <div className={`text-xs font-semibold mt-1 ${preference === opt.id ? 'text-brand-400' : 'text-bnb-text'}`}>{opt.label}</div>
-                  <div className="text-[10px] text-bnb-muted mt-0.5">{opt.sub}</div>
+                  <Icon className={`w-4 h-4 transition-colors ${preference === id ? 'text-brand-500' : 'text-bnb-muted'}`} />
+                  <div className={`text-xs font-semibold mt-1.5 ${preference === id ? 'text-brand-400' : 'text-bnb-text'}`}>{label}</div>
+                  <div className="text-[10px] text-bnb-muted mt-0.5">{sub}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {phase === 'input' && (
-            <button onClick={handleSearch} disabled={!amountKrw || amountKrw < 10_000}
+            <button
+              onClick={handleSearch}
+              disabled={!amountKrw || amountKrw < 10_000}
               className="mt-4 w-full py-2.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-dark-500 font-bold text-sm transition-all active:scale-[0.98]"
             >
               경로 탐색 시작
@@ -550,22 +560,25 @@ export function RouteExplorerPage() {
             </div>
             <p className="text-bnb-muted text-sm">6개 글로벌 거래소 실시간 조회 중...</p>
             <div className="flex gap-1.5">
-              {[0,1,2].map(i => <span key={i} className="w-2 h-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+              {[0, 1, 2].map(i => (
+                <span key={i} className="w-2 h-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
             </div>
           </div>
         )}
 
         {/* Step 1: 국내 거래소 */}
         {showSteps && (
-          <StepCard dimmed={!isActive('domestic') && !isPast('domestic')} animate>
-            <StepHeader icon={<MapPin className="w-3 h-3" />} label="1. 출발 거래소 (국내)"
+          <StepCard dimmed={!isActive('domestic') && !isPast('domestic')} active={isActive('domestic')} animate>
+            <StepHeader
+              icon={<MapPin className="w-3 h-3" />}
+              label="1. 출발 거래소 (국내)"
               done={isPast('domestic') || isActive('coin') || isPast('coin')}
-              onEdit={isPast('domestic') ? () => goBackTo('domestic') : undefined}
             />
             <div className="flex gap-2 mt-2 flex-wrap">
               <InfoTag color="amber">KYC 필수</InfoTag>
               <InfoTag color="blue">국세청 보고 (CARF 2027)</InfoTag>
-              <InfoTag color="neutral">위험도 🟢 낮음</InfoTag>
+              <RiskTag risk="low" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
               {domesticOptions.map(({ exchange, bestBtc }) => {
@@ -581,18 +594,21 @@ export function RouteExplorerPage() {
                   ? ((domesticPrice - refGlobalKrw) / refGlobalKrw) * 100
                   : null;
                 return (
-                  <ChoiceBtn key={exchange} selected={selectedDomestic === exchange}
-                    onClick={() => handleDomesticSelect(exchange)} disabled={isPast('domestic')}
+                  <ChoiceBtn
+                    key={exchange}
+                    selected={selectedDomestic === exchange}
+                    onClick={() => handleDomesticSelect(exchange)}
+                    disabled={isPast('domestic')}
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                       {exchange === recDomestic && (
-                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
                       )}
                     </div>
                     <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
                     {takerFee != null && (
-                      <div className="text-xs text-dark-100 mt-1">거래 수수료 {takerFee.toFixed(2)}%</div>
+                      <div className="text-xs text-dark-100 mt-1">수수료 {takerFee.toFixed(2)}%</div>
                     )}
                     {kimchi != null && (
                       <div className={`text-xs mt-0.5 font-medium ${kimchi > 2 ? 'text-bnb-red' : kimchi > 0 ? 'text-brand-400' : 'text-bnb-green'}`}>
@@ -608,17 +624,26 @@ export function RouteExplorerPage() {
 
         {/* Step 2: 출금 코인 */}
         {showSteps && (isPast('domestic') || isActive('coin') || isPast('coin')) && (
-          <StepCard dimmed={!isActive('coin') && !isPast('coin')} animate>
-            <StepHeader icon={<Bitcoin className="w-3 h-3" />} label="2. 국내 출금 코인"
+          <StepCard dimmed={!isActive('coin') && !isPast('coin')} active={isActive('coin')} animate>
+            <StepHeader
+              icon={<Bitcoin className="w-3 h-3" />}
+              label="2. 국내 출금 코인"
               done={isPast('coin')}
-              onEdit={isPast('coin') ? () => goBackTo('coin') : undefined}
             />
             <div className="grid grid-cols-2 gap-2 mt-3">
               {coinOptions.map(({ coin, best }) => (
-                <ChoiceBtn key={coin} selected={selectedCoin === coin}
-                  onClick={() => handleCoinSelect(coin)} disabled={isPast('coin')}
+                <ChoiceBtn
+                  key={coin}
+                  selected={selectedCoin === coin}
+                  onClick={() => handleCoinSelect(coin)}
+                  disabled={isPast('coin')}
                 >
-                  <div className="font-semibold text-sm">{coin === 'USDT' ? '💵 USDT' : '₿ BTC'}</div>
+                  <div className="flex items-center gap-1.5 font-semibold text-sm">
+                    {coin === 'USDT'
+                      ? <><DollarSign className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /><span>USDT</span></>
+                      : <><Bitcoin className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" /><span>BTC</span></>
+                    }
+                  </div>
                   <div className="text-xs text-bnb-muted mt-0.5">
                     {coin === 'USDT' ? '해외 거래소 경유' : '직접 온체인 출금'}
                   </div>
@@ -631,10 +656,11 @@ export function RouteExplorerPage() {
 
         {/* Step 3: 해외 거래소 (USDT only) */}
         {showSteps && selectedCoin === 'USDT' && (isPast('coin') || isActive('global') || isPast('global')) && (
-          <StepCard dimmed={!isActive('global') && !isPast('global')} animate>
-            <StepHeader icon={<Globe className="w-3 h-3" />} label="3. 경유 거래소 (해외)"
+          <StepCard dimmed={!isActive('global') && !isPast('global')} active={isActive('global')} animate>
+            <StepHeader
+              icon={<Globe className="w-3 h-3" />}
+              label="3. 경유 거래소 (해외)"
               done={isPast('global')}
-              onEdit={isPast('global') ? () => goBackTo('global') : undefined}
             />
             {failedExchanges.length > 0 && (
               <p className="mt-2 text-xs text-bnb-muted bg-dark-400 rounded px-3 py-1.5">
@@ -643,24 +669,27 @@ export function RouteExplorerPage() {
             )}
             <div className="space-y-2 mt-3">
               {globalOptions.map(({ exchange, best, hasLightning }) => (
-                <ChoiceBtn key={exchange} selected={selectedGlobal === exchange}
-                  onClick={() => handleGlobalSelect(exchange)} disabled={isPast('global')}
+                <ChoiceBtn
+                  key={exchange}
+                  selected={selectedGlobal === exchange}
+                  onClick={() => handleGlobalSelect(exchange)}
+                  disabled={isPast('global')}
                   horizontal
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-sm">
-                        {EXCHANGE_CARF[exchange]?.flag} {fmtEx(exchange)}
-                      </span>
-                      {hasLightning && <Zap className="w-3 h-3 text-yellow-400" />}
-                      {exchange === recGlobal && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                      <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                      {hasLightning && <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
+                      {exchange === recGlobal && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                      )}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{EXCHANGE_CARF[exchange]?.country}</div>
                     <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       <InfoTag color="amber">KYC 필수</InfoTag>
                       <InfoTag color="blue">CARF {EXCHANGE_CARF[exchange]?.carfYear ?? '?'}</InfoTag>
                       {EXCHANGE_CARF[exchange]?.fatca && <InfoTag color="red">FATCA</InfoTag>}
-                      {(() => { const r = RISK_LABEL[EXCHANGE_CARF[exchange]?.risk ?? 'med']; return <InfoTag color="neutral">위험도 {r.dot} {r.text}</InfoTag>; })()}
+                      <RiskTag risk={EXCHANGE_CARF[exchange]?.risk ?? 'med'} />
                     </div>
                   </div>
                   <FeeTag path={best} align="right" />
@@ -672,22 +701,27 @@ export function RouteExplorerPage() {
 
         {/* Step 4: 네트워크 */}
         {showSteps && (selectedCoin === 'BTC' ? isPast('coin') : isPast('global')) && (
-          <StepCard dimmed={!isActive('network') && !isPast('network')} animate>
-            <StepHeader icon={<ArrowDown className="w-3 h-3" />}
+          <StepCard dimmed={!isActive('network') && !isPast('network')} active={isActive('network')} animate>
+            <StepHeader
+              icon={<ArrowDown className="w-3 h-3" />}
               label={`${selectedCoin === 'BTC' ? '3' : '4'}. 출금 네트워크`}
               done={isPast('network')}
-              onEdit={isPast('network') ? () => goBackTo('network') : undefined}
             />
             <div className="space-y-2 mt-3">
               {networkOptions.map(({ network, best }) => (
-                <ChoiceBtn key={network} selected={selectedNetwork === network}
-                  onClick={() => handleNetworkSelect(network)} disabled={isPast('network')}
+                <ChoiceBtn
+                  key={network}
+                  selected={selectedNetwork === network}
+                  onClick={() => handleNetworkSelect(network)}
+                  disabled={isPast('network')}
                   horizontal
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm">{network}</span>
-                      {network === recNetwork && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                      {network === recNetwork && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                      )}
                     </div>
                     {best.breakdown?.components.find(c => c.label.includes('출금')) && (
                       <div className="text-xs text-bnb-muted mt-0.5">
@@ -704,21 +738,27 @@ export function RouteExplorerPage() {
 
         {/* Step 5: 매수 방식 (USDT only) */}
         {showSteps && selectedCoin === 'USDT' && isPast('network') && (
-          <StepCard dimmed={!isActive('trade_method') && !isPast('trade_method')} animate>
-            <StepHeader icon={<TrendingDown className="w-3 h-3" />} label="5. 해외 매수 방식"
+          <StepCard dimmed={!isActive('trade_method') && !isPast('trade_method')} active={isActive('trade_method')} animate>
+            <StepHeader
+              icon={<TrendingDown className="w-3 h-3" />}
+              label="5. 해외 매수 방식"
               done={isPast('trade_method')}
-              onEdit={isPast('trade_method') ? () => goBackTo('trade_method') : undefined}
             />
             <div className="space-y-2 mt-3">
               {tradeMethodOptions.map(({ id, label, sublabel, best }) => (
-                <ChoiceBtn key={id} selected={selectedTradeMethod === id}
-                  onClick={() => handleTradeMethodSelect(id)} disabled={isPast('trade_method')}
+                <ChoiceBtn
+                  key={id}
+                  selected={selectedTradeMethod === id}
+                  onClick={() => handleTradeMethodSelect(id)}
+                  disabled={isPast('trade_method')}
                   horizontal
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm">{label}</span>
-                      {id === recTradeMethod && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                      {id === recTradeMethod && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                      )}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                   </div>
@@ -731,29 +771,34 @@ export function RouteExplorerPage() {
 
         {/* Step 6: 출금 방식 */}
         {showSteps && (selectedCoin === 'BTC' ? isPast('network') : isPast('trade_method')) && (
-          <StepCard dimmed={!isActive('exit_mode') && !isPast('exit_mode')} animate>
-            <StepHeader icon={<Shield className="w-3 h-3" />}
+          <StepCard dimmed={!isActive('exit_mode') && !isPast('exit_mode')} active={isActive('exit_mode')} animate>
+            <StepHeader
+              icon={<Shield className="w-3 h-3" />}
               label={`${selectedCoin === 'BTC' ? '4' : '6'}. 출금 방식`}
               done={isPast('exit_mode')}
-              onEdit={isPast('exit_mode') ? () => goBackTo('exit_mode') : undefined}
             />
             <div className="space-y-2 mt-3">
               {exitModeOptions.map(({ id, label, sublabel, best }) => (
-                <ChoiceBtn key={id} selected={selectedExitMode === id}
-                  onClick={() => handleExitModeSelect(id)} disabled={isPast('exit_mode')}
+                <ChoiceBtn
+                  key={id}
+                  selected={selectedExitMode === id}
+                  onClick={() => handleExitModeSelect(id)}
+                  disabled={isPast('exit_mode')}
                   horizontal
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 font-semibold text-sm">
-                      {id === 'lightning' && <Zap className="w-3.5 h-3.5 text-yellow-400" />}
+                      {id === 'lightning' && <Zap className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />}
                       <span>{label}</span>
-                      {id === recExitMode && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                      {id === recExitMode && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                      )}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                     <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       {id === 'onchain'
-                        ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><InfoTag color="neutral">위험도 🟢 낮음</InfoTag></>
-                        : <><InfoTag color="green">오프체인 라우팅</InfoTag><InfoTag color="neutral">위험도 🟡 중간</InfoTag></>
+                        ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><RiskTag risk="low" /></>
+                        : <><InfoTag color="green">오프체인 라우팅</InfoTag><RiskTag risk="med" /></>
                       }
                     </div>
                   </div>
@@ -766,40 +811,42 @@ export function RouteExplorerPage() {
 
         {/* Step 7: 스왑 서비스 (Lightning only) */}
         {showSteps && selectedExitMode === 'lightning' && (isPast('exit_mode') || isActive('swap_service') || isPast('swap_service')) && (
-          <StepCard dimmed={!isActive('swap_service') && !isPast('swap_service')} animate>
-            <StepHeader icon={<Zap className="w-3 h-3" />} label="7. LN → 온체인 스왑 서비스"
+          <StepCard dimmed={!isActive('swap_service') && !isPast('swap_service')} active={isActive('swap_service')} animate>
+            <StepHeader
+              icon={<Zap className="w-3 h-3" />}
+              label="7. LN → 온체인 스왑 서비스"
               done={isPast('swap_service')}
-              onEdit={isPast('swap_service') ? () => goBackTo('swap_service') : undefined}
             />
             <div className="space-y-2 mt-3">
               {swapServiceOptions.map(({ service, display, best }) => {
                 const swapComp = best.breakdown?.components.find(c => c.label.includes('스왑'));
+                const m = SWAP_META[service];
                 return (
-                  <ChoiceBtn key={service} selected={selectedSwapService === service}
-                    onClick={() => handleSwapServiceSelect(service)} disabled={isPast('swap_service')}
+                  <ChoiceBtn
+                    key={service}
+                    selected={selectedSwapService === service}
+                    onClick={() => handleSwapServiceSelect(service)}
+                    disabled={isPast('swap_service')}
                     horizontal
                   >
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-sm">{display}</span>
-                        {service === recSwapService && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
+                        {service === recSwapService && (
+                          <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                        )}
                       </div>
                       <div className="text-xs text-bnb-muted mt-0.5">
                         스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
                         {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
                       </div>
-                      {(() => {
-                        const m = SWAP_META[service];
-                        if (!m) return null;
-                        const r = RISK_LABEL[m.risk];
-                        return (
-                          <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                            {m.kyc ? <InfoTag color="amber">KYC 필수</InfoTag> : <InfoTag color="green">비KYC</InfoTag>}
-                            {m.custodial ? <InfoTag color="neutral">수탁형</InfoTag> : <InfoTag color="green">비수탁</InfoTag>}
-                            <InfoTag color="neutral">위험도 {r.dot} {r.text}</InfoTag>
-                          </div>
-                        );
-                      })()}
+                      {m && (
+                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                          {m.kyc ? <InfoTag color="amber">KYC 필수</InfoTag> : <InfoTag color="green">비KYC</InfoTag>}
+                          {m.custodial ? <InfoTag color="neutral">수탁형</InfoTag> : <InfoTag color="green">비수탁</InfoTag>}
+                          <RiskTag risk={m.risk} />
+                        </div>
+                      )}
                     </div>
                     <FeeTag path={best} align="right" />
                   </ChoiceBtn>
@@ -811,50 +858,145 @@ export function RouteExplorerPage() {
 
         {/* Result: Fee Waterfall */}
         {phase === 'result' && matchedPath && (
-          <StepCard animate>
+          <StepCard animate active>
             <StepHeader icon={<Award className="w-3 h-3" />} label="수수료 경로 상세" done />
-            <div className="mt-4 space-y-1">
-              {/* Starting amount */}
-              <div className="flex justify-between items-center text-sm py-1.5">
-                <span className="text-bnb-muted">투자 금액</span>
-                <span className="font-bold font-data text-base">₩{amountKrw.toLocaleString('ko-KR')}</span>
+            <div className="mt-4">
+
+              {/* Start node */}
+              <div className="flex items-start gap-3">
+                <div className="flex flex-col items-center flex-shrink-0 w-5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-bnb-green mt-0.5" />
+                  <div className="w-px flex-1 bg-dark-200 min-h-[1.75rem]" />
+                </div>
+                <div className="pb-3 flex-1 flex justify-between items-baseline">
+                  <span className="text-xs text-bnb-muted">투자 금액</span>
+                  <span className="font-bold font-data text-base">₩{amountKrw.toLocaleString('ko-KR')}</span>
+                </div>
               </div>
 
-              {/* Fee components as waterfall */}
-              {(matchedPath.breakdown?.components ?? []).map((c, i) => (
-                <div key={i} className="flex justify-between items-start text-sm py-1.5 border-t border-dark-200/50 pl-2">
-                  <div>
-                    <div className="text-bnb-muted">{c.label}</div>
-                    {c.amount_text && <div className="text-xs text-dark-100 mt-0.5">{c.amount_text}</div>}
-                  </div>
-                  <div className="text-right flex-shrink-0 ml-4">
-                    <div className="text-bnb-red font-data font-medium">-{formatFeeKrw(c.amount_krw)}</div>
-                    {c.rate_pct != null && (
-                      <div className="text-xs text-bnb-muted">{c.rate_pct.toFixed(3)}%</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {/* Fee steps */}
+              {(() => {
+                let remaining = amountKrw;
+                const components = matchedPath.breakdown?.components ?? [];
+                return components.map((c, i) => {
+                  const isLast = i === components.length - 1;
+                  const pctOfOriginal = amountKrw > 0 ? (c.amount_krw / amountKrw) * 100 : 0;
+                  remaining -= c.amount_krw;
+                  const remainingPct = amountKrw > 0 ? (remaining / amountKrw) * 100 : 0;
+                  return (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="flex flex-col items-center flex-shrink-0 w-5">
+                        <div className="w-2.5 h-2.5 rounded-full border-2 border-bnb-red bg-dark-300 mt-0.5" />
+                        <div className={`w-px flex-1 min-h-[3.5rem] ${isLast ? 'bg-transparent' : 'bg-dark-200'}`} />
+                      </div>
+                      <div className="pb-4 flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium leading-tight">{c.label}</div>
+                            {c.amount_text && (
+                              <div className="text-xs text-dark-100 mt-0.5">{c.amount_text}</div>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="text-bnb-red font-data text-sm font-semibold">
+                              -{formatFeeKrw(c.amount_krw)}
+                            </div>
+                            <div className="text-xs text-bnb-red/70">
+                              {c.rate_pct != null
+                                ? `단계 ${c.rate_pct.toFixed(3)}%`
+                                : `${pctOfOriginal.toFixed(3)}%`}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between text-xs">
+                          <span className="text-bnb-muted">잔여</span>
+                          <div className="text-right">
+                            <span className="font-data text-bnb-text">
+                              ₩{Math.round(remaining).toLocaleString('ko-KR')}
+                            </span>
+                            <span className="text-dark-100 ml-1.5">
+                              ({remainingPct.toFixed(2)}%)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
 
-              {/* Total fee */}
-              <div className="flex justify-between items-center text-sm py-2 border-t border-dark-100 font-bold">
-                <span className="text-bnb-muted">총 수수료</span>
+              {/* Total summary */}
+              <div className="border-t border-dark-200 pt-3 mb-3 flex justify-between items-baseline">
+                <span className="text-xs font-semibold text-bnb-muted">총 수수료</span>
                 <div className="text-right">
-                  <div className="text-bnb-red font-data">-{formatFeeKrw(matchedPath.total_fee_krw)}</div>
-                  <div className="text-xs text-bnb-muted font-normal">{formatPercent(matchedPath.fee_pct)}</div>
+                  <div className="text-bnb-red font-data font-bold text-sm">
+                    -{formatFeeKrw(matchedPath.total_fee_krw)}
+                  </div>
+                  <div className="text-xs text-bnb-muted">{formatPercent(matchedPath.fee_pct)}</div>
                 </div>
               </div>
 
-              {/* Final BTC */}
-              <div className="mt-2 bg-brand-500/10 border border-brand-500/30 rounded-xl p-4">
+              {/* Final BTC received */}
+              <div className="bg-brand-500/10 border border-brand-500/30 rounded-xl p-4">
                 <div className="text-xs text-brand-600 mb-1">최종 수령</div>
                 <div className="text-3xl font-bold font-data text-brand-400">{formatSats(matchedPath.btc_received ?? 0)}</div>
-                <div className="flex items-center gap-2 mt-2 text-xs text-bnb-muted">
-                  <span>{fmtEx(selectedDomestic!)}</span>
-                  <ArrowRight className="w-3 h-3" />
-                  {selectedGlobal && <><span>{fmtEx(selectedGlobal)}</span><ArrowRight className="w-3 h-3" /></>}
-                  {selectedExitMode === 'lightning' && <Zap className="w-3 h-3 text-yellow-400" />}
-                  <span>개인 지갑</span>
+
+                {/* Detailed route nodes */}
+                <div className="mt-4 space-y-0">
+                  {/* Node: 국내 거래소 */}
+                  <RouteNode
+                    label={fmtEx(selectedDomestic!)}
+                    tags={['KYC 필수', 'CARF 2027 (국내)']}
+                    tagColor="amber"
+                  />
+                  <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
+
+                  {/* Node: 해외 거래소 (USDT 경로) */}
+                  {selectedGlobal && selectedCoin === 'USDT' && (
+                    <>
+                      <RouteNode
+                        label={fmtEx(selectedGlobal)}
+                        tags={[
+                          EXCHANGE_CARF[selectedGlobal]?.country ?? '',
+                          `CARF ${EXCHANGE_CARF[selectedGlobal]?.carfYear ?? '?'}`,
+                          ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : []),
+                        ].filter(Boolean)}
+                        tagColor="blue"
+                      />
+                      <RouteEdge
+                        label={selectedTradeMethod === 'fdusd_maker'
+                          ? 'USDT → FDUSD → BTC (Maker 0%)'
+                          : 'USDT → BTC (Taker 매수)'}
+                      />
+                    </>
+                  )}
+
+                  {/* Node: 출금 방식 */}
+                  {selectedExitMode === 'lightning' ? (
+                    <>
+                      <RouteNode
+                        label="Lightning 출금"
+                        tags={['LN 채널', '오프체인 라우팅']}
+                        tagColor="yellow"
+                        icon={<Zap className="w-3 h-3 text-yellow-400" />}
+                      />
+                      <RouteEdge
+                        label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`}
+                        isLightning
+                      />
+                    </>
+                  ) : (
+                    <RouteEdge label={`온체인 출금 via Bitcoin Network`} />
+                  )}
+
+                  {/* Node: 개인 지갑 */}
+                  <RouteNode
+                    label="개인 지갑"
+                    tags={['자기 수탁', '완전 통제']}
+                    tagColor="green"
+                    isEnd
+                    endValue={formatSats(matchedPath.btc_received ?? 0)}
+                  />
                 </div>
               </div>
             </div>
@@ -871,31 +1013,63 @@ export function RouteExplorerPage() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StepCard({ children, dimmed, animate }: { children: React.ReactNode; dimmed?: boolean; animate?: boolean }) {
+function StepCard({
+  children,
+  dimmed,
+  animate,
+  active,
+}: {
+  children: React.ReactNode;
+  dimmed?: boolean;
+  animate?: boolean;
+  active?: boolean;
+}) {
   return (
-    <div className={`bg-dark-300 border border-dark-200 rounded-xl p-4 transition-opacity duration-300 ${dimmed ? 'opacity-35 pointer-events-none' : ''} ${animate ? 'animate-fade-in-up' : ''}`}>
+    <div
+      className={[
+        'rounded-xl p-4 transition-all duration-300',
+        dimmed  ? 'opacity-35 pointer-events-none' : '',
+        animate ? 'animate-fade-in-up' : '',
+        active
+          ? 'bg-dark-300 border border-brand-500/30 shadow-[0_0_20px_rgba(240,185,11,0.05)]'
+          : 'bg-dark-300 border border-dark-200',
+      ].join(' ')}
+    >
       {children}
     </div>
   );
 }
 
-function StepHeader({ icon, label, done, onEdit }: { icon: React.ReactNode; label: string; done: boolean; onEdit?: () => void }) {
+function StepHeader({
+  icon,
+  label,
+  done,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  done: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] transition-colors ${done ? 'bg-brand-500 text-dark-500' : 'bg-dark-200 text-bnb-muted'}`}>
-          {icon}
-        </span>
-        <span className="text-xs font-semibold text-bnb-muted uppercase tracking-wide">{label}</span>
-      </div>
-      {onEdit && (
-        <button onClick={onEdit} className="text-xs text-brand-500 hover:text-brand-400 transition-colors">변경</button>
-      )}
+    <div className="flex items-center gap-2">
+      <span
+        className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] transition-colors ${
+          done ? 'bg-brand-500 text-dark-500' : 'bg-dark-200 text-bnb-muted'
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="text-xs font-semibold text-bnb-muted uppercase tracking-wide">{label}</span>
     </div>
   );
 }
 
-function ChoiceBtn({ children, selected, onClick, disabled, horizontal }: {
+function ChoiceBtn({
+  children,
+  selected,
+  onClick,
+  disabled,
+  horizontal,
+}: {
   children: React.ReactNode;
   selected: boolean;
   onClick: () => void;
@@ -906,8 +1080,13 @@ function ChoiceBtn({ children, selected, onClick, disabled, horizontal }: {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${horizontal ? 'w-full flex items-center justify-between' : 'text-left'} p-3 rounded-lg border transition-all active:scale-[0.98] disabled:cursor-default
-        ${selected ? 'border-brand-500 bg-brand-500/10' : 'border-dark-200 hover:border-dark-100 hover:bg-dark-200/40'}`}
+      className={[
+        horizontal ? 'w-full flex items-start justify-between gap-3' : 'text-left w-full',
+        'p-3 rounded-lg border transition-all active:scale-[0.98] disabled:cursor-default',
+        selected
+          ? 'border-brand-500 bg-brand-500/10'
+          : 'border-dark-200 hover:border-dark-100 hover:bg-dark-200/40',
+      ].join(' ')}
     >
       {children}
     </button>
@@ -916,7 +1095,7 @@ function ChoiceBtn({ children, selected, onClick, disabled, horizontal }: {
 
 function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
   return (
-    <div className={`flex-shrink-0 ml-3 ${align === 'right' ? 'text-right' : ''}`}>
+    <div className={`flex-shrink-0 ${align === 'right' ? 'text-right' : ''}`}>
       <div className="font-bold text-sm font-data">{formatSats(path.btc_received ?? 0)}</div>
       <div className="text-xs text-bnb-muted">수수료 {formatPercent(path.fee_pct)}</div>
     </div>
@@ -937,5 +1116,84 @@ function InfoTag({ color, children }: { color: TagColor; children: React.ReactNo
     <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${TAG_CLS[color]}`}>
       {children}
     </span>
+  );
+}
+
+function RiskTag({ risk }: { risk: 'low' | 'med' | 'high' }) {
+  const cfg = {
+    low:  { dot: 'bg-bnb-green', text: '낮음' },
+    med:  { dot: 'bg-brand-400', text: '중간' },
+    high: { dot: 'bg-bnb-red',   text: '높음' },
+  }[risk];
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border bg-dark-200 text-bnb-muted border-dark-100">
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      위험도 {cfg.text}
+    </span>
+  );
+}
+
+type RouteTagColor = 'amber' | 'blue' | 'green' | 'yellow' | 'neutral';
+const ROUTE_TAG_CLS: Record<RouteTagColor, string> = {
+  amber:   'bg-yellow-500/10 text-yellow-400/80 border-yellow-500/20',
+  blue:    'bg-blue-500/10 text-blue-400/80 border-blue-500/20',
+  green:   'bg-bnb-green/10 text-bnb-green/80 border-bnb-green/20',
+  yellow:  'bg-yellow-400/10 text-yellow-300/80 border-yellow-400/20',
+  neutral: 'bg-dark-200 text-bnb-muted border-dark-100',
+};
+
+function RouteNode({
+  label,
+  tags,
+  tagColor,
+  icon,
+  isEnd,
+  endValue,
+}: {
+  label: string;
+  tags?: string[];
+  tagColor?: RouteTagColor;
+  icon?: React.ReactNode;
+  isEnd?: boolean;
+  endValue?: string;
+}) {
+  return (
+    <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${isEnd ? 'border-brand-500/40 bg-brand-500/5' : 'border-dark-100/50 bg-dark-400/50'}`}>
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${isEnd ? 'bg-brand-400' : 'bg-bnb-muted'}`} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <span className={`text-xs font-semibold ${isEnd ? 'text-brand-400' : 'text-bnb-text'}`}>{label}</span>
+          {isEnd && endValue && (
+            <span className="ml-auto font-data text-xs text-brand-400 font-bold">{endValue}</span>
+          )}
+        </div>
+        {tags && tags.length > 0 && (
+          <div className="flex gap-1 mt-1 flex-wrap">
+            {tags.map((t, i) => (
+              <span
+                key={i}
+                className={`inline-flex text-[10px] px-1 py-0.5 rounded border ${ROUTE_TAG_CLS[tagColor ?? 'neutral']}`}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RouteEdge({ label, isLightning }: { label: string; isLightning?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1">
+      <div className="flex flex-col items-center flex-shrink-0 w-2">
+        <div className={`w-px h-3 ${isLightning ? 'bg-yellow-400/50' : 'bg-dark-100'}`} />
+        <ArrowDown className={`w-2.5 h-2.5 ${isLightning ? 'text-yellow-400/70' : 'text-dark-100'}`} />
+        <div className={`w-px h-3 ${isLightning ? 'bg-yellow-400/50' : 'bg-dark-100'}`} />
+      </div>
+      <span className={`text-[10px] ${isLightning ? 'text-yellow-400/70' : 'text-bnb-muted'}`}>{label}</span>
+    </div>
   );
 }
