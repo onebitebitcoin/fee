@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
-  ArrowDown, ArrowRight, Award, Bitcoin,
-  DollarSign, EyeOff, Globe, MapPin, RefreshCw,
-  Shield, TrendingDown, Zap,
-} from 'lucide-react';
+  ArrowDown, ArrowRight, ArrowsClockwise, Coin,
+  CurrencyDollar, EyeSlash, Globe, Lightning, MapPin,
+  ShieldCheck, TrendDown, Trophy,
+} from '@phosphor-icons/react';
 
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
@@ -77,9 +77,9 @@ const SWAP_META: Record<string, { kyc: boolean; custodial: boolean; risk: 'low' 
 };
 
 const PREF_OPTIONS = [
-  { id: 'cheapest'  as Preference, Icon: TrendingDown, label: '최저 수수료', sub: 'KYC 무관'   },
-  { id: 'non_kyc'   as Preference, Icon: EyeOff,       label: '비KYC 우선', sub: '신원 미제출' },
-  { id: 'lightning' as Preference, Icon: Zap,          label: 'Lightning',  sub: 'LN 경유'    },
+  { id: 'cheapest'  as Preference, Icon: TrendDown,  label: '최저 수수료', sub: 'KYC 무관'   },
+  { id: 'non_kyc'   as Preference, Icon: EyeSlash,   label: '비KYC 우선', sub: '신원 미제출' },
+  { id: 'lightning' as Preference, Icon: Lightning,  label: 'Lightning',  sub: 'LN 경유'    },
 ];
 
 function fmtTime(ts: number | null): string {
@@ -433,9 +433,9 @@ export function RouteExplorerPage() {
 
       {/* Header */}
       <header className="sticky top-0 z-10 bg-dark-400/95 backdrop-blur-sm border-b border-dark-200">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bitcoin className="w-5 h-5 text-brand-500" />
+            <Coin className="w-5 h-5 text-brand-500" weight="fill" />
             <span className="font-semibold text-sm tracking-tight">BTC 출금 경로 탐색</span>
           </div>
           {allData && (
@@ -443,7 +443,7 @@ export function RouteExplorerPage() {
               onClick={handleReset}
               className="flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
             >
-              <RefreshCw className="w-3 h-3" />
+              <ArrowsClockwise className="w-3.5 h-3.5" />
               <span>초기화</span>
             </button>
           )}
@@ -453,18 +453,27 @@ export function RouteExplorerPage() {
         {showSteps && (
           <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-dark-200/40">
             <div className="flex items-center gap-1 text-xs px-4 py-2 min-w-max">
-              {[
-                { label: `₩${amountInput}${amountUnit}`, done: true },
-                { label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic },
-                { label: selectedCoin ?? '출금 코인', done: !!selectedCoin },
-                ...(selectedCoin !== 'BTC' ? [{ label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal }] : []),
-                { label: selectedNetwork ?? '네트워크', done: !!selectedNetwork },
-                ...(selectedCoin !== 'BTC' ? [{ label: selectedTradeMethod === 'fdusd_maker' ? 'FDUSD' : selectedTradeMethod ? 'Taker' : '매수 방식', done: !!selectedTradeMethod }] : []),
-                { label: selectedExitMode ?? '출금 방식', done: !!selectedExitMode },
-                ...(selectedExitMode === 'lightning' ? [{ label: selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : '스왑 서비스', done: !!selectedSwapService }] : []),
-              ].map((s, i, arr) => (
+              {(([
+                { label: `₩${amountInput}${amountUnit}`, done: true, back: null },
+                { label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic, back: 'domestic' as Phase },
+                { label: selectedCoin ?? '출금 코인', done: !!selectedCoin, back: 'coin' as Phase },
+                ...(selectedCoin !== 'BTC' ? [{ label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal, back: 'global' as Phase }] : []),
+                { label: selectedNetwork ?? '네트워크', done: !!selectedNetwork, back: 'network' as Phase },
+                ...(selectedCoin !== 'BTC' ? [{ label: selectedTradeMethod === 'fdusd_maker' ? 'FDUSD' : selectedTradeMethod ? 'Taker' : '매수 방식', done: !!selectedTradeMethod, back: 'trade_method' as Phase }] : []),
+                { label: selectedExitMode ?? '출금 방식', done: !!selectedExitMode, back: 'exit_mode' as Phase },
+                ...(selectedExitMode === 'lightning' ? [{ label: selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : '스왑 서비스', done: !!selectedSwapService, back: 'swap_service' as Phase }] : []),
+              ] as { label: string; done: boolean; back: Phase | null }[])).map((s, i, arr) => (
                 <span key={i} className="flex items-center gap-1 whitespace-nowrap">
-                  <span className={s.done ? 'text-brand-500 font-medium' : 'text-bnb-muted'}>{s.label}</span>
+                  {s.back && isPast(s.back) ? (
+                    <button
+                      onClick={() => goBackTo(s.back!)}
+                      className="text-brand-500/70 hover:text-brand-400 font-medium transition-colors"
+                    >
+                      {s.label}
+                    </button>
+                  ) : (
+                    <span className={s.done ? 'text-brand-500 font-medium' : 'text-bnb-muted'}>{s.label}</span>
+                  )}
                   {i < arr.length - 1 && (
                     <ArrowRight className={`w-3 h-3 flex-shrink-0 ${s.done ? 'text-brand-500' : 'text-dark-100'}`} />
                   )}
@@ -475,7 +484,7 @@ export function RouteExplorerPage() {
         )}
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-3">
+      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4">
 
         {/* Step 0: Amount + Preference */}
         <StepCard active={isActive('input')} dimmed={showSteps && !isActive('input')}>
@@ -551,18 +560,19 @@ export function RouteExplorerPage() {
 
         {/* Loading */}
         {phase === 'loading' && (
-          <div className="flex flex-col items-center gap-4 py-12">
+          <div className="flex flex-col items-center gap-5 py-14">
             <div className="relative">
-              <Bitcoin className="w-12 h-12 text-brand-500 animate-pulse" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-brand-500">
-                <span className="absolute inset-0 rounded-full bg-brand-400 animate-live-ping" />
-              </span>
+              <div className="w-16 h-16 rounded-full border-2 border-brand-500/20 flex items-center justify-center">
+                <Coin className="w-8 h-8 text-brand-500" weight="fill" />
+              </div>
+              <span className="absolute inset-0 rounded-full border border-brand-500/40 animate-ping" style={{ animationDuration: '1.8s' }} />
             </div>
-            <p className="text-bnb-muted text-sm">6개 글로벌 거래소 실시간 조회 중...</p>
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map(i => (
-                <span key={i} className="w-2 h-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-              ))}
+            <div className="text-center space-y-1">
+              <p className="text-bnb-text text-sm font-medium">실시간 경로 탐색 중</p>
+              <p className="text-bnb-muted text-xs">6개 글로벌 거래소 수수료 조회 중...</p>
+            </div>
+            <div className="w-48 h-0.5 bg-dark-200 rounded-full overflow-hidden">
+              <div className="loading-progress-bar" />
             </div>
           </div>
         )}
@@ -571,7 +581,7 @@ export function RouteExplorerPage() {
         {showSteps && (
           <StepCard dimmed={!isActive('domestic') && !isPast('domestic')} active={isActive('domestic')} animate>
             <StepHeader
-              icon={<MapPin className="w-3 h-3" />}
+              icon={<MapPin className="w-3.5 h-3.5" />}
               label="1. 출발 거래소 (국내)"
               done={isPast('domestic') || isActive('coin') || isPast('coin')}
             />
@@ -625,7 +635,7 @@ export function RouteExplorerPage() {
         {showSteps && (isPast('domestic') || isActive('coin') || isPast('coin')) && (
           <StepCard dimmed={!isActive('coin') && !isPast('coin')} active={isActive('coin')} animate>
             <StepHeader
-              icon={<Bitcoin className="w-3 h-3" />}
+              icon={<Coin className="w-3.5 h-3.5" />}
               label="2. 국내 출금 코인"
               done={isPast('coin')}
             />
@@ -638,8 +648,8 @@ export function RouteExplorerPage() {
                 >
                   <div className="flex items-center gap-1.5 font-semibold text-sm">
                     {coin === 'USDT'
-                      ? <><DollarSign className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /><span>USDT</span></>
-                      : <><Bitcoin className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" /><span>BTC</span></>
+                      ? <><CurrencyDollar className="w-3.5 h-3.5 text-green-400 flex-shrink-0" weight="bold" /><span>USDT</span></>
+                      : <><Coin className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" weight="fill" /><span>BTC</span></>
                     }
                   </div>
                   <div className="text-xs text-bnb-muted mt-0.5">
@@ -656,7 +666,7 @@ export function RouteExplorerPage() {
         {showSteps && selectedCoin === 'USDT' && (isPast('coin') || isActive('global') || isPast('global')) && (
           <StepCard dimmed={!isActive('global') && !isPast('global')} active={isActive('global')} animate>
             <StepHeader
-              icon={<Globe className="w-3 h-3" />}
+              icon={<Globe className="w-3.5 h-3.5" />}
               label="3. 경유 거래소 (해외)"
               done={isPast('global')}
             />
@@ -676,7 +686,7 @@ export function RouteExplorerPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
-                      {hasLightning && <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
+                      {hasLightning && <Lightning className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" weight="fill" />}
                       {exchange === recGlobal && (
                         <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
                       )}
@@ -700,7 +710,7 @@ export function RouteExplorerPage() {
         {showSteps && (selectedCoin === 'BTC' ? isPast('coin') : isPast('global')) && (
           <StepCard dimmed={!isActive('network') && !isPast('network')} active={isActive('network')} animate>
             <StepHeader
-              icon={<ArrowDown className="w-3 h-3" />}
+              icon={<ArrowDown className="w-3.5 h-3.5" />}
               label={`${selectedCoin === 'BTC' ? '3' : '4'}. 출금 네트워크`}
               done={isPast('network')}
             />
@@ -736,7 +746,7 @@ export function RouteExplorerPage() {
         {showSteps && selectedCoin === 'USDT' && isPast('network') && (
           <StepCard dimmed={!isActive('trade_method') && !isPast('trade_method')} active={isActive('trade_method')} animate>
             <StepHeader
-              icon={<TrendingDown className="w-3 h-3" />}
+              icon={<TrendDown className="w-3.5 h-3.5" />}
               label="5. 해외 매수 방식"
               done={isPast('trade_method')}
             />
@@ -768,7 +778,7 @@ export function RouteExplorerPage() {
         {showSteps && (selectedCoin === 'BTC' ? isPast('network') : isPast('trade_method')) && (
           <StepCard dimmed={!isActive('exit_mode') && !isPast('exit_mode')} active={isActive('exit_mode')} animate>
             <StepHeader
-              icon={<Shield className="w-3 h-3" />}
+              icon={<ShieldCheck className="w-3.5 h-3.5" />}
               label={`${selectedCoin === 'BTC' ? '4' : '6'}. 출금 방식`}
               done={isPast('exit_mode')}
             />
@@ -782,7 +792,7 @@ export function RouteExplorerPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 font-semibold text-sm">
-                      {id === 'lightning' && <Zap className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />}
+                      {id === 'lightning' && <Lightning className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" weight="fill" />}
                       <span>{label}</span>
                       {id === recExitMode && (
                         <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
@@ -807,7 +817,7 @@ export function RouteExplorerPage() {
         {showSteps && selectedExitMode === 'lightning' && (isPast('exit_mode') || isActive('swap_service') || isPast('swap_service')) && (
           <StepCard dimmed={!isActive('swap_service') && !isPast('swap_service')} active={isActive('swap_service')} animate>
             <StepHeader
-              icon={<Zap className="w-3 h-3" />}
+              icon={<Lightning className="w-3.5 h-3.5" />}
               label="7. LN → 온체인 스왑 서비스"
               done={isPast('swap_service')}
             />
@@ -852,7 +862,7 @@ export function RouteExplorerPage() {
         {/* Result: Fee Waterfall */}
         {phase === 'result' && matchedPath && (
           <StepCard animate active>
-            <StepHeader icon={<Award className="w-3 h-3" />} label="수수료 경로 상세" done />
+            <StepHeader icon={<Trophy className="w-3.5 h-3.5" weight="fill" />} label="수수료 경로 상세" done />
             <div className="mt-4">
 
               {/* Start node */}
@@ -930,9 +940,11 @@ export function RouteExplorerPage() {
               </div>
 
               {/* Final BTC received */}
-              <div className="bg-brand-500/10 border border-brand-500/30 rounded-xl p-4">
-                <div className="text-xs text-brand-600 mb-1">최종 수령</div>
-                <div className="text-3xl font-bold font-data text-brand-400">{formatSats(matchedPath.btc_received ?? 0)}</div>
+              <div className="bg-gradient-to-br from-brand-500/15 to-brand-500/5 border border-brand-500/40 rounded-xl p-5 shadow-[inset_0_1px_0_rgba(240,185,11,0.1)]">
+                <div className="text-xs font-medium text-brand-500/70 mb-2 uppercase tracking-wider">최종 수령</div>
+                <div className="text-4xl md:text-5xl font-bold font-data text-brand-400 drop-shadow-[0_0_16px_rgba(240,185,11,0.35)]">
+                  {formatSats(matchedPath.btc_received ?? 0)}
+                </div>
 
                 {/* Detailed route nodes */}
                 <div className="mt-4 space-y-0">
@@ -971,7 +983,7 @@ export function RouteExplorerPage() {
                         label="Lightning 출금"
                         tags={['LN 채널', '오프체인 라우팅']}
                         tagColor="yellow"
-                        icon={<Zap className="w-3 h-3 text-yellow-400" />}
+                        icon={<Lightning className="w-3.5 h-3.5 text-yellow-400" weight="fill" />}
                       />
                       <RouteEdge
                         label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`}
@@ -1020,12 +1032,12 @@ function StepCard({
   return (
     <div
       className={[
-        'rounded-xl p-4 transition-all duration-300',
-        dimmed  ? 'opacity-35 pointer-events-none' : '',
+        'rounded-xl p-4 md:p-5 transition-all duration-300',
+        dimmed  ? 'opacity-30 pointer-events-none' : '',
         animate ? 'animate-fade-in-up' : '',
         active
-          ? 'bg-dark-300 border border-brand-500/30 shadow-[0_0_20px_rgba(240,185,11,0.05)]'
-          : 'bg-dark-300 border border-dark-200',
+          ? 'bg-dark-300 border border-brand-500/35 shadow-[0_0_28px_rgba(240,185,11,0.07),inset_0_1px_0_rgba(240,185,11,0.05)]'
+          : 'bg-dark-300 border border-dark-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]',
       ].join(' ')}
     >
       {children}
@@ -1043,15 +1055,19 @@ function StepHeader({
   done: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <span
-        className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] transition-colors ${
-          done ? 'bg-brand-500 text-dark-500' : 'bg-dark-200 text-bnb-muted'
+        className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors flex-shrink-0 ${
+          done
+            ? 'bg-brand-500 text-dark-500 shadow-[0_0_8px_rgba(240,185,11,0.4)]'
+            : 'bg-dark-200 text-bnb-muted border border-dark-100'
         }`}
       >
         {icon}
       </span>
-      <span className="text-xs font-semibold text-bnb-muted uppercase tracking-wide">{label}</span>
+      <span className={`text-sm font-semibold transition-colors ${done ? 'text-bnb-text' : 'text-bnb-text/80'}`}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -1075,10 +1091,10 @@ function ChoiceBtn({
       disabled={disabled}
       className={[
         horizontal ? 'w-full flex items-start justify-between gap-3' : 'text-left w-full',
-        'p-3 rounded-lg border transition-all active:scale-[0.98] disabled:cursor-default',
+        'p-3 rounded-lg border transition-all duration-150 active:scale-[0.98] disabled:cursor-default',
         selected
-          ? 'border-brand-500 bg-brand-500/10'
-          : 'border-dark-200 hover:border-dark-100 hover:bg-dark-200/40',
+          ? 'border-brand-500/70 bg-brand-500/10 shadow-[0_0_0_1px_rgba(240,185,11,0.2),inset_0_1px_0_rgba(240,185,11,0.08)]'
+          : 'border-dark-200 hover:border-dark-100 hover:bg-dark-200/50',
       ].join(' ')}
     >
       {children}
@@ -1183,7 +1199,7 @@ function RouteEdge({ label, isLightning }: { label: string; isLightning?: boolea
     <div className="flex items-center gap-2 px-3 py-1">
       <div className="flex flex-col items-center flex-shrink-0 w-2">
         <div className={`w-px h-3 ${isLightning ? 'bg-yellow-400/50' : 'bg-dark-100'}`} />
-        <ArrowDown className={`w-2.5 h-2.5 ${isLightning ? 'text-yellow-400/70' : 'text-dark-100'}`} />
+        <ArrowDown className={`w-3 h-3 ${isLightning ? 'text-yellow-400/70' : 'text-dark-100'}`} />
         <div className={`w-px h-3 ${isLightning ? 'bg-yellow-400/50' : 'bg-dark-100'}`} />
       </div>
       <span className={`text-[10px] ${isLightning ? 'text-yellow-400/70' : 'text-bnb-muted'}`}>{label}</span>
