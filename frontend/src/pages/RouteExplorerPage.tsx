@@ -416,7 +416,7 @@ export function RouteExplorerPage() {
               onEdit={isPast('domestic') ? () => goBackTo('domestic') : undefined}
             />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-              {domesticOptions.map(({ exchange, bestBtc }) => {
+              {domesticOptions.map(({ exchange, bestBtc }, idx) => {
                 const takerFee = domesticTakerFees[exchange];
                 const refGlobalKrw = (() => {
                   const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
@@ -432,7 +432,12 @@ export function RouteExplorerPage() {
                   <ChoiceBtn key={exchange} selected={selectedDomestic === exchange}
                     onClick={() => handleDomesticSelect(exchange)} disabled={isPast('domestic')}
                   >
-                    <div className="font-semibold text-sm">{fmtEx(exchange)}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                      {idx === 0 && (
+                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">최적</span>
+                      )}
+                    </div>
                     <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
                     {takerFee != null && (
                       <div className="text-xs text-dark-100 mt-1">거래 수수료 {takerFee.toFixed(2)}%</div>
