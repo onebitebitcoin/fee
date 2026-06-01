@@ -56,6 +56,32 @@ const SWAP_DISPLAY: Record<string, string> = {
   coinos: 'Coinos', walletofsatoshi: 'WalletOfSatoshi',
 };
 
+// CARF / jurisdiction data (source: OECD 2025 Monitoring Update)
+// All global exchanges: confirmed_2028 group
+const EXCHANGE_CARF: Record<string, { flag: string; country: string; carfYear: number; fatca: boolean; risk: 'low' | 'med' | 'high' }> = {
+  binance:  { flag: '🇦🇪', country: 'UAE (Abu Dhabi)',  carfYear: 2028, fatca: false, risk: 'med'  },
+  okx:      { flag: '🇸🇨', country: '세이셸',            carfYear: 2028, fatca: false, risk: 'low'  },
+  bybit:    { flag: '🇦🇪', country: 'UAE / BVI',         carfYear: 2028, fatca: false, risk: 'low'  },
+  bitget:   { flag: '🇸🇨', country: '세이셸',            carfYear: 2028, fatca: false, risk: 'low'  },
+  kraken:   { flag: '🇺🇸', country: '미국',              carfYear: 2028, fatca: true,  risk: 'high' },
+  coinbase: { flag: '🇺🇸', country: '미국',              carfYear: 2028, fatca: true,  risk: 'high' },
+};
+
+// Swap service metadata
+const SWAP_META: Record<string, { kyc: boolean; custodial: boolean; risk: 'low' | 'med' | 'high'; riskNote: string }> = {
+  strike:          { kyc: true,  custodial: true,  risk: 'med', riskNote: '미국 규제, KYC 필수'           },
+  boltz:           { kyc: false, custodial: false, risk: 'low', riskNote: '비수탁, 오픈소스 서브마린 스왑' },
+  oksusu:          { kyc: false, custodial: false, risk: 'low', riskNote: '비수탁, 비KYC'                  },
+  coinos:          { kyc: false, custodial: true,  risk: 'med', riskNote: '수탁형, 비KYC'                  },
+  walletofsatoshi: { kyc: false, custodial: true,  risk: 'med', riskNote: '수탁형, 비KYC, 상대방 위험'     },
+};
+
+const RISK_LABEL: Record<string, { dot: string; text: string; cls: string }> = {
+  low:  { dot: '🟢', text: '낮음', cls: 'text-bnb-green'  },
+  med:  { dot: '🟡', text: '중간', cls: 'text-brand-400'  },
+  high: { dot: '🔴', text: '높음', cls: 'text-bnb-red'    },
+};
+
 function fmtTime(ts: number | null): string {
   if (!ts) return '-';
   return new Intl.DateTimeFormat('ko-KR', {
@@ -536,6 +562,11 @@ export function RouteExplorerPage() {
               done={isPast('domestic') || isActive('coin') || isPast('coin')}
               onEdit={isPast('domestic') ? () => goBackTo('domestic') : undefined}
             />
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <InfoTag color="amber">KYC 필수</InfoTag>
+              <InfoTag color="blue">국세청 보고 (CARF 2027)</InfoTag>
+              <InfoTag color="neutral">위험도 🟢 낮음</InfoTag>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
               {domesticOptions.map(({ exchange, bestBtc }) => {
                 const takerFee = domesticTakerFees[exchange];
@@ -617,12 +648,20 @@ export function RouteExplorerPage() {
                   horizontal
                 >
                   <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-sm">
+                        {EXCHANGE_CARF[exchange]?.flag} {fmtEx(exchange)}
+                      </span>
                       {hasLightning && <Zap className="w-3 h-3 text-yellow-400" />}
                       {exchange === recGlobal && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
                     </div>
-                    <div className="text-xs text-bnb-muted mt-0.5">{hasLightning ? 'Lightning 출금 지원' : '온체인 출금'}</div>
+                    <div className="text-xs text-bnb-muted mt-0.5">{EXCHANGE_CARF[exchange]?.country}</div>
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      <InfoTag color="amber">KYC 필수</InfoTag>
+                      <InfoTag color="blue">CARF {EXCHANGE_CARF[exchange]?.carfYear ?? '?'}</InfoTag>
+                      {EXCHANGE_CARF[exchange]?.fatca && <InfoTag color="red">FATCA</InfoTag>}
+                      {(() => { const r = RISK_LABEL[EXCHANGE_CARF[exchange]?.risk ?? 'med']; return <InfoTag color="neutral">위험도 {r.dot} {r.text}</InfoTag>; })()}
+                    </div>
                   </div>
                   <FeeTag path={best} align="right" />
                 </ChoiceBtn>
@@ -711,6 +750,12 @@ export function RouteExplorerPage() {
                       {id === recExitMode && <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded">추천</span>}
                     </div>
                     <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {id === 'onchain'
+                        ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><InfoTag color="neutral">위험도 🟢 낮음</InfoTag></>
+                        : <><InfoTag color="green">오프체인 라우팅</InfoTag><InfoTag color="neutral">위험도 🟡 중간</InfoTag></>
+                      }
+                    </div>
                   </div>
                   <FeeTag path={best} align="right" />
                 </ChoiceBtn>
@@ -743,6 +788,18 @@ export function RouteExplorerPage() {
                         스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
                         {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
                       </div>
+                      {(() => {
+                        const m = SWAP_META[service];
+                        if (!m) return null;
+                        const r = RISK_LABEL[m.risk];
+                        return (
+                          <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                            {m.kyc ? <InfoTag color="amber">KYC 필수</InfoTag> : <InfoTag color="green">비KYC</InfoTag>}
+                            {m.custodial ? <InfoTag color="neutral">수탁형</InfoTag> : <InfoTag color="green">비수탁</InfoTag>}
+                            <InfoTag color="neutral">위험도 {r.dot} {r.text}</InfoTag>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <FeeTag path={best} align="right" />
                   </ChoiceBtn>
@@ -863,5 +920,22 @@ function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
       <div className="font-bold text-sm font-data">{formatSats(path.btc_received ?? 0)}</div>
       <div className="text-xs text-bnb-muted">수수료 {formatPercent(path.fee_pct)}</div>
     </div>
+  );
+}
+
+type TagColor = 'amber' | 'blue' | 'green' | 'red' | 'neutral';
+const TAG_CLS: Record<TagColor, string> = {
+  amber:   'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+  blue:    'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  green:   'bg-bnb-green/15 text-bnb-green border-bnb-green/30',
+  red:     'bg-bnb-red/15 text-bnb-red border-bnb-red/30',
+  neutral: 'bg-dark-200 text-bnb-muted border-dark-100',
+};
+
+function InfoTag({ color, children }: { color: TagColor; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${TAG_CLS[color]}`}>
+      {children}
+    </span>
   );
 }
