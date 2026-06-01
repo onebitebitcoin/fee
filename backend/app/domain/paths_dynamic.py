@@ -24,28 +24,45 @@ logger = logging.getLogger(__name__)
 _DEFAULT_GLOBAL_TAKER = 0.001  # 0.1%
 
 # Lightning 스왑 서비스: LN → 온체인 변환 수수료
+# 출처: lightning_scraper.py get_all_lightning_swap_fees() 실시간 API (2026-06-01 기준)
 LIGHTNING_SWAP_SERVICES = [
     {
-        'name': 'cornwallet',
-        'display': 'CornWallet',
-        'fee_pct': 0.0045,         # 0.45%
+        'name': 'strike',
+        'display': 'Strike',
+        'fee_pct': 0.0,            # 0% — 실시간 API 확인 (2026-06-01)
         'fixed_fee_btc': 0.0,
-        'kyc': False,              # 비수탁, 계정 불필요
+        'kyc': True,               # 계정/KYC 필요 (미국 서비스)
+    },
+    {
+        'name': 'oksusu',
+        'display': 'CornWallet',   # team.oksu.su = CornWallet (옥수수) — 구 cornwallet.net의 현재 도메인
+        'fee_pct': 0.0049,         # 0.49% — 실시간 API 확인 (2026-06-01)
+        'fixed_fee_btc': 0.0,
+        'kyc': False,              # 비KYC
     },
     {
         'name': 'boltz',
         'display': 'Boltz',
-        'fee_pct': 0.005,          # 0.5%
-        'fixed_fee_btc': 0.000002, # ~200 sats 채굴 수수료
+        'fee_pct': 0.005,          # 0.5% — 실시간 API 확인 (2026-06-01)
+        'fixed_fee_btc': 0.0,      # 고정비 없음 (이전 200 sats 오류였음)
         'kyc': False,              # 비수탁, 오픈소스 서브마린 스왑
+    },
+    {
+        'name': 'coinos',
+        'display': 'Coinos',
+        'fee_pct': 0.005,          # 0.5% — 실시간 API 확인 (2026-06-01)
+        'fixed_fee_btc': 0.0,
+        'kyc': False,              # 비KYC
     },
     {
         'name': 'walletofsatoshi',
         'display': 'WalletOfSatoshi',
-        'fee_pct': 0.019,          # 1.9%
+        'fee_pct': 0.0195,         # 1.95% — 실시간 API 확인 (2026-06-01, 기존 1.9% 오류)
         'fixed_fee_btc': 0.0,
         'kyc': False,              # 비KYC (계정 불필요)
     },
+    # Bitfreezer: API 403 차단 — 수수료 미확인, 제외
+    # (CornWallet = oksusu 항목으로 통합, team.oksu.su 도메인 운영 중)
 ]
 
 
@@ -71,6 +88,7 @@ def _build_usdt_onchain_paths(
     korean_taker: float,
     amount_krw: int,
     usd_krw_rate: float,
+    korean_usdt_price_krw: float,
     global_btc_price_usd: float,
     global_exchange: str,
     global_taker_usdt: float,
@@ -88,7 +106,8 @@ def _build_usdt_onchain_paths(
 
         withdrawal_fee_usdt = network['fee']
         trading_fee_krw = round(amount_krw * korean_taker)
-        usdt_bought = (amount_krw - trading_fee_krw) / usd_krw_rate
+        # 국내 USDT 실거래가로 실제 수령 USDT 계산
+        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
         usdt_after = usdt_bought - withdrawal_fee_usdt
         if usdt_after <= 0:
             continue
@@ -96,12 +115,13 @@ def _build_usdt_onchain_paths(
         global_fee_usdt = usdt_after * global_taker_usdt
         usdt_for_btc = usdt_after - global_fee_usdt
         btc_at_global = usdt_for_btc / global_btc_price_usd
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * usd_krw_rate)
+        # USDT 수수료는 국내 실거래가로, BTC 수수료는 포렉스 기준으로 환산
+        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
         global_trading_fee_krw = round(global_fee_usdt * usd_krw_rate)
 
         # 각 노드의 실제 통과 금액 (KRW 환산)
         input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * usd_krw_rate)
+        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
         input_krw_global_buy = round(usdt_after * usd_krw_rate)
         input_krw_btc_wd = round(btc_at_global * global_btc_price_usd * usd_krw_rate)
 
@@ -158,6 +178,7 @@ def _build_fdusd_maker_paths(
     korean_taker: float,
     amount_krw: int,
     usd_krw_rate: float,
+    korean_usdt_price_krw: float,
     global_btc_price_usd: float,
     global_exchange: str,
     fdusd_maker_fee: float,
@@ -176,7 +197,8 @@ def _build_fdusd_maker_paths(
 
         withdrawal_fee_usdt = network['fee']
         trading_fee_krw = round(amount_krw * korean_taker)
-        usdt_bought = (amount_krw - trading_fee_krw) / usd_krw_rate
+        # 국내 USDT 실거래가로 실제 수령 USDT 계산
+        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
         usdt_after = usdt_bought - withdrawal_fee_usdt
         if usdt_after <= 0:
             continue
@@ -192,11 +214,11 @@ def _build_fdusd_maker_paths(
         btc_at_global = fdusd_for_btc / global_btc_price_usd
         global_trading_fee_krw = round(global_maker_fee_fdusd * usd_krw_rate)
 
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * usd_krw_rate)
+        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
 
         # 각 노드의 실제 통과 금액 (KRW 환산)
         input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * usd_krw_rate)
+        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
         input_krw_convert = round(usdt_after * usd_krw_rate)
         input_krw_global_buy = round(fdusd_amount * usd_krw_rate)
         input_krw_btc_wd = round(btc_at_global * global_btc_price_usd * usd_krw_rate)
@@ -262,6 +284,7 @@ def _build_ln_exit_paths(
     korean_taker: float,
     amount_krw: int,
     usd_krw_rate: float,
+    korean_usdt_price_krw: float,
     global_btc_price_usd: float,
     global_exchange: str,
     global_taker_usdt: float,
@@ -288,14 +311,15 @@ def _build_ln_exit_paths(
 
         withdrawal_fee_usdt = network['fee']
         trading_fee_krw = round(amount_krw * korean_taker)
-        usdt_bought = (amount_krw - trading_fee_krw) / usd_krw_rate
+        # 국내 USDT 실거래가로 실제 수령 USDT 계산
+        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
         usdt_after = usdt_bought - withdrawal_fee_usdt
         if usdt_after <= 0:
             continue
 
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * usd_krw_rate)
+        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
         input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * usd_krw_rate)
+        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
 
         for quote_strategy, buy_fee_rate, coin_label in strategies:
             if quote_strategy == 'fdusd_maker':
@@ -413,10 +437,11 @@ def find_cheapest_path_dynamic(
             else GLOBAL_FETCHERS[global_exchange]
         )
 
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=24) as executor:
             fut_rate = executor.submit(fetch_usd_krw_rate)
             fut_global = executor.submit(global_fn)
             fut_tickers = {ex: executor.submit(fn) for ex, fn in KOREA_FETCHERS.items()}
+            fut_usdt_tickers = {ex: executor.submit(fn, 'USDT') for ex, fn in KOREA_FETCHERS.items()}
             fut_withdrawals = {
                 (ex, coin): executor.submit(get_withdrawal_data, ex, coin)
                 for ex in GROUPS['korea']
@@ -470,6 +495,17 @@ def find_cheapest_path_dynamic(
             except Exception:
                 pass
 
+        # USDT 김치 프리미엄 (각 한국 거래소 USDT/KRW 실거래가 vs 포렉스 환율)
+        korean_usdt_prices: dict[str, float] = {}
+        usdt_kimchi_premiums: dict[str, float] = {}
+        for ex in GROUPS['korea']:
+            try:
+                usdt_price = float(fut_usdt_tickers[ex].result()['price'])
+                korean_usdt_prices[ex] = usdt_price
+                usdt_kimchi_premiums[ex] = round((usdt_price / usd_krw_rate - 1) * 100, 4)
+            except Exception:
+                korean_usdt_prices[ex] = usd_krw_rate  # fallback: 포렉스 환율
+
         # 슬리피지 프로파일 로드
         from backend.app.domain.korea_exchange_registry import get_slippage
         all_paths: list[dict] = []
@@ -488,13 +524,21 @@ def find_cheapest_path_dynamic(
             effective_btc_price_krw = korean_btc_price_krw * (1 + slip_pct / 100)
 
             korean_taker = TRADING_FEES[exchange]['taker']
-            usdt_networks = [
-                n for n in fut_withdrawals[(exchange, 'USDT')].result()
-                if n.get('enabled', True) and n.get('fee') is not None
-            ]
+            korean_usdt_price_krw = korean_usdt_prices.get(exchange, usd_krw_rate)
+            try:
+                usdt_networks = [
+                    n for n in fut_withdrawals[(exchange, 'USDT')].result()
+                    if n.get('enabled', True) and n.get('fee') is not None
+                ]
+            except Exception:
+                usdt_networks = []
 
             # BTC 직접 출금 경로
-            for network in fut_withdrawals[(exchange, 'BTC')].result():
+            try:
+                btc_wd_networks = fut_withdrawals[(exchange, 'BTC')].result()
+            except Exception:
+                btc_wd_networks = []
+            for network in btc_wd_networks:
                 if not network.get('enabled', True) or network.get('fee') is None:
                     continue
                 if is_suspended(maintenance_status, exchange, 'BTC', network['label']):
@@ -548,6 +592,7 @@ def find_cheapest_path_dynamic(
                 korean_taker=korean_taker,
                 amount_krw=amount_krw,
                 usd_krw_rate=usd_krw_rate,
+                korean_usdt_price_krw=korean_usdt_price_krw,
                 global_btc_price_usd=global_btc_price_usd,
                 global_exchange=global_exchange,
                 global_taker_usdt=global_taker_usdt,
@@ -564,6 +609,7 @@ def find_cheapest_path_dynamic(
                     korean_taker=korean_taker,
                     amount_krw=amount_krw,
                     usd_krw_rate=usd_krw_rate,
+                    korean_usdt_price_krw=korean_usdt_price_krw,
                     global_btc_price_usd=global_btc_price_usd,
                     global_exchange=global_exchange,
                     fdusd_maker_fee=fdusd_maker_fee,
@@ -581,6 +627,7 @@ def find_cheapest_path_dynamic(
                     korean_taker=korean_taker,
                     amount_krw=amount_krw,
                     usd_krw_rate=usd_krw_rate,
+                    korean_usdt_price_krw=korean_usdt_price_krw,
                     global_btc_price_usd=global_btc_price_usd,
                     global_exchange=global_exchange,
                     global_taker_usdt=global_taker_usdt,
@@ -622,6 +669,8 @@ def find_cheapest_path_dynamic(
             'global_btc_price_krw_ref': round(global_btc_price_krw_ref),
             'korean_btc_prices': korean_btc_prices,
             'kimchi_premiums': kimchi_premiums,
+            'korean_usdt_prices': korean_usdt_prices,
+            'usdt_kimchi_premiums': usdt_kimchi_premiums,
             'total_paths_evaluated': len(all_paths),
             'best_path': all_paths[0] if all_paths else None,
             'top5': all_paths[:5],
@@ -699,6 +748,8 @@ def find_cheapest_path_all_exchanges(
 
     # 김치 프리미엄 — Binance 결과에서 추출 (가장 대표적 글로벌 기준)
     kimchi_data: dict = {}
+    usdt_kimchi_data: dict = {}
+    korean_usdt_prices_data: dict = {}
     ref_price_krw: int = 0
     binance_fut = futures.get('binance')
     if binance_fut:
@@ -706,6 +757,8 @@ def find_cheapest_path_all_exchanges(
             br = binance_fut.result()
             if 'error' not in br:
                 kimchi_data = br.get('kimchi_premiums', {})
+                usdt_kimchi_data = br.get('usdt_kimchi_premiums', {})
+                korean_usdt_prices_data = br.get('korean_usdt_prices', {})
                 ref_price_krw = br.get('global_btc_price_krw_ref', 0)
                 promo_info['usd_krw_rate'] = br.get('usd_krw_rate', 0)
         except Exception:
@@ -721,6 +774,8 @@ def find_cheapest_path_all_exchanges(
         'exchange_summaries': exchange_summaries,
         'promo_context': promo_info,
         'kimchi_premiums': kimchi_data,
+        'usdt_kimchi_premiums': usdt_kimchi_data,
+        'korean_usdt_prices': korean_usdt_prices_data,
         'global_btc_price_krw_ref': ref_price_krw,
         'errors': errors,
     }

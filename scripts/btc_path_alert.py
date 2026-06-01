@@ -317,6 +317,8 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
 
     # 김치 프리미엄 섹션
     kimchi_data = result.get('kimchi_premiums', {})
+    usdt_kimchi_data = result.get('usdt_kimchi_premiums', {})
+    korean_usdt_prices = result.get('korean_usdt_prices', {})
     ref_price_krw = result.get('global_btc_price_krw_ref', 0)
     usd_krw_rate = promo.get('usd_krw_rate', 0)
     exchange_name_map = {
@@ -329,9 +331,20 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
             arrow = '▼' if prem < 0 else '▲'
             kimchi_parts.append(f"{exchange_name_map.get(ex, ex)} {arrow}{abs(prem):.2f}%")
         direction = '역프리미엄 (한국↓ 해외경유 불리)' if all(v < 0 for v in kimchi_data.values()) else '프리미엄 (한국↑ 해외경유 유리)' if all(v > 0 for v in kimchi_data.values()) else '혼재'
-        kimchi_line = f"<b>김치 프리미엄</b> (vs Binance {ref_price_krw//10000:,}만원 / ${ref_price_krw//usd_krw_rate:,}): {' | '.join(kimchi_parts)}\n  └ {direction}"
+        kimchi_line = f"<b>BTC 김치 프리미엄</b> (vs Binance {ref_price_krw//10000:,}만원 / ${ref_price_krw//usd_krw_rate:,}): {' | '.join(kimchi_parts)}\n  └ {direction}"
     else:
         kimchi_line = ""
+
+    if usdt_kimchi_data and usd_krw_rate:
+        usdt_kimchi_parts = []
+        for ex, prem in sorted(usdt_kimchi_data.items(), key=lambda x: x[1]):
+            price = korean_usdt_prices.get(ex, 0)
+            arrow = '▼' if prem < 0 else '▲'
+            usdt_kimchi_parts.append(f"{exchange_name_map.get(ex, ex)} {arrow}{abs(prem):.2f}% ({price:,.0f}원)")
+        usdt_direction = '디스카운트 (USDT 저렴 → 더 많은 USDT 수령)' if all(v < 0 for v in usdt_kimchi_data.values()) else '프리미엄 (USDT 비쌈 → 더 적은 USDT 수령)' if all(v > 0 for v in usdt_kimchi_data.values()) else '혼재'
+        usdt_kimchi_line = f"<b>USDT 김치 프리미엄</b> (포렉스 기준 {usd_krw_rate:,.0f}원): {' | '.join(usdt_kimchi_parts)}\n  └ {usdt_direction}"
+    else:
+        usdt_kimchi_line = ""
 
     # mempool 혼잡도 조회
     from backend.app.services.mempool_service import fetch_mempool_fees, mempool_summary_line
@@ -347,6 +360,8 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
     ]
     if kimchi_line:
         lines.append(kimchi_line)
+    if usdt_kimchi_line:
+        lines.append(usdt_kimchi_line)
     if mempool_line:
         lines.append(mempool_line)
     all_sorted = result.get('all_paths', result.get('top10', []))
@@ -427,6 +442,39 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
             input_str = f" of {input_krw:,}원" if input_krw and input_krw != amt else ''
             atext_str = f" [{amount_text}]" if amount_text else ''
             lines.append(f"{prefix} {label}: <b>{amt:,}원{rate_str}</b>{atext_str}{input_str}")
+        # 김치 프리미엄 (경로별) — BTC 프리미엄 + USDT 프리미엄 모두 표시
+        kimchi_pct = kimchi_data.get(ex_kr)
+        usdt_prem = usdt_kimchi_data.get(ex_kr)
+        ex_kr_name = exchange_name_map.get(ex_kr, ex_kr)
+        if path.get('quote_strategy') == 'btc_direct':
+            if kimchi_pct is not None:
+                k_arrow = '▼' if kimchi_pct < 0 else '▲'
+                contrib = f"보전율 {'+'  if kimchi_pct < 0 else '-'}{abs(kimchi_pct):.2f}%p 직접 기여"
+                lines.append(
+                    f"   📊 BTC 프리미엄 ({ex_kr_name}): {k_arrow}{abs(kimchi_pct):.2f}% → {contrib}"
+                )
+        else:
+            # USDT 경유 경로: BTC 프리미엄은 무관, USDT 프리미엄은 USDT 수령량에 직접 영향
+            u_price = korean_usdt_prices.get(ex_kr, 0)
+            if usdt_prem is not None:
+                u_arrow = '▼' if usdt_prem < 0 else '▲'
+                if usdt_prem < 0:
+                    usdt_contrib = f"USDT {abs(usdt_prem):.2f}% 저렴 → 더 많은 USDT 수령 (유리)"
+                else:
+                    usdt_contrib = f"USDT {abs(usdt_prem):.2f}% 비쌈 → 더 적은 USDT 수령 (불리)"
+                lines.append(
+                    f"   📊 USDT 프리미엄 ({ex_kr_name} {u_price:,.0f}원): {u_arrow}{abs(usdt_prem):.2f}% → {usdt_contrib}"
+                )
+            elif u_price > 0:
+                # USDT 가격 데이터 있지만 kimchi 계산 실패 — 포렉스 환율로 계산됨
+                lines.append(
+                    f"   📊 USDT 프리미엄 ({ex_kr_name} {u_price:,.0f}원): 조회 실패 — 포렉스 환율({usd_krw_rate:,.0f}원) 기준으로 계산"
+                )
+            if kimchi_pct is not None:
+                k_arrow = '▼' if kimchi_pct < 0 else '▲'
+                lines.append(
+                    f"   📊 BTC 프리미엄 ({ex_kr_name}): {k_arrow}{abs(kimchi_pct):.2f}% [역프리미엄 — BTC 글로벌가 매수로 무관]"
+                )
         lines.append(_carf_line(ex_kr, ex_gl))
         lines.append(_travel_rule_line(amount_krw, ex_kr))
         from backend.app.domain.korea_exchange_registry import risk_warning_lines
