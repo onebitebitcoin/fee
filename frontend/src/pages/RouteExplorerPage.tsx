@@ -59,6 +59,17 @@ export function RouteExplorerPage() {
 
   // ── Derived: step options ──────────────────────────────────────────────────
 
+  const domesticTakerFees = useMemo(() => {
+    if (!allData) return {} as Record<string, number>;
+    const fees: Record<string, number> = {};
+    for (const t of allData.tickers) {
+      if (t.currency === 'KRW' && t.taker_fee_pct != null && t.pair?.includes('BTC')) {
+        fees[t.exchange] = t.taker_fee_pct;
+      }
+    }
+    return fees;
+  }, [allData]);
+
   const domesticOptions = useMemo(() => {
     if (!allData) return [] as { exchange: string; bestBtc: number }[];
     const map = new Map<string, number>();
@@ -405,14 +416,35 @@ export function RouteExplorerPage() {
               onEdit={isPast('domestic') ? () => goBackTo('domestic') : undefined}
             />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-              {domesticOptions.map(({ exchange, bestBtc }) => (
-                <ChoiceBtn key={exchange} selected={selectedDomestic === exchange}
-                  onClick={() => handleDomesticSelect(exchange)} disabled={isPast('domestic')}
-                >
-                  <div className="font-semibold text-sm">{fmtEx(exchange)}</div>
-                  <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
-                </ChoiceBtn>
-              ))}
+              {domesticOptions.map(({ exchange, bestBtc }) => {
+                const takerFee = domesticTakerFees[exchange];
+                const refGlobalKrw = (() => {
+                  const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
+                  return ref ? ref.global_btc_price_usd * ref.usd_krw_rate : 0;
+                })();
+                const domesticPrice = allData?.tickers.find(
+                  t => t.exchange === exchange && t.currency === 'KRW' && t.pair?.includes('BTC'),
+                )?.price;
+                const kimchi = domesticPrice && refGlobalKrw
+                  ? ((domesticPrice - refGlobalKrw) / refGlobalKrw) * 100
+                  : null;
+                return (
+                  <ChoiceBtn key={exchange} selected={selectedDomestic === exchange}
+                    onClick={() => handleDomesticSelect(exchange)} disabled={isPast('domestic')}
+                  >
+                    <div className="font-semibold text-sm">{fmtEx(exchange)}</div>
+                    <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
+                    {takerFee != null && (
+                      <div className="text-xs text-dark-100 mt-1">거래 수수료 {takerFee.toFixed(2)}%</div>
+                    )}
+                    {kimchi != null && (
+                      <div className={`text-xs mt-0.5 font-medium ${kimchi > 2 ? 'text-bnb-red' : kimchi > 0 ? 'text-brand-400' : 'text-bnb-green'}`}>
+                        {kimchi >= 0 ? `+${kimchi.toFixed(1)}%` : `${kimchi.toFixed(1)}%`} 김프
+                      </div>
+                    )}
+                  </ChoiceBtn>
+                );
+              })}
             </div>
           </StepCard>
         )}
