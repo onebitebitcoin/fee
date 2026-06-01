@@ -598,7 +598,6 @@ export function RouteExplorerPage() {
                     key={exchange}
                     selected={selectedDomestic === exchange}
                     onClick={() => handleDomesticSelect(exchange)}
-                    disabled={isPast('domestic')}
                   >
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
@@ -636,7 +635,6 @@ export function RouteExplorerPage() {
                   key={coin}
                   selected={selectedCoin === coin}
                   onClick={() => handleCoinSelect(coin)}
-                  disabled={isPast('coin')}
                 >
                   <div className="flex items-center gap-1.5 font-semibold text-sm">
                     {coin === 'USDT'
@@ -673,7 +671,6 @@ export function RouteExplorerPage() {
                   key={exchange}
                   selected={selectedGlobal === exchange}
                   onClick={() => handleGlobalSelect(exchange)}
-                  disabled={isPast('global')}
                   horizontal
                 >
                   <div className="flex-1 min-w-0">
@@ -713,7 +710,6 @@ export function RouteExplorerPage() {
                   key={network}
                   selected={selectedNetwork === network}
                   onClick={() => handleNetworkSelect(network)}
-                  disabled={isPast('network')}
                   horizontal
                 >
                   <div className="flex-1 min-w-0">
@@ -750,7 +746,6 @@ export function RouteExplorerPage() {
                   key={id}
                   selected={selectedTradeMethod === id}
                   onClick={() => handleTradeMethodSelect(id)}
-                  disabled={isPast('trade_method')}
                   horizontal
                 >
                   <div className="flex-1 min-w-0">
@@ -783,7 +778,6 @@ export function RouteExplorerPage() {
                   key={id}
                   selected={selectedExitMode === id}
                   onClick={() => handleExitModeSelect(id)}
-                  disabled={isPast('exit_mode')}
                   horizontal
                 >
                   <div className="flex-1 min-w-0">
@@ -826,7 +820,6 @@ export function RouteExplorerPage() {
                     key={service}
                     selected={selectedSwapService === service}
                     onClick={() => handleSwapServiceSelect(service)}
-                    disabled={isPast('swap_service')}
                     horizontal
                   >
                     <div className="flex-1 min-w-0">
