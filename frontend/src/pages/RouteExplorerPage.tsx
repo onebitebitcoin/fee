@@ -47,6 +47,7 @@ export function RouteExplorerPage() {
   const [selectedMethod, setSelectedMethod]     = useState<string | null>(null);
   const [showBreakdown, setShowBreakdown]       = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+  const [failedExchanges, setFailedExchanges]   = useState<string[]>([]);
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
 
@@ -178,6 +179,7 @@ export function RouteExplorerPage() {
     setSelectedMethod(null);
     setAllData(null);
     setError(null);
+    setFailedExchanges([]);
     setShowBreakdown(false);
     try {
       const [tickerRes, ...pathResults] = await Promise.all([
@@ -188,11 +190,14 @@ export function RouteExplorerPage() {
         ),
       ]);
       const byGlobal: Record<string, CheapestPathResponse> = {};
+      const failed: string[] = [];
       GLOBAL_EXCHANGES.forEach((g, i) => {
         const r = pathResults[i];
         if (r && !r.error) byGlobal[g] = r;
+        else failed.push(g);
       });
       if (Object.keys(byGlobal).length === 0) throw new Error('모든 거래소 조회 실패');
+      if (failed.length > 0) setFailedExchanges(failed);
       setAllData({ byGlobal, tickers: tickerRes.items });
       setPhase('domestic');
     } catch (e) {
@@ -361,6 +366,11 @@ export function RouteExplorerPage() {
               done={!!selectedGlobal}
               onEdit={phase !== 'global' ? () => { setSelectedMethod(null); setPhase('global'); } : undefined}
             />
+            {failedExchanges.length > 0 && (
+              <p className="mt-2 text-xs text-bnb-muted bg-dark-400 rounded px-3 py-1.5">
+                데이터 없음: {failedExchanges.map(fmtEx).join(', ')} — 비교에서 제외됨
+              </p>
+            )}
             <div className="space-y-2 mt-3">
               {globalOptions.map(({ exchange, bestBtc, hasLightning }) => (
                 <button key={exchange} onClick={() => handleGlobalSelect(exchange)}
