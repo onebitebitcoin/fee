@@ -40,13 +40,13 @@ from fee_checker import (
 
 class TestConstants:
     def test_all_exchanges_count(self):
-        assert len(ALL_EXCHANGES) == 10
+        assert len(ALL_EXCHANGES) == 11
 
     def test_groups_korea(self):
         assert set(GROUPS["korea"]) == {"upbit", "bithumb", "korbit", "coinone", "gopax"}
 
     def test_groups_global(self):
-        assert set(GROUPS["global"]) == {"binance", "okx", "coinbase", "kraken", "bitget"}
+        assert set(GROUPS["global"]) == {"binance", "okx", "coinbase", "kraken", "bitget", "bybit"}
 
     def test_trading_fees_all_exchanges_present(self):
         for ex in ALL_EXCHANGES:

@@ -40,7 +40,7 @@ class TestListExchanges:
 
     def test_total_count(self):
         result = list_exchanges()
-        assert result["total"] == 10
+        assert result["total"] == 11
 
     def test_korea_exchanges(self):
         result = list_exchanges()
@@ -48,7 +48,7 @@ class TestListExchanges:
 
     def test_global_exchanges(self):
         result = list_exchanges()
-        assert set(result["global"]) == {"binance", "okx", "coinbase", "kraken", "bitget"}
+        assert set(result["global"]) == {"binance", "okx", "coinbase", "kraken", "bitget", "bybit"}
 
 
 # ─────────────────────────────────────────────────────────────

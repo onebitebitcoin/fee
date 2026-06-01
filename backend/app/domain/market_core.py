@@ -12,6 +12,8 @@ from fee_checker import (
     fetch_bitget_withdrawal,
     fetch_bithumb,
     fetch_bithumb_withdrawal,
+    fetch_bybit,
+    fetch_bybit_withdrawal,
     fetch_coinbase_withdrawal,
     fetch_coinbase,
     fetch_coinone,
@@ -44,6 +46,7 @@ GLOBAL_FETCHERS = {
     'coinbase': {'spot': fetch_coinbase},
     'kraken': {'spot': fetch_kraken},
     'bitget': {'spot': fetch_bitget},
+    'bybit': {'spot': fetch_bybit},
 }
 
 WITHDRAWAL_FETCHERS = {
@@ -54,6 +57,7 @@ WITHDRAWAL_FETCHERS = {
     'kraken': fetch_kraken_withdrawal,
     'gopax': fetch_gopax_withdrawal,
     'bitget': fetch_bitget_withdrawal,
+    'bybit': fetch_bybit_withdrawal,
 }
 
 SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES = {'coinbase', 'kraken'}

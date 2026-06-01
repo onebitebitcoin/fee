@@ -42,6 +42,7 @@ TRADING_FEES = {
     "coinbase": {"maker": 0.0040, "taker": 0.0060},
     "kraken":   {"maker": 0.0016, "taker": 0.0026},
     "bitget":   {"maker": 0.0010, "taker": 0.0010},
+    "bybit":    {"spot": {"maker": 0.0010, "taker": 0.0010}},
 }
 
 # ─── 출금 수수료 스크래핑 설정 ───────────────────────────────────
@@ -82,7 +83,7 @@ WITHDRAWAL_API_SOURCE_URLS = {
 # ─── 거래소 그룹 ────────────────────────────────────────────────
 GROUPS = {
     "korea":  ["upbit", "bithumb", "korbit", "coinone", "gopax"],
-    "global": ["binance", "okx", "coinbase", "kraken", "bitget"],
+    "global": ["binance", "okx", "coinbase", "kraken", "bitget", "bybit"],
 }
 ALL_EXCHANGES = GROUPS["korea"] + GROUPS["global"]
 
@@ -271,6 +272,24 @@ def fetch_bitget() -> dict:
     }
 
 
+def fetch_bybit() -> dict:
+    """Bybit 스팟 BTC/USDT 시세."""
+    r = _get("https://api.bybit.com/v5/market/tickers", params={"category": "spot", "symbol": "BTCUSDT"})
+    if r.status_code != 200:
+        raise ValueError(f"Bybit 오류: {r.status_code}")
+    d = r.json()
+    if d.get("retCode") != 0:
+        raise ValueError(f"Bybit API 오류: {d.get('retMsg')}")
+    t = d["result"]["list"][0]
+    return {
+        "price":   float(t["lastPrice"]),
+        "high":    float(t.get("highPrice24h", 0) or 0),
+        "low":     float(t.get("lowPrice24h", 0) or 0),
+        "volume":  float(t.get("volume24h", 0) or 0),
+        "currency": "USD",
+    }
+
+
 # ══════════════════════════════════════════════════════════════
 # 출금 수수료 fetch 함수
 # ══════════════════════════════════════════════════════════════
@@ -389,6 +408,28 @@ def fetch_bithumb_withdrawal(coin: str) -> list:
             })
         return result
     return []
+
+
+def fetch_bybit_withdrawal(coin: str) -> list:
+    """Bybit 출금 수수료.
+    Bybit v5 /asset/coin/query-info는 API 키 필요 → 공식 페이지 공개 수치 사용.
+    Source: https://www.bybit.com/en/help-center/article/Withdrawal-Fees
+    """
+    _BYBIT_FEES: dict[str, list[dict]] = {
+        "BTC": [
+            {"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.0002, "max": None, "enabled": True,
+             "note": "bybit_help_center_scraped"},
+        ],
+        "USDT": [
+            {"label": "TRC20",  "fee": 1.0,  "min": 10.0, "max": None, "enabled": True,
+             "note": "bybit_help_center_scraped"},
+            {"label": "ERC20",  "fee": 10.0, "min": 10.0, "max": None, "enabled": True,
+             "note": "bybit_help_center_scraped"},
+            {"label": "SOL",    "fee": 1.0,  "min": 10.0, "max": None, "enabled": True,
+             "note": "bybit_help_center_scraped"},
+        ],
+    }
+    return _BYBIT_FEES.get(coin.upper(), [])
 
 
 def fetch_bitget_withdrawal(coin: str) -> list:
@@ -533,37 +574,37 @@ def _extract_kraken_table_fee(text: str, patterns: list[tuple[str, str]]) -> lis
 
 
 def fetch_kraken_withdrawal(coin: str) -> list:
-    source_url = "https://support.kraken.com/articles/360000767986-cryptocurrency-withdrawal-fees-and-minimums"
-    r = _get(source_url)
-    if r.status_code != 200:
-        raise ValueError(f"Kraken 출금 문서 조회 오류: {r.status_code}")
-    text = re.sub(r"<[^>]+>", " ", r.text)
-    text = re.sub(r"\s+", " ", text)
-
-    if coin == "BTC":
-        results = _extract_kraken_table_fee(text, [
-            ("Bitcoin (On-chain)", r"Bitcoin\s*\(BTC\).*?Withdrawal fee.*?(?P<fee>0\.\d+)\s*BTC(?:.*?Minimum.*?(?P<min>0\.\d+)\s*BTC)?"),
-            ("Bitcoin (On-chain)", r"Bitcoin\s*\(BTC\).*?(?P<fee>0\.\d+)\s*BTC(?:.*?(?P<min>0\.\d+)\s*BTC)?"),
+    """Kraken 출금 수수료.
+    Kraken 공식 사이트는 JS 렌더링 → Playwright 캐시 우선 사용.
+    캐시 만료 시 자동 재스크래핑.
+    """
+    coin_up = coin.upper()
+    if coin_up == "BTC":
+        cache_key = "kraken_btc"
+        fee, scraped_at = _get_cached_fee_with_meta(cache_key)
+        if fee is None:
+            raise ValueError("Kraken BTC 출금 수수료 캐시 없음 (Playwright 재스크래핑 필요)")
+        return [{"label": "Bitcoin (On-chain)", "fee": fee, "min": fee,
+                 "enabled": True, "note": "Playwright 스크래핑",
+                 "scraped_at": scraped_at,
+                 "source_url": "https://www.bitdegree.org/crypto/tutorials/kraken-fees"}]
+    if coin_up == "USDT":
+        resp = _get(WITHDRAWAL_API_SOURCE_URLS["kraken"])
+        if resp.status_code != 200:
+            raise ValueError(f"Kraken USDT 출금 수수료 조회 실패: {resp.status_code}")
+        results = _extract_kraken_table_fee(resp.text, [
+            ("ERC20", r"Tether\s*\(Ethereum\).*?Withdrawal fee\s*(?P<fee>[0-9.]+)\s*USDT.*?Minimum\s*(?P<min>[0-9.]+)\s*USDT"),
+            ("TRC20", r"Tether\s*\(Tron\).*?Withdrawal fee\s*(?P<fee>[0-9.]+)\s*USDT.*?Minimum\s*(?P<min>[0-9.]+)\s*USDT"),
         ])
-        if results:
-            return [results[0]]
-    elif coin == "USDT":
-        results = _extract_kraken_table_fee(text, [
-            ("ERC20", r"Tether(?:\s*USD|)\s*\(Ethereum\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
-            ("TRC20", r"Tether(?:\s*USD|)\s*\(Tron\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
-            ("Solana", r"Tether(?:\s*USD|)\s*\(Solana\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
-            ("Polygon", r"Tether(?:\s*USD|)\s*\(Polygon\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
-            ("Arbitrum", r"Tether(?:\s*USD|)\s*\(Arbitrum(?:\s*One|)\).*?(?P<fee>\d+(?:\.\d+)?)\s*USDT(?:.*?(?P<min>\d+(?:\.\d+)?)\s*USDT)?"),
-        ])
-        if results:
-            return results
-    raise ValueError(f"Kraken {coin} 출금 수수료 스크래핑 실패")
+        if not results:
+            raise ValueError("Kraken USDT 출금 수수료 스크래핑 실패")
+        return results
+    raise ValueError(f"Kraken {coin_up} 출금 수수료 미지원")
 
 
 SPECIAL_WITHDRAWAL_FETCHERS = {
     ("coinbase", "btc"): fetch_coinbase_withdrawal,
     ("coinbase", "usdt"): fetch_coinbase_withdrawal,
-    ("kraken", "btc"): fetch_kraken_withdrawal,
     ("kraken", "usdt"): fetch_kraken_withdrawal,
 }
 

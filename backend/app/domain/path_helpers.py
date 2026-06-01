@@ -106,12 +106,26 @@ def is_suspended(maintenance_status: dict, exchange: str, coin: str, network_lab
     return None
 
 
-def fee_component(label: str, amount_krw: int, *, rate_pct: float | None = None, amount_text: str | None = None, source_url: str | None = None) -> dict:
-    """수수료 구성요소 딕셔너리 생성."""
+def fee_component(
+    label: str,
+    amount_krw: int,
+    *,
+    rate_pct: float | None = None,
+    amount_text: str | None = None,
+    input_krw: int | None = None,
+    source_url: str | None = None,
+) -> dict:
+    """수수료 구성요소 딕셔너리 생성.
+
+    rate_pct 미지정 시 input_krw 기준으로 자동 계산 (각 노드의 실제 통과 금액 대비 비율).
+    """
+    if rate_pct is None and input_krw and input_krw > 0:
+        rate_pct = amount_krw / input_krw * 100
     return {
         'label': label,
         'amount_krw': amount_krw,
         'rate_pct': round(rate_pct, 4) if rate_pct is not None else None,
+        'input_krw': input_krw,
         'amount_text': amount_text,
         'source_url': source_url,
     }
