@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   ArrowDown, ArrowRight, ArrowsClockwise, Coin,
   CurrencyDollar, EyeSlash, Globe, Lightning, MapPin,
@@ -546,36 +547,23 @@ export function RouteExplorerPage() {
           </div>
 
           {phase === 'input' && (
-            <button
+            <motion.button
               onClick={handleSearch}
               disabled={!amountKrw || amountKrw < 10_000}
-              className="mt-4 w-full py-2.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-dark-500 font-bold text-sm transition-all active:scale-[0.98]"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+              className={`mt-4 w-full py-3 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-dark-500 font-bold text-sm transition-colors ${amountKrw && amountKrw >= 10_000 ? 'btn-glow-active' : ''}`}
             >
               경로 탐색 시작
-            </button>
+            </motion.button>
           )}
         </StepCard>
 
         {error && <p className="text-bnb-red text-sm text-center">{error}</p>}
 
         {/* Loading */}
-        {phase === 'loading' && (
-          <div className="flex flex-col items-center gap-5 py-14">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-2 border-brand-500/20 flex items-center justify-center">
-                <Coin className="w-8 h-8 text-brand-500" weight="fill" />
-              </div>
-              <span className="absolute inset-0 rounded-full border border-brand-500/40 animate-ping" style={{ animationDuration: '1.8s' }} />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-bnb-text text-sm font-medium">실시간 경로 탐색 중</p>
-              <p className="text-bnb-muted text-xs">6개 글로벌 거래소 수수료 조회 중...</p>
-            </div>
-            <div className="w-48 h-0.5 bg-dark-200 rounded-full overflow-hidden">
-              <div className="loading-progress-bar" />
-            </div>
-          </div>
-        )}
+        {phase === 'loading' && <NetworkScanLoader />}
 
         {/* Step 1: 국내 거래소 */}
         {showSteps && (
@@ -940,70 +928,71 @@ export function RouteExplorerPage() {
               </div>
 
               {/* Final BTC received */}
-              <div className="bg-gradient-to-br from-brand-500/15 to-brand-500/5 border border-brand-500/40 rounded-xl p-5 shadow-[inset_0_1px_0_rgba(240,185,11,0.1)]">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.1 }}
+                className="bg-gradient-to-br from-brand-500/15 to-brand-500/5 border border-brand-500/40 rounded-xl p-5 shadow-[inset_0_1px_0_rgba(240,185,11,0.1)]"
+              >
                 <div className="text-xs font-medium text-brand-500/70 mb-2 uppercase tracking-wider">최종 수령</div>
-                <div className="text-4xl md:text-5xl font-bold font-data text-brand-400 drop-shadow-[0_0_16px_rgba(240,185,11,0.35)]">
-                  {formatSats(matchedPath.btc_received ?? 0)}
-                </div>
+                <AnimatedSats
+                  value={Math.round((matchedPath.btc_received ?? 0) * 100_000_000)}
+                  className="text-4xl md:text-5xl font-bold font-data text-brand-400 drop-shadow-[0_0_16px_rgba(240,185,11,0.35)] tabular-nums block"
+                />
 
-                {/* Detailed route nodes */}
-                <div className="mt-4 space-y-0">
-                  {/* Node: 국내 거래소 */}
-                  <RouteNode
-                    label={fmtEx(selectedDomestic!)}
-                    tags={['KYC 필수', 'CARF 2027 (국내)']}
-                    tagColor="amber"
-                  />
-                  <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
+                {/* Detailed route nodes — stagger reveal */}
+                <motion.div
+                  initial="hidden"
+                  animate="show"
+                  variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.5 } } }}
+                  className="mt-4 space-y-0"
+                >
+                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                    <RouteNode label={fmtEx(selectedDomestic!)} tags={['KYC 필수', 'CARF 2027 (국내)']} tagColor="amber" />
+                  </motion.div>
+                  <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                    <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
+                  </motion.div>
 
-                  {/* Node: 해외 거래소 (USDT 경로) */}
                   {selectedGlobal && selectedCoin === 'USDT' && (
                     <>
-                      <RouteNode
-                        label={fmtEx(selectedGlobal)}
-                        tags={[
-                          EXCHANGE_CARF[selectedGlobal]?.country ?? '',
-                          `CARF ${EXCHANGE_CARF[selectedGlobal]?.carfYear ?? '?'}`,
-                          ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : []),
-                        ].filter(Boolean)}
-                        tagColor="blue"
-                      />
-                      <RouteEdge
-                        label={selectedTradeMethod === 'fdusd_maker'
-                          ? 'USDT → FDUSD → BTC (Maker 0%)'
-                          : 'USDT → BTC (Taker 매수)'}
-                      />
+                      <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                        <RouteNode
+                          label={fmtEx(selectedGlobal)}
+                          tags={[
+                            EXCHANGE_CARF[selectedGlobal]?.country ?? '',
+                            `CARF ${EXCHANGE_CARF[selectedGlobal]?.carfYear ?? '?'}`,
+                            ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : []),
+                          ].filter(Boolean)}
+                          tagColor="blue"
+                        />
+                      </motion.div>
+                      <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                        <RouteEdge label={selectedTradeMethod === 'fdusd_maker' ? 'USDT → FDUSD → BTC (Maker 0%)' : 'USDT → BTC (Taker 매수)'} />
+                      </motion.div>
                     </>
                   )}
 
-                  {/* Node: 출금 방식 */}
                   {selectedExitMode === 'lightning' ? (
                     <>
-                      <RouteNode
-                        label="Lightning 출금"
-                        tags={['LN 채널', '오프체인 라우팅']}
-                        tagColor="yellow"
-                        icon={<Lightning className="w-3.5 h-3.5 text-yellow-400" weight="fill" />}
-                      />
-                      <RouteEdge
-                        label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`}
-                        isLightning
-                      />
+                      <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                        <RouteNode label="Lightning 출금" tags={['LN 채널', '오프체인 라우팅']} tagColor="yellow" icon={<Lightning className="w-3.5 h-3.5 text-yellow-400" weight="fill" />} />
+                      </motion.div>
+                      <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                        <RouteEdge label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`} isLightning />
+                      </motion.div>
                     </>
                   ) : (
-                    <RouteEdge label={`온체인 출금 via Bitcoin Network`} />
+                    <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                      <RouteEdge label="온체인 출금 via Bitcoin Network" />
+                    </motion.div>
                   )}
 
-                  {/* Node: 개인 지갑 */}
-                  <RouteNode
-                    label="개인 지갑"
-                    tags={['자기 수탁', '완전 통제']}
-                    tagColor="green"
-                    isEnd
-                    endValue={formatSats(matchedPath.btc_received ?? 0)}
-                  />
-                </div>
-              </div>
+                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                    <RouteNode label="개인 지갑" tags={['자기 수탁', '완전 통제']} tagColor="green" isEnd endValue={formatSats(matchedPath.btc_received ?? 0)} />
+                  </motion.div>
+                </motion.div>
+              </motion.div>
             </div>
           </StepCard>
         )}
@@ -1021,7 +1010,7 @@ export function RouteExplorerPage() {
 function StepCard({
   children,
   dimmed,
-  animate,
+  animate: entrance,
   active,
 }: {
   children: React.ReactNode;
@@ -1030,18 +1019,25 @@ function StepCard({
   active?: boolean;
 }) {
   return (
-    <div
+    <motion.div
+      initial={entrance ? { opacity: 0, y: 22 } : false}
+      animate={{ opacity: dimmed ? 0.28 : 1, y: 0 }}
+      transition={{
+        type: 'spring',
+        stiffness: 360,
+        damping: 32,
+        opacity: { duration: 0.22 },
+      }}
       className={[
-        'rounded-xl p-4 md:p-5 transition-all duration-300',
-        dimmed  ? 'opacity-30 pointer-events-none' : '',
-        animate ? 'animate-fade-in-up' : '',
+        'rounded-xl p-4 md:p-5',
+        dimmed ? 'pointer-events-none' : '',
         active
           ? 'bg-dark-300 border border-brand-500/35 shadow-[0_0_28px_rgba(240,185,11,0.07),inset_0_1px_0_rgba(240,185,11,0.05)]'
           : 'bg-dark-300 border border-dark-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]',
       ].join(' ')}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -1086,19 +1082,29 @@ function ChoiceBtn({
   horizontal?: boolean;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={disabled}
+      whileHover={!disabled && !selected ? { scale: 1.012, transition: { type: 'spring', stiffness: 500, damping: 25 } } : {}}
+      whileTap={!disabled ? { scale: 0.965, transition: { duration: 0.08 } } : {}}
       className={[
         horizontal ? 'w-full flex items-start justify-between gap-3' : 'text-left w-full',
-        'p-3 rounded-lg border transition-all duration-150 active:scale-[0.98] disabled:cursor-default',
+        'p-3 rounded-lg border disabled:cursor-default relative overflow-hidden',
         selected
-          ? 'border-brand-500/70 bg-brand-500/10 shadow-[0_0_0_1px_rgba(240,185,11,0.2),inset_0_1px_0_rgba(240,185,11,0.08)]'
-          : 'border-dark-200 hover:border-dark-100 hover:bg-dark-200/50',
+          ? 'border-brand-500/70 bg-brand-500/10 shadow-[0_0_0_1px_rgba(240,185,11,0.25),inset_0_1px_0_rgba(240,185,11,0.1)]'
+          : 'border-dark-200 hover:border-dark-100/70 hover:bg-dark-200/50',
       ].join(' ')}
     >
+      {selected && (
+        <motion.span
+          initial={{ opacity: 0.55 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="absolute inset-0 bg-brand-500/20 pointer-events-none rounded-lg"
+        />
+      )}
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -1205,4 +1211,125 @@ function RouteEdge({ label, isLightning }: { label: string; isLightning?: boolea
       <span className={`text-[10px] ${isLightning ? 'text-yellow-400/70' : 'text-bnb-muted'}`}>{label}</span>
     </div>
   );
+}
+
+// ── Network Scan Loader ────────────────────────────────────────────────────────
+
+const SCAN_NAMES: Record<string, string> = {
+  binance: 'Binance', okx: 'OKX', bybit: 'Bybit',
+  bitget: 'Bitget', kraken: 'Kraken', coinbase: 'Coinbase',
+};
+
+function NetworkScanLoader() {
+  type NodeStatus = 'pending' | 'scanning' | 'done';
+  const [statuses, setStatuses] = useState<NodeStatus[]>(Array(6).fill('pending'));
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    GLOBAL_EXCHANGES.forEach((_, i) => {
+      timers.push(setTimeout(() => {
+        setStatuses(prev => { const n = [...prev]; n[i] = 'scanning'; return n; });
+        timers.push(setTimeout(() => {
+          setStatuses(prev => { const n = [...prev]; n[i] = 'done'; return n; });
+        }, 500 + Math.floor(i * 130 + 200)));
+      }, i * 220 + 80));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const doneCount = statuses.filter(s => s === 'done').length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="flex flex-col items-center gap-6 py-12"
+    >
+      <div className="text-center">
+        <p className="text-sm font-semibold text-bnb-text">경로 탐색 중</p>
+        <p className="text-xs text-bnb-muted mt-0.5">{doneCount} / 6 거래소 응답</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 w-full max-w-[260px]">
+        {GLOBAL_EXCHANGES.map((ex, i) => {
+          const status = statuses[i];
+          return (
+            <motion.div
+              key={ex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.07, type: 'spring', stiffness: 300, damping: 25 }}
+              className="flex flex-col items-center gap-1.5"
+            >
+              <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                status === 'done'
+                  ? 'bg-bnb-green/15 border border-bnb-green/50'
+                  : status === 'scanning'
+                  ? 'bg-brand-500/15 border border-brand-500/60'
+                  : 'bg-dark-200 border border-dark-100/60'
+              }`}>
+                {status === 'scanning' && (
+                  <span className="absolute inset-0 rounded-xl border border-brand-400/50 animate-ping" style={{ animationDuration: '0.85s' }} />
+                )}
+                {status === 'done' ? (
+                  <motion.span
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                    className="text-bnb-green text-base font-bold leading-none"
+                  >
+                    ✓
+                  </motion.span>
+                ) : (
+                  <span className={`text-[10px] font-bold font-data ${status === 'scanning' ? 'text-brand-400' : 'text-bnb-muted'}`}>
+                    {SCAN_NAMES[ex].slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-medium transition-colors duration-300 ${
+                status === 'done' ? 'text-bnb-green/80' :
+                status === 'scanning' ? 'text-brand-400' : 'text-bnb-muted'
+              }`}>
+                {SCAN_NAMES[ex]}
+              </span>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full max-w-[240px] h-0.5 bg-dark-200 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full"
+          initial={{ width: '0%' }}
+          animate={{ width: `${(doneCount / 6) * 100}%` }}
+          transition={{ type: 'spring', stiffness: 70, damping: 18 }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Animated Sats Counter ─────────────────────────────────────────────────────
+
+function AnimatedSats({ value, className }: { value: number; className?: string }) {
+  const [display, setDisplay] = useState('0');
+
+  useEffect(() => {
+    if (!value) return;
+    const DURATION = 1500;
+    const start = performance.now();
+    let raf: number;
+    function step(now: number) {
+      const p = Math.min((now - start) / DURATION, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(value * eased).toLocaleString());
+      if (p < 1) raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return <span className={className}>{display} sats</span>;
 }
