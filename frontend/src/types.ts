@@ -163,6 +163,15 @@ export type AccessStats = {
   today: number;
 };
 
+export type LiveKimpResponse = {
+  kimp: Record<string, number>;
+  korean_btc_prices: Record<string, number>;
+  global_btc_price_krw: number;
+  usd_krw_rate: number;
+  fetched_at: number;
+  cached: boolean;
+};
+
 export type ScrapedPageStatus = {
   label: string;
   url: string;

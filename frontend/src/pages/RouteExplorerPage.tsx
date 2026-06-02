@@ -9,7 +9,7 @@ import {
 import { api } from '../lib/api';
 import { fmtEx } from '../lib/exchangeNames';
 import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
-import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../types';
+import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerRow } from '../types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,8 @@ export function RouteExplorerPage() {
   const [selectedSwapService, setSelectedSwapService] = useState<string | null>(null);
   const [preference, setPreference]                   = useState<Preference>('cheapest');
   const [error, setError]                             = useState<string | null>(null);
+  const [liveKimp, setLiveKimp]                       = useState<LiveKimpResponse | null>(null);
+  const [kimpLoading, setKimpLoading]                 = useState(false);
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
 
@@ -123,6 +125,20 @@ export function RouteExplorerPage() {
       }
     }
     return fees;
+  }, [allData]);
+
+  const snapshotKimp = useMemo(() => {
+    if (!allData) return {} as Record<string, number>;
+    const ref = allData.byGlobal['binance'] ?? Object.values(allData.byGlobal)[0];
+    if (!ref) return {} as Record<string, number>;
+    const globalKrw = ref.global_btc_price_usd * ref.usd_krw_rate;
+    const result: Record<string, number> = {};
+    for (const t of allData.tickers) {
+      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.price && globalKrw) {
+        result[t.exchange] = ((t.price - globalKrw) / globalKrw) * 100;
+      }
+    }
+    return result;
   }, [allData]);
 
   const allTaggedPaths = useMemo(() => {
@@ -346,9 +362,21 @@ export function RouteExplorerPage() {
       const latestRunAt = Object.values(byGlobal)[0]?.last_run?.completed_at ?? null;
       setAllData({ byGlobal, tickers: tickerRes.items, latestRunAt });
       setPhase('domestic');
+      fetchLiveKimp(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터 로드 오류');
       setPhase('input');
+    }
+  }
+
+  async function fetchLiveKimp(forceRefresh: boolean) {
+    setKimpLoading(true);
+    try {
+      const data = await api.getLiveKimp(forceRefresh);
+      setLiveKimp(data);
+    } catch {
+    } finally {
+      setKimpLoading(false);
     }
   }
 
@@ -568,11 +596,30 @@ export function RouteExplorerPage() {
         {/* Step 1: 국내 거래소 */}
         {showSteps && (
           <StepCard dimmed={!isActive('domestic') && !isPast('domestic')} active={isActive('domestic')} animate>
-            <StepHeader
-              icon={<MapPin className="w-3.5 h-3.5" />}
-              label="1. 출발 거래소 (국내)"
-              done={isPast('domestic') || isActive('coin') || isPast('coin')}
-            />
+            <div className="flex items-center justify-between">
+              <StepHeader
+                icon={<MapPin className="w-3.5 h-3.5" />}
+                label="1. 출발 거래소 (국내)"
+                done={isPast('domestic') || isActive('coin') || isPast('coin')}
+              />
+              {isActive('domestic') && (
+                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                  {liveKimp && (
+                    <span className="text-[10px] text-bnb-muted">
+                      {liveKimp.cached ? '캐시' : '실시간'} · {fmtTime(liveKimp.fetched_at)}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => fetchLiveKimp(true)}
+                    disabled={kimpLoading}
+                    className="flex items-center gap-1 text-[10px] text-bnb-muted hover:text-brand-400 disabled:opacity-40 transition-colors"
+                  >
+                    <ArrowsClockwise className={`w-3 h-3 ${kimpLoading ? 'animate-spin' : ''}`} />
+                    새로고침
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2 mt-2 flex-wrap">
               <InfoTag color="amber">KYC 필수</InfoTag>
               <InfoTag color="blue">국세청 보고 (CARF 2027)</InfoTag>
@@ -581,16 +628,9 @@ export function RouteExplorerPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
               {domesticOptions.map(({ exchange, bestBtc }) => {
                 const takerFee = domesticTakerFees[exchange];
-                const refGlobalKrw = (() => {
-                  const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
-                  return ref ? ref.global_btc_price_usd * ref.usd_krw_rate : 0;
-                })();
-                const domesticPrice = allData?.tickers.find(
-                  t => t.exchange === exchange && t.currency === 'KRW' && t.pair?.includes('BTC'),
-                )?.price;
-                const kimchi = domesticPrice && refGlobalKrw
-                  ? ((domesticPrice - refGlobalKrw) / refGlobalKrw) * 100
-                  : null;
+                const kimchi = liveKimp
+                  ? (liveKimp.kimp[exchange] ?? null)
+                  : (snapshotKimp[exchange] ?? null);
                 return (
                   <ChoiceBtn
                     key={exchange}

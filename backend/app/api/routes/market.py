@@ -1,4 +1,5 @@
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -11,7 +12,12 @@ from backend.app.services.live_market import (
     find_cheapest_path_from_snapshot_rows,
     find_cheapest_sell_path_from_snapshot_rows,
 )
-from backend.app.domain.market_core import get_withdrawal_source_url
+from backend.app.domain.market_core import (
+    KOREA_FETCHERS,
+    get_withdrawal_source_url,
+    fetch_binance_spot,
+    fetch_usd_krw_rate,
+)
 
 router = APIRouter()
 
@@ -38,6 +44,7 @@ class _TtlCache:
 
 _status_cache = _TtlCache(ttl=60)
 _cheapest_path_cache = _TtlCache(ttl=30)
+_kimp_cache = _TtlCache(ttl=30)
 
 
 def _get_status_cache() -> dict | None:
@@ -422,6 +429,62 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
             for row in rows
         ]
     }
+
+
+@router.get('/kimp/live')
+def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
+    """한국 거래소 BTC 실시간 김치 프리미엄 조회 (30초 TTL 캐시)."""
+    if not force_refresh:
+        cached = _kimp_cache.get('kimp_live')
+        if cached is not None:
+            return {**cached, 'cached': True}
+
+    def _fetch_korea(exchange: str) -> tuple[str, float | None]:
+        try:
+            ticker = KOREA_FETCHERS[exchange]()
+            return exchange, float(ticker['price'])
+        except Exception:
+            return exchange, None
+
+    def _fetch_global() -> tuple[float | None, float | None]:
+        try:
+            btc_usd = float(fetch_binance_spot()['price'])
+            usd_krw = float(fetch_usd_krw_rate())
+            return btc_usd, usd_krw
+        except Exception:
+            return None, None
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        korea_futures = {executor.submit(_fetch_korea, ex): ex for ex in KOREA_FETCHERS}
+        global_future = executor.submit(_fetch_global)
+
+        korea_prices: dict[str, float] = {}
+        for fut in as_completed(korea_futures):
+            ex, price = fut.result()
+            if price is not None:
+                korea_prices[ex] = price
+
+        btc_usd, usd_krw = global_future.result()
+
+    if btc_usd is None or usd_krw is None or not korea_prices:
+        raise HTTPException(status_code=503, detail='실시간 시세 조회 실패')
+
+    global_btc_price_krw = btc_usd * usd_krw
+    kimp: dict[str, float] = {
+        ex: round((price / global_btc_price_krw - 1) * 100, 4)
+        for ex, price in korea_prices.items()
+    }
+
+    result = {
+        'kimp': kimp,
+        'korean_btc_prices': korea_prices,
+        'global_btc_price_krw': round(global_btc_price_krw),
+        'usd_krw_rate': round(usd_krw, 2),
+        'fetched_at': int(time.time()),
+        'cached': False,
+    }
+    _kimp_cache.set('kimp_live', result)
+    return result
 
 
 @router.get('/carf-exchanges')

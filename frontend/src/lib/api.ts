@@ -2,6 +2,7 @@ import type {
   AccessStats,
   CheapestPathResponse,
   CrawlRun,
+  LiveKimpResponse,
   TickerRow,
 } from '../types';
 
@@ -41,4 +42,11 @@ export const api = {
   },
 
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
+
+  getLiveKimp: (forceRefresh = false): Promise<LiveKimpResponse> => {
+    const url = forceRefresh
+      ? '/api/v1/market/kimp/live?force_refresh=true'
+      : '/api/v1/market/kimp/live';
+    return request(url);
+  },
 };
