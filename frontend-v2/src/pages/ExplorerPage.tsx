@@ -543,7 +543,7 @@ export default function ExplorerPage() {
                 className={[
                   'w-full py-4 rounded-2xl font-bold text-base transition-all',
                   amountKrw >= 10_000
-                    ? 'bg-acc-amber text-sys-bg shadow-glow-amber btn-pulse cursor-pointer'
+                    ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
                     : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                 ].join(' ')}
               >
@@ -749,7 +749,7 @@ export default function ExplorerPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ ...SPRING_SLOW, delay: 0.1 }}
                 className="rounded-3xl p-6 text-center relative overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, rgba(255,184,0,0.12) 0%, rgba(255,149,0,0.06) 100%)', border: '0.5px solid rgba(255,184,0,0.25)' }}
+                style={{ background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }}
               >
                 <motion.div
                   animate={{ opacity: [0.3, 0.7, 0.3] }}
@@ -786,7 +786,7 @@ export default function ExplorerPage() {
               {/* Route breakdown */}
               <div>
                 <SectionLabel>경로 상세</SectionLabel>
-                <div className="ios-card rounded-2xl divide-y divide-[rgba(255,255,255,0.06)]">
+                <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
                   {([
                     { label: '출발', value: fmtEx(resultPath.korean_exchange), icon: <ExFavicon id={resultPath.korean_exchange} size={16} /> },
                     { label: '코인', value: resultPath.transfer_coin },
@@ -809,7 +809,7 @@ export default function ExplorerPage() {
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
                 <div>
                   <SectionLabel>수수료 내역</SectionLabel>
-                  <div className="ios-card rounded-2xl divide-y divide-[rgba(255,255,255,0.06)]">
+                  <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
                     {resultPath.breakdown.components.map((c, i) => (
                       <div key={i} className="flex items-center justify-between px-4 py-3">
                         <p className="text-xs text-label-secondary">{c.label}</p>
