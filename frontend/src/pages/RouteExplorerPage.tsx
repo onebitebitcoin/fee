@@ -455,6 +455,15 @@ export function RouteExplorerPage() {
 
   const showSteps = phase !== 'input' && phase !== 'loading';
 
+  // phase 바뀔 때 새 단계가 화면 아래에 있을 수 있으므로 자동 스크롤
+  useEffect(() => {
+    if (phase === 'input') return;
+    const t = setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
