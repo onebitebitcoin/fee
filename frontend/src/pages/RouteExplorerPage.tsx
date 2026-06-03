@@ -114,6 +114,7 @@ export function RouteExplorerPage() {
   const [error, setError]                             = useState<string | null>(null);
   const [liveKimp, setLiveKimp]                       = useState<LiveKimpResponse | null>(null);
   const [kimpLoading, setKimpLoading]                 = useState(false);
+  const [exchangeVolumes, setExchangeVolumes]         = useState<Record<string, { volume_24h_usd: number | null; volume_7d_usd: number | null; volume_30d_usd: number | null; trust_rank: number | null }>>({});
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
 
@@ -369,6 +370,10 @@ export function RouteExplorerPage() {
       setAllData({ byGlobal, tickers: tickerRes.items, latestRunAt });
       setPhase('domestic');
       fetchLiveKimp(false);
+      // 거래량 데이터는 별도로 비동기 로드 (UI 블로킹 없이)
+      api.getExchangeVolumes().then(res => {
+        setExchangeVolumes(res.volumes as typeof exchangeVolumes);
+      }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터 로드 오류');
       setPhase('input');
@@ -661,6 +666,7 @@ export function RouteExplorerPage() {
                 const kimchi = liveKimp
                   ? (liveKimp.kimp[exchange] ?? null)
                   : (snapshotKimp[exchange] ?? null);
+                const vol = exchangeVolumes[exchange];
                 return (
                   <ChoiceBtn
                     key={exchange}
@@ -677,6 +683,9 @@ export function RouteExplorerPage() {
                     <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
                     {takerFee != null && (
                       <div className="text-xs text-dark-100 mt-1">수수료 {takerFee.toFixed(2)}%</div>
+                    )}
+                    {vol?.volume_24h_usd != null && (
+                      <div className="text-[10px] text-bnb-muted mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>
                     )}
                     {kimchi != null && (
                       <div className={`text-xs mt-0.5 font-medium ${kimchi > 2 ? 'text-bnb-red' : kimchi > 0 ? 'text-brand-400' : 'text-bnb-green'}`}>
@@ -774,33 +783,46 @@ export function RouteExplorerPage() {
               </p>
             )}
             <div className="space-y-2 mt-3">
-              {globalOptions.map(({ exchange, best, hasLightning }) => (
-                <ChoiceBtn
-                  key={exchange}
-                  selected={selectedGlobal === exchange}
-                  onClick={() => handleGlobalSelect(exchange)}
-                  horizontal
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <ExchangeIcon id={exchange} size={16} />
-                      <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
-                      {hasLightning && <Lightning className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" weight="fill" />}
-                      {exchange === recGlobal && (
-                        <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                      )}
+              {globalOptions.map(({ exchange, best, hasLightning }) => {
+                const vol = exchangeVolumes[exchange];
+                return (
+                  <ChoiceBtn
+                    key={exchange}
+                    selected={selectedGlobal === exchange}
+                    onClick={() => handleGlobalSelect(exchange)}
+                    horizontal
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <ExchangeIcon id={exchange} size={16} />
+                        <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                        {hasLightning && <Lightning className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" weight="fill" />}
+                        {exchange === recGlobal && (
+                          <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-bnb-muted">{EXCHANGE_CARF[exchange]?.country}</span>
+                        {vol?.volume_24h_usd != null && (
+                          <span className="text-[10px] text-dark-100">
+                            24H {fmtVol(vol.volume_24h_usd)} · 7D {fmtVol(vol.volume_7d_usd)}
+                          </span>
+                        )}
+                        {vol?.trust_rank != null && (
+                          <span className="text-[10px] text-bnb-muted">#{vol.trust_rank}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        <InfoTag color="amber">KYC 필수</InfoTag>
+                        <InfoTag color="blue">CARF {EXCHANGE_CARF[exchange]?.carfYear ?? '?'}</InfoTag>
+                        {EXCHANGE_CARF[exchange]?.fatca && <InfoTag color="red">FATCA</InfoTag>}
+                        <RiskTag risk={EXCHANGE_CARF[exchange]?.risk ?? 'med'} />
+                      </div>
                     </div>
-                    <div className="text-xs text-bnb-muted mt-0.5">{EXCHANGE_CARF[exchange]?.country}</div>
-                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                      <InfoTag color="amber">KYC 필수</InfoTag>
-                      <InfoTag color="blue">CARF {EXCHANGE_CARF[exchange]?.carfYear ?? '?'}</InfoTag>
-                      {EXCHANGE_CARF[exchange]?.fatca && <InfoTag color="red">FATCA</InfoTag>}
-                      <RiskTag risk={EXCHANGE_CARF[exchange]?.risk ?? 'med'} />
-                    </div>
-                  </div>
-                  <FeeTag path={best} align="right" />
-                </ChoiceBtn>
-              ))}
+                    <FeeTag path={best} align="right" />
+                  </ChoiceBtn>
+                );
+              })}
             </div>
           </StepCard>
         )}
@@ -1262,6 +1284,13 @@ function InfoTag({ color, children }: { color: TagColor; children: React.ReactNo
       {children}
     </span>
   );
+}
+
+function fmtVol(usd: number | null | undefined): string | null {
+  if (!usd) return null;
+  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
+  if (usd >= 1_000_000)     return `$${(usd / 1_000_000).toFixed(0)}M`;
+  return `$${(usd / 1_000).toFixed(0)}K`;
 }
 
 function getFeeCategory(label: string): { label: string; color: TagColor } | null {

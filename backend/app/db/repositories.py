@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
-from backend.app.db.models import CarfExchangeInfo
+from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -148,4 +148,37 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
 
 def list_carf_exchanges(db: Session) -> list[CarfExchangeInfo]:
     stmt = select(CarfExchangeInfo).order_by(CarfExchangeInfo.type, CarfExchangeInfo.id)
+    return list(db.scalars(stmt))
+
+
+# ── 거래소 거래량 스냅샷 ──────────────────────────────────────────────────────
+
+def save_exchange_volume_snapshots(db: Session, crawl_run_id: int, records: list[dict]) -> None:
+    for rec in records:
+        db.add(ExchangeVolumeSnapshot(
+            crawl_run_id=crawl_run_id,
+            exchange=rec['exchange'],
+            volume_24h_btc=rec.get('volume_24h_btc'),
+            volume_24h_usd=rec.get('volume_24h_usd'),
+            trust_score=rec.get('trust_score'),
+            trust_rank=rec.get('trust_rank'),
+        ))
+    db.commit()
+
+
+def get_latest_exchange_volumes(db: Session) -> list[ExchangeVolumeSnapshot]:
+    """거래소별 가장 최근 거래량 스냅샷 1개씩 반환."""
+    subq = (
+        select(
+            ExchangeVolumeSnapshot.exchange,
+            sqlfunc.max(ExchangeVolumeSnapshot.recorded_at).label('max_ts'),
+        )
+        .group_by(ExchangeVolumeSnapshot.exchange)
+        .subquery()
+    )
+    stmt = select(ExchangeVolumeSnapshot).join(
+        subq,
+        (ExchangeVolumeSnapshot.exchange == subq.c.exchange) &
+        (ExchangeVolumeSnapshot.recorded_at == subq.c.max_ts),
+    )
     return list(db.scalars(stmt))

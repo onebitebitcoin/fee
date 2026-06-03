@@ -27,6 +27,7 @@ class CrawlRun(Base):
     lightning_swap_fee_snapshots: Mapped[list['LightningSwapFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_notices: Mapped[list['ExchangeNotice']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_capability_snapshots: Mapped[list['ExchangeCapabilitySnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    exchange_volume_snapshots: Mapped[list['ExchangeVolumeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
 
 class TickerSnapshot(Base):
@@ -136,6 +137,22 @@ class ExchangeCapabilitySnapshot(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_capability_snapshots')
+
+
+class ExchangeVolumeSnapshot(Base):
+    """CoinGecko 거래소별 24H 거래량 스냅샷 (하루 1회 크롤링)."""
+    __tablename__ = 'exchange_volume_snapshots'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    exchange: Mapped[str] = mapped_column(String(32), index=True)
+    volume_24h_btc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    volume_24h_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    trust_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    trust_rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_volume_snapshots')
 
 
 class AccessLog(Base):

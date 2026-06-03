@@ -515,3 +515,29 @@ def get_carf_exchanges(db: Session = Depends(get_db)) -> dict:
             'sources': json.loads(r.sources_json) if r.sources_json else None,
         })
     return {'exchanges': exchanges}
+
+
+@router.get('/exchange-volumes')
+def get_exchange_volumes(db: Session = Depends(get_db)) -> dict:
+    """거래소별 24H/7D/30D 거래량 반환 (DB 기반, 크롤링 시 하루 1회 갱신).
+
+    - volume_24h_usd: 24시간 거래량 (USD)
+    - volume_7d_usd : 7일 거래량 추정 (24H × 7)
+    - volume_30d_usd: 30일 거래량 추정 (24H × 30)
+    - trust_rank    : CoinGecko 신뢰도 순위
+    - recorded_at   : 마지막 갱신 시각 (unix timestamp)
+    """
+    rows = repositories.get_latest_exchange_volumes(db)
+    volumes: dict[str, dict] = {}
+    for r in rows:
+        vol24 = r.volume_24h_usd
+        volumes[r.exchange] = {
+            'volume_24h_btc': r.volume_24h_btc,
+            'volume_24h_usd': vol24,
+            'volume_7d_usd':  round(vol24 * 7)  if vol24 else None,
+            'volume_30d_usd': round(vol24 * 30) if vol24 else None,
+            'trust_score': r.trust_score,
+            'trust_rank':  r.trust_rank,
+            'recorded_at': int(r.recorded_at.timestamp()) if r.recorded_at else None,
+        }
+    return {'volumes': volumes}

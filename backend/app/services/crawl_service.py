@@ -11,6 +11,8 @@ from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapsh
 from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices
+from backend.app.services.volume_service import fetch_exchange_volumes
+from backend.app.db import repositories
 
 # 지연 임포트: 순환 참조 방지용 (실제 호출은 run_full_crawl 내에서)
 def _invalidate_market_cache() -> None:
@@ -48,8 +50,10 @@ class CrawlService:
             capability_count = self._crawl_capabilities(crawl_run, _ln_btc_exchanges)
             self._crawl_notices(crawl_run)
 
+            volume_count = self._crawl_exchange_volumes(crawl_run)
+
             crawl_run.status = 'partial_success' if error_count else 'success'
-            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, errors={error_count}'
+            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, volumes={volume_count}, errors={error_count}'
             _invalidate_market_cache()
         except Exception as exc:
             self.db.rollback()          # 부분 커밋 방지
@@ -237,6 +241,41 @@ class CrawlService:
                 ))
         except Exception as exc:
             logger.warning('Notice scraping failed: %s', exc)
+
+    def _crawl_exchange_volumes(self, crawl_run: CrawlRun) -> int:
+        """CoinGecko에서 거래소 24H 거래량을 가져와 저장한다. 하루 1회만 실제 API 호출.
+
+        오늘 이미 저장된 데이터가 있으면 건너뛰고 0을 반환한다.
+        """
+        try:
+            # 오늘 이미 거래량 데이터가 있으면 재호출 방지
+            existing = repositories.get_latest_exchange_volumes(self.db)
+            if existing:
+                from datetime import date, timezone
+                latest_ts = max(r.recorded_at for r in existing)
+                if latest_ts.astimezone(timezone.utc).date() == date.today():
+                    logger.info('Exchange volumes already fetched today, skipping CoinGecko call.')
+                    return 0
+
+            # BTC 가격 추출 (USD 환산용)
+            btc_price_usd: float | None = None
+            if crawl_run.usd_krw_rate:
+                try:
+                    tickers = repositories.list_ticker_snapshots_for_run(self.db, crawl_run.id)
+                    for t in tickers:
+                        if t.currency == 'KRW' and t.pair and 'BTC' in t.pair and t.price:
+                            btc_price_usd = float(t.price) / float(crawl_run.usd_krw_rate)
+                            break
+                except Exception:
+                    pass
+
+            records = fetch_exchange_volumes(btc_price_usd)
+            if records:
+                repositories.save_exchange_volume_snapshots(self.db, crawl_run.id, records)
+            return len(records)
+        except Exception as exc:
+            logger.warning('Exchange volume crawl failed: %s', exc)
+            return 0
 
     def _add_error(self, crawl_run_id: int, exchange: str | None, coin: str | None, stage: str, error_message: str) -> None:
         self.db.add(CrawlError(crawl_run_id=crawl_run_id, exchange=exchange, coin=coin, stage=stage, error_message=error_message))

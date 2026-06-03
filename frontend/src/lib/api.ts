@@ -49,4 +49,16 @@ export const api = {
       : '/api/v1/market/kimp/live';
     return request(url);
   },
+
+  getExchangeVolumes: (): Promise<{
+    volumes: Record<string, {
+      volume_24h_btc: number | null;
+      volume_24h_usd: number | null;
+      volume_7d_usd:  number | null;
+      volume_30d_usd: number | null;
+      trust_score:    number | null;
+      trust_rank:     number | null;
+      recorded_at:    number | null;
+    }>;
+  }> => request('/api/v1/market/exchange-volumes'),
 };
