@@ -707,6 +707,9 @@ export function RouteExplorerPage() {
               label="2. 출금 경로 선택"
               done={isPast('coin')}
             />
+            {selectedDomestic && (
+              <StepContext nodes={[{ id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' }]} />
+            )}
             <div className="space-y-2 mt-3">
               {coinOptions.map(({ coin, best }) => {
                 const domNode = selectedDomestic ? getKoreanNode(selectedDomestic) : null;
@@ -777,6 +780,12 @@ export function RouteExplorerPage() {
               label="3. 경유 거래소 (해외)"
               done={isPast('global')}
             />
+            {selectedDomestic && (
+              <StepContext nodes={[
+                { id: selectedDomestic, label: fmtEx(selectedDomestic), role: `${selectedCoin === 'BTC_VIA' ? 'BTC' : 'USDT'} 출금`, roleColor: 'amber' },
+                { id: 'arrow', label: '→', role: '경유할 해외 거래소 선택', roleColor: 'neutral' },
+              ]} />
+            )}
             {failedExchanges.length > 0 && (
               <p className="mt-2 text-xs text-bnb-muted bg-dark-400 rounded px-3 py-1.5">
                 데이터 없음: {failedExchanges.map(fmtEx).join(', ')} — 비교에서 제외됨
@@ -835,6 +844,13 @@ export function RouteExplorerPage() {
               label={`${selectedCoin === 'BTC' ? '3' : '4'}. 출금 네트워크`}
               done={isPast('network')}
             />
+            {selectedDomestic && (
+              <StepContext nodes={[
+                { id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' },
+                { id: 'coin', label: selectedCoin === 'BTC_VIA' ? 'BTC' : (selectedCoin ?? ''), role: '출금 네트워크 선택', roleColor: 'neutral' },
+                ...(selectedGlobal ? [{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '수신', roleColor: 'blue' as const }] : []),
+              ]} />
+            )}
             <div className="space-y-2 mt-3">
               {networkOptions.map(({ network, best }) => (
                 <ChoiceBtn
@@ -871,6 +887,9 @@ export function RouteExplorerPage() {
               label="5. 해외 매수 방식"
               done={isPast('trade_method')}
             />
+            {selectedGlobal && (
+              <StepContext nodes={[{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '해외 거래소 · USDT → BTC 매수', roleColor: 'blue' }]} />
+            )}
             <div className="space-y-2 mt-3">
               {tradeMethodOptions.map(({ id, label, sublabel, best }) => (
                 <ChoiceBtn
@@ -903,6 +922,17 @@ export function RouteExplorerPage() {
               label={`${selectedCoin === 'BTC' ? '4' : '6'}. 출금 방식`}
               done={isPast('exit_mode')}
             />
+            {(() => {
+              const srcEx = selectedCoin === 'BTC' ? selectedDomestic : selectedGlobal;
+              const srcRole = selectedCoin === 'BTC' ? '국내 거래소' : '해외 거래소';
+              const srcColor: 'amber' | 'blue' = selectedCoin === 'BTC' ? 'amber' : 'blue';
+              return srcEx ? (
+                <StepContext nodes={[
+                  { id: srcEx, label: fmtEx(srcEx), role: `${srcRole} · BTC 출금 방식 선택`, roleColor: srcColor },
+                  { id: 'wallet', label: '→ 개인 지갑', role: '온체인 또는 Lightning', roleColor: 'green' },
+                ]} />
+              ) : null;
+            })()}
             <div className="space-y-2 mt-3">
               {exitModeOptions.map(({ id, label, sublabel, best }) => (
                 <ChoiceBtn
@@ -942,6 +972,11 @@ export function RouteExplorerPage() {
               label="7. LN → 온체인 스왑 서비스"
               done={isPast('swap_service')}
             />
+            <StepContext nodes={[
+              { id: 'lightning', label: 'Lightning Network', role: '출금 채널', roleColor: 'green' },
+              { id: 'swap', label: '→ 온체인 스왑', role: '스왑 서비스 선택', roleColor: 'neutral' },
+              { id: 'wallet', label: '→ 개인 지갑', role: '최종 수신', roleColor: 'neutral' },
+            ]} />
             <div className="space-y-2 mt-3">
               {swapServiceOptions.map(({ service, display, best }) => {
                 const swapComp = best.breakdown?.components.find(c => c.label.includes('스왑'));
@@ -1143,6 +1178,27 @@ export function RouteExplorerPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+/** 단계별 컨텍스트 표시 — "어느 거래소/서비스에서 선택하는 항목인지" 알려줌 */
+function StepContext({ nodes }: {
+  nodes: Array<{ id: string; label: string; role: string; roleColor?: 'amber' | 'blue' | 'green' | 'neutral' }>;
+}) {
+  return (
+    <div className="flex items-center gap-2 mt-2 mb-1 flex-wrap">
+      {nodes.map((n, i) => (
+        <span key={i} className="flex items-center gap-1.5 text-[11px] bg-dark-400 border border-dark-200 rounded-full px-2 py-0.5">
+          <ExchangeIcon id={n.id} size={12} />
+          <span className="font-medium text-bnb-text">{n.label}</span>
+          <span className={`text-[10px] ${
+            n.roleColor === 'amber' ? 'text-yellow-400/70' :
+            n.roleColor === 'blue'  ? 'text-blue-400/70' :
+            n.roleColor === 'green' ? 'text-bnb-green/70' : 'text-bnb-muted'
+          }`}>{n.role}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function ExchangeIcon({ id, size = 16 }: { id: string; size?: number }) {
   const domain = getExchangeDomain(id);
