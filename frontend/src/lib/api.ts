@@ -61,4 +61,26 @@ export const api = {
       recorded_at:    number | null;
     }>;
   }> => request('/api/v1/market/exchange-volumes'),
+
+  getCrawlStatus: (): Promise<{
+    running: boolean;
+    last_run: {
+      id: number; status: string; trigger: string; message: string | null;
+      started_at: number | null; completed_at: number | null; usd_krw_rate: number | null;
+    } | null;
+    exchanges: Array<{
+      exchange: string;
+      group: 'korea' | 'global';
+      ticker: 'pass' | 'error' | 'missing';
+      btc_wd: 'pass' | 'error' | 'missing';
+      usdt_wd: 'pass' | 'error' | 'missing';
+      errors: string[];
+    }>;
+  }> => request('/api/v1/market/crawl-status'),
+
+  triggerCrawl: (adminKey: string): Promise<{ id: number; status: string; message: string | null }> =>
+    request('/api/v1/crawl-runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adminKey },
+    }),
 };

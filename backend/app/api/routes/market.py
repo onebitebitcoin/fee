@@ -401,6 +401,65 @@ def get_scrape_status(db: Session = Depends(get_db)) -> dict:
     }
 
 
+@router.get('/crawl-status')
+def get_crawl_status(db: Session = Depends(get_db)) -> dict:
+    """거래소별 최신 크롤 결과 (Pass/Fail/Error 요약)."""
+    from backend.app.domain.market_core import GROUPS
+
+    all_exchanges = list(GROUPS['korea']) + list(GROUPS['global'])
+
+    # 가장 최근 3개 run 조회
+    runs = repositories.list_crawl_runs(db, limit=3)
+    latest = runs[0] if runs else None
+
+    if latest is None:
+        return {'last_run': None, 'exchanges': [], 'running': False}
+
+    is_running = latest.status == 'running'
+
+    # 에러 목록
+    errors_by_exchange: dict[str, list[str]] = {}
+    for e in repositories.list_crawl_errors_for_run(db, latest.id):
+        errors_by_exchange.setdefault(e.exchange or '__global__', []).append(
+            f'{e.stage}: {e.error_message}'
+        )
+
+    # 티커 스냅샷 존재 여부
+    ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest.id)
+    has_ticker: set[str] = {r.exchange for r in ticker_rows}
+
+    # 출금 스냅샷 존재 여부 (coin별)
+    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest.id)
+    has_btc_wd: set[str] = {r.exchange for r in withdrawal_rows if r.coin == 'BTC'}
+    has_usdt_wd: set[str] = {r.exchange for r in withdrawal_rows if r.coin == 'USDT'}
+
+    result_exchanges = []
+    for ex in all_exchanges:
+        errs = errors_by_exchange.get(ex, [])
+        result_exchanges.append({
+            'exchange': ex,
+            'group': 'korea' if ex in GROUPS['korea'] else 'global',
+            'ticker':   'pass' if ex in has_ticker  else ('error' if any('ticker' in e for e in errs) else 'missing'),
+            'btc_wd':   'pass' if ex in has_btc_wd  else ('error' if any('withdrawal' in e for e in errs) else 'missing'),
+            'usdt_wd':  'pass' if ex in has_usdt_wd else ('error' if any('withdrawal' in e for e in errs) else 'missing'),
+            'errors':   errs,
+        })
+
+    return {
+        'running': is_running,
+        'last_run': {
+            'id': latest.id,
+            'status': latest.status,
+            'trigger': latest.trigger,
+            'message': latest.message,
+            'started_at': int(latest.started_at.timestamp()) if latest.started_at else None,
+            'completed_at': int(latest.completed_at.timestamp()) if latest.completed_at else None,
+            'usd_krw_rate': latest.usd_krw_rate,
+        },
+        'exchanges': result_exchanges,
+    }
+
+
 @router.get('/status')
 def get_exchange_status(db: Session = Depends(get_db)) -> dict:
     """출금 수수료 + 네트워크 상태 + 공지사항 통합 뷰"""
