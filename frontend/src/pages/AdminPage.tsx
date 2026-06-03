@@ -360,7 +360,7 @@ export function AdminPage() {
             {pwError && <p className="text-xs text-bnb-red mt-1.5 text-center">비밀번호가 틀렸습니다</p>}
             <button
               onClick={handleLogin}
-              className="w-full mt-3 bg-brand-500 text-dark-500 font-semibold text-sm py-2.5 rounded-lg hover:bg-brand-400 transition-colors"
+              className="w-full mt-3 bg-brand-500 text-stone-900 font-semibold text-sm py-2.5 rounded-lg hover:bg-brand-400 transition-colors"
             >
               로그인
             </button>
@@ -404,7 +404,7 @@ export function AdminPage() {
             <button
               onClick={handleSave}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                saved ? 'bg-bnb-green/20 text-bnb-green' : 'bg-brand-500 text-dark-500 hover:bg-brand-400'
+                saved ? 'bg-bnb-green/20 text-bnb-green' : 'bg-brand-500 text-stone-900 hover:bg-brand-400'
               }`}
             >
               <FloppyDisk className="w-3.5 h-3.5" />

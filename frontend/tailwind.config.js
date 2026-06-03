@@ -8,28 +8,34 @@ export default {
       },
       colors: {
         brand: {
-          50: '#fff8e0',
-          100: '#fff3b8',
-          200: '#ffe680',
-          300: '#ffd84d',
-          400: '#ffc926',
+          50:  '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
           500: '#f0b90b',
-          600: '#d4a009',
-          700: '#a87c07',
-          800: '#7c5a05',
-          900: '#503b03',
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
         },
+        // Light-mode surface scale (500 = page bg, 300 = card, 100 = subtle)
         dark: {
-          100: '#474d57',
-          200: '#2b2f36',
-          300: '#1e2026',
-          400: '#181a20',
-          500: '#0b0e11',
+          100: '#94a3b8',  // subtle icons / placeholders
+          200: '#e2e8f0',  // borders
+          300: '#ffffff',  // card / panel surface
+          400: '#f1f5f9',  // header / elevated surface
+          500: '#f8fafc',  // page background
         },
-        'bnb-green': '#03a66d',
-        'bnb-red': '#cf304a',
-        'bnb-text': '#eaecef',
-        'bnb-muted': '#848e9c',
+        'bnb-green':  '#059669',
+        'bnb-red':    '#dc2626',
+        'bnb-text':   '#0f172a',
+        'bnb-muted':  '#64748b',
+      },
+      boxShadow: {
+        card:        '0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)',
+        'card-md':   '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08)',
+        'card-active': '0 0 0 2px rgba(240,185,11,0.35), 0 4px 12px 0 rgb(0 0 0 / 0.08)',
       },
       keyframes: {
         'bar-fill': {
@@ -50,10 +56,10 @@ export default {
         },
       },
       animation: {
-        'bar-fill': 'bar-fill 0.7s ease-out forwards',
+        'bar-fill':   'bar-fill 0.7s ease-out forwards',
         'fade-in-up': 'fade-in-up 0.35s ease-out forwards',
-        'live-ping': 'live-ping 1.6s ease-out infinite',
-        shimmer: 'shimmer 1.8s linear infinite',
+        'live-ping':  'live-ping 1.6s ease-out infinite',
+        shimmer:      'shimmer 1.8s linear infinite',
       },
     },
   },

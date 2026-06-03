@@ -12,12 +12,12 @@ body {
   font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Subtle dot grid — path navigator */
-  background-image: radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px);
+  /* Subtle dot grid */
+  background-image: radial-gradient(circle, rgba(15,23,42,0.04) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
-/* Ambient gold radial glow above content */
+/* Subtle ambient glow */
 #root {
   position: relative;
 }
@@ -29,7 +29,7 @@ body {
   transform: translateX(-50%);
   width: 80%;
   height: 40%;
-  background: radial-gradient(ellipse, rgba(240,185,11,0.055) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(240,185,11,0.06) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -37,24 +37,24 @@ body {
 /* Search button pulse glow */
 @keyframes btn-glow-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(240,185,11,0); }
-  50%       { box-shadow: 0 0 0 9px rgba(240,185,11,0.14); }
+  50%       { box-shadow: 0 0 0 9px rgba(240,185,11,0.18); }
 }
 .btn-glow-active { animation: btn-glow-pulse 2.4s ease-out infinite; }
 
 /* Global focus ring */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #0b0e11, 0 0 0 4px rgba(240, 185, 11, 0.55);
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(240, 185, 11, 0.65);
 }
 
 /* ── Panels ── */
 .panel {
-  @apply border border-dark-200 bg-dark-300 p-4;
+  @apply border border-dark-200 bg-dark-300 p-4 shadow-card;
 }
 
 .panel-accent {
-  @apply border border-dark-200 bg-dark-300 p-4;
-  border-left: 2px solid #f0b90b;
+  @apply border border-dark-200 bg-dark-300 p-4 shadow-card;
+  border-left: 3px solid #f0b90b;
 }
 
 .table-wrap {
@@ -63,18 +63,18 @@ body {
 
 /* ── Buttons ── */
 .btn-primary {
-  @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-dark-500 transition-all
+  @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-stone-900 transition-all
     hover:bg-brand-400 active:scale-[0.98] disabled:opacity-50;
-  box-shadow: 0 0 0 0 rgba(240, 185, 11, 0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
   transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 .btn-primary:hover {
-  box-shadow: 0 0 16px rgba(240, 185, 11, 0.25);
+  box-shadow: 0 0 16px rgba(240, 185, 11, 0.30), 0 1px 2px rgba(0,0,0,0.08);
 }
 
 .btn-secondary {
   @apply border border-dark-200 bg-dark-300 px-4 py-2 text-sm font-medium text-bnb-text
-    transition-colors hover:border-dark-100 hover:bg-dark-200 disabled:opacity-50;
+    transition-colors hover:border-brand-500/40 hover:bg-dark-400 disabled:opacity-50 shadow-card;
 }
 
 /* ── Typography helpers ── */
@@ -99,7 +99,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #03a66d;
+  background: #059669;
   animation: live-ping 1.6s ease-out infinite;
 }
 .live-dot::after {
@@ -109,7 +109,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #03a66d;
+  background: #059669;
 }
 
 @keyframes live-ping {
@@ -137,7 +137,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .loading-progress-bar {
@@ -145,17 +145,13 @@ body {
   inset: 0 auto 0 -35%;
   width: 35%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(240, 185, 11, 0) 0%, #f0b90b 45%, #ffd24d 100%);
+  background: linear-gradient(90deg, rgba(240, 185, 11, 0) 0%, #f0b90b 45%, #fbbf24 100%);
   animation: loading-progress-slide 1.35s ease-in-out infinite;
 }
 
 @keyframes loading-progress-slide {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(390%);
-  }
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(390%); }
 }
 
 /* ── Rank badge ── */
@@ -163,10 +159,10 @@ body {
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold;
   font-family: 'JetBrains Mono', monospace;
 }
-.rank-1 { @apply bg-brand-500 text-dark-500; }
-.rank-2 { @apply bg-dark-100 text-bnb-text; }
-.rank-3 { @apply bg-dark-200 text-bnb-muted; }
-.rank-n { @apply bg-dark-300 text-bnb-muted border border-dark-200; }
+.rank-1 { @apply bg-brand-500 text-stone-900; }
+.rank-2 { @apply bg-slate-200 text-slate-700; }
+.rank-3 { @apply bg-slate-100 text-slate-500; }
+.rank-n { @apply bg-white text-slate-400 border border-slate-200; }
 
 /* ── Section header ── */
 .section-label {
@@ -175,12 +171,11 @@ body {
 
 /* ── Card hover ── */
 .card-interactive {
-  @apply cursor-pointer border border-dark-200 bg-dark-300 transition-all duration-150
-    hover:border-brand-500/25 hover:bg-dark-400;
+  @apply cursor-pointer border border-dark-200 bg-dark-300 shadow-card transition-all duration-150
+    hover:border-brand-500/40 hover:shadow-card-md;
 }
 .card-interactive.selected {
-  @apply border-brand-500/50 bg-dark-400;
-  box-shadow: inset 2px 0 0 #f0b90b;
+  @apply border-brand-500/60 bg-brand-50 shadow-card-active;
 }
 
 /* ── Stagger animation delays ── */
@@ -190,12 +185,12 @@ body {
 .stagger-4 { animation-delay: 0.2s;  opacity: 0; animation-fill-mode: forwards; }
 .stagger-5 { animation-delay: 0.25s; opacity: 0; animation-fill-mode: forwards; }
 
-/* ── Price bar (TickersPage) ── */
+/* ── Price bar ── */
 .price-bar-fill {
   height: 100%;
   border-radius: 1px;
   animation: bar-fill 0.6s ease-out forwards;
-  background: linear-gradient(90deg, #f0b90b 0%, #ffc926 100%);
+  background: linear-gradient(90deg, #f0b90b 0%, #fbbf24 100%);
 }
 
 /* ── Ticker price change ── */
