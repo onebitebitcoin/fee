@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowDown, ArrowRight, ArrowsClockwise, Coin,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowsClockwise, Coin,
   CurrencyDollar, EyeSlash, Globe, Lightning, MapPin,
   ShieldCheck, TrendDown, Trophy, GearSix, CheckCircle,
 } from '@phosphor-icons/react';
@@ -506,13 +506,39 @@ export function RouteExplorerPage() {
   const isActive  = (p: Phase) => phase === p;
   const showSteps = phase !== 'input' && phase !== 'loading';
 
+  // Slide direction: detect forward vs back from phase changes
+  const [slideDir, setSlideDir] = useState<'forward' | 'back'>('forward');
+  const prevPhaseRef = useRef<Phase>('input');
   useEffect(() => {
-    if (phase === 'input') return;
-    const t = setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 120);
-    return () => clearTimeout(t);
+    setSlideDir(phaseIdx(phase) >= phaseIdx(prevPhaseRef.current) ? 'forward' : 'back');
+    prevPhaseRef.current = phase;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [phase]);
+
+  // Previous phase for back navigation
+  function getPrevPhase(): Phase | null {
+    switch (phase) {
+      case 'coin':         return 'domestic';
+      case 'global':       return 'coin';
+      case 'network':      return selectedCoin === 'BTC' ? 'coin' : 'global';
+      case 'trade_method': return 'network';
+      case 'exit_mode':    return selectedCoin === 'USDT' ? 'trade_method' : 'network';
+      case 'swap_service': return 'exit_mode';
+      case 'result':       return selectedExitMode === 'lightning' ? 'swap_service' : 'exit_mode';
+      default:             return null;
+    }
+  }
+
+  function handleBack() {
+    const prev = getPrevPhase();
+    if (prev) goBackTo(prev);
+  }
+
+  const slideVariants = {
+    enter: (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? 48 : -48, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit:  (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? -48 : 48, opacity: 0 }),
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -576,10 +602,10 @@ export function RouteExplorerPage() {
           </aside>
 
           {/* Center: Steps */}
-          <div className={`space-y-4 min-w-0 ${showSteps ? 'pb-24 lg:pb-6' : ''}`}>
+          <div className={`min-w-0 ${showSteps ? 'pb-24 lg:pb-6' : ''}`}>
 
-            {/* Step 0: Amount + Preference */}
-            <StepCard active={isActive('input')} dimmed={showSteps && !isActive('input')}>
+            {/* Step 0: Amount + Preference — only shown before wizard starts */}
+            {!showSteps && <StepCard active={isActive('input')}>
               {allData?.latestRunAt && (
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3 pb-2.5 border-b border-slate-100">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -637,8 +663,7 @@ export function RouteExplorerPage() {
                 </div>
               </div>
 
-              {phase === 'input' && (
-                <motion.button
+              <motion.button
                   onClick={handleSearch}
                   disabled={!amountKrw || amountKrw < 10_000}
                   whileHover={{ scale: 1.01 }}
@@ -648,572 +673,437 @@ export function RouteExplorerPage() {
                 >
                   경로 탐색 시작
                 </motion.button>
-              )}
-            </StepCard>
+            </StepCard>}
 
-            {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+            {error && <p className="text-red-600 text-sm text-center mt-4">{error}</p>}
 
             {/* Loading */}
             {phase === 'loading' && <NetworkScanLoader />}
 
-            {/* Step 1: 국내 거래소 */}
+            {/* Wizard: one step at a time with slide animation */}
             {showSteps && (
-              <StepCard dimmed={!isActive('domestic') && !isPast('domestic')} active={isActive('domestic')} animate>
-                <div className="flex items-center justify-between">
-                  <StepHeader
-                    icon={<MapPin className="w-3.5 h-3.5" />}
-                    label="1. 출발 거래소 (국내)"
-                    done={isPast('domestic') || isActive('coin') || isPast('coin')}
-                  />
-                  {isActive('domestic') && (
-                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                      {liveKimp && (
-                        <span className="text-[10px] text-slate-400">
-                          {liveKimp.cached ? '캐시' : '실시간'} · {fmtTime(liveKimp.fetched_at)}
-                        </span>
-                      )}
-                      <button
-                        onClick={() => fetchLiveKimp(true)}
-                        disabled={kimpLoading}
-                        className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-brand-600 disabled:opacity-40 transition-colors"
-                      >
-                        <ArrowsClockwise className={`w-3 h-3 ${kimpLoading ? 'animate-spin' : ''}`} />
-                        새로고침
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-                  {domesticOptions.map(({ exchange, bestBtc }) => {
-                    const takerFee = domesticTakerFees[exchange];
-                    const kimchi = liveKimp
-                      ? (liveKimp.kimp[exchange] ?? null)
-                      : (snapshotKimp[exchange] ?? null);
-                    const vol = exchangeVolumes[exchange];
-                    return (
-                      <ChoiceBtn
-                        key={exchange}
-                        selected={selectedDomestic === exchange}
-                        onClick={() => handleDomesticSelect(exchange)}
-                      >
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <ExchangeIcon id={exchange} size={16} />
-                          <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
-                          {exchange === recDomestic && (
-                            <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 font-data mt-0.5">{formatSats(bestBtc)}</div>
-                        {takerFee != null && (
-                          <div className="text-xs text-slate-400 mt-0.5">수수료 {takerFee.toFixed(2)}%</div>
-                        )}
-                        {vol?.volume_24h_usd != null && (
-                          <div className="text-[10px] text-slate-400 mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>
-                        )}
-                        {kimchi != null && (
-                          <div className={`text-xs mt-0.5 font-semibold ${kimchi > 2 ? 'text-red-600' : kimchi > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            {kimchi >= 0 ? `+${kimchi.toFixed(1)}%` : `${kimchi.toFixed(1)}%`} 김프
-                          </div>
-                        )}
-                      </ChoiceBtn>
-                    );
-                  })}
-                </div>
-              </StepCard>
-            )}
+              <div className="mt-4 overflow-hidden">
+                <AnimatePresence mode="wait" custom={slideDir}>
+                  <motion.div
+                    key={phase}
+                    custom={slideDir}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                  >
 
-            {/* Step 2: 출금 코인 (3가지 경로) */}
-            {showSteps && (isPast('domestic') || isActive('coin') || isPast('coin')) && (
-              <StepCard dimmed={!isActive('coin') && !isPast('coin')} active={isActive('coin')} animate>
-                <StepHeader
-                  icon={<Coin className="w-3.5 h-3.5" />}
-                  label="2. 출금 경로 선택"
-                  done={isPast('coin')}
-                />
-                {selectedDomestic && (
-                  <StepContext nodes={[{ id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' }]} />
-                )}
-                <div className="space-y-2 mt-3">
-                  {coinOptions.map(({ coin, best }) => {
-                    const domNode = selectedDomestic ? getKoreanNode(selectedDomestic) : null;
-                    const perTxLimit = domNode?.perTxKrwLimit ?? null;
-                    const numTxs = (coin === 'BTC' && best.num_withdrawal_txs != null)
-                      ? best.num_withdrawal_txs
-                      : (coin === 'BTC' && perTxLimit && perTxLimit > 0)
-                        ? Math.ceil(amountKrw / perTxLimit)
-                        : 1;
-                    return (
-                      <ChoiceBtn
-                        key={coin}
-                        selected={selectedCoin === coin}
-                        onClick={() => handleCoinSelect(coin)}
-                        horizontal
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {coin === 'USDT' && (
-                              <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" />
-                              <span className="font-semibold text-sm">USDT 경유</span></>
-                            )}
-                            {coin === 'BTC' && (
-                              <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" />
-                              <span className="font-semibold text-sm">BTC 직접 출금</span></>
-                            )}
-                            {coin === 'BTC_VIA' && (
-                              <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" />
-                              <span className="font-semibold text-sm">BTC → 해외거래소 경유</span></>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            {coin === 'USDT' && 'USDT 출금 → 해외 거래소 BTC 매수 → 개인 지갑'}
-                            {coin === 'BTC' && '한국 거래소 BTC 출금 → 개인 지갑 (직접)'}
-                            {coin === 'BTC_VIA' && 'BTC 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
-                          </div>
-                          <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                            {coin === 'BTC' && perTxLimit != null && (
-                              <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>
-                            )}
-                            {coin === 'BTC' && perTxLimit == null && (
-                              <InfoTag color="neutral">1회 출금 제한 확인 필요</InfoTag>
-                            )}
-                            {coin === 'BTC' && numTxs > 1 && (
-                              <InfoTag color="amber">{numTxs}회 출금 필요 (수수료 {numTxs}×)</InfoTag>
-                            )}
-                            {coin === 'BTC_VIA' && (
-                              <InfoTag color="blue">거래소 주소 — 1회 제한 없음</InfoTag>
-                            )}
-                          </div>
-                        </div>
-                        <FeeTag path={best} align="right" />
-                      </ChoiceBtn>
-                    );
-                  })}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Step 3: 해외 거래소 (USDT only) */}
-            {showSteps && (selectedCoin === 'USDT' || selectedCoin === 'BTC_VIA') && (isPast('coin') || isActive('global') || isPast('global')) && (
-              <StepCard dimmed={!isActive('global') && !isPast('global')} active={isActive('global')} animate>
-                <StepHeader
-                  icon={<Globe className="w-3.5 h-3.5" />}
-                  label="3. 경유 거래소 (해외)"
-                  done={isPast('global')}
-                />
-                {selectedDomestic && (
-                  <StepContext nodes={[
-                    { id: selectedDomestic, label: fmtEx(selectedDomestic), role: `${selectedCoin === 'BTC_VIA' ? 'BTC' : 'USDT'} 출금`, roleColor: 'amber' },
-                    { id: 'arrow', label: '→', role: '경유할 해외 거래소 선택', roleColor: 'neutral' },
-                  ]} />
-                )}
-                {failedExchanges.length > 0 && (
-                  <p className="mt-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-1.5">
-                    데이터 없음: {failedExchanges.map(fmtEx).join(', ')} — 비교에서 제외됨
-                  </p>
-                )}
-                <div className="space-y-2 mt-3">
-                  {globalOptions.map(({ exchange, best, hasLightning }) => {
-                    const vol = exchangeVolumes[exchange];
-                    const carf = EXCHANGE_CARF[exchange];
-                    return (
-                      <ChoiceBtn
-                        key={exchange}
-                        selected={selectedGlobal === exchange}
-                        onClick={() => handleGlobalSelect(exchange)}
-                        horizontal
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <ExchangeIcon id={exchange} size={16} />
-                            <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
-                            {hasLightning && <Lightning className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" weight="fill" />}
-                            {exchange === recGlobal && (
-                              <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {carf && <span className="text-xs text-slate-500">{carf.country}</span>}
-                            {vol?.volume_24h_usd != null && (
+                    {/* domestic */}
+                    {phase === 'domestic' && (
+                      <StepCard active>
+                        <div className="flex items-center justify-between">
+                          <StepHeader icon={<MapPin className="w-3.5 h-3.5" />} label="출발 거래소 (국내)" done={false} />
+                          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                            {liveKimp && (
                               <span className="text-[10px] text-slate-400">
-                                24H {fmtVol(vol.volume_24h_usd)}
+                                {liveKimp.cached ? '캐시' : '실시간'} · {fmtTime(liveKimp.fetched_at)}
                               </span>
                             )}
-                            {vol?.trust_rank != null && (
-                              <span className="text-[10px] text-slate-400">#{vol.trust_rank}</span>
-                            )}
+                            <button
+                              onClick={() => fetchLiveKimp(true)}
+                              disabled={kimpLoading}
+                              className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-brand-600 disabled:opacity-40 transition-colors"
+                            >
+                              <ArrowsClockwise className={`w-3 h-3 ${kimpLoading ? 'animate-spin' : ''}`} />
+                              새로고침
+                            </button>
                           </div>
-                          <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                            {carf && <InfoTag color="blue">CARF {carf.carfYear}</InfoTag>}
-                            {carf?.fatca && <InfoTag color="red">FATCA</InfoTag>}
-                            <RiskTag risk={carf?.risk ?? 'med'} />
-                          </div>
                         </div>
-                        <FeeTag path={best} align="right" />
-                      </ChoiceBtn>
-                    );
-                  })}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Step 4: 네트워크 */}
-            {showSteps && (selectedCoin === 'BTC' ? isPast('coin') : isPast('global')) && (
-              <StepCard dimmed={!isActive('network') && !isPast('network')} active={isActive('network')} animate>
-                <StepHeader
-                  icon={<ArrowDown className="w-3.5 h-3.5" />}
-                  label={`${selectedCoin === 'BTC' ? '3' : '4'}. 출금 네트워크`}
-                  done={isPast('network')}
-                />
-                {selectedDomestic && (
-                  <StepContext nodes={[
-                    { id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' },
-                    { id: 'coin', label: selectedCoin === 'BTC_VIA' ? 'BTC' : (selectedCoin ?? ''), role: '출금 네트워크 선택', roleColor: 'neutral' },
-                    ...(selectedGlobal ? [{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '수신', roleColor: 'blue' as const }] : []),
-                  ]} />
-                )}
-                <div className="space-y-2 mt-3">
-                  {networkOptions.map(({ network, best }) => (
-                    <ChoiceBtn
-                      key={network}
-                      selected={selectedNetwork === network}
-                      onClick={() => handleNetworkSelect(network)}
-                      horizontal
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-sm">{network}</span>
-                          {network === recNetwork && (
-                            <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                          )}
-                        </div>
-                        {best.breakdown?.components.find(c => c.label.includes('출금')) && (
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            출금 수수료: {best.breakdown.components.find(c => c.label.includes('출금'))?.amount_text}
-                          </div>
-                        )}
-                      </div>
-                      <FeeTag path={best} align="right" />
-                    </ChoiceBtn>
-                  ))}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Step 5: 매수 방식 (USDT only) */}
-            {showSteps && selectedCoin === 'USDT' && isPast('network') && (
-              <StepCard dimmed={!isActive('trade_method') && !isPast('trade_method')} active={isActive('trade_method')} animate>
-                <StepHeader
-                  icon={<TrendDown className="w-3.5 h-3.5" />}
-                  label="5. 해외 매수 방식"
-                  done={isPast('trade_method')}
-                />
-                {selectedGlobal && (
-                  <StepContext nodes={[{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '해외 거래소 · USDT → BTC 매수', roleColor: 'blue' }]} />
-                )}
-                <div className="space-y-2 mt-3">
-                  {tradeMethodOptions.map(({ id, label, sublabel, best }) => (
-                    <ChoiceBtn
-                      key={id}
-                      selected={selectedTradeMethod === id}
-                      onClick={() => handleTradeMethodSelect(id)}
-                      horizontal
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-sm">{label}</span>
-                          {id === recTradeMethod && (
-                            <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
-                      </div>
-                      <FeeTag path={best} align="right" />
-                    </ChoiceBtn>
-                  ))}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Step 6: 출금 방식 */}
-            {showSteps && (selectedCoin === 'BTC' ? isPast('network') : isPast('trade_method')) && (
-              <StepCard dimmed={!isActive('exit_mode') && !isPast('exit_mode')} active={isActive('exit_mode')} animate>
-                <StepHeader
-                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
-                  label={`${selectedCoin === 'BTC' ? '4' : '6'}. 출금 방식`}
-                  done={isPast('exit_mode')}
-                />
-                {(() => {
-                  const srcEx = selectedCoin === 'BTC' ? selectedDomestic : selectedGlobal;
-                  const srcRole = selectedCoin === 'BTC' ? '국내 거래소' : '해외 거래소';
-                  const srcColor: 'amber' | 'blue' = selectedCoin === 'BTC' ? 'amber' : 'blue';
-                  return srcEx ? (
-                    <StepContext nodes={[
-                      { id: srcEx, label: fmtEx(srcEx), role: `${srcRole} · BTC 출금 방식 선택`, roleColor: srcColor },
-                      { id: 'wallet', label: '→ 개인 지갑', role: '온체인 또는 Lightning', roleColor: 'green' },
-                    ]} />
-                  ) : null;
-                })()}
-                <div className="space-y-2 mt-3">
-                  {exitModeOptions.map(({ id, label, sublabel, best }) => (
-                    <ChoiceBtn
-                      key={id}
-                      selected={selectedExitMode === id}
-                      onClick={() => handleExitModeSelect(id)}
-                      horizontal
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 font-semibold text-sm">
-                          {id === 'lightning' && <Lightning className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" weight="fill" />}
-                          <span>{label}</span>
-                          {id === recExitMode && (
-                            <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
-                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                          {id === 'onchain'
-                            ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><RiskTag risk="low" /></>
-                            : <><InfoTag color="green">오프체인 라우팅</InfoTag><RiskTag risk="med" /></>
-                          }
-                        </div>
-                      </div>
-                      <FeeTag path={best} align="right" />
-                    </ChoiceBtn>
-                  ))}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Step 7: 스왑 서비스 (Lightning only) */}
-            {showSteps && selectedExitMode === 'lightning' && (isPast('exit_mode') || isActive('swap_service') || isPast('swap_service')) && (
-              <StepCard dimmed={!isActive('swap_service') && !isPast('swap_service')} active={isActive('swap_service')} animate>
-                <StepHeader
-                  icon={<Lightning className="w-3.5 h-3.5" />}
-                  label="7. LN → 온체인 스왑 서비스"
-                  done={isPast('swap_service')}
-                />
-                <StepContext nodes={[
-                  { id: 'lightning', label: 'Lightning Network', role: '출금 채널', roleColor: 'green' },
-                  { id: 'swap', label: '→ 온체인 스왑', role: '스왑 서비스 선택', roleColor: 'neutral' },
-                  { id: 'wallet', label: '→ 개인 지갑', role: '최종 수신', roleColor: 'neutral' },
-                ]} />
-                <div className="space-y-2 mt-3">
-                  {swapServiceOptions.map(({ service, display, best }) => {
-                    const swapComp = best.breakdown?.components.find(c => c.label.includes('스왑'));
-                    const m = SWAP_META[service];
-                    return (
-                      <ChoiceBtn
-                        key={service}
-                        selected={selectedSwapService === service}
-                        onClick={() => handleSwapServiceSelect(service)}
-                        horizontal
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-sm">{display}</span>
-                            {service === recSwapService && (
-                              <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
-                            {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
-                          </div>
-                          {m && (
-                            <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                              {m.kyc ? <InfoTag color="amber">KYC 필수</InfoTag> : <InfoTag color="green">비KYC</InfoTag>}
-                              {m.custodial ? <InfoTag color="neutral">수탁형</InfoTag> : <InfoTag color="green">비수탁</InfoTag>}
-                              <RiskTag risk={m.risk} />
-                            </div>
-                          )}
-                        </div>
-                        <FeeTag path={best} align="right" />
-                      </ChoiceBtn>
-                    );
-                  })}
-                </div>
-              </StepCard>
-            )}
-
-            {/* Result: Fee Waterfall */}
-            {phase === 'result' && matchedPath && (
-              <StepCard animate active>
-                <StepHeader icon={<Trophy className="w-3.5 h-3.5" weight="fill" />} label="수수료 경로 상세" done />
-
-                {/* 다중 트랜잭션 경고 */}
-                {(matchedPath.num_withdrawal_txs ?? 1) > 1 && (
-                  <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs">
-                    <div className="flex items-start gap-2">
-                      <span className="text-amber-700 font-bold flex-shrink-0 mt-0.5">!</span>
-                      <div>
-                        <span className="font-semibold text-amber-700">
-                          {matchedPath.num_withdrawal_txs}회 분할 출금 필요
-                        </span>
-                        <span className="text-amber-600 ml-1">
-                          — {fmtEx(matchedPath.korean_exchange)} 1회 출금 한도
-                          {matchedPath.krw_per_tx_limit != null
-                            ? ` ₩${(matchedPath.krw_per_tx_limit / 10000).toFixed(0)}만원`
-                            : ''} 초과
-                        </span>
-                        <div className="text-amber-600 mt-0.5">
-                          아래 출금 수수료는 {matchedPath.num_withdrawal_txs}회분 합산 금액입니다.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4">
-                  {/* Start node */}
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center flex-shrink-0 w-5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-0.5" />
-                      <div className="w-px flex-1 bg-slate-200 min-h-[1.75rem]" />
-                    </div>
-                    <div className="pb-3 flex-1 flex justify-between items-baseline">
-                      <span className="text-xs text-slate-500">투자 금액</span>
-                      <span className="font-bold font-data text-base">₩{amountKrw.toLocaleString('ko-KR')}</span>
-                    </div>
-                  </div>
-
-                  {/* Fee steps */}
-                  {(() => {
-                    let remaining = amountKrw;
-                    const components = matchedPath.breakdown?.components ?? [];
-                    return components.map((c, i) => {
-                      const isLast = i === components.length - 1;
-                      const pctOfOriginal = amountKrw > 0 ? (c.amount_krw / amountKrw) * 100 : 0;
-                      remaining -= c.amount_krw;
-                      const remainingPct = amountKrw > 0 ? (remaining / amountKrw) * 100 : 0;
-                      return (
-                        <div key={i} className="flex items-start gap-3">
-                          <div className="flex flex-col items-center flex-shrink-0 w-5">
-                            <div className="w-2.5 h-2.5 rounded-full border-2 border-red-400 bg-white mt-0.5" />
-                            <div className={`w-px flex-1 min-h-[3.5rem] ${isLast ? 'bg-transparent' : 'bg-slate-200'}`} />
-                          </div>
-                          <div className="pb-4 flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                          {domesticOptions.map(({ exchange, bestBtc }) => {
+                            const takerFee = domesticTakerFees[exchange];
+                            const kimchi = liveKimp ? (liveKimp.kimp[exchange] ?? null) : (snapshotKimp[exchange] ?? null);
+                            const vol = exchangeVolumes[exchange];
+                            return (
+                              <ChoiceBtn key={exchange} selected={selectedDomestic === exchange} onClick={() => handleDomesticSelect(exchange)}>
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-sm font-medium leading-tight">{c.label}</span>
-                                  {(() => { const cat = getFeeCategory(c.label); return cat ? <InfoTag color={cat.color}>{cat.label}</InfoTag> : null; })()}
+                                  <ExchangeIcon id={exchange} size={16} />
+                                  <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                                  {exchange === recDomestic && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                {c.amount_text && (
-                                  <div className="text-xs text-slate-400 mt-0.5">{c.amount_text}</div>
+                                <div className="text-xs text-slate-500 font-data mt-0.5">{formatSats(bestBtc)}</div>
+                                {takerFee != null && <div className="text-xs text-slate-400 mt-0.5">수수료 {takerFee.toFixed(2)}%</div>}
+                                {vol?.volume_24h_usd != null && <div className="text-[10px] text-slate-400 mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>}
+                                {kimchi != null && (
+                                  <div className={`text-xs mt-0.5 font-semibold ${kimchi > 2 ? 'text-red-600' : kimchi > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                    {kimchi >= 0 ? `+${kimchi.toFixed(1)}%` : `${kimchi.toFixed(1)}%`} 김프
+                                  </div>
+                                )}
+                              </ChoiceBtn>
+                            );
+                          })}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* coin */}
+                    {phase === 'coin' && (
+                      <StepCard active>
+                        <StepHeader icon={<Coin className="w-3.5 h-3.5" />} label="출금 경로 선택" done={false} />
+                        {selectedDomestic && <StepContext nodes={[{ id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' }]} />}
+                        <div className="space-y-2 mt-3">
+                          {coinOptions.map(({ coin, best }) => {
+                            const domNode = selectedDomestic ? getKoreanNode(selectedDomestic) : null;
+                            const perTxLimit = domNode?.perTxKrwLimit ?? null;
+                            const numTxs = (coin === 'BTC' && best.num_withdrawal_txs != null)
+                              ? best.num_withdrawal_txs
+                              : (coin === 'BTC' && perTxLimit && perTxLimit > 0) ? Math.ceil(amountKrw / perTxLimit) : 1;
+                            return (
+                              <ChoiceBtn key={coin} selected={selectedCoin === coin} onClick={() => handleCoinSelect(coin)} horizontal>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 경유</span></>}
+                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC 직접 출금</span></>}
+                                    {coin === 'BTC_VIA' && <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC → 해외거래소 경유</span></>}
+                                  </div>
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    {coin === 'USDT' && 'USDT 출금 → 해외 거래소 BTC 매수 → 개인 지갑'}
+                                    {coin === 'BTC' && '한국 거래소 BTC 출금 → 개인 지갑 (직접)'}
+                                    {coin === 'BTC_VIA' && 'BTC 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
+                                  </div>
+                                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                    {coin === 'BTC' && perTxLimit != null && <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>}
+                                    {coin === 'BTC' && perTxLimit == null && <InfoTag color="neutral">1회 출금 제한 확인 필요</InfoTag>}
+                                    {coin === 'BTC' && numTxs > 1 && <InfoTag color="amber">{numTxs}회 출금 필요 (수수료 {numTxs}×)</InfoTag>}
+                                    {coin === 'BTC_VIA' && <InfoTag color="blue">거래소 주소 — 1회 제한 없음</InfoTag>}
+                                  </div>
+                                </div>
+                                <FeeTag path={best} align="right" />
+                              </ChoiceBtn>
+                            );
+                          })}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* global */}
+                    {phase === 'global' && (
+                      <StepCard active>
+                        <StepHeader icon={<Globe className="w-3.5 h-3.5" />} label="경유 거래소 (해외)" done={false} />
+                        {selectedDomestic && (
+                          <StepContext nodes={[
+                            { id: selectedDomestic, label: fmtEx(selectedDomestic), role: `${selectedCoin === 'BTC_VIA' ? 'BTC' : 'USDT'} 출금`, roleColor: 'amber' },
+                            { id: 'arrow', label: '→', role: '경유할 해외 거래소 선택', roleColor: 'neutral' },
+                          ]} />
+                        )}
+                        {failedExchanges.length > 0 && (
+                          <p className="mt-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-1.5">
+                            데이터 없음: {failedExchanges.map(fmtEx).join(', ')} — 비교에서 제외됨
+                          </p>
+                        )}
+                        <div className="space-y-2 mt-3">
+                          {globalOptions.map(({ exchange, best, hasLightning }) => {
+                            const vol = exchangeVolumes[exchange];
+                            const carf = EXCHANGE_CARF[exchange];
+                            return (
+                              <ChoiceBtn key={exchange} selected={selectedGlobal === exchange} onClick={() => handleGlobalSelect(exchange)} horizontal>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <ExchangeIcon id={exchange} size={16} />
+                                    <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
+                                    {hasLightning && <Lightning className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" weight="fill" />}
+                                    {exchange === recGlobal && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    {carf && <span className="text-xs text-slate-500">{carf.country}</span>}
+                                    {vol?.volume_24h_usd != null && <span className="text-[10px] text-slate-400">24H {fmtVol(vol.volume_24h_usd)}</span>}
+                                    {vol?.trust_rank != null && <span className="text-[10px] text-slate-400">#{vol.trust_rank}</span>}
+                                  </div>
+                                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                    {carf && <InfoTag color="blue">CARF {carf.carfYear}</InfoTag>}
+                                    {carf?.fatca && <InfoTag color="red">FATCA</InfoTag>}
+                                    <RiskTag risk={carf?.risk ?? 'med'} />
+                                  </div>
+                                </div>
+                                <FeeTag path={best} align="right" />
+                              </ChoiceBtn>
+                            );
+                          })}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* network */}
+                    {phase === 'network' && (
+                      <StepCard active>
+                        <StepHeader icon={<ArrowDown className="w-3.5 h-3.5" />} label="출금 네트워크" done={false} />
+                        {selectedDomestic && (
+                          <StepContext nodes={[
+                            { id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' },
+                            { id: 'coin', label: selectedCoin === 'BTC_VIA' ? 'BTC' : (selectedCoin ?? ''), role: '출금 네트워크 선택', roleColor: 'neutral' },
+                            ...(selectedGlobal ? [{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '수신', roleColor: 'blue' as const }] : []),
+                          ]} />
+                        )}
+                        <div className="space-y-2 mt-3">
+                          {networkOptions.map(({ network, best }) => (
+                            <ChoiceBtn key={network} selected={selectedNetwork === network} onClick={() => handleNetworkSelect(network)} horizontal>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-sm">{network}</span>
+                                  {network === recNetwork && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
+                                </div>
+                                {best.breakdown?.components.find(c => c.label.includes('출금')) && (
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    출금 수수료: {best.breakdown.components.find(c => c.label.includes('출금'))?.amount_text}
+                                  </div>
                                 )}
                               </div>
-                              <div className="text-right flex-shrink-0">
-                                <div className="text-red-600 font-data text-sm font-semibold">
-                                  -{formatFeeKrw(c.amount_krw)}
+                              <FeeTag path={best} align="right" />
+                            </ChoiceBtn>
+                          ))}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* trade_method */}
+                    {phase === 'trade_method' && (
+                      <StepCard active>
+                        <StepHeader icon={<TrendDown className="w-3.5 h-3.5" />} label="해외 매수 방식" done={false} />
+                        {selectedGlobal && <StepContext nodes={[{ id: selectedGlobal, label: fmtEx(selectedGlobal), role: '해외 거래소 · USDT → BTC 매수', roleColor: 'blue' }]} />}
+                        <div className="space-y-2 mt-3">
+                          {tradeMethodOptions.map(({ id, label, sublabel, best }) => (
+                            <ChoiceBtn key={id} selected={selectedTradeMethod === id} onClick={() => handleTradeMethodSelect(id)} horizontal>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-sm">{label}</span>
+                                  {id === recTradeMethod && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                <div className="text-xs text-red-400">
-                                  {c.rate_pct != null
-                                    ? `단계 ${c.rate_pct.toFixed(3)}%`
-                                    : `${pctOfOriginal.toFixed(3)}%`}
+                                <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+                              </div>
+                              <FeeTag path={best} align="right" />
+                            </ChoiceBtn>
+                          ))}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* exit_mode */}
+                    {phase === 'exit_mode' && (
+                      <StepCard active>
+                        <StepHeader icon={<ShieldCheck className="w-3.5 h-3.5" />} label="출금 방식" done={false} />
+                        {(() => {
+                          const srcEx = selectedCoin === 'BTC' ? selectedDomestic : selectedGlobal;
+                          const srcRole = selectedCoin === 'BTC' ? '국내 거래소' : '해외 거래소';
+                          const srcColor: 'amber' | 'blue' = selectedCoin === 'BTC' ? 'amber' : 'blue';
+                          return srcEx ? (
+                            <StepContext nodes={[
+                              { id: srcEx, label: fmtEx(srcEx), role: `${srcRole} · BTC 출금 방식 선택`, roleColor: srcColor },
+                              { id: 'wallet', label: '→ 개인 지갑', role: '온체인 또는 Lightning', roleColor: 'green' },
+                            ]} />
+                          ) : null;
+                        })()}
+                        <div className="space-y-2 mt-3">
+                          {exitModeOptions.map(({ id, label, sublabel, best }) => (
+                            <ChoiceBtn key={id} selected={selectedExitMode === id} onClick={() => handleExitModeSelect(id)} horizontal>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 font-semibold text-sm">
+                                  {id === 'lightning' && <Lightning className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" weight="fill" />}
+                                  <span>{label}</span>
+                                  {id === recExitMode && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+                                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                  {id === 'onchain'
+                                    ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><RiskTag risk="low" /></>
+                                    : <><InfoTag color="green">오프체인 라우팅</InfoTag><RiskTag risk="med" /></>}
                                 </div>
                               </div>
-                            </div>
-                            <div className="mt-1.5 flex items-center justify-between text-xs">
-                              <span className="text-slate-400">잔여</span>
-                              <div className="text-right">
-                                <span className="font-data text-bnb-text">
-                                  ₩{Math.round(remaining).toLocaleString('ko-KR')}
+                              <FeeTag path={best} align="right" />
+                            </ChoiceBtn>
+                          ))}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* swap_service */}
+                    {phase === 'swap_service' && (
+                      <StepCard active>
+                        <StepHeader icon={<Lightning className="w-3.5 h-3.5" />} label="LN → 온체인 스왑 서비스" done={false} />
+                        <StepContext nodes={[
+                          { id: 'lightning', label: 'Lightning Network', role: '출금 채널', roleColor: 'green' },
+                          { id: 'swap', label: '→ 온체인 스왑', role: '스왑 서비스 선택', roleColor: 'neutral' },
+                          { id: 'wallet', label: '→ 개인 지갑', role: '최종 수신', roleColor: 'neutral' },
+                        ]} />
+                        <div className="space-y-2 mt-3">
+                          {swapServiceOptions.map(({ service, display, best }) => {
+                            const swapComp = best.breakdown?.components.find(c => c.label.includes('스왑'));
+                            const m = SWAP_META[service];
+                            return (
+                              <ChoiceBtn key={service} selected={selectedSwapService === service} onClick={() => handleSwapServiceSelect(service)} horizontal>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-sm">{display}</span>
+                                    {service === recSwapService && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
+                                  </div>
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
+                                    {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
+                                  </div>
+                                  {m && (
+                                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                      {m.kyc ? <InfoTag color="amber">KYC 필수</InfoTag> : <InfoTag color="green">비KYC</InfoTag>}
+                                      {m.custodial ? <InfoTag color="neutral">수탁형</InfoTag> : <InfoTag color="green">비수탁</InfoTag>}
+                                      <RiskTag risk={m.risk} />
+                                    </div>
+                                  )}
+                                </div>
+                                <FeeTag path={best} align="right" />
+                              </ChoiceBtn>
+                            );
+                          })}
+                        </div>
+                      </StepCard>
+                    )}
+
+                    {/* result */}
+                    {phase === 'result' && matchedPath && (
+                      <StepCard active>
+                        <StepHeader icon={<Trophy className="w-3.5 h-3.5" weight="fill" />} label="수수료 경로 상세" done />
+                        {(matchedPath.num_withdrawal_txs ?? 1) > 1 && (
+                          <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs">
+                            <div className="flex items-start gap-2">
+                              <span className="text-amber-700 font-bold flex-shrink-0 mt-0.5">!</span>
+                              <div>
+                                <span className="font-semibold text-amber-700">{matchedPath.num_withdrawal_txs}회 분할 출금 필요</span>
+                                <span className="text-amber-600 ml-1">
+                                  — {fmtEx(matchedPath.korean_exchange)} 1회 출금 한도{matchedPath.krw_per_tx_limit != null ? ` ₩${(matchedPath.krw_per_tx_limit / 10000).toFixed(0)}만원` : ''} 초과
                                 </span>
-                                <span className="text-slate-400 ml-1.5">
-                                  ({remainingPct.toFixed(2)}%)
-                                </span>
+                                <div className="text-amber-600 mt-0.5">아래 출금 수수료는 {matchedPath.num_withdrawal_txs}회분 합산 금액입니다.</div>
                               </div>
                             </div>
                           </div>
+                        )}
+                        <div className="mt-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex flex-col items-center flex-shrink-0 w-5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-0.5" />
+                              <div className="w-px flex-1 bg-slate-200 min-h-[1.75rem]" />
+                            </div>
+                            <div className="pb-3 flex-1 flex justify-between items-baseline">
+                              <span className="text-xs text-slate-500">투자 금액</span>
+                              <span className="font-bold font-data text-base">₩{amountKrw.toLocaleString('ko-KR')}</span>
+                            </div>
+                          </div>
+                          {(() => {
+                            let remaining = amountKrw;
+                            return (matchedPath.breakdown?.components ?? []).map((c, i) => {
+                              const isLast = i === (matchedPath.breakdown?.components.length ?? 0) - 1;
+                              const pctOfOriginal = amountKrw > 0 ? (c.amount_krw / amountKrw) * 100 : 0;
+                              remaining -= c.amount_krw;
+                              const remainingPct = amountKrw > 0 ? (remaining / amountKrw) * 100 : 0;
+                              return (
+                                <div key={i} className="flex items-start gap-3">
+                                  <div className="flex flex-col items-center flex-shrink-0 w-5">
+                                    <div className="w-2.5 h-2.5 rounded-full border-2 border-red-400 bg-white mt-0.5" />
+                                    <div className={`w-px flex-1 min-h-[3.5rem] ${isLast ? 'bg-transparent' : 'bg-slate-200'}`} />
+                                  </div>
+                                  <div className="pb-4 flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-sm font-medium leading-tight">{c.label}</span>
+                                          {(() => { const cat = getFeeCategory(c.label); return cat ? <InfoTag color={cat.color}>{cat.label}</InfoTag> : null; })()}
+                                        </div>
+                                        {c.amount_text && <div className="text-xs text-slate-400 mt-0.5">{c.amount_text}</div>}
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <div className="text-red-600 font-data text-sm font-semibold">-{formatFeeKrw(c.amount_krw)}</div>
+                                        <div className="text-xs text-red-400">
+                                          {c.rate_pct != null ? `단계 ${c.rate_pct.toFixed(3)}%` : `${pctOfOriginal.toFixed(3)}%`}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-1.5 flex items-center justify-between text-xs">
+                                      <span className="text-slate-400">잔여</span>
+                                      <div className="text-right">
+                                        <span className="font-data text-bnb-text">₩{Math.round(remaining).toLocaleString('ko-KR')}</span>
+                                        <span className="text-slate-400 ml-1.5">({remainingPct.toFixed(2)}%)</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                          <div className="border-t border-slate-200 pt-3 mb-3 flex justify-between items-baseline">
+                            <span className="text-xs font-semibold text-slate-500">총 수수료</span>
+                            <div className="text-right">
+                              <div className="text-red-600 font-data font-bold text-sm">-{formatFeeKrw(matchedPath.total_fee_krw)}</div>
+                              <div className="text-xs text-slate-500">{formatPercent(matchedPath.fee_pct)}</div>
+                            </div>
+                          </div>
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.1 }}
+                            className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-5 shadow-card-md"
+                          >
+                            <div className="text-xs font-semibold text-brand-700 mb-2 uppercase tracking-wider">최종 수령</div>
+                            <AnimatedSats value={Math.round((matchedPath.btc_received ?? 0) * 100_000_000)} className="text-4xl md:text-5xl font-bold font-data text-brand-700 tabular-nums block" />
+                            <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.5 } } }} className="mt-4 space-y-0">
+                              <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                                <RouteNode label={fmtEx(selectedDomestic!)} tags={['KYC 필수', 'CARF 2027 (국내)']} tagColor="amber" icon={<ExchangeIcon id={selectedDomestic!} size={14} />} />
+                              </motion.div>
+                              <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                                <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
+                              </motion.div>
+                              {selectedGlobal && selectedCoin === 'USDT' && (
+                                <>
+                                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                                    <RouteNode label={fmtEx(selectedGlobal)} tags={[EXCHANGE_CARF[selectedGlobal]?.country ?? '', `CARF ${EXCHANGE_CARF[selectedGlobal]?.carfYear ?? '?'}`, ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : [])].filter(Boolean)} tagColor="blue" icon={<ExchangeIcon id={selectedGlobal} size={14} />} />
+                                  </motion.div>
+                                  <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                                    <RouteEdge label={selectedTradeMethod === 'fdusd_maker' ? 'USDT → FDUSD → BTC (Maker 0%)' : 'USDT → BTC (Taker 매수)'} />
+                                  </motion.div>
+                                </>
+                              )}
+                              {selectedExitMode === 'lightning' ? (
+                                <>
+                                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                                    <RouteNode label="Lightning 출금" tags={['LN 채널', '오프체인 라우팅']} tagColor="yellow" icon={<Lightning className="w-3.5 h-3.5 text-amber-600" weight="fill" />} />
+                                  </motion.div>
+                                  <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                                    <RouteEdge label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`} isLightning />
+                                  </motion.div>
+                                </>
+                              ) : (
+                                <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+                                  <RouteEdge label="온체인 출금 via Bitcoin Network" />
+                                </motion.div>
+                              )}
+                              <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
+                                <RouteNode label="개인 지갑" tags={['자기 수탁', '완전 통제']} tagColor="green" isEnd endValue={formatSats(matchedPath.btc_received ?? 0)} />
+                              </motion.div>
+                            </motion.div>
+                          </motion.div>
                         </div>
-                      );
-                    });
-                  })()}
+                      </StepCard>
+                    )}
 
-                  {/* Total summary */}
-                  <div className="border-t border-slate-200 pt-3 mb-3 flex justify-between items-baseline">
-                    <span className="text-xs font-semibold text-slate-500">총 수수료</span>
-                    <div className="text-right">
-                      <div className="text-red-600 font-data font-bold text-sm">
-                        -{formatFeeKrw(matchedPath.total_fee_krw)}
-                      </div>
-                      <div className="text-xs text-slate-500">{formatPercent(matchedPath.fee_pct)}</div>
-                    </div>
-                  </div>
+                    {phase === 'result' && !matchedPath && (
+                      <p className="text-red-600 text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
+                    )}
 
-                  {/* Final BTC received */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.1 }}
-                    className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-5 shadow-card-md"
-                  >
-                    <div className="text-xs font-semibold text-brand-700 mb-2 uppercase tracking-wider">최종 수령</div>
-                    <AnimatedSats
-                      value={Math.round((matchedPath.btc_received ?? 0) * 100_000_000)}
-                      className="text-4xl md:text-5xl font-bold font-data text-brand-700 tabular-nums block"
-                    />
-
-                    {/* Detailed route nodes */}
-                    <motion.div
-                      initial="hidden"
-                      animate="show"
-                      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.5 } } }}
-                      className="mt-4 space-y-0"
-                    >
-                      <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
-                        <RouteNode label={fmtEx(selectedDomestic!)} tags={['KYC 필수', 'CARF 2027 (국내)']} tagColor="amber" icon={<ExchangeIcon id={selectedDomestic!} size={14} />} />
-                      </motion.div>
-                      <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
-                        <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
-                      </motion.div>
-
-                      {selectedGlobal && selectedCoin === 'USDT' && (
-                        <>
-                          <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
-                            <RouteNode
-                              label={fmtEx(selectedGlobal)}
-                              tags={[
-                                EXCHANGE_CARF[selectedGlobal]?.country ?? '',
-                                `CARF ${EXCHANGE_CARF[selectedGlobal]?.carfYear ?? '?'}`,
-                                ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : []),
-                              ].filter(Boolean)}
-                              tagColor="blue"
-                              icon={<ExchangeIcon id={selectedGlobal} size={14} />}
-                            />
-                          </motion.div>
-                          <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
-                            <RouteEdge label={selectedTradeMethod === 'fdusd_maker' ? 'USDT → FDUSD → BTC (Maker 0%)' : 'USDT → BTC (Taker 매수)'} />
-                          </motion.div>
-                        </>
-                      )}
-
-                      {selectedExitMode === 'lightning' ? (
-                        <>
-                          <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
-                            <RouteNode label="Lightning 출금" tags={['LN 채널', '오프체인 라우팅']} tagColor="yellow" icon={<Lightning className="w-3.5 h-3.5 text-amber-600" weight="fill" />} />
-                          </motion.div>
-                          <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
-                            <RouteEdge label={`LN → 온체인 스왑 (${selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : ''})`} isLightning />
-                          </motion.div>
-                        </>
-                      ) : (
-                        <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
-                          <RouteEdge label="온체인 출금 via Bitcoin Network" />
-                        </motion.div>
-                      )}
-
-                      <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
-                        <RouteNode label="개인 지갑" tags={['자기 수탁', '완전 통제']} tagColor="green" isEnd endValue={formatSats(matchedPath.btc_received ?? 0)} />
-                      </motion.div>
-                    </motion.div>
                   </motion.div>
-                </div>
-              </StepCard>
-            )}
+                </AnimatePresence>
 
-            {phase === 'result' && !matchedPath && (
-              <p className="text-red-600 text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
+                {/* Back navigation */}
+                {getPrevPhase() && (
+                  <button
+                    onClick={handleBack}
+                    className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 hover:text-bnb-text transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    이전 단계
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -1687,35 +1577,22 @@ function ExchangeIcon({ id, size = 16 }: { id: string; size?: number }) {
 
 function StepCard({
   children,
-  dimmed,
-  animate: entrance,
   active,
 }: {
   children: React.ReactNode;
-  dimmed?: boolean;
-  animate?: boolean;
   active?: boolean;
 }) {
   return (
-    <motion.div
-      initial={entrance ? { opacity: 0, y: 22 } : false}
-      animate={{ opacity: dimmed ? 0.28 : 1, y: 0 }}
-      transition={{
-        type: 'spring',
-        stiffness: 360,
-        damping: 32,
-        opacity: { duration: 0.22 },
-      }}
+    <div
       className={[
         'rounded-xl p-4 md:p-5',
-        dimmed ? 'pointer-events-none' : '',
         active
           ? 'bg-white border border-brand-300/60 shadow-card-active'
           : 'bg-white border border-slate-200 shadow-card',
       ].join(' ')}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
