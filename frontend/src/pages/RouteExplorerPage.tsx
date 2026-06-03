@@ -1140,7 +1140,6 @@ export function RouteExplorerPage() {
             selectedCoin={selectedCoin}
             selectedGlobal={selectedGlobal}
             selectedNetwork={selectedNetwork}
-            selectedExitMode={selectedExitMode}
             liveCartPath={liveCartPath}
             isResult={phase === 'result'}
           />
