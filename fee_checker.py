@@ -338,9 +338,9 @@ def fetch_okx_withdrawal(coin: str) -> list:
             if coin == "BTC":
                 result.append({
                     "label": "Lightning Network",
-                    "fee": None,
-                    "min": None,
-                    "max": None,
+                    "fee": 0.000015,  # ≈ 1500 sats (OKX LN 출금 수수료)
+                    "min": 0.000001,
+                    "max": 0.05,
                     "enabled": True,
                     "note": "Invoice 방식 (인증 필요)",
                 })
