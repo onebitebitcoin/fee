@@ -9,9 +9,9 @@ export default {
       colors: {
         // Her OS — warm luminous palette
         sys: {
-          bg:        '#FDF8F0',               // warm ivory page background
-          elevated:  '#FFF5E8',               // slightly warmer elevated surface
-          card:      '#FFFFFF',               // pure white cards
+          bg:        '#F5EEE4',               // deeper warm parchment background
+          elevated:  '#F0E8DC',               // deeper warm elevated surface
+          card:      '#FAF5EF',               // warm white cards (not pure white)
           separator: 'rgba(180,110,50,0.10)', // warm amber separator
           overlay:   'rgba(45,27,14,0.45)',   // warm dark overlay
         },

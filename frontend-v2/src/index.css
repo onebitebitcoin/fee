@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 html, body {
-  background: #FDF8F0;
+  background: #F5EEE4;
   color: #2D1B0E;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -11,16 +11,16 @@ html, body {
   overscroll-behavior: none;
 }
 
-/* ── Her OS luminous ambient light ── */
+/* ── Her OS ambient light — softer, deeper ── */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 90% 60% at 50% -5%,  rgba(240,160,60,0.14) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 10% 40%,  rgba(232,133,90,0.08) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 35% at 90% 70%,  rgba(240,180,90,0.07) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 50% at 50% 110%, rgba(255,210,150,0.06) 0%, transparent 50%);
+    radial-gradient(ellipse 90% 60% at 50% -5%,  rgba(210,130,50,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 10% 40%,  rgba(200,110,70,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 35% at 90% 70%,  rgba(210,150,70,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 50% at 50% 110%, rgba(230,180,110,0.08) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
   animation: ambient-breathe 6s ease-in-out infinite;
@@ -35,21 +35,21 @@ body::before {
 
 /* ── Her OS glass header — warm frosted ── */
 .glass-header {
-  background: rgba(253, 248, 240, 0.80);
+  background: rgba(242, 235, 224, 0.82);
   backdrop-filter: saturate(200%) blur(24px);
   -webkit-backdrop-filter: saturate(200%) blur(24px);
   border-bottom: 0.5px solid rgba(200, 140, 80, 0.15);
   box-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
 
-/* ── iOS-style card — warm paper ── */
+/* ── iOS-style card — warm parchment ── */
 .ios-card {
-  background: #FFFFFF;
-  border: 0.5px solid rgba(200,130,60,0.12);
+  background: #FAF4EC;
+  border: 0.5px solid rgba(180,120,60,0.16);
   box-shadow:
-    0 2px 16px rgba(180,100,40,0.08),
-    0 1px 3px  rgba(180,100,40,0.05),
-    0 0 0 0.5px rgba(255,255,255,0.95) inset;
+    0 2px 20px rgba(160,90,30,0.10),
+    0 1px 4px  rgba(160,90,30,0.07),
+    0 0 0 0.5px rgba(255,245,230,0.8) inset;
 }
 
 /* ── Luminous selection ring ── */
