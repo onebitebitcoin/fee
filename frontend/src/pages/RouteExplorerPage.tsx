@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useMemo, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowsClockwise, Coin,
@@ -534,11 +534,6 @@ export function RouteExplorerPage() {
     if (prev) goBackTo(prev);
   }
 
-  const slideVariants = {
-    enter: (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? 64 : -64, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit:  (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? -40 : 40, opacity: 0 }),
-  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -682,20 +677,8 @@ export function RouteExplorerPage() {
 
             {/* Wizard: one step at a time with slide animation */}
             {showSteps && (
-              <div className="mt-4 overflow-hidden">
-                <AnimatePresence mode="wait" custom={slideDir}>
-                  <motion.div
-                    key={phase}
-                    custom={slideDir}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{
-                      x:       { type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.28 },
-                      opacity: { type: 'tween', ease: 'easeOut', duration: 0.18 },
-                    }}
-                  >
+              <div className="mt-4">
+                <PhaseSlider phaseKey={phase} dir={slideDir}>
 
                     {/* domestic */}
                     {phase === 'domestic' && (
@@ -1130,8 +1113,7 @@ export function RouteExplorerPage() {
                       <p className="text-red-600 text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
                     )}
 
-                  </motion.div>
-                </AnimatePresence>
+                </PhaseSlider>
 
                 {/* Back navigation */}
                 {getPrevPhase() && (
@@ -1936,4 +1918,93 @@ function AnimatedSats({ value, className }: { value: number; className?: string 
   }, [value]);
 
   return <span className={className}>{display} sats</span>;
+}
+
+// ── Phase Slider ──────────────────────────────────────────────────────────────
+// Simultaneous slide: old exits left while new enters from right (or vice versa).
+// Uses direct DOM style mutation + CSS transitions — no AnimatePresence wait.
+
+function PhaseSlider({ phaseKey, dir, children }: {
+  phaseKey: string;
+  dir: 'forward' | 'back';
+  children: React.ReactNode;
+}) {
+  const outerRef  = useRef<HTMLDivElement>(null);
+  const newRef    = useRef<HTMLDivElement>(null);
+  const oldRef    = useRef<HTMLDivElement>(null);
+  // `displayed`  = what's currently shown (old content while animating)
+  // `incoming`   = new content to slide in
+  const [displayed, setDisplayed]   = useState<React.ReactNode>(children);
+  const [incoming,  setIncoming]    = useState<React.ReactNode>(null);
+  const prevKeyRef  = useRef(phaseKey);
+  const busyRef     = useRef(false);
+
+  // Capture old content and queue new content when phaseKey changes
+  useLayoutEffect(() => {
+    if (phaseKey === prevKeyRef.current) {
+      // Same phase: update displayed content in-place (no animation)
+      setDisplayed(children);
+      return;
+    }
+    prevKeyRef.current = phaseKey;
+    if (busyRef.current) {
+      // Previous animation still running — snap immediately
+      setDisplayed(children);
+      setIncoming(null);
+      return;
+    }
+    setIncoming(children); // triggers useEffect below
+  }, [phaseKey, children]);
+
+  // When incoming is set, run the simultaneous slide
+  useEffect(() => {
+    if (!incoming) return;
+    const outer = outerRef.current;
+    const newEl = newRef.current;
+    const oldEl = oldRef.current;
+    if (!outer || !newEl || !oldEl) return;
+
+    busyRef.current = true;
+    const DURATION = 240;
+    const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+    const px = dir === 'forward' ? 44 : -44;
+
+    // Lock container height so it doesn't collapse during transition
+    outer.style.height = `${outer.offsetHeight}px`;
+    // Old content: absolute so it doesn't affect layout height
+    oldEl.style.cssText = 'position:absolute;inset:0;will-change:transform;';
+    // New content: start off-screen, no transition yet
+    newEl.style.cssText = `transform:translateX(${px}px);opacity:0;will-change:transform;`;
+
+    // Single reflow to commit initial states before starting transitions
+    outer.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions
+
+    const tr = `transform ${DURATION}ms ${EASE},opacity ${Math.round(DURATION*0.65)}ms ${EASE}`;
+    oldEl.style.transition = tr;
+    oldEl.style.transform  = `translateX(${-px}px)`;
+    oldEl.style.opacity    = '0';
+    newEl.style.transition = tr;
+    newEl.style.transform  = 'translateX(0)';
+    newEl.style.opacity    = '1';
+
+    const done = setTimeout(() => {
+      outer.style.height = '';
+      newEl.style.cssText = '';
+      oldEl.style.cssText = '';
+      setDisplayed(incoming);
+      setIncoming(null);
+      busyRef.current = false;
+    }, DURATION + 16);
+
+    return () => clearTimeout(done);
+  }, [incoming, dir]);
+
+  return (
+    <div ref={outerRef} style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Old content — becomes absolute during animation */}
+      <div ref={oldRef}>{displayed}</div>
+      {/* New content — slides in from the side */}
+      {incoming && <div ref={newRef}>{incoming}</div>}
+    </div>
+  );
 }
