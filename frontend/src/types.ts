@@ -117,6 +117,8 @@ export type CheapestPathEntry = {
   fee_pct: number;
   lightning_swap_fee_krw?: number | null;
   global_withdrawal_fee_krw?: number | null;
+  num_withdrawal_txs?: number | null;
+  krw_per_tx_limit?: number | null;
   breakdown?: CheapestPathBreakdown | null;
   domestic_kyc_status?: KycStatus;
   global_kyc_status?: KycStatus;

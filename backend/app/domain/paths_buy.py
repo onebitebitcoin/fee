@@ -11,6 +11,7 @@ from backend.app.domain.path_helpers import (
     resolve_global_onchain_wd_fee,
 )
 from backend.app.domain.paths_context import SnapshotContext, build_snapshot_context
+from backend.app.domain.korea_exchange_registry import get_withdrawal_limits
 
 logger = logging.getLogger(__name__)
 
@@ -83,16 +84,40 @@ def _build_btc_paths(
 
         trading_fee_krw = round(amount_krw * korean_taker)
         btc_bought = (amount_krw - trading_fee_krw) / korean_btc_price_krw
-        btc_received = btc_bought - row.fee
+
+        # 1회 KRW 출금 제한 — 초과 시 여러 트랜잭션으로 분할
+        limits = get_withdrawal_limits(exchange)
+        krw_per_tx = limits.krw_per_tx_limit if limits else None
+        if krw_per_tx and krw_per_tx > 0:
+            num_txs = -(-amount_krw // krw_per_tx)  # ceiling division
+        else:
+            num_txs = 1
+
+        single_wd_fee_btc = row.fee
+        total_wd_fee_btc = single_wd_fee_btc * num_txs
+        btc_received = btc_bought - total_wd_fee_btc
         if btc_received <= 0:
             continue
 
-        withdrawal_fee_krw = (
+        single_wd_fee_krw = (
             int(round(row.fee_krw))
             if row.fee_krw is not None
-            else round(row.fee * korean_btc_price_krw)
+            else round(single_wd_fee_btc * korean_btc_price_krw)
         )
+        withdrawal_fee_krw = single_wd_fee_krw * num_txs
         total_fee_krw = trading_fee_krw + withdrawal_fee_krw
+
+        wd_label = (
+            f'BTC 출금 수수료 ({num_txs}회 × {single_wd_fee_btc} BTC)'
+            if num_txs > 1
+            else 'BTC 출금 수수료'
+        )
+        wd_amount_text = (
+            f'{round(total_wd_fee_btc, 8)} BTC ({num_txs}회)'
+            if num_txs > 1
+            else f'{single_wd_fee_btc} BTC'
+        )
+
         paths.append({
             'korean_exchange': exchange,
             'transfer_coin': 'BTC',
@@ -101,6 +126,8 @@ def _build_btc_paths(
             'global_exit_mode': 'onchain',
             'global_exit_network': row.network_label,
             'lightning_exit_provider': None,
+            'num_withdrawal_txs': num_txs,
+            'krw_per_tx_limit': krw_per_tx,
             'path_id': _build_path_id(
                 global_exchange=global_exchange,
                 korean_exchange=exchange,
@@ -118,9 +145,9 @@ def _build_btc_paths(
                 'components': [
                     fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
                     fee_component(
-                        'BTC 출금 수수료',
+                        wd_label,
                         withdrawal_fee_krw,
-                        amount_text=f'{row.fee} BTC',
+                        amount_text=wd_amount_text,
                         source_url=get_withdrawal_source_url(exchange, 'BTC', row.network_label),
                     ),
                 ],

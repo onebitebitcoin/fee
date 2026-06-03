@@ -39,12 +39,15 @@ class WithdrawalLimits:
     """거래소 출금 한도 (KYC 등급별 일일 한도, 공개 정보 기준 추정)."""
     exchange: str
     # BTC 출금
-    btc_per_tx_max: float | None        # 1회 최대 (None = 무제한)
+    btc_per_tx_max: float | None        # 1회 최대 BTC (None = 무제한)
     btc_daily_basic: float | None       # 기본 KYC 일일 한도
     btc_daily_verified: float | None    # 인증 완료 일일 한도
     # KRW 환산 출금 (USDT 등 포함)
     krw_daily_basic: int | None
     krw_daily_verified: int | None
+    # 개인 지갑 1회 KRW 출금 제한 (트래블룰/AML 정책)
+    # 이 금액 이상 출금 시 여러 트랜잭션으로 분할 필요
+    krw_per_tx_limit: int | None        # 1회 KRW 제한 (None = 제한 없음)
     # 트래블룰 개인지갑 출금 요건
     personal_wallet_req: str            # 개인지갑 출금 요건
     source_note: str                    # 데이터 출처/신뢰도
@@ -58,6 +61,7 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
         btc_daily_verified=100.0,
         krw_daily_basic=5_000_000,
         krw_daily_verified=500_000_000,
+        krw_per_tx_limit=1_000_000,
         personal_wallet_req='업비트 앱 → 출금관리 → 외부지갑 등록 (화이트리스트)',
         source_note='업비트 고객센터 공개 정보 기준 (레벨별 상이)',
     ),
@@ -68,6 +72,7 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
         btc_daily_verified=100.0,
         krw_daily_basic=5_000_000,
         krw_daily_verified=500_000_000,
+        krw_per_tx_limit=1_000_000,
         personal_wallet_req='빗썸 앱 → 출금 → 개인지갑 사전 등록',
         source_note='빗썸 고객센터 공개 정보 기준 (레벨별 상이)',
     ),
@@ -78,6 +83,7 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
         btc_daily_verified=50.0,
         krw_daily_basic=5_000_000,
         krw_daily_verified=200_000_000,
+        krw_per_tx_limit=1_000_000,
         personal_wallet_req='코인원 앱 → 자산 → 출금 → 주소록 등록',
         source_note='코인원 공개 정보 기준 (추정, 실제 확인 권장)',
     ),
@@ -88,8 +94,9 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
         btc_daily_verified=10.0,
         krw_daily_basic=5_000_000,
         krw_daily_verified=100_000_000,
+        krw_per_tx_limit=None,          # 코빗은 1회 KRW 제한 없음 (확인 필요)
         personal_wallet_req='코빗 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
-        source_note='코빗 공개 정보 기준 (소규모 거래소, 확인 권장)',
+        source_note='코빗: 1회 KRW 제한 없음으로 추정 (확인 권장)',
     ),
     'gopax': WithdrawalLimits(
         exchange='gopax',
@@ -98,6 +105,7 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
         btc_daily_verified=5.0,
         krw_daily_basic=1_000_000,
         krw_daily_verified=50_000_000,
+        krw_per_tx_limit=1_000_000,
         personal_wallet_req='고팍스 고객센터 확인 필요 (정책 불분명)',
         source_note='⚠️ 추정치 — 고파이 사태 이후 정책 변동 가능, 반드시 확인',
     ),

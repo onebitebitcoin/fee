@@ -17,6 +17,7 @@ from backend.app.domain.path_helpers import (
     is_suspended,
     is_bitcoin_native_network,
 )
+from backend.app.domain.korea_exchange_registry import get_withdrawal_limits
 from backend.app.services.promo_scraper import NO_PROMO_NOTES, PromoContext, fetch_promo_context
 
 logger = logging.getLogger(__name__)
@@ -545,16 +546,34 @@ def find_cheapest_path_dynamic(
                     continue
                 wd_fee_btc = network['fee']
                 trading_fee_krw = round(amount_krw * korean_taker)
+
+                # 1회 KRW 출금 제한 — 초과 시 여러 트랜잭션 필요
+                limits = get_withdrawal_limits(exchange)
+                krw_per_tx = limits.krw_per_tx_limit if limits else None
+                num_txs = -(-amount_krw // krw_per_tx) if (krw_per_tx and krw_per_tx > 0) else 1
+
                 # 슬리피지 반영 가격으로 BTC 매수량 계산
                 btc_bought = (amount_krw - trading_fee_krw) / effective_btc_price_krw
-                btc_received = btc_bought - wd_fee_btc
+                total_wd_fee_btc = wd_fee_btc * num_txs
+                btc_received = btc_bought - total_wd_fee_btc
                 if btc_received <= 0:
                     continue
-                wd_fee_krw = round(wd_fee_btc * effective_btc_price_krw)
+                single_wd_fee_krw = round(wd_fee_btc * effective_btc_price_krw)
+                wd_fee_krw = single_wd_fee_krw * num_txs
                 # 슬리피지 비용 = 실효가 - 표시가 차이
                 slippage_cost_krw = round((effective_btc_price_krw - korean_btc_price_krw) * btc_bought) if slip_pct > 0 else 0
                 total_fee_krw = trading_fee_krw + wd_fee_krw + slippage_cost_krw
                 input_krw_btc_wd = round(btc_bought * effective_btc_price_krw)
+
+                wd_label = (
+                    f'BTC 출금 수수료 ({num_txs}회 × {wd_fee_btc} BTC)'
+                    if num_txs > 1 else 'BTC 출금 수수료'
+                )
+                wd_amount_text = (
+                    f'{round(total_wd_fee_btc, 8)} BTC ({num_txs}회)'
+                    if num_txs > 1 else f'{wd_fee_btc} BTC'
+                )
+
                 components = [
                     fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw),
                 ]
@@ -572,14 +591,16 @@ def find_cheapest_path_dynamic(
                     'global_exit_network': network['label'],
                     'quote_strategy': 'btc_direct',
                     'slippage_pct': slip_pct,
+                    'num_withdrawal_txs': num_txs,
+                    'krw_per_tx_limit': krw_per_tx,
                     'btc_received': round(btc_received, 8),
                     'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
                     'total_fee_krw': total_fee_krw,
                     'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
                     'breakdown': {
                         'components': components + [
-                            fee_component('BTC 출금 수수료', wd_fee_krw,
-                                          input_krw=input_krw_btc_wd, amount_text=f'{wd_fee_btc} BTC'),
+                            fee_component(wd_label, wd_fee_krw,
+                                          input_krw=input_krw_btc_wd, amount_text=wd_amount_text),
                         ],
                         'total_fee_krw': total_fee_krw,
                     },

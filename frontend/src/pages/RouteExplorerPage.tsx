@@ -714,6 +714,12 @@ export function RouteExplorerPage() {
               {coinOptions.map(({ coin, best }) => {
                 const domNode = selectedDomestic ? getKoreanNode(selectedDomestic) : null;
                 const perTxLimit = domNode?.perTxKrwLimit ?? null;
+                // 백엔드에서 계산된 실제 트랜잭션 수 (amount_krw 기준)
+                const numTxs = (coin === 'BTC' && best.num_withdrawal_txs != null)
+                  ? best.num_withdrawal_txs
+                  : (coin === 'BTC' && perTxLimit && perTxLimit > 0)
+                    ? Math.ceil(amountKrw / perTxLimit)
+                    : 1;
                 return (
                   <ChoiceBtn
                     key={coin}
@@ -750,6 +756,11 @@ export function RouteExplorerPage() {
                         {coin === 'BTC' && perTxLimit == null && (
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-dark-200 text-bnb-muted border-dark-100">
                             1회 출금 제한 확인 필요
+                          </span>
+                        )}
+                        {coin === 'BTC' && numTxs > 1 && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-brand-500/15 text-brand-400 border-brand-500/30">
+                            {numTxs}회 출금 필요 (수수료 {numTxs}× 적용)
                           </span>
                         )}
                         {coin === 'BTC_VIA' && (
@@ -1019,6 +1030,30 @@ export function RouteExplorerPage() {
         {phase === 'result' && matchedPath && (
           <StepCard animate active>
             <StepHeader icon={<Trophy className="w-3.5 h-3.5" weight="fill" />} label="수수료 경로 상세" done />
+
+            {/* 다중 트랜잭션 경고 */}
+            {(matchedPath.num_withdrawal_txs ?? 1) > 1 && (
+              <div className="mt-3 px-3 py-2.5 rounded-lg bg-brand-500/10 border border-brand-500/30 text-xs">
+                <div className="flex items-start gap-2">
+                  <span className="text-brand-400 font-bold flex-shrink-0 mt-0.5">!</span>
+                  <div>
+                    <span className="font-semibold text-brand-400">
+                      {matchedPath.num_withdrawal_txs}회 분할 출금 필요
+                    </span>
+                    <span className="text-bnb-muted ml-1">
+                      — {fmtEx(matchedPath.korean_exchange)} 1회 출금 한도
+                      {matchedPath.krw_per_tx_limit != null
+                        ? ` ₩${(matchedPath.krw_per_tx_limit / 10000).toFixed(0)}만원`
+                        : ''} 초과
+                    </span>
+                    <div className="text-bnb-muted mt-0.5">
+                      아래 출금 수수료는 {matchedPath.num_withdrawal_txs}회분 합산 금액입니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-4">
 
               {/* Start node */}
