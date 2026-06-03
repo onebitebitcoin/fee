@@ -609,7 +609,7 @@ export function RouteExplorerPage() {
           </aside>
 
           {/* Center: Steps */}
-          <div className={`space-y-4 min-w-0 ${showSteps ? 'pb-28 lg:pb-6' : ''}`}>
+          <div className={`space-y-4 min-w-0 ${showSteps ? 'pb-24 lg:pb-6' : ''}`}>
 
             {/* Step 0: Amount + Preference */}
             <StepCard active={isActive('input')} dimmed={showSteps && !isActive('input')}>
@@ -1542,7 +1542,7 @@ function InfoRow({ label, value, valueClass }: { label: string; value: string; v
   );
 }
 
-// ── Cart Banner (mobile only) ─────────────────────────────────────────────────
+// ── Cart Banner (mobile only, FAB toggle) ────────────────────────────────────
 
 interface CartBannerProps {
   amountKrw: number;
@@ -1559,6 +1559,8 @@ function CartBanner({
   amountKrw, selectedDomestic, selectedCoin, selectedGlobal,
   selectedNetwork, liveCartPath, isResult,
 }: CartBannerProps) {
+  const [open, setOpen] = useState(false);
+
   const nodes: Array<{ id: string; label: string; done: boolean }> = [
     { id: selectedDomestic ?? '', label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic },
     ...(selectedCoin === 'USDT' || selectedCoin === 'BTC_VIA' ? [
@@ -1575,10 +1577,40 @@ function CartBanner({
   const coinLabel = selectedCoin === 'USDT' ? 'USDT' : 'BTC';
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white/97 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
-      <div className="max-w-2xl mx-auto px-4 py-3">
+    <>
+      {/* FAB button — always visible */}
+      <div className="fixed bottom-5 right-4 z-30">
+        <motion.button
+          onClick={() => setOpen(v => !v)}
+          whileTap={{ scale: 0.92 }}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full shadow-lg font-semibold text-xs transition-colors ${
+            open
+              ? 'bg-slate-700 text-white'
+              : 'bg-brand-500 text-stone-900'
+          }`}
+        >
+          <Coin className="w-3.5 h-3.5" weight="fill" />
+          {feeKrw != null
+            ? open ? '닫기' : `-${formatFeeKrw(feeKrw)}`
+            : open ? '닫기' : '경로'}
+        </motion.button>
+      </div>
+
+      {/* Slide-up panel */}
+      <motion.div
+        initial={false}
+        animate={{ y: open ? 0 : '100%' }}
+        transition={{ type: 'spring', stiffness: 400, damping: 36 }}
+        className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white/97 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
+      >
+      <div className="max-w-2xl mx-auto px-4 py-3 pb-4">
+        {/* Drag handle */}
+        <div className="flex justify-center mb-2">
+          <div className="w-8 h-1 rounded-full bg-slate-300" />
+        </div>
+
         {/* Route nodes row */}
-        <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-2.5">
           {nodes.map((n, i) => (
             <span key={i} className="flex items-center gap-1 flex-shrink-0">
               <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
@@ -1639,7 +1671,8 @@ function CartBanner({
           </div>
         </div>
       </div>
-    </div>
+      </motion.div>
+    </>
   );
 }
 
