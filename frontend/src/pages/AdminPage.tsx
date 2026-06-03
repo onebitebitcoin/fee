@@ -532,14 +532,14 @@ function CrawlStatusPanel() {
   }, [autoRefresh, fetch]);
 
   async function handleTrigger() {
-    const key = prompt('Admin API Key를 입력하세요:');
-    if (!key) return;
     try {
       setTriggering(true);
+      // 개발 환경 기본 키: backend/app/core/config.py admin_api_key 기본값
+      const key = import.meta.env.VITE_ADMIN_API_KEY ?? 'dev-secret-key';
       await api.triggerCrawl(key);
       setTimeout(fetch, 2000);
     } catch {
-      alert('크롤 트리거 실패. API Key를 확인하세요.');
+      alert('크롤 트리거 실패. 서버 설정을 확인하세요.');
     } finally {
       setTriggering(false);
     }
