@@ -546,39 +546,6 @@ export function RouteExplorerPage() {
           </div>
         </div>
 
-        {/* Breadcrumb */}
-        {showSteps && (
-          <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-slate-100">
-            <div className="flex items-center gap-1 text-xs px-4 py-2 min-w-max max-w-7xl mx-auto">
-              {(([
-                { label: `₩${amountInput}${amountUnit}`, done: true, back: null },
-                { label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic, back: 'domestic' as Phase },
-                { label: selectedCoin ?? '출금 코인', done: !!selectedCoin, back: 'coin' as Phase },
-                ...(selectedCoin !== 'BTC' ? [{ label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal, back: 'global' as Phase }] : []),
-                { label: selectedNetwork ?? '네트워크', done: !!selectedNetwork, back: 'network' as Phase },
-                ...(selectedCoin !== 'BTC' ? [{ label: selectedTradeMethod === 'fdusd_maker' ? 'FDUSD' : selectedTradeMethod ? 'Taker' : '매수 방식', done: !!selectedTradeMethod, back: 'trade_method' as Phase }] : []),
-                { label: selectedExitMode ?? '출금 방식', done: !!selectedExitMode, back: 'exit_mode' as Phase },
-                ...(selectedExitMode === 'lightning' ? [{ label: selectedSwapService ? (SWAP_DISPLAY[selectedSwapService] ?? selectedSwapService) : '스왑 서비스', done: !!selectedSwapService, back: 'swap_service' as Phase }] : []),
-              ] as { label: string; done: boolean; back: Phase | null }[])).map((s, i, arr) => (
-                <span key={i} className="flex items-center gap-1 whitespace-nowrap">
-                  {s.back && isPast(s.back) ? (
-                    <button
-                      onClick={() => goBackTo(s.back!)}
-                      className="text-brand-600 hover:text-brand-700 font-medium transition-colors"
-                    >
-                      {s.label}
-                    </button>
-                  ) : (
-                    <span className={s.done ? 'text-brand-700 font-medium' : 'text-slate-400'}>{s.label}</span>
-                  )}
-                  {i < arr.length - 1 && (
-                    <ArrowRight className={`w-3 h-3 flex-shrink-0 ${s.done ? 'text-brand-500' : 'text-slate-300'}`} />
-                  )}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main: 3-column layout on desktop */}
