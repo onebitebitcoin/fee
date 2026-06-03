@@ -1285,34 +1285,41 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
 
   return (
     <div className="space-y-3">
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">진행 상황</p>
-        <div className="space-y-1">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-card">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">진행 상황</p>
+        <div className="space-y-0.5">
           {steps.map((step, i) => {
             const past = isPast(step.phase);
             const active = phase === step.phase;
             return (
-              <div key={step.phase} className="flex items-center gap-2.5 py-1">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  past   ? 'bg-brand-500 text-stone-900' :
-                  active ? 'border-2 border-brand-500 bg-brand-50' :
-                           'border border-slate-200 bg-slate-50'
+              <div
+                key={step.phase}
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${
+                  active ? 'bg-brand-50 border border-brand-200' : ''
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                  active ? 'bg-brand-500 text-stone-900 shadow-sm' :
+                  past   ? 'bg-slate-200 text-slate-400' :
+                           'border border-slate-200 bg-white'
                 }`}>
                   {past ? (
-                    <CheckCircle className="w-3 h-3 text-stone-900" weight="fill" />
+                    <CheckCircle className="w-3 h-3 text-slate-400" weight="fill" />
                   ) : (
-                    <span className={`text-[9px] font-bold ${active ? 'text-brand-700' : 'text-slate-400'}`}>{i + 1}</span>
+                    <span className={`text-[9px] font-bold ${active ? 'text-stone-900' : 'text-slate-300'}`}>{i + 1}</span>
                   )}
                 </div>
                 {past ? (
                   <button
                     onClick={() => goBackTo(step.phase)}
-                    className="text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors"
+                    className="text-xs text-slate-400 hover:text-brand-600 transition-colors"
                   >
                     {step.label}
                   </button>
                 ) : (
-                  <span className={`text-xs ${active ? 'font-semibold text-bnb-text' : 'text-slate-400'}`}>
+                  <span className={`text-xs transition-colors ${
+                    active ? 'font-bold text-bnb-text' : 'text-slate-300'
+                  }`}>
                     {step.label}
                   </span>
                 )}
