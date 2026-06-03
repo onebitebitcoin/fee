@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #0D0D0E;
+  color: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  overscroll-behavior: none;
+}
+
+/* Ambient warm glow behind everything */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,184,0,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 90%, rgba(255,149,0,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root { position: relative; z-index: 1; }
+
+/* macOS-style glass header */
+.glass-header {
+  background: rgba(13, 13, 14, 0.75);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+/* iOS-style card */
+.ios-card {
+  background: #1E1E1F;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
+}
+
+/* Selection ring */
+.selection-ring {
+  box-shadow: 0 0 0 2px rgba(255,184,0,0.5), 0 4px 20px rgba(255,184,0,0.12);
+  border-color: rgba(255,184,0,0.5) !important;
+}
+
+/* Number display */
+.num {
+  font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Separator */
+.sep {
+  background: rgba(255,255,255,0.08);
+  height: 0.5px;
+}
+
+/* Pulse button */
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,184,0,0); }
+  50%       { box-shadow: 0 0 0 8px rgba(255,184,0,0.18); }
+}
+.btn-pulse { animation: pulse-amber 2.5s ease-out infinite; }
+
+/* Scanner line */
+@keyframes scan-line {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.scan-line {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255,184,0,0.5) 50%, transparent);
+  animation: scan-line 1.6s cubic-bezier(0.4,0,0.6,1) infinite;
+  border-radius: inherit;
+}
+
+/* iOS-style segmented control */
+.seg-ctrl {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 2px;
+}
+
+/* Focus */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,184,0,0.5);
+}
+
+/* Scroll */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
