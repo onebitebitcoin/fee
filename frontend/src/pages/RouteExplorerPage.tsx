@@ -7,7 +7,7 @@ import {
 } from '@phosphor-icons/react';
 
 import { api } from '../lib/api';
-import { fmtEx } from '../lib/exchangeNames';
+import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
 import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
 import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerRow } from '../types';
 
@@ -638,6 +638,7 @@ export function RouteExplorerPage() {
                     onClick={() => handleDomesticSelect(exchange)}
                   >
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <ExchangeIcon id={exchange} size={16} />
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                       {exchange === recDomestic && (
                         <span className="text-[10px] font-bold bg-brand-500 text-dark-500 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>
@@ -713,6 +714,7 @@ export function RouteExplorerPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <ExchangeIcon id={exchange} size={16} />
                       <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                       {hasLightning && <Lightning className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" weight="fill" />}
                       {exchange === recGlobal && (
@@ -991,7 +993,7 @@ export function RouteExplorerPage() {
                   className="mt-4 space-y-0"
                 >
                   <motion.div variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}>
-                    <RouteNode label={fmtEx(selectedDomestic!)} tags={['KYC 필수', 'CARF 2027 (국내)']} tagColor="amber" />
+                    <RouteNode label={fmtEx(selectedDomestic!)} tags={['KYC 필수', 'CARF 2027 (국내)']} tagColor="amber" icon={<ExchangeIcon id={selectedDomestic!} size={14} />} />
                   </motion.div>
                   <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
                     <RouteEdge label={`${selectedCoin} 출금 via ${selectedNetwork}`} />
@@ -1008,6 +1010,7 @@ export function RouteExplorerPage() {
                             ...(EXCHANGE_CARF[selectedGlobal]?.fatca ? ['FATCA'] : []),
                           ].filter(Boolean)}
                           tagColor="blue"
+                          icon={<ExchangeIcon id={selectedGlobal} size={14} />}
                         />
                       </motion.div>
                       <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
@@ -1049,6 +1052,21 @@ export function RouteExplorerPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function ExchangeIcon({ id, size = 16 }: { id: string; size?: number }) {
+  const domain = getExchangeDomain(id);
+  if (!domain) return null;
+  return (
+    <img
+      src={`https://www.google.com/s2/favicons?sz=32&domain=${domain}`}
+      alt=""
+      width={size}
+      height={size}
+      className="rounded-sm flex-shrink-0"
+      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  );
+}
 
 function StepCard({
   children,

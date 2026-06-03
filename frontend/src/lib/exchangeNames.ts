@@ -11,6 +11,23 @@ const EXCHANGE_NAMES: Record<string, string> = {
   bitget: '비트겟',
 };
 
+const EXCHANGE_DOMAINS: Record<string, string> = {
+  bithumb: 'bithumb.com',
+  upbit: 'upbit.com',
+  korbit: 'korbit.co.kr',
+  coinone: 'coinone.co.kr',
+  gopax: 'gopax.co.kr',
+  binance: 'binance.com',
+  okx: 'okx.com',
+  coinbase: 'coinbase.com',
+  kraken: 'kraken.com',
+  bitget: 'bitget.com',
+};
+
 export function fmtEx(name: string): string {
   return EXCHANGE_NAMES[name.toLowerCase()] ?? name;
+}
+
+export function getExchangeDomain(id: string): string | null {
+  return EXCHANGE_DOMAINS[id.toLowerCase()] ?? null;
 }
