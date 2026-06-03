@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 html, body {
-  background: #DDD0BC;
-  color: #2D1B0E;
+  background: #EEE8DC;
+  color: #1A0A02;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
@@ -35,7 +35,7 @@ body::before {
 
 /* ── Her OS glass header — warm frosted ── */
 .glass-header {
-  background: rgba(218, 208, 190, 0.85);
+  background: rgba(232, 226, 214, 0.88);
   backdrop-filter: saturate(200%) blur(24px);
   -webkit-backdrop-filter: saturate(200%) blur(24px);
   border-bottom: 0.5px solid rgba(200, 140, 80, 0.15);
@@ -44,7 +44,7 @@ body::before {
 
 /* ── iOS-style card — warm parchment ── */
 .ios-card {
-  background: #EDE5D6;
+  background: #F5F0E8;
   border: 0.5px solid rgba(160,110,50,0.20);
   box-shadow:
     0 2px 20px rgba(140,80,20,0.12),

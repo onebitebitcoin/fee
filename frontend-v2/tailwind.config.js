@@ -9,17 +9,17 @@ export default {
       colors: {
         // Her OS — warm luminous palette
         sys: {
-          bg:        '#DDD0BC',               // warm caramel tan — Her golden hour
-          elevated:  '#D5C9B5',               // deeper tan elevated surface
-          card:      '#EDE5D6',               // warm lighter card surface
-          separator: 'rgba(180,110,50,0.10)', // warm amber separator
-          overlay:   'rgba(45,27,14,0.45)',   // warm dark overlay
+          bg:        '#EEE8DC',               // light warm cream — brighter Her golden hour
+          elevated:  '#E6DFD1',               // slightly deeper warm surface
+          card:      '#F5F0E8',               // bright warm card surface
+          separator: 'rgba(160,100,40,0.12)', // warm amber separator
+          overlay:   'rgba(26,10,2,0.45)',    // warm dark overlay
         },
         label: {
-          primary:    '#2D1B0E',              // warm near-black brown
-          secondary:  'rgba(45,27,14,0.56)',  // warm muted
-          tertiary:   'rgba(45,27,14,0.38)',  // warm dim
-          disabled:   'rgba(45,27,14,0.22)',  // warm disabled
+          primary:    '#1A0A02',              // near-black warm brown — strong contrast
+          secondary:  'rgba(26,10,2,0.68)',   // warm muted — was 0.56
+          tertiary:   'rgba(26,10,2,0.50)',   // warm dim — was 0.38
+          disabled:   'rgba(26,10,2,0.28)',   // warm disabled
         },
         acc: {
           amber:  '#E8855A',   // Samantha coral-amber — the Her signature
