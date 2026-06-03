@@ -341,6 +341,46 @@ export function RouteExplorerPage() {
     return paths[0] ?? null;
   }, [allData, selectedDomestic, selectedCoin, selectedGlobal, selectedNetwork, selectedTradeMethod, selectedExitMode, selectedSwapService]);
 
+  // ── 실시간 카트 — 현재까지 선택된 경로의 최선 비용 추적 ──────────────────
+  const liveCartPath = useMemo((): CheapestPathEntry | null => {
+    // 결과 확정되면 matchedPath 사용
+    if (matchedPath) return matchedPath;
+    if (!allData || !selectedDomestic) return null;
+
+    // domestic만 선택된 경우 → 해당 거래소 전체 best
+    const anyGlobalData = Object.values(allData.byGlobal)[0];
+    const domesticPaths = anyGlobalData?.all_paths.filter(p => p.korean_exchange === selectedDomestic) ?? [];
+
+    if (!selectedCoin) return bestByBtc(applyPreference(domesticPaths, preference));
+
+    if (selectedCoin === 'BTC') {
+      const btcPaths = domesticPaths.filter(p => p.transfer_coin === 'BTC');
+      if (!selectedNetwork) return bestByBtc(btcPaths);
+      return btcPaths.find(p => p.network === selectedNetwork) ?? bestByBtc(btcPaths);
+    }
+
+    // USDT / BTC_VIA 경로
+    const transferCoin = selectedCoin === 'BTC_VIA' ? 'BTC' : 'USDT';
+    if (!selectedGlobal) {
+      const allUsdtPaths = GLOBAL_EXCHANGES.flatMap(g =>
+        (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
+          p.korean_exchange === selectedDomestic && p.transfer_coin === transferCoin,
+        ),
+      );
+      return bestByBtc(allUsdtPaths);
+    }
+
+    const globalPaths = (allData.byGlobal[selectedGlobal]?.all_paths ?? []).filter(p =>
+      p.korean_exchange === selectedDomestic && p.transfer_coin === transferCoin,
+    );
+    if (!selectedNetwork) return bestByBtc(globalPaths);
+
+    const networkPaths = globalPaths.filter(p => p.network === selectedNetwork);
+    if (!selectedExitMode) return bestByBtc(networkPaths);
+
+    return bestByBtc(networkPaths.filter(p => p.global_exit_mode === selectedExitMode)) ?? bestByBtc(networkPaths);
+  }, [matchedPath, allData, selectedDomestic, selectedCoin, selectedGlobal, selectedNetwork, selectedExitMode, preference]);
+
   // ── API fetch ──────────────────────────────────────────────────────────────
 
   async function handleSearch() {
@@ -548,7 +588,7 @@ export function RouteExplorerPage() {
         )}
       </header>
 
-      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <main className={`max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4 ${showSteps ? 'pb-28' : ''}`}>
 
         {/* Step 0: Amount + Preference */}
         <StepCard active={isActive('input')} dimmed={showSteps && !isActive('input')}>
@@ -1208,11 +1248,126 @@ export function RouteExplorerPage() {
           <p className="text-bnb-red text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
         )}
       </main>
+
+      {/* Cart Banner — sticky bottom, 단계 진행 중에만 표시 */}
+      {showSteps && (
+        <CartBanner
+          amountKrw={amountKrw}
+          selectedDomestic={selectedDomestic}
+          selectedCoin={selectedCoin}
+          selectedGlobal={selectedGlobal}
+          selectedNetwork={selectedNetwork}
+          selectedExitMode={selectedExitMode}
+          liveCartPath={liveCartPath}
+          isResult={phase === 'result'}
+        />
+      )}
     </div>
   );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+// ── Cart Banner ─────────────────────────────────────────────────────────────
+
+interface CartBannerProps {
+  amountKrw: number;
+  selectedDomestic: string | null;
+  selectedCoin: string | null;
+  selectedGlobal: string | null;
+  selectedNetwork: string | null;
+  selectedExitMode: string | null;
+  liveCartPath: import('../types').CheapestPathEntry | null;
+  isResult: boolean;
+}
+
+function CartBanner({
+  amountKrw, selectedDomestic, selectedCoin, selectedGlobal,
+  selectedNetwork, selectedExitMode, liveCartPath, isResult,
+}: CartBannerProps) {
+  const nodes: Array<{ id: string; label: string; done: boolean }> = [
+    { id: selectedDomestic ?? '', label: selectedDomestic ? fmtEx(selectedDomestic) : '국내 거래소', done: !!selectedDomestic },
+    ...(selectedCoin === 'USDT' || selectedCoin === 'BTC_VIA' ? [
+      { id: selectedGlobal ?? '', label: selectedGlobal ? fmtEx(selectedGlobal) : '해외 거래소', done: !!selectedGlobal },
+    ] : []),
+    { id: 'network', label: selectedNetwork ?? '네트워크', done: !!selectedNetwork },
+    { id: 'wallet', label: '개인 지갑', done: isResult },
+  ];
+
+  const feePct   = liveCartPath?.fee_pct ?? null;
+  const feeKrw   = liveCartPath?.total_fee_krw ?? null;
+  const btcGet   = liveCartPath?.btc_received ?? null;
+  const numTxs   = liveCartPath?.num_withdrawal_txs ?? null;
+  const coinLabel = selectedCoin === 'USDT' ? 'USDT' : 'BTC';
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-dark-200 bg-dark-400/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
+      <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-3">
+        {/* Route nodes row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-2.5">
+          {nodes.map((n, i) => (
+            <span key={i} className="flex items-center gap-1 flex-shrink-0">
+              <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border ${
+                n.done
+                  ? 'bg-dark-300 border-brand-500/40 text-bnb-text'
+                  : 'bg-dark-500 border-dark-100 text-bnb-muted'
+              }`}>
+                {n.id && <ExchangeIcon id={n.id} size={12} />}
+                {n.label}
+              </span>
+              {i < nodes.length - 1 && (
+                <ArrowRight className={`w-3 h-3 flex-shrink-0 ${n.done ? 'text-brand-500/60' : 'text-dark-100'}`} />
+              )}
+            </span>
+          ))}
+        </div>
+
+        {/* Cost summary row */}
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            {feeKrw != null ? (
+              <>
+                <div>
+                  <span className="text-[10px] text-bnb-muted">예상 수수료</span>
+                  <div className="text-bnb-red font-data font-bold text-base leading-tight">
+                    -{formatFeeKrw(feeKrw)}
+                    {feePct != null && (
+                      <span className="text-xs font-normal text-bnb-red/70 ml-1">({feePct.toFixed(2)}%)</span>
+                    )}
+                  </div>
+                </div>
+                {btcGet != null && (
+                  <div>
+                    <span className="text-[10px] text-bnb-muted">예상 수령</span>
+                    <div className="text-brand-400 font-data font-bold text-base leading-tight">
+                      {formatSats(btcGet)} sats
+                    </div>
+                  </div>
+                )}
+                {coinLabel && selectedNetwork && (
+                  <div className="text-[10px] text-bnb-muted self-end pb-0.5">
+                    {coinLabel} via {selectedNetwork}
+                    {numTxs != null && numTxs > 1 && (
+                      <span className="ml-1.5 text-brand-400 font-semibold">{numTxs}회 출금</span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-bnb-muted">경로 선택 중...</span>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-[10px] text-bnb-muted">투자 금액</div>
+            <div className="text-sm font-bold font-data text-bnb-text">
+              ₩{amountKrw.toLocaleString('ko-KR')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** 단계별 컨텍스트 표시 — "어느 거래소/서비스에서 선택하는 항목인지" 알려줌 */
 function StepContext({ nodes }: {
