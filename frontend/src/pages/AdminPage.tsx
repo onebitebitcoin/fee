@@ -415,8 +415,8 @@ export function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="max-w-5xl mx-auto px-4 pb-0 border-t border-dark-200/40">
-          <div className="flex gap-0">
+        <div className="max-w-5xl mx-auto px-4 pb-0 border-t border-dark-200/40 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-0 min-w-max">
             {([
               { id: 'korean', label: '국내 거래소 노드' },
               { id: 'global', label: '해외 거래소 노드' },
@@ -527,7 +527,7 @@ function CrawlStatusPanel() {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(fetch, 15_000);
+    const id = setInterval(fetch, 3_600_000);
     return () => clearInterval(id);
   }, [autoRefresh, fetch]);
 
@@ -575,10 +575,10 @@ function CrawlStatusPanel() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} className="rounded" />
-            자동 갱신 (15초)
+            자동 갱신 (1시간)
           </label>
           <button
             onClick={fetch}
@@ -610,48 +610,44 @@ function CrawlStatusPanel() {
 
       {error && <p className="text-red-600 text-xs">{error}</p>}
 
-      {/* Exchange table */}
+      {/* Exchange cards */}
       {data && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 text-left">
-                <th className="py-2 pr-4 font-medium">거래소</th>
-                <th className="py-2 px-3 font-medium text-center">티커</th>
-                <th className="py-2 px-3 font-medium text-center">BTC 출금</th>
-                <th className="py-2 px-3 font-medium text-center">USDT 출금</th>
-                <th className="py-2 pl-3 font-medium">오류 메시지</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label: '국내 거래소', rows: korea },
-                { label: '해외 거래소', rows: global },
-              ].map(({ label, rows }) => (
-                <>
-                  <tr key={label} className="bg-slate-50">
-                    <td colSpan={5} className="py-1.5 px-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      {label}
-                    </td>
-                  </tr>
-                  {rows.map(ex => {
-                    const allPass = ex.ticker === 'pass' && ex.btc_wd === 'pass' && ex.usdt_wd === 'pass';
-                    return (
-                      <tr key={ex.exchange} className={`border-b border-slate-100 ${allPass ? '' : 'bg-red-50/30'}`}>
-                        <td className="py-2 pr-4 font-medium text-bnb-text capitalize">{ex.exchange}</td>
-                        <td className="py-2 px-3 text-center"><StatusBadge status={isRunning ? 'running' : ex.ticker} /></td>
-                        <td className="py-2 px-3 text-center"><StatusBadge status={isRunning ? 'running' : ex.btc_wd} /></td>
-                        <td className="py-2 px-3 text-center"><StatusBadge status={isRunning ? 'running' : ex.usdt_wd} /></td>
-                        <td className="py-2 pl-3 text-slate-400 max-w-[240px] truncate">
-                          {ex.errors.length > 0 ? ex.errors.join('; ') : '-'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          {[
+            { label: '국내 거래소', rows: korea },
+            { label: '해외 거래소', rows: global },
+          ].map(({ label, rows }) => (
+            <div key={label} className="mb-4">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">{label}</p>
+              <div className="space-y-2">
+                {rows.map(ex => {
+                  const allPass = ex.ticker === 'pass' && ex.btc_wd === 'pass' && ex.usdt_wd === 'pass';
+                  const st = (s: string) => isRunning ? 'running' : s;
+                  return (
+                    <div
+                      key={ex.exchange}
+                      className={`rounded-lg border px-3 py-2.5 ${allPass ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50/40'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-sm capitalize text-bnb-text">{ex.exchange}</span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-slate-400">티커</span>
+                          <StatusBadge status={st(ex.ticker)} />
+                          <span className="text-[10px] text-slate-400 ml-1">BTC</span>
+                          <StatusBadge status={st(ex.btc_wd)} />
+                          <span className="text-[10px] text-slate-400 ml-1">USDT</span>
+                          <StatusBadge status={st(ex.usdt_wd)} />
+                        </div>
+                      </div>
+                      {ex.errors.length > 0 && (
+                        <p className="text-[11px] text-red-600 mt-1 leading-snug">{ex.errors.join(' · ')}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
