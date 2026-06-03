@@ -1056,6 +1056,43 @@ export function RouteExplorerPage() {
                               <div className="text-xs text-slate-500">{formatPercent(matchedPath.fee_pct)}</div>
                             </div>
                           </div>
+
+                          {/* 김치 프리미엄 기여율 */}
+                          {(() => {
+                            const kimchi = liveKimp?.kimp[selectedDomestic!] ?? snapshotKimp[selectedDomestic!] ?? null;
+                            if (kimchi == null) return null;
+                            // 김프 암묵적 비용 = amountKrw × (kimchi%) / (100 + kimchi%)
+                            const kimpKrw = amountKrw * (kimchi / 100) / (1 + kimchi / 100);
+                            const totalImplicit = Math.abs(kimpKrw) + matchedPath.total_fee_krw;
+                            const contributionPct = totalImplicit > 0
+                              ? (Math.abs(kimpKrw) / totalImplicit) * 100
+                              : 0;
+                            const isPositive = kimchi > 0;
+                            return (
+                              <div className={`mb-3 rounded-lg border px-3 py-2.5 text-xs ${
+                                isPositive ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
+                              }`}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className={`font-semibold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                    김치 프리미엄 영향
+                                  </span>
+                                  <span className={`font-data font-bold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                    {isPositive ? '+' : ''}{kimchi.toFixed(2)}%
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-500">
+                                  <span>암묵적 추가 비용 (글로벌 대비)</span>
+                                  <span className="font-data">≈ {isPositive ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}</span>
+                                </div>
+                                <div className="mt-1.5 pt-1.5 border-t border-amber-100 flex items-center justify-between">
+                                  <span className="text-slate-400">수수료+김프 합산 중 김프 비중</span>
+                                  <span className={`font-semibold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                    {contributionPct.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
