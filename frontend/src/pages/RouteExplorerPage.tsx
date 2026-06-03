@@ -534,10 +534,29 @@ export function RouteExplorerPage() {
     if (prev) goBackTo(prev);
   }
 
+  // expo-out for enter (fast start → soft settle), expo-in for exit (slow → fast away)
   const slideVariants = {
-    enter: (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? 48 : -48, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit:  (dir: 'forward' | 'back') => ({ x: dir === 'forward' ? -48 : 48, opacity: 0 }),
+    enter: (dir: 'forward' | 'back') => ({
+      x: dir === 'forward' ? 64 : -64,
+      opacity: 0,
+      transition: { duration: 0 },
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        x:       { type: 'tween' as const, ease: [0.22, 1, 0.36, 1], duration: 0.32 },
+        opacity: { type: 'tween' as const, ease: 'easeOut', duration: 0.18 },
+      },
+    },
+    exit: (dir: 'forward' | 'back') => ({
+      x: dir === 'forward' ? -40 : 40,
+      opacity: 0,
+      transition: {
+        x:       { type: 'tween' as const, ease: [0.55, 0, 1, 0.45], duration: 0.18 },
+        opacity: { type: 'tween' as const, ease: 'easeIn', duration: 0.12 },
+      },
+    }),
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -691,7 +710,6 @@ export function RouteExplorerPage() {
                     initial="enter"
                     animate="center"
                     exit="exit"
-                    transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                   >
 
                     {/* domestic */}
