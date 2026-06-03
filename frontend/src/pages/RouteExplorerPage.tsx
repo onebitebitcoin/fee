@@ -411,7 +411,7 @@ export function RouteExplorerPage() {
       setPhase('domestic');
       fetchLiveKimp(false);
       api.getExchangeVolumes().then(res => {
-        setExchangeVolumes(res.volumes as typeof exchangeVolumes);
+        if (res?.volumes) setExchangeVolumes(res.volumes as typeof exchangeVolumes);
       }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터 로드 오류');
@@ -423,7 +423,9 @@ export function RouteExplorerPage() {
     setKimpLoading(true);
     try {
       const data = await api.getLiveKimp(forceRefresh);
-      setLiveKimp(data);
+      if (data && typeof data === 'object' && 'kimp' in data && data.kimp) {
+        setLiveKimp(data);
+      }
     } catch {
       // ignore fetch errors
     } finally {
@@ -540,41 +542,42 @@ export function RouteExplorerPage() {
   return (
     <div className="min-h-screen bg-dark-500 text-bnb-text">
 
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Coin className="w-5 h-5 text-brand-600" weight="fill" />
-            <span className="font-semibold text-sm tracking-tight">BTC 출금 경로 탐색</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {allData && (
+      {/* Header — floating pill */}
+      <header className="sticky top-0 z-20 px-3 sm:px-4 pt-3 pointer-events-none">
+        <div className="max-w-7xl mx-auto pointer-events-auto">
+          <div className="header-pill rounded-2xl px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coin className="w-4.5 h-4.5 text-brand-600" weight="fill" />
+              <span className="font-semibold text-sm tracking-tight font-display">BTC 출금 경로 탐색</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {allData && (
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors duration-200"
+                >
+                  <ArrowsClockwise className="w-3.5 h-3.5" />
+                  <span>초기화</span>
+                </button>
+              )}
               <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-bnb-text transition-colors"
+                onClick={() => navigate('/admin')}
+                className="flex items-center gap-1 text-xs text-bnb-muted/70 hover:text-bnb-text transition-colors duration-200"
+                title="관리자 설정"
               >
-                <ArrowsClockwise className="w-3.5 h-3.5" />
-                <span>초기화</span>
+                <GearSix className="w-3.5 h-3.5" />
               </button>
-            )}
-            <button
-              onClick={() => navigate('/admin')}
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-bnb-text transition-colors"
-              title="관리자 설정"
-            >
-              <GearSix className="w-3.5 h-3.5" />
-            </button>
+            </div>
           </div>
         </div>
-
       </header>
 
       {/* Main: 3-column layout on desktop */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 pt-3 pb-6">
         <div className="lg:grid lg:grid-cols-[220px_1fr_260px] lg:gap-6 lg:items-start">
 
           {/* Left sidebar: Step Progress (desktop only) */}
-          <aside className="hidden lg:block sticky top-[76px]">
+          <aside className="hidden lg:block sticky top-[72px]">
             {showSteps ? (
               <StepProgressPanel
                 phase={phase}
@@ -585,9 +588,9 @@ export function RouteExplorerPage() {
                 isPast={isPast}
               />
             ) : (
-              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
-                <p className="text-xs font-semibold text-slate-500 mb-3">시작하려면</p>
-                <ul className="space-y-1.5 text-xs text-slate-600">
+              <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+                <p className="text-xs font-semibold text-bnb-muted mb-3">시작하려면</p>
+                <ul className="space-y-1.5 text-xs text-bnb-muted">
                   <li>1. 투자 금액 입력</li>
                   <li>2. 경로 우선순위 선택</li>
                   <li>3. 경로 탐색 시작</li>
@@ -602,13 +605,13 @@ export function RouteExplorerPage() {
             {/* Step 0: Amount + Preference — only shown before wizard starts */}
             {!showSteps && <StepCard active={isActive('input')}>
               {allData?.latestRunAt && (
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-1.5 text-xs text-bnb-muted mb-3 pb-2.5 border-b border-dark-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
                   데이터 기준: {fmtTime(allData.latestRunAt)} KST
                 </div>
               )}
 
-              <p className="text-xs text-slate-500 mb-2">투자 금액</p>
+              <p className="text-xs text-bnb-muted mb-2">투자 금액</p>
               <div className="flex items-center gap-3">
                 <span className="text-brand-600 text-xl font-bold flex-shrink-0">₩</span>
                 <input
@@ -626,33 +629,33 @@ export function RouteExplorerPage() {
                       key={u}
                       onClick={() => setAmountUnit(u)}
                       disabled={showSteps}
-                      className={`text-xs px-2 py-1 rounded transition-all ${amountUnit === u ? 'bg-brand-500 text-stone-900 font-bold' : 'text-slate-500 hover:text-bnb-text'}`}
+                      className={`text-xs px-2 py-1 rounded-lg transition-all ${amountUnit === u ? 'bg-brand-500 text-stone-900 font-bold' : 'text-bnb-muted hover:text-bnb-text'}`}
                     >
                       {u}
                     </button>
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-1">= ₩{(amountKrw || 0).toLocaleString('ko-KR')}</p>
+              <p className="text-xs text-bnb-muted mt-1">= ₩{(amountKrw || 0).toLocaleString('ko-KR')}</p>
 
               {/* Preference selector */}
               <div className="mt-4">
-                <p className="text-xs text-slate-500 mb-2">경로 우선순위</p>
+                <p className="text-xs text-bnb-muted mb-2">경로 우선순위</p>
                 <div className="grid grid-cols-3 gap-2">
                   {PREF_OPTIONS.map(({ id, Icon, label, sub }) => (
                     <button
                       key={id}
                       onClick={() => { if (!showSteps) setPreference(id); }}
                       disabled={showSteps}
-                      className={`p-2.5 rounded-lg border text-left transition-all ${
+                      className={`p-2.5 rounded-xl border text-left transition-all duration-200 ${
                         preference === id
-                          ? 'border-brand-400 bg-brand-50'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                          ? 'border-amber-300/70 bg-amber-50/60 shadow-[0_0_0_1px_rgba(240,185,11,0.2)]'
+                          : 'border-dark-200 hover:border-amber-200/80 hover:bg-dark-400/50 bg-white'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 transition-colors ${preference === id ? 'text-brand-600' : 'text-slate-400'}`} />
+                      <Icon className={`w-4 h-4 transition-colors ${preference === id ? 'text-brand-600' : 'text-bnb-muted'}`} />
                       <div className={`text-xs font-semibold mt-1.5 ${preference === id ? 'text-brand-700' : 'text-bnb-text'}`}>{label}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
+                      <div className={`text-[11px] mt-0.5 ${preference === id ? 'text-amber-700/70' : 'text-bnb-muted'}`}>{sub}</div>
                     </button>
                   ))}
                 </div>
@@ -661,10 +664,10 @@ export function RouteExplorerPage() {
               <motion.button
                   onClick={handleSearch}
                   disabled={!amountKrw || amountKrw < 10_000}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-                  className={`mt-4 w-full py-3 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-stone-900 font-bold text-sm transition-colors ${amountKrw && amountKrw >= 10_000 ? 'btn-glow-active' : ''}`}
+                  whileHover={amountKrw && amountKrw >= 10_000 ? { scale: 1.012, y: -1 } : {}}
+                  whileTap={amountKrw && amountKrw >= 10_000 ? { scale: 0.97 } : {}}
+                  transition={{ type: 'spring', stiffness: 450, damping: 26 }}
+                  className={`mt-4 w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-30 text-stone-900 font-bold text-sm transition-colors ${amountKrw && amountKrw >= 10_000 ? 'btn-glow-active' : ''}`}
                 >
                   경로 탐색 시작
                 </motion.button>
@@ -704,7 +707,7 @@ export function RouteExplorerPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
                           {domesticOptions.map(({ exchange, bestBtc }) => {
                             const takerFee = domesticTakerFees[exchange];
-                            const kimchi = liveKimp ? (liveKimp.kimp[exchange] ?? null) : (snapshotKimp[exchange] ?? null);
+                            const kimchi = liveKimp?.kimp ? (liveKimp.kimp[exchange] ?? null) : (snapshotKimp[exchange] ?? null);
                             const vol = exchangeVolumes[exchange];
                             return (
                               <ChoiceBtn key={exchange} selected={selectedDomestic === exchange} onClick={() => handleDomesticSelect(exchange)}>
@@ -1027,7 +1030,7 @@ export function RouteExplorerPage() {
 
                           {/* 김치 프리미엄 기여율 */}
                           {(() => {
-                            const kimchi = liveKimp?.kimp[selectedDomestic!] ?? snapshotKimp[selectedDomestic!] ?? null;
+                            const kimchi = liveKimp?.kimp?.[selectedDomestic!] ?? snapshotKimp[selectedDomestic!] ?? null;
                             if (kimchi == null) return null;
                             // 김프 암묵적 비용 = amountKrw × (kimchi%) / (100 + kimchi%)
                             const kimpKrw = amountKrw * (kimchi / 100) / (1 + kimchi / 100);
@@ -1196,8 +1199,8 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
 
   return (
     <div className="space-y-3">
-      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-card">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">진행 상황</p>
+      <div className="bg-white border border-dark-200 rounded-2xl p-3 shadow-card">
+        <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2 px-1">진행 상황</p>
         <div className="space-y-0.5">
           {steps.map((step, i) => {
             const past = isPast(step.phase);
@@ -1205,31 +1208,31 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
             return (
               <div
                 key={step.phase}
-                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${
-                  active ? 'bg-brand-50 border border-brand-200' : ''
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-xl transition-colors ${
+                  active ? 'bg-amber-50/60 border border-amber-200/50' : ''
                 }`}
               >
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                  active ? 'bg-brand-500 text-stone-900 shadow-sm' :
-                  past   ? 'bg-slate-200 text-slate-400' :
-                           'border border-slate-200 bg-white'
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                  active ? 'bg-brand-500 text-stone-900 shadow-warm-glow-sm' :
+                  past   ? 'bg-dark-400 text-bnb-muted border border-dark-200' :
+                           'border border-dark-200 bg-white'
                 }`}>
                   {past ? (
-                    <CheckCircle className="w-3 h-3 text-slate-400" weight="fill" />
+                    <CheckCircle className="w-3 h-3 text-brand-600" weight="fill" />
                   ) : (
-                    <span className={`text-[9px] font-bold ${active ? 'text-stone-900' : 'text-slate-300'}`}>{i + 1}</span>
+                    <span className={`text-[9px] font-bold ${active ? 'text-stone-900' : 'text-dark-100'}`}>{i + 1}</span>
                   )}
                 </div>
                 {past ? (
                   <button
                     onClick={() => goBackTo(step.phase)}
-                    className="text-xs text-slate-400 hover:text-brand-600 transition-colors"
+                    className="text-xs text-bnb-muted hover:text-brand-600 transition-colors"
                   >
                     {step.label}
                   </button>
                 ) : (
                   <span className={`text-xs transition-colors ${
-                    active ? 'font-bold text-bnb-text' : 'text-slate-300'
+                    active ? 'font-bold text-bnb-text' : 'text-dark-100'
                   }`}>
                     {step.label}
                   </span>
@@ -1241,8 +1244,8 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
       </div>
 
       {liveCartPath && (
-        <div className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-4 shadow-card">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">현재 최선</p>
+        <div className="bg-gradient-to-br from-amber-50/60 to-white border border-amber-200/50 rounded-2xl p-4 shadow-card">
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-3">현재 최선</p>
           <div>
             <div className="text-[10px] text-slate-400 mb-0.5">예상 수수료</div>
             <div className="text-red-600 font-data font-bold text-sm">
@@ -1287,7 +1290,7 @@ function RightInfoPanel({
   matchedPath, liveCartPath, domesticTakerFees, exchangeVolumes, liveKimp, snapshotKimp, amountKrw,
 }: RightInfoPanelProps) {
   const kimchi = selectedDomestic
-    ? (liveKimp?.kimp[selectedDomestic] ?? snapshotKimp[selectedDomestic] ?? null)
+    ? (liveKimp?.kimp?.[selectedDomestic] ?? snapshotKimp[selectedDomestic] ?? null)
     : null;
   const domVol = selectedDomestic ? exchangeVolumes[selectedDomestic] : null;
   const globVol = selectedGlobal ? exchangeVolumes[selectedGlobal] : null;
@@ -1297,8 +1300,8 @@ function RightInfoPanel({
     <div className="space-y-3">
       {/* Phase-specific context */}
       {phase === 'domestic' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">한국 거래소 안내</p>
+        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">한국 거래소 안내</p>
           <ul className="space-y-1.5 text-xs text-slate-600">
             <li className="flex items-start gap-1.5"><span className="text-amber-600 font-bold mt-0.5">•</span>실명 KYC 인증 필수</li>
             <li className="flex items-start gap-1.5"><span className="text-amber-600 font-bold mt-0.5">•</span>CARF 2027년부터 국세청 자동 보고</li>
@@ -1309,7 +1312,7 @@ function RightInfoPanel({
 
       {/* Selected domestic info */}
       {selectedDomestic && phase !== 'input' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
+        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
           <div className="flex items-center gap-2 mb-3">
             <ExchangeIcon id={selectedDomestic} size={16} />
             <span className="text-sm font-semibold">{fmtEx(selectedDomestic)}</span>
@@ -1336,7 +1339,7 @@ function RightInfoPanel({
 
       {/* Selected global info */}
       {selectedGlobal && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
+        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
           <div className="flex items-center gap-2 mb-3">
             <ExchangeIcon id={selectedGlobal} size={16} />
             <span className="text-sm font-semibold">{fmtEx(selectedGlobal)}</span>
@@ -1395,8 +1398,8 @@ function RightInfoPanel({
 
       {/* Final result summary */}
       {matchedPath && (
-        <div className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-4 shadow-card">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">최종 결과</p>
+        <div className="bg-gradient-to-br from-amber-50/50 to-white border border-amber-200/50 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(240,185,11,0.12),0_4px_20px_rgba(160,100,30,0.08)]">
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-3">최종 결과</p>
           <div className="space-y-2">
             <div>
               <div className="text-[10px] text-slate-400">총 수수료</div>
@@ -1466,11 +1469,12 @@ function CartBanner({
       <div className="fixed bottom-5 right-4 z-30">
         <motion.button
           onClick={() => setOpen(v => !v)}
-          whileTap={{ scale: 0.92 }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full shadow-lg font-semibold text-xs transition-colors ${
+          whileTap={{ scale: 0.92, transition: { type: 'spring', stiffness: 500, damping: 28 } }}
+          whileHover={{ scale: 1.04, y: -1, transition: { type: 'spring', stiffness: 400, damping: 24 } }}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full font-semibold text-xs transition-colors ${
             open
-              ? 'bg-slate-700 text-white'
-              : 'bg-brand-500 text-stone-900'
+              ? 'bg-stone-800 text-white shadow-lg'
+              : 'bg-brand-500 text-stone-900 shadow-[0_4px_16px_rgba(240,185,11,0.28)]'
           }`}
         >
           <Coin className="w-3.5 h-3.5" weight="fill" />
@@ -1485,7 +1489,7 @@ function CartBanner({
         initial={false}
         animate={{ y: open ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 400, damping: 36 }}
-        className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white/97 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
+        className="fixed bottom-0 left-0 right-0 z-20 border-t border-dark-200/60 bg-white/95 backdrop-blur-xl shadow-[0_-4px_30px_rgba(160,100,30,0.08)]"
       >
       <div className="max-w-2xl mx-auto px-4 py-3 pb-4">
         {/* Drag handle */}
@@ -1604,16 +1608,19 @@ function StepCard({
   active?: boolean;
 }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       className={[
-        'rounded-xl p-4 md:p-5',
+        'rounded-2xl p-4 md:p-5',
         active
-          ? 'bg-white border border-brand-300/60 shadow-card-active'
-          : 'bg-white border border-slate-200 shadow-card',
+          ? 'bg-white border border-amber-200/60 shadow-[0_0_0_1px_rgba(240,185,11,0.12),0_4px_24px_rgba(160,100,30,0.09)]'
+          : 'bg-white border border-dark-200 shadow-card',
       ].join(' ')}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -1628,16 +1635,18 @@ function StepHeader({
 }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span
-        className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors flex-shrink-0 ${
+      <motion.span
+        animate={done ? { scale: [1, 1.15, 1] } : {}}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className={`flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${
           done
-            ? 'bg-brand-500 text-stone-900 shadow-[0_0_8px_rgba(240,185,11,0.35)]'
-            : 'bg-slate-100 text-slate-400 border border-slate-200'
+            ? 'bg-brand-500 text-stone-900 shadow-[0_0_12px_rgba(240,185,11,0.4)]'
+            : 'bg-dark-400 text-bnb-muted border border-dark-200'
         }`}
       >
         {icon}
-      </span>
-      <span className={`text-sm font-semibold transition-colors ${done ? 'text-bnb-text' : 'text-bnb-text/80'}`}>
+      </motion.span>
+      <span className={`text-sm font-semibold transition-colors ${done ? 'text-bnb-text' : 'text-bnb-text/75'}`}>
         {label}
       </span>
     </div>
@@ -1661,22 +1670,29 @@ function ChoiceBtn({
     <motion.button
       onClick={onClick}
       disabled={disabled}
-      whileHover={!disabled && !selected ? { scale: 1.012, transition: { type: 'spring', stiffness: 500, damping: 25 } } : {}}
-      whileTap={!disabled ? { scale: 0.965, transition: { duration: 0.08 } } : {}}
+      whileHover={!disabled && !selected ? {
+        scale: 1.012,
+        y: -1,
+        transition: { type: 'spring', stiffness: 420, damping: 26 },
+      } : {}}
+      whileTap={!disabled ? {
+        scale: 0.97,
+        transition: { type: 'spring', stiffness: 520, damping: 30 },
+      } : {}}
       className={[
         horizontal ? 'w-full flex items-start justify-between gap-3' : 'text-left w-full',
-        'p-3 rounded-lg border disabled:cursor-default relative overflow-hidden transition-all',
+        'p-3 rounded-xl border disabled:cursor-default relative overflow-hidden transition-all duration-200',
         selected
-          ? 'border-brand-400 bg-brand-50 shadow-card-active'
-          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40 shadow-card',
+          ? 'border-amber-300/70 bg-amber-50/60 shadow-[0_0_0_2px_rgba(240,185,11,0.18),0_4px_16px_rgba(160,100,30,0.08)]'
+          : 'border-dark-200 bg-white hover:border-amber-200/80 hover:bg-amber-50/20 shadow-card',
       ].join(' ')}
     >
       {selected && (
         <motion.span
-          initial={{ opacity: 0.4 }}
+          initial={{ opacity: 0.3 }}
           animate={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="absolute inset-0 bg-brand-400/15 pointer-events-none rounded-lg"
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="absolute inset-0 bg-amber-400/10 pointer-events-none rounded-xl"
         />
       )}
       {children}
@@ -1695,12 +1711,12 @@ function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
 
 type TagColor = 'amber' | 'blue' | 'green' | 'red' | 'neutral' | 'yellow';
 const TAG_CLS: Record<TagColor, string> = {
-  amber:   'bg-amber-50 text-amber-700 border-amber-200',
-  blue:    'bg-blue-50 text-blue-700 border-blue-200',
-  green:   'bg-emerald-50 text-emerald-700 border-emerald-200',
-  red:     'bg-red-50 text-red-700 border-red-200',
-  neutral: 'bg-slate-100 text-slate-600 border-slate-200',
-  yellow:  'bg-amber-50 text-amber-700 border-amber-200',
+  amber:   'bg-amber-50 text-amber-700 border-amber-200/70',
+  blue:    'bg-blue-50 text-blue-700 border-blue-200/70',
+  green:   'bg-emerald-50 text-emerald-700 border-emerald-200/70',
+  red:     'bg-red-50 text-red-700 border-red-200/70',
+  neutral: 'bg-dark-400 text-bnb-muted border-dark-200',
+  yellow:  'bg-amber-50 text-amber-700 border-amber-200/70',
 };
 
 function InfoTag({ color, children }: { color: TagColor; children: React.ReactNode }) {

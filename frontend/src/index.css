@@ -2,79 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Base ── */
+
 html {
-  background-color: theme('colors.dark.500');
+  background-color: #FDFAF6;
   scroll-behavior: smooth;
 }
 
 body {
   @apply bg-dark-500 text-bnb-text;
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Subtle dot grid */
-  background-image: radial-gradient(circle, rgba(15,23,42,0.04) 1px, transparent 1px);
+  /* Subtle warm dot grid */
+  background-image: radial-gradient(circle, rgba(180,130,60,0.05) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
-/* Subtle ambient glow */
+/* Warm ambient glow */
 #root {
   position: relative;
 }
 #root::before {
   content: '';
   position: fixed;
-  top: -10%;
+  top: -15%;
   left: 50%;
   transform: translateX(-50%);
-  width: 80%;
-  height: 40%;
-  background: radial-gradient(ellipse, rgba(240,185,11,0.06) 0%, transparent 70%);
+  width: 90%;
+  height: 50%;
+  background: radial-gradient(ellipse, rgba(240,185,11,0.07) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Search button pulse glow */
+/* ── Header pill ── */
+.header-pill {
+  background: rgba(253, 250, 246, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(229, 217, 203, 0.7);
+  box-shadow: 0 2px 20px rgba(160, 100, 30, 0.07), 0 1px 3px rgba(160, 100, 30, 0.05);
+}
+
+/* ── Search button pulse glow ── */
 @keyframes btn-glow-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(240,185,11,0); }
-  50%       { box-shadow: 0 0 0 9px rgba(240,185,11,0.18); }
+  50%       { box-shadow: 0 0 0 9px rgba(240,185,11,0.20); }
 }
 .btn-glow-active { animation: btn-glow-pulse 2.4s ease-out infinite; }
 
-/* Global focus ring */
+/* ── Global focus ring ── */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(240, 185, 11, 0.65);
+  box-shadow: 0 0 0 2px #FDFAF6, 0 0 0 4px rgba(240, 185, 11, 0.6);
 }
 
 /* ── Panels ── */
 .panel {
-  @apply border border-dark-200 bg-dark-300 p-4 shadow-card;
+  @apply border border-dark-200 bg-white p-4 shadow-card rounded-2xl;
 }
 
 .panel-accent {
-  @apply border border-dark-200 bg-dark-300 p-4 shadow-card;
+  @apply border border-dark-200 bg-white p-4 shadow-card rounded-2xl;
   border-left: 3px solid #f0b90b;
 }
 
 .table-wrap {
-  @apply overflow-x-auto border border-dark-200 bg-dark-300;
+  @apply overflow-x-auto border border-dark-200 bg-white;
 }
 
 /* ── Buttons ── */
 .btn-primary {
   @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-stone-900 transition-all
-    hover:bg-brand-400 active:scale-[0.98] disabled:opacity-50;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    hover:bg-brand-400 active:scale-[0.98] disabled:opacity-50 rounded-xl;
+  box-shadow: 0 1px 3px rgba(160,100,30,0.1);
   transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 .btn-primary:hover {
-  box-shadow: 0 0 16px rgba(240, 185, 11, 0.30), 0 1px 2px rgba(0,0,0,0.08);
+  box-shadow: 0 0 20px rgba(240,185,11,0.28), 0 2px 6px rgba(160,100,30,0.1);
 }
 
 .btn-secondary {
-  @apply border border-dark-200 bg-dark-300 px-4 py-2 text-sm font-medium text-bnb-text
-    transition-colors hover:border-brand-500/40 hover:bg-dark-400 disabled:opacity-50 shadow-card;
+  @apply border border-dark-200 bg-white px-4 py-2 text-sm font-medium text-bnb-text
+    transition-colors hover:border-brand-400/50 hover:bg-dark-400 disabled:opacity-50 shadow-card rounded-xl;
 }
 
 /* ── Typography helpers ── */
@@ -125,7 +136,7 @@ body {
 .fee-bar-segment {
   height: 100%;
   border-radius: 999px;
-  animation: bar-fill 0.7s ease-out forwards;
+  animation: bar-fill 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 @keyframes bar-fill {
@@ -137,7 +148,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
+  background: rgba(229, 217, 203, 0.5);
 }
 
 .loading-progress-bar {
@@ -146,7 +157,7 @@ body {
   width: 35%;
   border-radius: inherit;
   background: linear-gradient(90deg, rgba(240, 185, 11, 0) 0%, #f0b90b 45%, #fbbf24 100%);
-  animation: loading-progress-slide 1.35s ease-in-out infinite;
+  animation: loading-progress-slide 1.35s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes loading-progress-slide {
@@ -160,22 +171,22 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 .rank-1 { @apply bg-brand-500 text-stone-900; }
-.rank-2 { @apply bg-slate-200 text-slate-700; }
-.rank-3 { @apply bg-slate-100 text-slate-500; }
-.rank-n { @apply bg-white text-slate-400 border border-slate-200; }
+.rank-2 { @apply bg-stone-200 text-stone-600; }
+.rank-3 { @apply bg-stone-100 text-stone-500; }
+.rank-n { @apply bg-white text-stone-400 border border-stone-200; }
 
 /* ── Section header ── */
 .section-label {
-  @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-bnb-muted;
+  @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-bnb-muted;
 }
 
 /* ── Card hover ── */
 .card-interactive {
-  @apply cursor-pointer border border-dark-200 bg-dark-300 shadow-card transition-all duration-150
-    hover:border-brand-500/40 hover:shadow-card-md;
+  @apply cursor-pointer border border-dark-200 bg-white shadow-card rounded-2xl transition-all duration-200
+    hover:border-amber-300/70 hover:shadow-card-md;
 }
 .card-interactive.selected {
-  @apply border-brand-500/60 bg-brand-50 shadow-card-active;
+  @apply border-amber-300/80 bg-amber-50/40 shadow-card-active;
 }
 
 /* ── Stagger animation delays ── */
@@ -189,7 +200,7 @@ body {
 .price-bar-fill {
   height: 100%;
   border-radius: 1px;
-  animation: bar-fill 0.6s ease-out forwards;
+  animation: bar-fill 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   background: linear-gradient(90deg, #f0b90b 0%, #fbbf24 100%);
 }
 
