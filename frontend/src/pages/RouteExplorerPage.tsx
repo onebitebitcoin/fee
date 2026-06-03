@@ -588,7 +588,7 @@ export function RouteExplorerPage() {
                 isPast={isPast}
               />
             ) : (
-              <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+              <div className="bg-dark-300 border border-dark-200 rounded-2xl p-4 shadow-card">
                 <p className="text-xs font-semibold text-bnb-muted mb-3">시작하려면</p>
                 <ul className="space-y-1.5 text-xs text-bnb-muted">
                   <li>1. 투자 금액 입력</li>
@@ -649,13 +649,13 @@ export function RouteExplorerPage() {
                       disabled={showSteps}
                       className={`p-2.5 rounded-xl border text-left transition-all duration-200 ${
                         preference === id
-                          ? 'border-amber-300/70 bg-amber-50/60 shadow-[0_0_0_1px_rgba(240,185,11,0.2)]'
-                          : 'border-dark-200 hover:border-amber-200/80 hover:bg-dark-400/50 bg-white'
+                          ? 'border-brand-500/40 bg-amber-950/30 shadow-[0_0_0_1px_rgba(240,185,11,0.2),0_0_16px_rgba(240,185,11,0.06)]'
+                          : 'border-dark-200 hover:border-brand-500/25 hover:bg-dark-400 bg-dark-400'
                       }`}
                     >
                       <Icon className={`w-4 h-4 transition-colors ${preference === id ? 'text-brand-600' : 'text-bnb-muted'}`} />
                       <div className={`text-xs font-semibold mt-1.5 ${preference === id ? 'text-brand-700' : 'text-bnb-text'}`}>{label}</div>
-                      <div className={`text-[11px] mt-0.5 ${preference === id ? 'text-amber-700/70' : 'text-bnb-muted'}`}>{sub}</div>
+                      <div className={`text-[11px] mt-0.5 ${preference === id ? 'text-amber-400/70' : 'text-bnb-muted'}`}>{sub}</div>
                     </button>
                   ))}
                 </div>
@@ -673,7 +673,7 @@ export function RouteExplorerPage() {
                 </motion.button>
             </StepCard>}
 
-            {error && <p className="text-red-600 text-sm text-center mt-4">{error}</p>}
+            {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
 
             {/* Loading */}
             {phase === 'loading' && <NetworkScanLoader />}
@@ -690,14 +690,14 @@ export function RouteExplorerPage() {
                           <StepHeader icon={<MapPin className="w-3.5 h-3.5" />} label="출발 거래소 (국내)" done={false} />
                           <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                             {liveKimp && (
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-[10px] text-bnb-muted">
                                 {liveKimp.cached ? '캐시' : '실시간'} · {fmtTime(liveKimp.fetched_at)}
                               </span>
                             )}
                             <button
                               onClick={() => fetchLiveKimp(true)}
                               disabled={kimpLoading}
-                              className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-brand-600 disabled:opacity-40 transition-colors"
+                              className="flex items-center gap-1 text-[10px] text-bnb-muted hover:text-brand-600 disabled:opacity-40 transition-colors"
                             >
                               <ArrowsClockwise className={`w-3 h-3 ${kimpLoading ? 'animate-spin' : ''}`} />
                               새로고침
@@ -716,11 +716,11 @@ export function RouteExplorerPage() {
                                   <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                                   {exchange === recDomestic && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                <div className="text-xs text-slate-500 font-data mt-0.5">{formatSats(bestBtc)}</div>
-                                {takerFee != null && <div className="text-xs text-slate-400 mt-0.5">수수료 {takerFee.toFixed(2)}%</div>}
-                                {vol?.volume_24h_usd != null && <div className="text-[10px] text-slate-400 mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>}
+                                <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
+                                {takerFee != null && <div className="text-xs text-bnb-muted mt-0.5">수수료 {takerFee.toFixed(2)}%</div>}
+                                {vol?.volume_24h_usd != null && <div className="text-[10px] text-bnb-muted mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>}
                                 {kimchi != null && (
-                                  <div className={`text-xs mt-0.5 font-semibold ${kimchi > 2 ? 'text-red-600' : kimchi > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  <div className={`text-xs mt-0.5 font-semibold ${kimchi > 2 ? 'text-red-400' : kimchi > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     {kimchi >= 0 ? `+${kimchi.toFixed(1)}%` : `${kimchi.toFixed(1)}%`} 김프
                                   </div>
                                 )}
@@ -751,7 +751,7 @@ export function RouteExplorerPage() {
                                     {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC 직접 출금</span></>}
                                     {coin === 'BTC_VIA' && <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC → 해외거래소 경유</span></>}
                                   </div>
-                                  <div className="text-xs text-slate-500 mt-0.5">
+                                  <div className="text-xs text-bnb-muted mt-0.5">
                                     {coin === 'USDT' && 'USDT 출금 → 해외 거래소 BTC 매수 → 개인 지갑'}
                                     {coin === 'BTC' && '한국 거래소 BTC 출금 → 개인 지갑 (직접)'}
                                     {coin === 'BTC_VIA' && 'BTC 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
@@ -782,7 +782,7 @@ export function RouteExplorerPage() {
                           ]} />
                         )}
                         {failedExchanges.length > 0 && (
-                          <p className="mt-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-1.5">
+                          <p className="mt-2 text-xs text-bnb-muted bg-dark-400 rounded px-3 py-1.5">
                             데이터 없음: {failedExchanges.map(fmtEx).join(', ')} — 비교에서 제외됨
                           </p>
                         )}
@@ -800,9 +800,9 @@ export function RouteExplorerPage() {
                                     {exchange === recGlobal && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                    {carf && <span className="text-xs text-slate-500">{carf.country}</span>}
-                                    {vol?.volume_24h_usd != null && <span className="text-[10px] text-slate-400">24H {fmtVol(vol.volume_24h_usd)}</span>}
-                                    {vol?.trust_rank != null && <span className="text-[10px] text-slate-400">#{vol.trust_rank}</span>}
+                                    {carf && <span className="text-xs text-bnb-muted">{carf.country}</span>}
+                                    {vol?.volume_24h_usd != null && <span className="text-[10px] text-bnb-muted">24H {fmtVol(vol.volume_24h_usd)}</span>}
+                                    {vol?.trust_rank != null && <span className="text-[10px] text-bnb-muted">#{vol.trust_rank}</span>}
                                   </div>
                                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                     {carf && <InfoTag color="blue">CARF {carf.carfYear}</InfoTag>}
@@ -838,7 +838,7 @@ export function RouteExplorerPage() {
                                   {network === recNetwork && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
                                 {best.breakdown?.components.find(c => c.label.includes('출금')) && (
-                                  <div className="text-xs text-slate-500 mt-0.5">
+                                  <div className="text-xs text-bnb-muted mt-0.5">
                                     출금 수수료: {best.breakdown.components.find(c => c.label.includes('출금'))?.amount_text}
                                   </div>
                                 )}
@@ -863,7 +863,7 @@ export function RouteExplorerPage() {
                                   <span className="font-semibold text-sm">{label}</span>
                                   {id === recTradeMethod && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+                                <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                               </div>
                               <FeeTag path={best} align="right" />
                             </ChoiceBtn>
@@ -896,7 +896,7 @@ export function RouteExplorerPage() {
                                   <span>{label}</span>
                                   {id === recExitMode && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+                                <div className="text-xs text-bnb-muted mt-0.5">{sublabel}</div>
                                 <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                   {id === 'onchain'
                                     ? <><InfoTag color="neutral">온체인 추적 가능</InfoTag><RiskTag risk="low" /></>
@@ -930,7 +930,7 @@ export function RouteExplorerPage() {
                                     <span className="font-semibold text-sm">{display}</span>
                                     {service === recSwapService && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                   </div>
-                                  <div className="text-xs text-slate-500 mt-0.5">
+                                  <div className="text-xs text-bnb-muted mt-0.5">
                                     스왑 수수료: {swapComp ? formatFeeKrw(swapComp.amount_krw) : '0'}
                                     {swapComp?.rate_pct != null ? ` (${swapComp.rate_pct.toFixed(2)}%)` : ''}
                                   </div>
@@ -955,11 +955,11 @@ export function RouteExplorerPage() {
                       <StepCard active>
                         <StepHeader icon={<Trophy className="w-3.5 h-3.5" weight="fill" />} label="수수료 경로 상세" done />
                         {(matchedPath.num_withdrawal_txs ?? 1) > 1 && (
-                          <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs">
+                          <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-950/30 border border-amber-500/25 text-xs">
                             <div className="flex items-start gap-2">
-                              <span className="text-amber-700 font-bold flex-shrink-0 mt-0.5">!</span>
+                              <span className="text-amber-400 font-bold flex-shrink-0 mt-0.5">!</span>
                               <div>
-                                <span className="font-semibold text-amber-700">{matchedPath.num_withdrawal_txs}회 분할 출금 필요</span>
+                                <span className="font-semibold text-amber-400">{matchedPath.num_withdrawal_txs}회 분할 출금 필요</span>
                                 <span className="text-amber-600 ml-1">
                                   — {fmtEx(matchedPath.korean_exchange)} 1회 출금 한도{matchedPath.krw_per_tx_limit != null ? ` ₩${(matchedPath.krw_per_tx_limit / 10000).toFixed(0)}만원` : ''} 초과
                                 </span>
@@ -972,10 +972,10 @@ export function RouteExplorerPage() {
                           <div className="flex items-start gap-3">
                             <div className="flex flex-col items-center flex-shrink-0 w-5">
                               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-0.5" />
-                              <div className="w-px flex-1 bg-slate-200 min-h-[1.75rem]" />
+                              <div className="w-px flex-1 bg-dark-200 min-h-[1.75rem]" />
                             </div>
                             <div className="pb-3 flex-1 flex justify-between items-baseline">
-                              <span className="text-xs text-slate-500">투자 금액</span>
+                              <span className="text-xs text-bnb-muted">투자 금액</span>
                               <span className="font-bold font-data text-base">₩{amountKrw.toLocaleString('ko-KR')}</span>
                             </div>
                           </div>
@@ -989,8 +989,8 @@ export function RouteExplorerPage() {
                               return (
                                 <div key={i} className="flex items-start gap-3">
                                   <div className="flex flex-col items-center flex-shrink-0 w-5">
-                                    <div className="w-2.5 h-2.5 rounded-full border-2 border-red-400 bg-white mt-0.5" />
-                                    <div className={`w-px flex-1 min-h-[3.5rem] ${isLast ? 'bg-transparent' : 'bg-slate-200'}`} />
+                                    <div className="w-2.5 h-2.5 rounded-full border-2 border-red-400 bg-dark-300 mt-0.5" />
+                                    <div className={`w-px flex-1 min-h-[3.5rem] ${isLast ? 'bg-transparent' : 'bg-dark-200'}`} />
                                   </div>
                                   <div className="pb-4 flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
@@ -999,20 +999,20 @@ export function RouteExplorerPage() {
                                           <span className="text-sm font-medium leading-tight">{c.label}</span>
                                           {(() => { const cat = getFeeCategory(c.label); return cat ? <InfoTag color={cat.color}>{cat.label}</InfoTag> : null; })()}
                                         </div>
-                                        {c.amount_text && <div className="text-xs text-slate-400 mt-0.5">{c.amount_text}</div>}
+                                        {c.amount_text && <div className="text-xs text-bnb-muted mt-0.5">{c.amount_text}</div>}
                                       </div>
                                       <div className="text-right flex-shrink-0">
-                                        <div className="text-red-600 font-data text-sm font-semibold">-{formatFeeKrw(c.amount_krw)}</div>
+                                        <div className="text-red-400 font-data text-sm font-semibold">-{formatFeeKrw(c.amount_krw)}</div>
                                         <div className="text-xs text-red-400">
                                           {c.rate_pct != null ? `단계 ${c.rate_pct.toFixed(3)}%` : `${pctOfOriginal.toFixed(3)}%`}
                                         </div>
                                       </div>
                                     </div>
                                     <div className="mt-1.5 flex items-center justify-between text-xs">
-                                      <span className="text-slate-400">잔여</span>
+                                      <span className="text-bnb-muted">잔여</span>
                                       <div className="text-right">
                                         <span className="font-data text-bnb-text">₩{Math.round(remaining).toLocaleString('ko-KR')}</span>
-                                        <span className="text-slate-400 ml-1.5">({remainingPct.toFixed(2)}%)</span>
+                                        <span className="text-bnb-muted ml-1.5">({remainingPct.toFixed(2)}%)</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1020,11 +1020,11 @@ export function RouteExplorerPage() {
                               );
                             });
                           })()}
-                          <div className="border-t border-slate-200 pt-3 mb-3 flex justify-between items-baseline">
-                            <span className="text-xs font-semibold text-slate-500">총 수수료</span>
+                          <div className="border-t border-dark-200 pt-3 mb-3 flex justify-between items-baseline">
+                            <span className="text-xs font-semibold text-bnb-muted">총 수수료</span>
                             <div className="text-right">
-                              <div className="text-red-600 font-data font-bold text-sm">-{formatFeeKrw(matchedPath.total_fee_krw)}</div>
-                              <div className="text-xs text-slate-500">{formatPercent(matchedPath.fee_pct)}</div>
+                              <div className="text-red-400 font-data font-bold text-sm">-{formatFeeKrw(matchedPath.total_fee_krw)}</div>
+                              <div className="text-xs text-bnb-muted">{formatPercent(matchedPath.fee_pct)}</div>
                             </div>
                           </div>
 
@@ -1041,23 +1041,23 @@ export function RouteExplorerPage() {
                             const isPositive = kimchi > 0;
                             return (
                               <div className={`mb-3 rounded-lg border px-3 py-2.5 text-xs ${
-                                isPositive ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
+                                isPositive ? 'bg-amber-950/30 border-amber-500/25' : 'bg-emerald-950/30 border-emerald-500/25'
                               }`}>
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className={`font-semibold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  <span className={`font-semibold ${isPositive ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     김치 프리미엄 영향
                                   </span>
-                                  <span className={`font-data font-bold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  <span className={`font-data font-bold ${isPositive ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     {isPositive ? '+' : ''}{kimchi.toFixed(2)}%
                                   </span>
                                 </div>
-                                <div className="flex items-center justify-between text-slate-500">
+                                <div className="flex items-center justify-between text-bnb-muted">
                                   <span>암묵적 추가 비용 (글로벌 대비)</span>
                                   <span className="font-data">≈ {isPositive ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}</span>
                                 </div>
                                 <div className="mt-1.5 pt-1.5 border-t border-amber-100 flex items-center justify-between">
-                                  <span className="text-slate-400">수수료+김프 합산 중 김프 비중</span>
-                                  <span className={`font-semibold ${isPositive ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  <span className="text-bnb-muted">수수료+김프 합산 중 김프 비중</span>
+                                  <span className={`font-semibold ${isPositive ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     {contributionPct.toFixed(1)}%
                                   </span>
                                 </div>
@@ -1068,7 +1068,7 @@ export function RouteExplorerPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.1 }}
-                            className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-5 shadow-card-md"
+                            className="bg-gradient-to-br from-amber-950/40 to-dark-300 border border-brand-500/20 rounded-xl p-5 shadow-card-md"
                           >
                             <div className="text-xs font-semibold text-brand-700 mb-2 uppercase tracking-wider">최종 수령</div>
                             <AnimatedSats value={Math.round((matchedPath.btc_received ?? 0) * 100_000_000)} className="text-4xl md:text-5xl font-bold font-data text-brand-700 tabular-nums block" />
@@ -1113,7 +1113,7 @@ export function RouteExplorerPage() {
                     )}
 
                     {phase === 'result' && !matchedPath && (
-                      <p className="text-red-600 text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
+                      <p className="text-red-400 text-sm text-center py-8">선택한 경로에 해당하는 데이터가 없습니다.</p>
                     )}
 
                 </PhaseSlider>
@@ -1122,7 +1122,7 @@ export function RouteExplorerPage() {
                 {getPrevPhase() && (
                   <button
                     onClick={handleBack}
-                    className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 hover:text-bnb-text transition-colors"
+                    className="mt-3 flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     이전 단계
@@ -1199,7 +1199,7 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
 
   return (
     <div className="space-y-3">
-      <div className="bg-white border border-dark-200 rounded-2xl p-3 shadow-card">
+      <div className="bg-dark-300 border border-dark-200 rounded-2xl p-3 shadow-card">
         <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2 px-1">진행 상황</p>
         <div className="space-y-0.5">
           {steps.map((step, i) => {
@@ -1209,13 +1209,13 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
               <div
                 key={step.phase}
                 className={`flex items-center gap-2.5 px-2 py-1.5 rounded-xl transition-colors ${
-                  active ? 'bg-amber-50/60 border border-amber-200/50' : ''
+                  active ? 'bg-amber-950/30 border border-brand-500/20' : ''
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
                   active ? 'bg-brand-500 text-stone-900 shadow-warm-glow-sm' :
                   past   ? 'bg-dark-400 text-bnb-muted border border-dark-200' :
-                           'border border-dark-200 bg-white'
+                           'border border-dark-200 bg-dark-300'
                 }`}>
                   {past ? (
                     <CheckCircle className="w-3 h-3 text-brand-600" weight="fill" />
@@ -1244,19 +1244,19 @@ function StepProgressPanel({ phase, selectedCoin, selectedExitMode, liveCartPath
       </div>
 
       {liveCartPath && (
-        <div className="bg-gradient-to-br from-amber-50/60 to-white border border-amber-200/50 rounded-2xl p-4 shadow-card">
+        <div className="bg-gradient-to-br from-amber-950/40 to-dark-300 border border-brand-500/20 rounded-2xl p-4 shadow-card">
           <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-3">현재 최선</p>
           <div>
-            <div className="text-[10px] text-slate-400 mb-0.5">예상 수수료</div>
-            <div className="text-red-600 font-data font-bold text-sm">
+            <div className="text-[10px] text-bnb-muted mb-0.5">예상 수수료</div>
+            <div className="text-red-400 font-data font-bold text-sm">
               -{formatFeeKrw(liveCartPath.total_fee_krw)}
-              <span className="text-[10px] font-normal text-slate-400 ml-1">
+              <span className="text-[10px] font-normal text-bnb-muted ml-1">
                 ({liveCartPath.fee_pct.toFixed(2)}%)
               </span>
             </div>
           </div>
           <div className="mt-2 pt-2 border-t border-brand-100">
-            <div className="text-[10px] text-slate-400 mb-0.5">예상 수령</div>
+            <div className="text-[10px] text-bnb-muted mb-0.5">예상 수령</div>
             <div className="text-brand-700 font-data font-bold text-lg">
               {formatSats(liveCartPath.btc_received ?? 0)}
             </div>
@@ -1300,19 +1300,19 @@ function RightInfoPanel({
     <div className="space-y-3">
       {/* Phase-specific context */}
       {phase === 'domestic' && (
-        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+        <div className="bg-dark-300 border border-dark-200 rounded-2xl p-4 shadow-card">
           <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">한국 거래소 안내</p>
-          <ul className="space-y-1.5 text-xs text-slate-600">
+          <ul className="space-y-1.5 text-xs text-bnb-muted">
             <li className="flex items-start gap-1.5"><span className="text-amber-600 font-bold mt-0.5">•</span>실명 KYC 인증 필수</li>
             <li className="flex items-start gap-1.5"><span className="text-amber-600 font-bold mt-0.5">•</span>CARF 2027년부터 국세청 자동 보고</li>
-            <li className="flex items-start gap-1.5"><span className="text-slate-400 mt-0.5">•</span>김프(김치 프리미엄)는 낮을수록 유리</li>
+            <li className="flex items-start gap-1.5"><span className="text-bnb-muted mt-0.5">•</span>김프(김치 프리미엄)는 낮을수록 유리</li>
           </ul>
         </div>
       )}
 
       {/* Selected domestic info */}
       {selectedDomestic && phase !== 'input' && (
-        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+        <div className="bg-dark-300 border border-dark-200 rounded-2xl p-4 shadow-card">
           <div className="flex items-center gap-2 mb-3">
             <ExchangeIcon id={selectedDomestic} size={16} />
             <span className="text-sm font-semibold">{fmtEx(selectedDomestic)}</span>
@@ -1326,7 +1326,7 @@ function RightInfoPanel({
               <InfoRow
                 label="김치 프리미엄"
                 value={`${kimchi >= 0 ? '+' : ''}${kimchi.toFixed(2)}%`}
-                valueClass={kimchi > 2 ? 'text-red-600 font-semibold' : kimchi > 0 ? 'text-amber-700 font-semibold' : 'text-emerald-700 font-semibold'}
+                valueClass={kimchi > 2 ? 'text-red-400 font-semibold' : kimchi > 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'}
               />
             )}
             {domVol?.volume_24h_usd != null && (
@@ -1339,7 +1339,7 @@ function RightInfoPanel({
 
       {/* Selected global info */}
       {selectedGlobal && (
-        <div className="bg-white border border-dark-200 rounded-2xl p-4 shadow-card">
+        <div className="bg-dark-300 border border-dark-200 rounded-2xl p-4 shadow-card">
           <div className="flex items-center gap-2 mb-3">
             <ExchangeIcon id={selectedGlobal} size={16} />
             <span className="text-sm font-semibold">{fmtEx(selectedGlobal)}</span>
@@ -1348,7 +1348,7 @@ function RightInfoPanel({
           <div className="space-y-1.5 text-xs">
             {globCarf && <InfoRow label="본사 국가" value={globCarf.country} />}
             {globCarf && <InfoRow label="CARF 시행" value={`${globCarf.carfYear}년`} />}
-            {globCarf?.fatca && <InfoRow label="FATCA" value="해당" valueClass="text-red-600 font-semibold" />}
+            {globCarf?.fatca && <InfoRow label="FATCA" value="해당" valueClass="text-red-400 font-semibold" />}
             {globVol?.volume_24h_usd != null && (
               <InfoRow label="24H 거래량" value={fmtVol(globVol.volume_24h_usd) ?? '-'} />
             )}
@@ -1361,8 +1361,8 @@ function RightInfoPanel({
 
       {/* Network info */}
       {selectedNetwork && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-card">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">네트워크</p>
+        <div className="bg-dark-300 border border-dark-200 rounded-xl p-4 shadow-card">
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">네트워크</p>
           <div className="space-y-1.5 text-xs">
             <InfoRow label="선택" value={selectedNetwork} />
             {selectedCoin && <InfoRow label="코인" value={selectedCoin === 'BTC_VIA' ? 'BTC' : selectedCoin} />}
@@ -1372,22 +1372,22 @@ function RightInfoPanel({
 
       {/* Cost estimate (when we have path data) */}
       {liveCartPath && !matchedPath && (
-        <div className="bg-gradient-to-br from-brand-50 to-white border border-brand-200 rounded-xl p-4 shadow-card">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">예상 비용 (현재 기준)</p>
+        <div className="bg-gradient-to-br from-amber-950/40 to-dark-300 border border-brand-500/20 rounded-xl p-4 shadow-card">
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-3">예상 비용 (현재 기준)</p>
           <div className="space-y-2">
             <div>
-              <div className="text-[10px] text-slate-400">투자 금액</div>
+              <div className="text-[10px] text-bnb-muted">투자 금액</div>
               <div className="font-data font-bold text-sm text-bnb-text">₩{amountKrw.toLocaleString('ko-KR')}</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">예상 수수료</div>
-              <div className="text-red-600 font-data font-bold">
+              <div className="text-[10px] text-bnb-muted">예상 수수료</div>
+              <div className="text-red-400 font-data font-bold">
                 -{formatFeeKrw(liveCartPath.total_fee_krw)}
-                <span className="text-[10px] font-normal text-slate-400 ml-1">({liveCartPath.fee_pct.toFixed(2)}%)</span>
+                <span className="text-[10px] font-normal text-bnb-muted ml-1">({liveCartPath.fee_pct.toFixed(2)}%)</span>
               </div>
             </div>
             <div className="pt-2 border-t border-brand-100">
-              <div className="text-[10px] text-slate-400">예상 수령</div>
+              <div className="text-[10px] text-bnb-muted">예상 수령</div>
               <div className="text-brand-700 font-data font-bold text-lg">
                 {formatSats(liveCartPath.btc_received ?? 0)}
               </div>
@@ -1398,18 +1398,18 @@ function RightInfoPanel({
 
       {/* Final result summary */}
       {matchedPath && (
-        <div className="bg-gradient-to-br from-amber-50/50 to-white border border-amber-200/50 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(240,185,11,0.12),0_4px_20px_rgba(160,100,30,0.08)]">
+        <div className="bg-gradient-to-br from-amber-950/50 to-dark-300 border border-brand-500/25 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(240,185,11,0.2),0_4px_24px_rgba(240,185,11,0.08)]">
           <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-3">최종 결과</p>
           <div className="space-y-2">
             <div>
-              <div className="text-[10px] text-slate-400">총 수수료</div>
-              <div className="text-red-600 font-data font-bold">
+              <div className="text-[10px] text-bnb-muted">총 수수료</div>
+              <div className="text-red-400 font-data font-bold">
                 -{formatFeeKrw(matchedPath.total_fee_krw)}
-                <span className="text-[10px] font-normal text-slate-400 ml-1">({formatPercent(matchedPath.fee_pct)})</span>
+                <span className="text-[10px] font-normal text-bnb-muted ml-1">({formatPercent(matchedPath.fee_pct)})</span>
               </div>
             </div>
             <div className="pt-2 border-t border-brand-100">
-              <div className="text-[10px] text-slate-400">최종 수령</div>
+              <div className="text-[10px] text-bnb-muted">최종 수령</div>
               <div className="text-brand-700 font-data font-bold text-xl">
                 {formatSats(matchedPath.btc_received ?? 0)}
               </div>
@@ -1424,7 +1424,7 @@ function RightInfoPanel({
 function InfoRow({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex justify-between items-center">
-      <span className="text-slate-400">{label}</span>
+      <span className="text-bnb-muted">{label}</span>
       <span className={`font-medium text-bnb-text ${valueClass ?? ''}`}>{value}</span>
     </div>
   );
@@ -1489,12 +1489,12 @@ function CartBanner({
         initial={false}
         animate={{ y: open ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 400, damping: 36 }}
-        className="fixed bottom-0 left-0 right-0 z-20 border-t border-dark-200/60 bg-white/95 backdrop-blur-xl shadow-[0_-4px_30px_rgba(160,100,30,0.08)]"
+        className="fixed bottom-0 left-0 right-0 z-20 border-t border-dark-200/60 bg-dark-300/95 backdrop-blur-xl shadow-[0_-4px_30px_rgba(160,100,30,0.08)]"
       >
       <div className="max-w-2xl mx-auto px-4 py-3 pb-4">
         {/* Drag handle */}
         <div className="flex justify-center mb-2">
-          <div className="w-8 h-1 rounded-full bg-slate-300" />
+          <div className="w-8 h-1 rounded-full bg-dark-200" />
         </div>
 
         {/* Route nodes row */}
@@ -1503,14 +1503,14 @@ function CartBanner({
             <span key={i} className="flex items-center gap-1 flex-shrink-0">
               <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
                 n.done
-                  ? 'bg-white border-brand-300 text-bnb-text'
-                  : 'bg-slate-50 border-slate-200 text-slate-400'
+                  ? 'bg-dark-300 border-brand-300 text-bnb-text'
+                  : 'bg-dark-400 border-dark-200 text-bnb-muted'
               }`}>
                 {n.id && <ExchangeIcon id={n.id} size={11} />}
                 {n.label}
               </span>
               {i < nodes.length - 1 && (
-                <ArrowRight className={`w-3 h-3 flex-shrink-0 ${n.done ? 'text-brand-400' : 'text-slate-300'}`} />
+                <ArrowRight className={`w-3 h-3 flex-shrink-0 ${n.done ? 'text-brand-400' : 'text-dark-100'}`} />
               )}
             </span>
           ))}
@@ -1522,37 +1522,37 @@ function CartBanner({
             {feeKrw != null ? (
               <>
                 <div>
-                  <span className="text-[10px] text-slate-400">예상 수수료</span>
-                  <div className="text-red-600 font-data font-bold text-base leading-tight">
+                  <span className="text-[10px] text-bnb-muted">예상 수수료</span>
+                  <div className="text-red-400 font-data font-bold text-base leading-tight">
                     -{formatFeeKrw(feeKrw)}
                     {feePct != null && (
-                      <span className="text-xs font-normal text-slate-400 ml-1">({feePct.toFixed(2)}%)</span>
+                      <span className="text-xs font-normal text-bnb-muted ml-1">({feePct.toFixed(2)}%)</span>
                     )}
                   </div>
                 </div>
                 {btcGet != null && (
                   <div>
-                    <span className="text-[10px] text-slate-400">예상 수령</span>
+                    <span className="text-[10px] text-bnb-muted">예상 수령</span>
                     <div className="text-brand-700 font-data font-bold text-base leading-tight">
                       {formatSats(btcGet)} sats
                     </div>
                   </div>
                 )}
                 {coinLabel && selectedNetwork && (
-                  <div className="text-[10px] text-slate-400 self-end pb-0.5">
+                  <div className="text-[10px] text-bnb-muted self-end pb-0.5">
                     {coinLabel} via {selectedNetwork}
                     {numTxs != null && numTxs > 1 && (
-                      <span className="ml-1.5 text-amber-700 font-semibold">{numTxs}회 출금</span>
+                      <span className="ml-1.5 text-amber-400 font-semibold">{numTxs}회 출금</span>
                     )}
                   </div>
                 )}
               </>
             ) : (
-              <span className="text-xs text-slate-400">경로 선택 중...</span>
+              <span className="text-xs text-bnb-muted">경로 선택 중...</span>
             )}
           </div>
           <div className="text-right flex-shrink-0">
-            <div className="text-[10px] text-slate-400">투자</div>
+            <div className="text-[10px] text-bnb-muted">투자</div>
             <div className="text-sm font-bold font-data text-bnb-text">
               ₩{amountKrw.toLocaleString('ko-KR')}
             </div>
@@ -1571,13 +1571,13 @@ function StepContext({ nodes }: {
   return (
     <div className="flex items-center gap-2 mt-2 mb-1 flex-wrap">
       {nodes.map((n, i) => (
-        <span key={i} className="flex items-center gap-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-full px-2 py-0.5">
+        <span key={i} className="flex items-center gap-1.5 text-[11px] bg-dark-400 border border-dark-200 rounded-full px-2 py-0.5">
           <ExchangeIcon id={n.id} size={12} />
           <span className="font-medium text-bnb-text">{n.label}</span>
           <span className={`text-[10px] ${
             n.roleColor === 'amber' ? 'text-amber-600' :
             n.roleColor === 'blue'  ? 'text-blue-600' :
-            n.roleColor === 'green' ? 'text-emerald-600' : 'text-slate-400'
+            n.roleColor === 'green' ? 'text-emerald-600' : 'text-bnb-muted'
           }`}>{n.role}</span>
         </span>
       ))}
@@ -1615,8 +1615,8 @@ function StepCard({
       className={[
         'rounded-2xl p-4 md:p-5',
         active
-          ? 'bg-white border border-amber-200/60 shadow-[0_0_0_1px_rgba(240,185,11,0.12),0_4px_24px_rgba(160,100,30,0.09)]'
-          : 'bg-white border border-dark-200 shadow-card',
+          ? 'bg-dark-300 border border-amber-200/60 shadow-[0_0_0_1px_rgba(240,185,11,0.12),0_4px_24px_rgba(160,100,30,0.09)]'
+          : 'bg-dark-300 border border-dark-200 shadow-card',
       ].join(' ')}
     >
       {children}
@@ -1683,8 +1683,8 @@ function ChoiceBtn({
         horizontal ? 'w-full flex items-start justify-between gap-3' : 'text-left w-full',
         'p-3 rounded-xl border disabled:cursor-default relative overflow-hidden transition-all duration-200',
         selected
-          ? 'border-amber-300/70 bg-amber-50/60 shadow-[0_0_0_2px_rgba(240,185,11,0.18),0_4px_16px_rgba(160,100,30,0.08)]'
-          : 'border-dark-200 bg-white hover:border-amber-200/80 hover:bg-amber-50/20 shadow-card',
+          ? 'border-brand-500/40 bg-amber-950/30 shadow-[0_0_0_1px_rgba(240,185,11,0.25),0_4px_20px_rgba(240,185,11,0.08)]'
+          : 'border-dark-200 bg-dark-300 hover:border-amber-200/80 hover:bg-amber-950/20 shadow-card',
       ].join(' ')}
     >
       {selected && (
@@ -1704,19 +1704,19 @@ function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
   return (
     <div className={`flex-shrink-0 ${align === 'right' ? 'text-right' : ''}`}>
       <div className="font-bold text-sm font-data text-bnb-text">{formatSats(path.btc_received ?? 0)}</div>
-      <div className="text-xs text-slate-400">수수료 {formatPercent(path.fee_pct)}</div>
+      <div className="text-xs text-bnb-muted">수수료 {formatPercent(path.fee_pct)}</div>
     </div>
   );
 }
 
 type TagColor = 'amber' | 'blue' | 'green' | 'red' | 'neutral' | 'yellow';
 const TAG_CLS: Record<TagColor, string> = {
-  amber:   'bg-amber-50 text-amber-700 border-amber-200/70',
-  blue:    'bg-blue-50 text-blue-700 border-blue-200/70',
-  green:   'bg-emerald-50 text-emerald-700 border-emerald-200/70',
-  red:     'bg-red-50 text-red-700 border-red-200/70',
+  amber:   'bg-amber-950/40 text-amber-400 border-amber-500/25',
+  blue:    'bg-blue-950/40 text-blue-400 border-blue-500/25',
+  green:   'bg-emerald-950/40 text-emerald-400 border-emerald-500/25',
+  red:     'bg-red-950/40 text-red-400 border-red-500/25',
   neutral: 'bg-dark-400 text-bnb-muted border-dark-200',
-  yellow:  'bg-amber-50 text-amber-700 border-amber-200/70',
+  yellow:  'bg-amber-950/40 text-amber-400 border-amber-500/25',
 };
 
 function InfoTag({ color, children }: { color: TagColor; children: React.ReactNode }) {
@@ -1752,7 +1752,7 @@ function RiskTag({ risk }: { risk: 'low' | 'med' | 'high' }) {
     high: { dot: 'bg-red-500',     text: '높음' },
   }[risk];
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border bg-slate-100 text-slate-600 border-slate-200">
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border bg-dark-400 text-bnb-muted border-dark-200">
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
       위험도 {cfg.text}
     </span>
@@ -1775,7 +1775,7 @@ function RouteNode({
   endValue?: string;
 }) {
   return (
-    <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${isEnd ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-slate-50'}`}>
+    <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${isEnd ? 'border-brand-200 bg-brand-50' : 'border-dark-200 bg-dark-400'}`}>
       <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${isEnd ? 'bg-brand-500' : 'bg-slate-400'}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -1806,11 +1806,11 @@ function RouteEdge({ label, isLightning }: { label: string; isLightning?: boolea
   return (
     <div className="flex items-center gap-2 px-3 py-1">
       <div className="flex flex-col items-center flex-shrink-0 w-2">
-        <div className={`w-px h-3 ${isLightning ? 'bg-amber-300' : 'bg-slate-300'}`} />
-        <ArrowDown className={`w-3 h-3 ${isLightning ? 'text-amber-600' : 'text-slate-400'}`} />
-        <div className={`w-px h-3 ${isLightning ? 'bg-amber-300' : 'bg-slate-300'}`} />
+        <div className={`w-px h-3 ${isLightning ? 'bg-amber-300' : 'bg-dark-200'}`} />
+        <ArrowDown className={`w-3 h-3 ${isLightning ? 'text-amber-600' : 'text-bnb-muted'}`} />
+        <div className={`w-px h-3 ${isLightning ? 'bg-amber-300' : 'bg-dark-200'}`} />
       </div>
-      <span className={`text-[10px] ${isLightning ? 'text-amber-700' : 'text-slate-500'}`}>{label}</span>
+      <span className={`text-[10px] ${isLightning ? 'text-amber-400' : 'text-bnb-muted'}`}>{label}</span>
     </div>
   );
 }
@@ -1850,7 +1850,7 @@ function NetworkScanLoader() {
     >
       <div className="text-center">
         <p className="text-sm font-semibold text-bnb-text">경로 탐색 중</p>
-        <p className="text-xs text-slate-500 mt-0.5">{doneCount} / 6 거래소 응답</p>
+        <p className="text-xs text-bnb-muted mt-0.5">{doneCount} / 6 거래소 응답</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4 w-full max-w-[260px]">
@@ -1869,7 +1869,7 @@ function NetworkScanLoader() {
                   ? 'bg-emerald-50 border border-emerald-200'
                   : status === 'scanning'
                   ? 'bg-brand-50 border border-brand-300'
-                  : 'bg-slate-50 border border-slate-200'
+                  : 'bg-dark-400 border border-dark-200'
               }`}>
                 {status === 'scanning' && (
                   <span className="absolute inset-0 rounded-xl border border-brand-300 animate-ping" style={{ animationDuration: '0.85s' }} />
@@ -1884,14 +1884,14 @@ function NetworkScanLoader() {
                     ✓
                   </motion.span>
                 ) : (
-                  <span className={`text-[10px] font-bold font-data ${status === 'scanning' ? 'text-brand-600' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] font-bold font-data ${status === 'scanning' ? 'text-brand-600' : 'text-bnb-muted'}`}>
                     {SCAN_NAMES[ex].slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
               <span className={`text-[10px] font-medium transition-colors duration-300 ${
                 status === 'done' ? 'text-emerald-600' :
-                status === 'scanning' ? 'text-brand-600' : 'text-slate-400'
+                status === 'scanning' ? 'text-brand-600' : 'text-bnb-muted'
               }`}>
                 {SCAN_NAMES[ex]}
               </span>
@@ -1901,7 +1901,7 @@ function NetworkScanLoader() {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full max-w-[240px] h-0.5 bg-slate-200 rounded-full overflow-hidden">
+      <div className="w-full max-w-[240px] h-0.5 bg-dark-200 rounded-full overflow-hidden">
         <motion.div
           className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full"
           initial={{ width: '0%' }}

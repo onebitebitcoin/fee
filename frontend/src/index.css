@@ -5,90 +5,88 @@
 /* ── Base ── */
 
 html {
-  background-color: #FDFAF6;
+  background-color: #0E0C0A;
   scroll-behavior: smooth;
 }
 
 body {
   @apply bg-dark-500 text-bnb-text;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Subtle warm dot grid */
-  background-image: radial-gradient(circle, rgba(180,130,60,0.05) 1px, transparent 1px);
+  /* Barely-visible warm dot grid */
+  background-image: radial-gradient(circle, rgba(240,185,11,0.04) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
-/* Warm ambient glow */
-#root {
-  position: relative;
-}
+/* Warm ambient glow — breathes */
 #root::before {
   content: '';
   position: fixed;
-  top: -15%;
+  top: -20%;
   left: 50%;
   transform: translateX(-50%);
-  width: 90%;
-  height: 50%;
-  background: radial-gradient(ellipse, rgba(240,185,11,0.07) 0%, transparent 65%);
+  width: 80%;
+  height: 55%;
+  background: radial-gradient(ellipse, rgba(240,185,11,0.08) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
+  animation: glow-breathe 4s ease-in-out infinite;
 }
 
-/* ── Header pill ── */
+/* ── Header pill — dark glass ── */
 .header-pill {
-  background: rgba(253, 250, 246, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(229, 217, 203, 0.7);
-  box-shadow: 0 2px 20px rgba(160, 100, 30, 0.07), 0 1px 3px rgba(160, 100, 30, 0.05);
+  background: rgba(22, 19, 16, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(240, 185, 11, 0.12);
+  box-shadow: 0 2px 24px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(240,185,11,0.08) inset;
 }
 
-/* ── Search button pulse glow ── */
+/* ── Search button pulse ── */
 @keyframes btn-glow-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(240,185,11,0); }
-  50%       { box-shadow: 0 0 0 9px rgba(240,185,11,0.20); }
+  50%       { box-shadow: 0 0 0 10px rgba(240,185,11,0.20); }
 }
 .btn-glow-active { animation: btn-glow-pulse 2.4s ease-out infinite; }
 
-/* ── Global focus ring ── */
+/* ── Focus ring ── */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #FDFAF6, 0 0 0 4px rgba(240, 185, 11, 0.6);
+  box-shadow: 0 0 0 2px #0E0C0A, 0 0 0 4px rgba(240,185,11,0.6);
 }
 
 /* ── Panels ── */
 .panel {
-  @apply border border-dark-200 bg-white p-4 shadow-card rounded-2xl;
+  @apply border border-dark-200 bg-dark-300 p-4 shadow-card rounded-2xl;
 }
 
 .panel-accent {
-  @apply border border-dark-200 bg-white p-4 shadow-card rounded-2xl;
-  border-left: 3px solid #f0b90b;
+  @apply border border-dark-200 bg-dark-300 p-4 shadow-card rounded-2xl;
+  border-left: 2px solid #f0b90b;
 }
 
 .table-wrap {
-  @apply overflow-x-auto border border-dark-200 bg-white;
+  @apply overflow-x-auto border border-dark-200 bg-dark-300;
 }
 
 /* ── Buttons ── */
 .btn-primary {
   @apply bg-brand-500 px-4 py-2 text-sm font-semibold text-stone-900 transition-all
-    hover:bg-brand-400 active:scale-[0.98] disabled:opacity-50 rounded-xl;
-  box-shadow: 0 1px 3px rgba(160,100,30,0.1);
+    hover:bg-brand-400 active:scale-[0.98] disabled:opacity-40 rounded-xl;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 0 12px rgba(240,185,11,0.15);
   transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 .btn-primary:hover {
-  box-shadow: 0 0 20px rgba(240,185,11,0.28), 0 2px 6px rgba(160,100,30,0.1);
+  box-shadow: 0 0 24px rgba(240,185,11,0.35), 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .btn-secondary {
-  @apply border border-dark-200 bg-white px-4 py-2 text-sm font-medium text-bnb-text
-    transition-colors hover:border-brand-400/50 hover:bg-dark-400 disabled:opacity-50 shadow-card rounded-xl;
+  @apply border border-dark-200 bg-dark-400 px-4 py-2 text-sm font-medium text-bnb-text
+    transition-colors hover:border-brand-500/30 hover:bg-dark-300 disabled:opacity-40 shadow-card rounded-xl;
 }
 
-/* ── Typography helpers ── */
+/* ── Typography ── */
 .font-data {
   font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
   font-variant-numeric: tabular-nums;
@@ -98,29 +96,26 @@ body {
   font-family: 'Syne', system-ui, sans-serif;
 }
 
-/* ── Live indicator ── */
+/* ── Live dot ── */
 .live-dot {
   position: relative;
   display: inline-flex;
-  width: 7px;
-  height: 7px;
+  width: 7px; height: 7px;
 }
 .live-dot::before {
   content: '';
-  position: absolute;
-  inset: 0;
+  position: absolute; inset: 0;
   border-radius: 50%;
-  background: #059669;
+  background: #34D399;
   animation: live-ping 1.6s ease-out infinite;
 }
 .live-dot::after {
   content: '';
   position: relative;
   display: inline-flex;
-  width: 7px;
-  height: 7px;
+  width: 7px; height: 7px;
   border-radius: 50%;
-  background: #059669;
+  background: #34D399;
 }
 
 @keyframes live-ping {
@@ -136,7 +131,7 @@ body {
 .fee-bar-segment {
   height: 100%;
   border-radius: 999px;
-  animation: bar-fill 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: bar-fill 0.7s cubic-bezier(0.22,0.61,0.36,1) forwards;
 }
 
 @keyframes bar-fill {
@@ -148,7 +143,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(229, 217, 203, 0.5);
+  background: rgba(53,47,40,0.6);
 }
 
 .loading-progress-bar {
@@ -156,8 +151,8 @@ body {
   inset: 0 auto 0 -35%;
   width: 35%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(240, 185, 11, 0) 0%, #f0b90b 45%, #fbbf24 100%);
-  animation: loading-progress-slide 1.35s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background: linear-gradient(90deg, rgba(240,185,11,0) 0%, #f0b90b 45%, #fbbf24 100%);
+  animation: loading-progress-slide 1.35s cubic-bezier(0.4,0,0.6,1) infinite;
 }
 
 @keyframes loading-progress-slide {
@@ -171,39 +166,44 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 .rank-1 { @apply bg-brand-500 text-stone-900; }
-.rank-2 { @apply bg-stone-200 text-stone-600; }
-.rank-3 { @apply bg-stone-100 text-stone-500; }
-.rank-n { @apply bg-white text-stone-400 border border-stone-200; }
+.rank-2 { @apply bg-dark-200 text-bnb-muted; }
+.rank-3 { @apply bg-dark-300 text-bnb-muted; }
+.rank-n { @apply bg-dark-400 text-dark-100 border border-dark-200; }
 
-/* ── Section header ── */
+/* ── Section label ── */
 .section-label {
   @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-bnb-muted;
 }
 
-/* ── Card hover ── */
+/* ── Card interactive ── */
 .card-interactive {
-  @apply cursor-pointer border border-dark-200 bg-white shadow-card rounded-2xl transition-all duration-200
-    hover:border-amber-300/70 hover:shadow-card-md;
+  @apply cursor-pointer border border-dark-200 bg-dark-300 shadow-card rounded-2xl transition-all duration-200
+    hover:border-brand-500/30 hover:shadow-card-md;
 }
 .card-interactive.selected {
-  @apply border-amber-300/80 bg-amber-50/40 shadow-card-active;
+  @apply border-brand-500/50 shadow-card-active;
+  background: rgba(240,185,11,0.06);
 }
 
-/* ── Stagger animation delays ── */
+/* ── Stagger delays ── */
 .stagger-1 { animation-delay: 0.05s; opacity: 0; animation-fill-mode: forwards; }
-.stagger-2 { animation-delay: 0.1s;  opacity: 0; animation-fill-mode: forwards; }
+.stagger-2 { animation-delay: 0.10s; opacity: 0; animation-fill-mode: forwards; }
 .stagger-3 { animation-delay: 0.15s; opacity: 0; animation-fill-mode: forwards; }
-.stagger-4 { animation-delay: 0.2s;  opacity: 0; animation-fill-mode: forwards; }
+.stagger-4 { animation-delay: 0.20s; opacity: 0; animation-fill-mode: forwards; }
 .stagger-5 { animation-delay: 0.25s; opacity: 0; animation-fill-mode: forwards; }
 
 /* ── Price bar ── */
 .price-bar-fill {
-  height: 100%;
-  border-radius: 1px;
-  animation: bar-fill 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  height: 100%; border-radius: 1px;
+  animation: bar-fill 0.6s cubic-bezier(0.22,0.61,0.36,1) forwards;
   background: linear-gradient(90deg, #f0b90b 0%, #fbbf24 100%);
 }
 
-/* ── Ticker price change ── */
+/* ── Price change ── */
 .price-up   { @apply text-bnb-green; }
 .price-down { @apply text-bnb-red; }
+
+/* ── Amount input glow on focus ── */
+.amount-input-glow:focus-within {
+  box-shadow: 0 0 0 1px rgba(240,185,11,0.3), 0 4px 20px rgba(240,185,11,0.08);
+}
