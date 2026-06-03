@@ -923,7 +923,10 @@ export function RouteExplorerPage() {
                       <div className="pb-4 flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-sm font-medium leading-tight">{c.label}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-medium leading-tight">{c.label}</span>
+                              {(() => { const cat = getFeeCategory(c.label); return cat ? <InfoTag color={cat.color}>{cat.label}</InfoTag> : null; })()}
+                            </div>
                             {c.amount_text && (
                               <div className="text-xs text-dark-100 mt-0.5">{c.amount_text}</div>
                             )}
@@ -1172,6 +1175,17 @@ function InfoTag({ color, children }: { color: TagColor; children: React.ReactNo
       {children}
     </span>
   );
+}
+
+function getFeeCategory(label: string): { label: string; color: TagColor } | null {
+  if (label.includes('스왑 수수료')) return { label: '스왑 수수료', color: 'green' };
+  if (label.includes('매수 수수료') || label.includes('매도 수수료') || label.includes('KRW 전환 수수료'))
+    return { label: '거래 수수료', color: 'blue' };
+  if (label.includes('출금 수수료') || label.includes('출금') || label.includes('전송 수수료'))
+    return { label: '출금 수수료', color: 'amber' };
+  if (label.includes('스프레드')) return { label: '전환 스프레드', color: 'neutral' };
+  if (label.includes('네트워크 수수료')) return { label: '네트워크 수수료', color: 'neutral' };
+  return null;
 }
 
 function RiskTag({ risk }: { risk: 'low' | 'med' | 'high' }) {
