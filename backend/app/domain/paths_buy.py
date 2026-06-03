@@ -8,6 +8,7 @@ from backend.app.domain.path_helpers import (
     _build_path_id,
     fee_component,
     is_suspended,
+    normalize_usdt_network,
     resolve_global_onchain_wd_fee,
 )
 from backend.app.domain.paths_context import SnapshotContext, build_snapshot_context
@@ -166,6 +167,7 @@ def _build_usdt_paths(
     global_onchain_wd_fee: float | None,
     global_onchain_wd_fee_krw: int,
     global_onchain_network_label: str | None,
+    global_usdt_nets: set[str] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """USDT 경유 경로와 disabled 경로 반환."""
     paths: list[dict] = []
@@ -183,6 +185,15 @@ def _build_usdt_paths(
 
     for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
         if not row.enabled or row.fee is None:
+            continue
+        # 글로벌 거래소가 해당 네트워크 USDT 입금을 지원하는지 확인
+        if global_usdt_nets and normalize_usdt_network(row.network_label) not in global_usdt_nets:
+            disabled_paths.append({
+                'korean_exchange': exchange,
+                'transfer_coin': 'USDT',
+                'network': row.network_label,
+                'reason': f'{global_exchange} USDT 입금 불가 네트워크',
+            })
             continue
         suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'USDT', row.network_label)
         if suspension_reason:
@@ -307,6 +318,13 @@ def find_cheapest_path_from_snapshot_rows(
         ctx.withdrawals_by_key, global_exchange, ctx.global_btc_price_usd, ctx.usd_krw_rate
     )
 
+    # 글로벌 거래소가 지원하는 USDT 네트워크 (한국 거래소 경로 필터링에 공유)
+    global_usdt_nets: set[str] = {
+        normalize_usdt_network(r.network_label)
+        for r in ctx.withdrawals_by_key.get((global_exchange, 'USDT'), [])
+        if r.enabled and r.fee is not None
+    }
+
     paths: list[dict] = []
     disabled_paths: list[dict] = []
 
@@ -319,6 +337,7 @@ def find_cheapest_path_from_snapshot_rows(
         p, d = _build_usdt_paths(
             exchange, ctx, amount_krw, global_exchange,
             global_onchain_wd_fee, global_onchain_wd_fee_krw, global_onchain_network_label,
+            global_usdt_nets=global_usdt_nets,
         )
         paths.extend(p)
         disabled_paths.extend(d)
@@ -367,6 +386,8 @@ def find_cheapest_path_from_snapshot_rows(
 
                 for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
                     if not row.enabled or row.fee is None:
+                        continue
+                    if global_usdt_nets and normalize_usdt_network(row.network_label) not in global_usdt_nets:
                         continue
                     suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'USDT', row.network_label)
                     if suspension_reason:

@@ -6,6 +6,38 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def normalize_usdt_network(label: str) -> str:
+    """네트워크 레이블을 정규화된 키로 변환 (거래소 간 매칭용).
+
+    예: 'Tron (TRC20)' → 'trc20', 'Ethereum (ERC20)' → 'erc20'
+    """
+    s = label.lower()
+    if 'trc20' in s or 'tron' in s:
+        return 'trc20'
+    if 'erc20' in s or 'ethereum' in s:
+        return 'erc20'
+    if 'bep20' in s or 'bsc' in s or 'bnb smart' in s:
+        return 'bep20'
+    if 'kaia' in s or 'klaytn' in s:
+        return 'kaia'
+    if 'solana' in s or s == 'sol':
+        return 'sol'
+    if 'arbitrum' in s or 'arbone' in s:
+        return 'arbitrum'
+    if 'polygon' in s or 'matic' in s:
+        return 'polygon'
+    if 'optimism' in s or 'opeth' in s:
+        return 'optimism'
+    if 'ton' == s or 'the open network' in s:
+        return 'ton'
+    if 'aptos' in s:
+        return 'aptos'
+    if 'avax' in s or 'avalanche' in s:
+        return 'avax'
+    # fallback: strip whitespace/parens
+    return s.replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
+
+
 def build_ticker_by_exchange(ticker_rows: list, korea_exchanges: list) -> dict:
     """한국 거래소별 spot KRW 티커 행을 딕셔너리로 반환."""
     return {
