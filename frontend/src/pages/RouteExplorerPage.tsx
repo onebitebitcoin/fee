@@ -631,7 +631,7 @@ export function RouteExplorerPage() {
                     >
                       <Icon className={`w-4 h-4 transition-colors ${preference === id ? 'text-brand-600' : 'text-slate-400'}`} />
                       <div className={`text-xs font-semibold mt-1.5 ${preference === id ? 'text-brand-700' : 'text-bnb-text'}`}>{label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
                     </button>
                   ))}
                 </div>
@@ -1517,7 +1517,6 @@ interface CartBannerProps {
   selectedCoin: string | null;
   selectedGlobal: string | null;
   selectedNetwork: string | null;
-  selectedExitMode: string | null;
   liveCartPath: CheapestPathEntry | null;
   isResult: boolean;
 }
@@ -1789,13 +1788,14 @@ function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
   );
 }
 
-type TagColor = 'amber' | 'blue' | 'green' | 'red' | 'neutral';
+type TagColor = 'amber' | 'blue' | 'green' | 'red' | 'neutral' | 'yellow';
 const TAG_CLS: Record<TagColor, string> = {
   amber:   'bg-amber-50 text-amber-700 border-amber-200',
   blue:    'bg-blue-50 text-blue-700 border-blue-200',
   green:   'bg-emerald-50 text-emerald-700 border-emerald-200',
   red:     'bg-red-50 text-red-700 border-red-200',
   neutral: 'bg-slate-100 text-slate-600 border-slate-200',
+  yellow:  'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 function InfoTag({ color, children }: { color: TagColor; children: React.ReactNode }) {
@@ -1838,15 +1838,6 @@ function RiskTag({ risk }: { risk: 'low' | 'med' | 'high' }) {
   );
 }
 
-type RouteTagColor = 'amber' | 'blue' | 'green' | 'yellow' | 'neutral';
-const ROUTE_TAG_CLS: Record<RouteTagColor, string> = {
-  amber:   'bg-amber-50 text-amber-700 border-amber-200',
-  blue:    'bg-blue-50 text-blue-700 border-blue-200',
-  green:   'bg-emerald-50 text-emerald-700 border-emerald-200',
-  yellow:  'bg-amber-50 text-amber-700 border-amber-200',
-  neutral: 'bg-slate-100 text-slate-600 border-slate-200',
-};
-
 function RouteNode({
   label,
   tags,
@@ -1857,7 +1848,7 @@ function RouteNode({
 }: {
   label: string;
   tags?: string[];
-  tagColor?: RouteTagColor;
+  tagColor?: TagColor;
   icon?: React.ReactNode;
   isEnd?: boolean;
   endValue?: string;
@@ -1878,7 +1869,7 @@ function RouteNode({
             {tags.map((t, i) => (
               <span
                 key={i}
-                className={`inline-flex text-[10px] px-1 py-0.5 rounded border ${ROUTE_TAG_CLS[tagColor ?? 'neutral']}`}
+                className={`inline-flex text-[10px] px-1 py-0.5 rounded border ${TAG_CLS[tagColor ?? 'neutral']}`}
               >
                 {t}
               </span>
