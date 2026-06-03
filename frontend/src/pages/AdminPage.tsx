@@ -65,7 +65,18 @@ function EditCell({
   );
 }
 
-// ── Korean Exchange Table ──────────────────────────────────────────────────────
+// ── Field row used in cards ────────────────────────────────────────────────────
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+      <span className="text-xs text-slate-500 flex-shrink-0 mt-0.5 w-28">{label}</span>
+      <div className="flex-1 text-right">{children}</div>
+    </div>
+  );
+}
+
+// ── Korean Exchange Table (PC) + Cards (Mobile) ───────────────────────────────
 
 function KoreanExchangeTable({
   nodes,
@@ -75,74 +86,56 @@ function KoreanExchangeTable({
   onChange: (nodes: KoreanExchangeNode[]) => void;
 }) {
   function update(idx: number, patch: Partial<KoreanExchangeNode>) {
-    const next = nodes.map((n, i) => i === idx ? { ...n, ...patch } : n);
-    onChange(next);
+    onChange(nodes.map((n, i) => i === idx ? { ...n, ...patch } : n));
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
-        <thead>
-          <tr className="border-b border-dark-200">
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">거래소</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">거래 수수료 (%)</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">1회 KRW 출금 제한</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">일일 BTC 한도 (인증)</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">개인지갑 요건</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          {nodes.map((node, i) => (
-            <tr key={node.id} className="border-b border-dark-200/50 hover:bg-dark-400/40">
-              <td className="py-2.5 px-3 font-semibold text-bnb-text">{node.name}</td>
-              <td className="py-2.5 px-3">
-                <EditCell
-                  value={node.takerFeePct}
-                  type="number"
-                  onSave={v => update(i, { takerFeePct: Number(v) })}
-                />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell
-                  value={node.perTxKrwLimit}
-                  type="number"
-                  nullable
-                  onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })}
-                />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell
-                  value={node.dailyBtcLimitVerified}
-                  type="number"
-                  nullable
-                  onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })}
-                />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell
-                  value={node.personalWalletNote}
-                  onSave={v => update(i, { personalWalletNote: String(v ?? '') })}
-                />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell
-                  value={node.notes}
-                  onSave={v => update(i, { notes: String(v ?? '') })}
-                />
-              </td>
+    <>
+      {/* PC: table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-slate-200">
+              {['거래소', '거래 수수료 (%)', '1회 KRW 제한', '일일 BTC 한도', '개인지갑 요건', '비고'].map(h => (
+                <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium">{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-[10px] text-bnb-muted mt-2 px-3">
-        ⚠️ 공개 정보 기준 추정치. 실제 한도는 각 거래소 확인 필요. 1회 KRW 제한이 없으면 "없음"으로 표시.
-      </p>
-    </div>
+          </thead>
+          <tbody>
+            {nodes.map((node, i) => (
+              <tr key={node.id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="py-2.5 px-3 font-semibold text-bnb-text">{node.name}</td>
+                <td className="py-2.5 px-3"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.perTxKrwLimit} type="number" nullable onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.dailyBtcLimitVerified} type="number" nullable onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.personalWalletNote} onSave={v => update(i, { personalWalletNote: String(v ?? '') })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-[10px] text-slate-400 mt-2 px-3">공개 정보 기준 추정치. 실제 한도는 각 거래소 확인 필요.</p>
+      </div>
+
+      {/* Mobile: cards */}
+      <div className="md:hidden space-y-3">
+        {nodes.map((node, i) => (
+          <div key={node.id} className="rounded-xl border border-slate-200 bg-white shadow-card p-4">
+            <p className="font-semibold text-sm text-bnb-text mb-3">{node.name}</p>
+            <FieldRow label="거래 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
+            <FieldRow label="1회 KRW 제한"><EditCell value={node.perTxKrwLimit} type="number" nullable onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })} /></FieldRow>
+            <FieldRow label="일일 BTC 한도"><EditCell value={node.dailyBtcLimitVerified} type="number" nullable onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })} /></FieldRow>
+            <FieldRow label="개인지갑 요건"><EditCell value={node.personalWalletNote} onSave={v => update(i, { personalWalletNote: String(v ?? '') })} /></FieldRow>
+            <FieldRow label="비고"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></FieldRow>
+          </div>
+        ))}
+        <p className="text-[11px] text-slate-400 px-1">공개 정보 기준 추정치. 실제 한도는 각 거래소 확인 필요.</p>
+      </div>
+    </>
   );
 }
 
-// ── Global Exchange Table ──────────────────────────────────────────────────────
+// ── Global Exchange Table (PC) + Cards (Mobile) ───────────────────────────────
 
 function GlobalExchangeTable({
   nodes,
@@ -152,145 +145,134 @@ function GlobalExchangeTable({
   onChange: (nodes: GlobalExchangeNode[]) => void;
 }) {
   function update(idx: number, patch: Partial<GlobalExchangeNode>) {
-    const next = nodes.map((n, i) => i === idx ? { ...n, ...patch } : n);
-    onChange(next);
+    onChange(nodes.map((n, i) => i === idx ? { ...n, ...patch } : n));
   }
 
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
-        <thead>
-          <tr className="border-b border-dark-200">
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">거래소</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">국가</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">CARF 연도</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">Taker 수수료 (%)</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">FATCA</th>
-            <th className="text-left py-2 px-3 text-bnb-muted font-medium">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          {nodes.map((node, i) => (
-            <tr key={node.id} className="border-b border-dark-200/50 hover:bg-dark-400/40">
-              <td className="py-2.5 px-3 font-semibold text-bnb-text">{node.name}</td>
-              <td className="py-2.5 px-3">
-                <EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} />
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} />
-              </td>
-              <td className="py-2.5 px-3">
-                <button
-                  onClick={() => update(i, { fatca: !node.fatca })}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${node.fatca ? 'bg-bnb-red/15 text-bnb-red border-bnb-red/30' : 'bg-dark-200 text-bnb-muted border-dark-100'}`}
-                >
-                  {node.fatca ? '대상' : '비대상'}
-                </button>
-              </td>
-              <td className="py-2.5 px-3">
-                <EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+  const FatcaBtn = ({ node, i }: { node: GlobalExchangeNode; i: number }) => (
+    <button
+      onClick={() => update(i, { fatca: !node.fatca })}
+      className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${node.fatca ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+    >
+      {node.fatca ? '대상' : '비대상'}
+    </button>
   );
-}
 
-// ── Route Edge Properties (read-only info) ────────────────────────────────────
-
-function EdgePropertiesSection() {
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-bnb-muted">
-        출금 엣지(Transfer Edge)의 수수료는 실시간 크롤링 데이터에서 가져옵니다.
-        <br />아래는 각 엣지 유형의 속성 정의입니다.
-      </p>
-      <div className="grid gap-3">
-        {[
-          {
-            title: '국내 USDT 출금 엣지',
-            color: 'blue',
-            props: [
-              { name: 'fee', desc: '출금 수수료 (USDT 단위)', source: '크롤링' },
-              { name: 'network', desc: '전송 네트워크 (TRC20, ERC20 등)', source: '크롤링' },
-              { name: 'min_withdrawal', desc: '최소 출금량', source: '크롤링' },
-              { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
-            ],
-          },
-          {
-            title: '국내 BTC 출금 엣지 (개인 지갑)',
-            color: 'amber',
-            props: [
-              { name: 'fee', desc: '출금 수수료 (BTC 단위)', source: '크롤링' },
-              { name: 'network', desc: '전송 네트워크 (Bitcoin, Lightning 등)', source: '크롤링' },
-              { name: 'perTxKrwLimit', desc: '1회 KRW 출금 제한', source: '어드민 설정' },
-              { name: 'dailyBtcLimit', desc: '일일 BTC 출금 한도', source: '어드민 설정' },
-              { name: 'personalWalletNote', desc: '개인 지갑 등록 요건', source: '어드민 설정' },
-            ],
-          },
-          {
-            title: '국내 BTC → 해외거래소 경유 엣지',
-            color: 'green',
-            props: [
-              { name: 'koreanFee', desc: '국내 BTC 출금 수수료', source: '크롤링' },
-              { name: 'globalFee', desc: '해외 거래소 BTC 재출금 수수료', source: '크롤링' },
-              { name: 'perTxLimit', desc: '개인 지갑 1회 KRW 제한 없음 (거래소 주소)', source: '규정' },
-              { name: 'note', desc: '해외 거래소 BTC 입금 후 개인 지갑으로 재출금 필요', source: '-' },
-            ],
-          },
-          {
-            title: '해외 BTC 출금 엣지 (개인 지갑)',
-            color: 'neutral',
-            props: [
-              { name: 'fee', desc: '출금 수수료 (BTC 단위)', source: '크롤링' },
-              { name: 'network', desc: '전송 네트워크', source: '크롤링' },
-              { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
-            ],
-          },
-        ].map(section => (
-          <div key={section.title} className="rounded-lg border border-dark-200 bg-dark-400/50 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`w-2 h-2 rounded-full ${
-                section.color === 'blue' ? 'bg-blue-400' :
-                section.color === 'amber' ? 'bg-brand-400' :
-                section.color === 'green' ? 'bg-bnb-green' : 'bg-bnb-muted'
-              }`} />
-              <span className="text-xs font-semibold text-bnb-text">{section.title}</span>
-            </div>
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="text-bnb-muted">
-                  <th className="text-left py-1 pr-4 font-medium">속성명</th>
-                  <th className="text-left py-1 pr-4 font-medium">설명</th>
-                  <th className="text-left py-1 font-medium">데이터 소스</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.props.map(p => (
-                  <tr key={p.name} className="border-t border-dark-200/30">
-                    <td className="py-1 pr-4 font-mono text-brand-400/80">{p.name}</td>
-                    <td className="py-1 pr-4 text-bnb-muted">{p.desc}</td>
-                    <td className="py-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                        p.source === '크롤링' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                        p.source === '어드민 설정' ? 'bg-brand-500/10 text-brand-400 border-brand-500/20' :
-                        'bg-dark-200 text-bnb-muted border-dark-100'
-                      }`}>
-                        {p.source}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <>
+      {/* PC: table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-slate-200">
+              {['거래소', '국가', 'CARF 연도', 'Taker 수수료 (%)', 'FATCA', '비고'].map(h => (
+                <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node, i) => (
+              <tr key={node.id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="py-2.5 px-3 font-semibold text-bnb-text">{node.name}</td>
+                <td className="py-2.5 px-3"><EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></td>
+                <td className="py-2.5 px-3"><FatcaBtn node={node} i={i} /></td>
+                <td className="py-2.5 px-3"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: cards */}
+      <div className="md:hidden space-y-3">
+        {nodes.map((node, i) => (
+          <div key={node.id} className="rounded-xl border border-slate-200 bg-white shadow-card p-4">
+            <p className="font-semibold text-sm text-bnb-text mb-3">{node.name}</p>
+            <FieldRow label="국가"><EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} /></FieldRow>
+            <FieldRow label="CARF 연도"><EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} /></FieldRow>
+            <FieldRow label="Taker 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
+            <FieldRow label="FATCA"><FatcaBtn node={node} i={i} /></FieldRow>
+            <FieldRow label="비고"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></FieldRow>
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+// ── Edge Properties Cards ──────────────────────────────────────────────────────
+
+function EdgePropertiesSection() {
+  const sourceCls = (s: string) =>
+    s === '크롤링'    ? 'bg-blue-50 text-blue-700 border-blue-200' :
+    s === '어드민 설정' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                         'bg-slate-100 text-slate-500 border-slate-200';
+
+  const sections = [
+    {
+      title: '국내 USDT 출금 엣지', color: 'blue',
+      props: [
+        { name: 'fee', desc: '출금 수수료 (USDT)', source: '크롤링' },
+        { name: 'network', desc: 'TRC20, ERC20 등', source: '크롤링' },
+        { name: 'min_withdrawal', desc: '최소 출금량', source: '크롤링' },
+        { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
+      ],
+    },
+    {
+      title: '국내 BTC 출금 엣지 (개인 지갑)', color: 'amber',
+      props: [
+        { name: 'fee', desc: '출금 수수료 (BTC)', source: '크롤링' },
+        { name: 'network', desc: 'Bitcoin, Lightning 등', source: '크롤링' },
+        { name: 'perTxKrwLimit', desc: '1회 KRW 출금 제한', source: '어드민 설정' },
+        { name: 'dailyBtcLimit', desc: '일일 BTC 한도', source: '어드민 설정' },
+      ],
+    },
+    {
+      title: '국내 BTC → 해외 경유 엣지', color: 'green',
+      props: [
+        { name: 'koreanFee', desc: '국내 BTC 출금 수수료', source: '크롤링' },
+        { name: 'globalFee', desc: '해외 BTC 재출금 수수료', source: '크롤링' },
+        { name: 'perTxLimit', desc: '1회 KRW 제한 없음 (거래소 주소)', source: '규정' },
+      ],
+    },
+    {
+      title: '해외 BTC 출금 엣지', color: 'neutral',
+      props: [
+        { name: 'fee', desc: '출금 수수료 (BTC)', source: '크롤링' },
+        { name: 'network', desc: '전송 네트워크', source: '크롤링' },
+        { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
+      ],
+    },
+  ];
+
+  const dotCls = (c: string) =>
+    c === 'blue' ? 'bg-blue-500' : c === 'amber' ? 'bg-amber-500' : c === 'green' ? 'bg-emerald-500' : 'bg-slate-400';
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500">수수료는 실시간 크롤 데이터. 아래는 각 엣지 속성 정의입니다.</p>
+      {sections.map(sec => (
+        <div key={sec.title} className="rounded-xl border border-slate-200 bg-white shadow-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotCls(sec.color)}`} />
+            <span className="text-xs font-semibold text-bnb-text">{sec.title}</span>
+          </div>
+          <div className="space-y-2">
+            {sec.props.map(p => (
+              <div key={p.name} className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-mono text-brand-700 block">{p.name}</span>
+                  <span className="text-[11px] text-slate-500">{p.desc}</span>
+                </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${sourceCls(p.source)}`}>
+                  {p.source}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
