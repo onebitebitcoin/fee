@@ -1,14 +1,16 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowDown, ArrowRight, ArrowsClockwise, Coin,
   CurrencyDollar, EyeSlash, Globe, Lightning, MapPin,
-  ShieldCheck, TrendDown, Trophy,
+  ShieldCheck, TrendDown, Trophy, GearSix,
 } from '@phosphor-icons/react';
 
 import { api } from '../lib/api';
 import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
 import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
+import { getKoreanNode } from '../lib/adminSettings';
 import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerRow } from '../types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -16,7 +18,7 @@ import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerR
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 type Phase = 'input' | 'loading' | 'domestic' | 'coin' | 'global' | 'network' | 'trade_method' | 'exit_mode' | 'swap_service' | 'result';
-type CoinType = 'USDT' | 'BTC';
+type CoinType = 'USDT' | 'BTC' | 'BTC_VIA';
 type TradeMethod = 'usdt_taker' | 'fdusd_maker';
 type ExitMode = 'onchain' | 'lightning';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
@@ -95,6 +97,7 @@ function fmtTime(ts: number | null): string {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function RouteExplorerPage() {
+  const navigate = useNavigate();
   const [phase, setPhase]                             = useState<Phase>('input');
   const [amountInput, setAmountInput]                 = useState('100');
   const [amountUnit, setAmountUnit]                   = useState<'만원' | '억원'>('만원');
@@ -215,16 +218,19 @@ export function RouteExplorerPage() {
     const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
     const usdtBest = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
     const btcBest  = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC'));
-    if (usdtBest) opts.push({ coin: 'USDT', best: usdtBest });
-    if (btcBest)  opts.push({ coin: 'BTC',  best: btcBest  });
+    if (usdtBest) opts.push({ coin: 'USDT',    best: usdtBest });
+    if (btcBest)  opts.push({ coin: 'BTC',     best: btcBest  });
+    if (btcBest)  opts.push({ coin: 'BTC_VIA', best: btcBest  }); // 해외 경유: Korean fees same, global BTC wd added
     return opts;
   }, [allData, selectedDomestic]);
 
   const globalOptions = useMemo(() => {
-    if (!allData || !selectedDomestic || selectedCoin !== 'USDT') return [];
+    if (!allData || !selectedDomestic) return [];
+    if (selectedCoin !== 'USDT' && selectedCoin !== 'BTC_VIA') return [];
     return GLOBAL_EXCHANGES.map(g => {
+      const coin = selectedCoin === 'USDT' ? 'USDT' : 'BTC';
       const paths = (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
-        p.korean_exchange === selectedDomestic && p.transfer_coin === 'USDT',
+        p.korean_exchange === selectedDomestic && p.transfer_coin === coin,
       );
       const best = bestByBtc(paths);
       if (!best) return null;
@@ -393,6 +399,8 @@ export function RouteExplorerPage() {
     setSelectedCoin(coin);
     setSelectedGlobal(null); setSelectedNetwork(null);
     setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null);
+    // BTC 직접: 네트워크 선택 → 결과
+    // BTC_VIA (해외 경유) + USDT: 해외 거래소 선택
     setPhase(coin === 'BTC' ? 'network' : 'global');
   }
 
@@ -407,6 +415,10 @@ export function RouteExplorerPage() {
     setSelectedNetwork(network);
     setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null);
     if (selectedCoin === 'BTC') {
+      setSelectedExitMode('onchain');
+      setPhase('result');
+    } else if (selectedCoin === 'BTC_VIA') {
+      // BTC 해외 경유: trade method 없이 바로 exit_mode
       setSelectedExitMode('onchain');
       setPhase('result');
     } else {
@@ -476,15 +488,24 @@ export function RouteExplorerPage() {
             <Coin className="w-5 h-5 text-brand-500" weight="fill" />
             <span className="font-semibold text-sm tracking-tight">BTC 출금 경로 탐색</span>
           </div>
-          {allData && (
+          <div className="flex items-center gap-3">
+            {allData && (
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
+              >
+                <ArrowsClockwise className="w-3.5 h-3.5" />
+                <span>초기화</span>
+              </button>
+            )}
             <button
-              onClick={handleReset}
-              className="flex items-center gap-1.5 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-1 text-xs text-bnb-muted hover:text-bnb-text transition-colors"
+              title="관리자 설정"
             >
-              <ArrowsClockwise className="w-3.5 h-3.5" />
-              <span>초기화</span>
+              <GearSix className="w-3.5 h-3.5" />
             </button>
-          )}
+          </div>
         </div>
 
         {/* Breadcrumb — full-width scroll on mobile, hidden scrollbar */}
@@ -669,39 +690,78 @@ export function RouteExplorerPage() {
           </StepCard>
         )}
 
-        {/* Step 2: 출금 코인 */}
+        {/* Step 2: 출금 코인 (3가지 경로) */}
         {showSteps && (isPast('domestic') || isActive('coin') || isPast('coin')) && (
           <StepCard dimmed={!isActive('coin') && !isPast('coin')} active={isActive('coin')} animate>
             <StepHeader
               icon={<Coin className="w-3.5 h-3.5" />}
-              label="2. 국내 출금 코인"
+              label="2. 출금 경로 선택"
               done={isPast('coin')}
             />
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {coinOptions.map(({ coin, best }) => (
-                <ChoiceBtn
-                  key={coin}
-                  selected={selectedCoin === coin}
-                  onClick={() => handleCoinSelect(coin)}
-                >
-                  <div className="flex items-center gap-1.5 font-semibold text-sm">
-                    {coin === 'USDT'
-                      ? <><CurrencyDollar className="w-3.5 h-3.5 text-green-400 flex-shrink-0" weight="bold" /><span>USDT</span></>
-                      : <><Coin className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" weight="fill" /><span>BTC</span></>
-                    }
-                  </div>
-                  <div className="text-xs text-bnb-muted mt-0.5">
-                    {coin === 'USDT' ? '해외 거래소 경유' : '직접 온체인 출금'}
-                  </div>
-                  <FeeTag path={best} />
-                </ChoiceBtn>
-              ))}
+            <div className="space-y-2 mt-3">
+              {coinOptions.map(({ coin, best }) => {
+                const domNode = selectedDomestic ? getKoreanNode(selectedDomestic) : null;
+                const perTxLimit = domNode?.perTxKrwLimit ?? null;
+                return (
+                  <ChoiceBtn
+                    key={coin}
+                    selected={selectedCoin === coin}
+                    onClick={() => handleCoinSelect(coin)}
+                    horizontal
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {coin === 'USDT' && (
+                          <><CurrencyDollar className="w-3.5 h-3.5 text-green-400 flex-shrink-0" weight="bold" />
+                          <span className="font-semibold text-sm">USDT 경유</span></>
+                        )}
+                        {coin === 'BTC' && (
+                          <><Coin className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" weight="fill" />
+                          <span className="font-semibold text-sm">BTC 직접 출금</span></>
+                        )}
+                        {coin === 'BTC_VIA' && (
+                          <><Coin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" weight="fill" />
+                          <span className="font-semibold text-sm">BTC → 해외거래소 경유</span></>
+                        )}
+                      </div>
+                      <div className="text-xs text-bnb-muted mt-0.5">
+                        {coin === 'USDT' && 'USDT 출금 → 해외 거래소 BTC 매수 → 개인 지갑'}
+                        {coin === 'BTC' && '한국 거래소 BTC 출금 → 개인 지갑 (직접)'}
+                        {coin === 'BTC_VIA' && 'BTC 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        {coin === 'BTC' && perTxLimit != null && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-bnb-red/10 text-bnb-red border-bnb-red/30">
+                            1회 {(perTxLimit / 10000).toFixed(0)}만원 제한
+                          </span>
+                        )}
+                        {coin === 'BTC' && perTxLimit == null && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-dark-200 text-bnb-muted border-dark-100">
+                            1회 출금 제한 확인 필요
+                          </span>
+                        )}
+                        {coin === 'BTC_VIA' && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            1회 제한 없음 (거래소 주소)
+                          </span>
+                        )}
+                        {coin === 'BTC_VIA' && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-dark-200 text-bnb-muted border-dark-100">
+                            해외 출금 수수료 추가
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <FeeTag path={best} align="right" />
+                  </ChoiceBtn>
+                );
+              })}
             </div>
           </StepCard>
         )}
 
         {/* Step 3: 해외 거래소 (USDT only) */}
-        {showSteps && selectedCoin === 'USDT' && (isPast('coin') || isActive('global') || isPast('global')) && (
+        {showSteps && (selectedCoin === 'USDT' || selectedCoin === 'BTC_VIA') && (isPast('coin') || isActive('global') || isPast('global')) && (
           <StepCard dimmed={!isActive('global') && !isPast('global')} active={isActive('global')} animate>
             <StepHeader
               icon={<Globe className="w-3.5 h-3.5" />}
