@@ -1191,58 +1191,63 @@ export default function ExplorerPage() {
                   {formatNumber(displaySats)}
                 </p>
                 <p className="text-sm text-label-secondary mt-1 num relative z-10">sats</p>
-                {domesticBtcKrw != null && resultPath.btc_received != null && (
-                  <p className="text-xs text-label-tertiary mt-1 num relative z-10">
-                    ≈ ₩{formatNumber(Math.round(resultPath.btc_received * domesticBtcKrw))}
-                  </p>
-                )}
-
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
                   const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
-                  const kimpKrw = kimchi != null ? Math.round(amountKrw * (kimchi / 100) / (1 + kimchi / 100)) : null;
-                  const totalImpact = kimpKrw != null ? resultPath.total_fee_krw + kimpKrw : null;
+                  const satsKrw = domesticBtcKrw != null && resultPath.btc_received != null
+                    ? Math.round(resultPath.btc_received * domesticBtcKrw)
+                    : null;
+                  const krwPnL = satsKrw != null ? satsKrw - amountKrw : null;
+
+                  const globalBtcKrw = domesticBtcKrw != null && kimchi != null
+                    ? domesticBtcKrw / (1 + kimchi / 100)
+                    : null;
+                  const satsGlobalKrw = globalBtcKrw != null && resultPath.btc_received != null
+                    ? Math.round(resultPath.btc_received * globalBtcKrw)
+                    : null;
+                  const globalPnL = satsGlobalKrw != null ? satsGlobalKrw - amountKrw : null;
+
                   return (
-                    <div className="flex justify-center gap-4 relative z-10 flex-wrap">
-                      <div className="text-center">
-                        <p className="text-[11px] text-label-tertiary">수수료</p>
-                        <p className="text-lg font-bold text-acc-red num mt-0.5">
-                          -{formatFeeKrw(resultPath.total_fee_krw)}
-                        </p>
-                        <p className="text-[11px] text-label-tertiary num">{formatPercent(resultPath.fee_pct)}</p>
-                      </div>
-                      {kimpKrw != null && totalImpact != null && (
-                        <>
-                          <div className="w-px bg-sys-separator" />
-                          <div className="text-center">
-                            <p className="text-[11px] text-label-tertiary">김치 프리미엄</p>
-                            <p className={`text-lg font-bold num mt-0.5 ${kimchi! > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                              {kimchi! > 0 ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}
-                            </p>
-                            <p className={`text-[11px] font-semibold num ${kimchi! > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                              {kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%
-                            </p>
-                          </div>
-                          <div className="w-px bg-sys-separator" />
-                          <div className="text-center">
-                            <p className="text-[11px] text-label-tertiary">합계</p>
-                            <p className={`text-lg font-bold num mt-0.5 ${totalImpact >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                              {totalImpact >= 0 ? '-' : '+'}{formatFeeKrw(Math.abs(totalImpact))}
-                            </p>
-                            <p className={`text-[11px] num ${totalImpact >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                              {(Math.abs(totalImpact) / amountKrw * 100).toFixed(2)}%
-                            </p>
-                          </div>
-                        </>
+                    <div className="space-y-2 relative z-10 w-full">
+                      {krwPnL != null ? (
+                        <div className="ios-card rounded-2xl px-4 py-3 text-left">
+                          <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">국내 원화 기준</p>
+                          <p className="text-xs text-label-secondary leading-relaxed">
+                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 투자하면 받은 BTC 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
+                          </p>
+                          <p className={`text-sm font-bold num mt-1 ${krwPnL < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                            {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '손해' : '이득'}
+                            <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(krwPnL) / amountKrw * 100).toFixed(2)}%)</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="ios-card rounded-2xl px-4 py-3 text-left">
+                          <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">수수료</p>
+                          <p className="text-sm font-bold text-acc-red num">
+                            -{formatFeeKrw(resultPath.total_fee_krw)}
+                            <span className="text-[11px] font-normal ml-1.5 opacity-70">({formatPercent(resultPath.fee_pct)})</span>
+                          </p>
+                        </div>
                       )}
-                      <div className="w-px bg-sys-separator" />
-                      <div className="text-center">
-                        <p className="text-[11px] text-label-tertiary">투자금</p>
-                        <p className="text-lg font-bold text-label-primary num mt-0.5">
-                          ₩{amountKrw.toLocaleString('ko-KR')}
-                        </p>
-                      </div>
+
+                      {globalPnL != null && (
+                        <div className="ios-card rounded-2xl px-4 py-3 text-left">
+                          <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
+                            글로벌 시세 기준
+                            <span className="ml-1.5 normal-case font-normal">
+                              (김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span>)
+                            </span>
+                          </p>
+                          <p className="text-xs text-label-secondary leading-relaxed">
+                            같은 BTC를 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
+                          </p>
+                          <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
+                            {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '이득' : '손해'}
+                            <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
