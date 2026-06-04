@@ -716,7 +716,6 @@ export function RouteExplorerPage() {
                                   <span className="font-semibold text-sm">{fmtEx(exchange)}</span>
                                   {exchange === recDomestic && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
-                                <div className="text-xs text-bnb-muted font-data mt-0.5">{formatSats(bestBtc)}</div>
                                 {takerFee != null && <div className="text-xs text-bnb-muted mt-0.5">수수료 {takerFee.toFixed(2)}%</div>}
                                 {vol?.volume_24h_usd != null && <div className="text-[10px] text-bnb-muted mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>}
                                 {kimchi != null && (
@@ -1703,8 +1702,7 @@ function ChoiceBtn({
 function FeeTag({ path, align }: { path: CheapestPathEntry; align?: 'right' }) {
   return (
     <div className={`flex-shrink-0 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className="font-bold text-sm font-data text-bnb-text">{formatSats(path.btc_received ?? 0)}</div>
-      <div className="text-xs text-bnb-muted">수수료 {formatPercent(path.fee_pct)}</div>
+      <div className="text-sm font-data font-semibold text-bnb-muted">수수료 {formatPercent(path.fee_pct)}</div>
     </div>
   );
 }
