@@ -363,7 +363,7 @@ export default function ExplorerPage() {
     const paths = (anyData?.all_paths ?? []).filter(p => p.korean_exchange === domestic);
     const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
     const u  = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
-    const b  = bestByBtc(paths.filter(p => p.route_variant === 'btc_direct'));
+    const b  = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'));
     const bg = bestByBtc(paths.filter(p => p.route_variant === 'btc_via_global'));
     if (u)  opts.push({ coin: 'USDT',       best: u });
     if (b)  opts.push({ coin: 'BTC',         best: b });
@@ -392,7 +392,7 @@ export default function ExplorerPage() {
     let paths: CheapestPathEntry[];
     if (coin === 'BTC') {
       paths = (Object.values(allData.byGlobal)[0]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.route_variant === 'btc_direct');
+        .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global');
     } else if (coin === 'BTC_GLOBAL') {
       if (!global) return [];
       paths = (allData.byGlobal[global]?.all_paths ?? [])
@@ -417,7 +417,7 @@ export default function ExplorerPage() {
     if (coin === 'BTC_GLOBAL') return [];
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.route_variant === 'btc_direct' && p.network === network)
+          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
       : global
         ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
             p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
@@ -445,7 +445,7 @@ export default function ExplorerPage() {
     if (!allData || !domestic || !coin || !network) return null;
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.route_variant === 'btc_direct' && p.network === network)
+          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
       : coin === 'BTC_GLOBAL'
         ? global
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
