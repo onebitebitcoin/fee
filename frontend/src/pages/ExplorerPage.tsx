@@ -14,7 +14,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'network' | 'swap_service' | 'result';
+type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'global_gate' | 'network' | 'swap_service' | 'result';
 type CoinType = 'USDT' | 'BTC';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
@@ -27,7 +27,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'network', 'swap_service', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'network', 'swap_service', 'result'];
 
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
@@ -438,7 +438,7 @@ export default function ExplorerPage() {
     if (coin === 'BTC') {
       s.push('btc_method');
     } else {
-      s.push('global', 'network');
+      s.push('global', 'global_gate', 'network');
       if (swapServiceOptions.length > 0) s.push('swap_service');
     }
     s.push('result');
@@ -487,7 +487,8 @@ export default function ExplorerPage() {
       coin:          'domestic_gate',
       btc_method:    'coin',
       global:        'coin',
-      network:       'global',
+      global_gate:   'global',
+      network:       'global_gate',
       swap_service:  'network',
       result:        coin === 'BTC' ? 'btc_method' : swapSvc ? 'swap_service' : 'network',
     };
@@ -988,24 +989,46 @@ export default function ExplorerPage() {
                 );
               })()}
               {global && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  transition={SPRING_FAST} className="space-y-3">
-                  <GatemanPanel
-                    gates={getGlobalGates(global, liveRegistry?.global)}
-                    title={`${fmtEx(global)} 입출금 통과 조건`}
-                  />
-                  <motion.button
-                    onClick={() => setPhase('network')}
-                    className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    확인 후 다음 <ArrowRight className="w-4 h-4" />
-                  </motion.button>
-                </motion.div>
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('global_gate')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
               )}
             </motion.div>
           )}
 
           {/* ── Network ── */}
+          {/* ── Global Gate ── */}
+          {phase === 'global_gate' && global && (
+            <motion.div key="global_gate" variants={variants} initial="enter" animate="center" exit="exit"
+              transition={SPRING_SLOW} className="space-y-4 pt-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <ExFavicon id={global} size={16} />
+                  <p className="text-xs text-label-secondary">{fmtEx(global)}</p>
+                </div>
+                <h1 className="text-2xl font-bold text-label-primary tracking-tight">입출금 통과 조건</h1>
+                <p className="text-sm text-label-secondary mt-1">이 거래소 이용 전 확인이 필요해요</p>
+              </div>
+              <GatemanPanel
+                gates={getGlobalGates(global, liveRegistry?.global)}
+                title={`${fmtEx(global)} 입출금 조건`}
+              />
+              <motion.button
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={SPRING_FAST}
+                onClick={() => setPhase('network')}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+              >
+                확인 후 다음 <ArrowRight className="w-4 h-4" />
+              </motion.button>
+            </motion.div>
+          )}
+
           {phase === 'network' && (
             <motion.div key="network" variants={variants} initial="enter" animate="center" exit="exit"
               transition={SPRING_SLOW} className="space-y-4 pt-2">
@@ -1154,25 +1177,60 @@ export default function ExplorerPage() {
                 </div>
               </motion.div>
 
-              {/* Route breakdown */}
+              {/* Route path visualization */}
               <div>
-                <SectionLabel>경로 상세</SectionLabel>
-                <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
-                  {([
-                    { label: '출발', value: fmtEx(resultPath.korean_exchange), icon: <ExFavicon id={resultPath.korean_exchange} size={16} /> },
-                    { label: '코인', value: resultPath.transfer_coin },
-                    ...(global ? [{ label: '경유', value: fmtEx(global), icon: <ExFavicon id={global} size={16} /> }] : []),
-                    { label: '네트워크', value: resultPath.network },
-                    { label: '출금 방식', value: resultPath.global_exit_mode === 'lightning' ? '⚡ Lightning' : '온체인' },
-                  ]).map(({ label, value, icon }) => (
-                    <div key={label} className="flex items-center justify-between px-4 py-3">
-                      <p className="text-xs text-label-tertiary">{label}</p>
-                      <div className="flex items-center gap-1.5">
-                        {icon}
-                        <p className="text-sm font-medium text-label-primary">{value}</p>
-                      </div>
+                <SectionLabel>이동 경로</SectionLabel>
+                <div className="ios-card rounded-2xl p-4">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {/* 국내 거래소 */}
+                    <div className="flex flex-col items-center">
+                      <ExFavicon id={resultPath.korean_exchange} size={24} />
+                      <p className="text-[10px] text-label-secondary mt-1">{fmtEx(resultPath.korean_exchange)}</p>
                     </div>
-                  ))}
+                    <div className="flex flex-col items-center px-1">
+                      <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                      <p className="text-[9px] text-label-tertiary mt-1">{resultPath.transfer_coin}</p>
+                    </div>
+                    {/* 해외 거래소 (USDT 경유) */}
+                    {global && (
+                      <>
+                        <div className="flex flex-col items-center">
+                          <ExFavicon id={global} size={24} />
+                          <p className="text-[10px] text-label-secondary mt-1">{fmtEx(global)}</p>
+                        </div>
+                        <div className="flex flex-col items-center px-1">
+                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                          <p className="text-[9px] text-label-tertiary mt-1">BTC</p>
+                        </div>
+                      </>
+                    )}
+                    {/* 스왑 서비스 (라이트닝) */}
+                    {swapSvc && (
+                      <>
+                        <div className="flex flex-col items-center">
+                          <div className="w-6 h-6 rounded-md bg-acc-amber/15 flex items-center justify-center">
+                            <Lightning weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
+                          </div>
+                          <p className="text-[10px] text-label-secondary mt-1">{swapSvc}</p>
+                        </div>
+                        <div className="flex flex-col items-center px-1">
+                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                          <p className="text-[9px] text-label-tertiary mt-1">LN</p>
+                        </div>
+                      </>
+                    )}
+                    {/* 개인 지갑 */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-6 h-6 rounded-md bg-acc-green/15 flex items-center justify-center">
+                        <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />
+                      </div>
+                      <p className="text-[10px] text-label-secondary mt-1">내 지갑</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
+                    <span>네트워크 <span className="text-label-secondary font-medium">{resultPath.network}</span></span>
+                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '⚡ Lightning' : '온체인'}</span></span>
+                  </div>
                 </div>
               </div>
 
