@@ -58,6 +58,17 @@ function fmtKst(ts: number | null): string {
   }).format(new Date(ts * 1000));
 }
 
+// BTC amount_text → sats when value is tiny (e.g. "1e-06 BTC" → "100 sats")
+function fmtAmountText(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.match(/^([0-9.e+\-]+)\s*BTC$/i);
+  if (m) {
+    const btc = parseFloat(m[1]);
+    if (!isNaN(btc) && btc < 0.001) return `${Math.round(btc * 1e8)} sats`;
+  }
+  return text;
+}
+
 // ─── Spring transition presets ────────────────────────────────────────────────
 
 const SPRING_FAST  = { type: 'spring', stiffness: 480, damping: 30 } as const;
@@ -907,8 +918,8 @@ export default function ExplorerPage() {
                       <div key={i} className="flex items-start justify-between px-4 py-3 gap-3">
                         <div className="min-w-0">
                           <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
-                          {c.amount_text && (
-                            <p className="text-[10px] text-label-tertiary num mt-0.5">{c.amount_text}</p>
+                          {fmtAmountText(c.amount_text) && (
+                            <p className="text-[10px] text-label-tertiary num mt-0.5">{fmtAmountText(c.amount_text)}</p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
