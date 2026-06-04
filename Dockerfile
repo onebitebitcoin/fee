@@ -1,8 +1,8 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend-v2/package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
-COPY frontend-v2/ ./
+COPY frontend/ ./
 RUN npm run build
 
 FROM python:3.11-slim AS backend-base

@@ -73,6 +73,7 @@ export type CheapestPathFeeComponent = {
   rate_pct?: number | null;
   amount_text?: string | null;
   source_url?: string | null;
+  is_fixed?: boolean | null;
 };
 
 export type CheapestPathBreakdown = {
