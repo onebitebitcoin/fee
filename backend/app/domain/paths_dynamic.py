@@ -133,25 +133,25 @@ def _build_usdt_onchain_paths(
                 + global_trading_fee_krw + global_onchain_wd_fee_krw
             )
             components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy),
+                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
                 fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT'),
+                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT', is_fixed=True),
                 fee_component('해외 BTC 매수 수수료 (USDT/taker)', global_trading_fee_krw,
                               input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_fee_usdt, 8)} USDT'),
+                              amount_text=f'{round(global_fee_usdt, 8)} USDT', is_fixed=False),
                 fee_component(f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
-                              input_krw=input_krw_btc_wd, amount_text=f'{global_onchain_wd_fee} BTC'),
+                              input_krw=input_krw_btc_wd, amount_text=f'{global_onchain_wd_fee} BTC', is_fixed=True),
             ]
         else:
             btc_received = btc_at_global
             total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw
             components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy),
+                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
                 fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT'),
+                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT', is_fixed=True),
                 fee_component('해외 BTC 매수 수수료 (USDT/taker)', global_trading_fee_krw,
                               input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_fee_usdt, 8)} USDT'),
+                              amount_text=f'{round(global_fee_usdt, 8)} USDT', is_fixed=False),
             ]
 
         if btc_received <= 0:
@@ -231,31 +231,31 @@ def _build_fdusd_maker_paths(
                 + global_trading_fee_krw + global_onchain_wd_fee_krw
             )
             components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy),
+                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
                 fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT'),
+                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT', is_fixed=True),
                 fee_component('USDT→FDUSD 전환 스프레드', convert_fee_krw,
                               input_krw=input_krw_convert,
-                              amount_text=f'{round(convert_fee_usdt, 6)} USDT'),
+                              amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False),
                 fee_component(f'BTC/FDUSD 매수 수수료 (maker {fdusd_maker_fee * 100}%)',
                               global_trading_fee_krw, input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD'),
+                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD', is_fixed=False),
                 fee_component(f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
-                              input_krw=input_krw_btc_wd, amount_text=f'{global_onchain_wd_fee} BTC'),
+                              input_krw=input_krw_btc_wd, amount_text=f'{global_onchain_wd_fee} BTC', is_fixed=True),
             ]
         else:
             btc_received = btc_at_global
             total_fee_krw = trading_fee_krw + withdrawal_fee_krw + convert_fee_krw + global_trading_fee_krw
             components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy),
+                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
                 fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT'),
+                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT', is_fixed=True),
                 fee_component('USDT→FDUSD 전환 스프레드', convert_fee_krw,
                               input_krw=input_krw_convert,
-                              amount_text=f'{round(convert_fee_usdt, 6)} USDT'),
+                              amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False),
                 fee_component(f'BTC/FDUSD 매수 수수료 (maker {fdusd_maker_fee * 100}%)',
                               global_trading_fee_krw, input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD'),
+                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD', is_fixed=False),
             ]
 
         if btc_received <= 0:
@@ -332,7 +332,7 @@ def _build_ln_exit_paths(
                 convert_comp = [fee_component(
                     'USDT→FDUSD 전환 스프레드', convert_fee_krw,
                     input_krw=input_krw_convert,
-                    amount_text=f'{round(convert_fee_usdt, 6)} USDT',
+                    amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False,
                 )]
                 buy_label = f'BTC/FDUSD 매수 수수료 (maker {buy_fee_rate * 100:.1f}%)'
             else:
@@ -360,15 +360,15 @@ def _build_ln_exit_paths(
             ln_wd_sats = round(ln_wd_fee_btc * 1e8)
 
             base_components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy),
+                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
                 fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT'),
+                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt} USDT', is_fixed=True),
                 *convert_comp,
                 fee_component(buy_label, global_trading_fee_krw,
                               input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_buy_fee, 8)} {coin_label}'),
+                              amount_text=f'{round(global_buy_fee, 8)} {coin_label}', is_fixed=False),
                 fee_component(f'⚡ LN 출금 ({global_exchange})', ln_wd_fee_krw,
-                              input_krw=input_krw_ln_wd, amount_text=f'{ln_wd_sats} sats'),
+                              input_krw=input_krw_ln_wd, amount_text=f'{ln_wd_sats} sats', is_fixed=True),
             ]
 
             # LN 출금 → 스왑 서비스 → 개인 온체인 지갑 (자기수탁)
@@ -403,7 +403,7 @@ def _build_ln_exit_paths(
                                 f'⚡ LN→온체인 스왑 ({svc["display"]} {svc["fee_pct"] * 100:.1f}%)',
                                 swap_fee_krw,
                                 input_krw=input_krw_swap,
-                                amount_text=f'{swap_sats} sats',
+                                amount_text=f'{swap_sats} sats', is_fixed=False,
                             )
                         ],
                         'total_fee_krw': total_fee_krw,
@@ -575,13 +575,13 @@ def find_cheapest_path_dynamic(
                 )
 
                 components = [
-                    fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw),
+                    fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw, is_fixed=False),
                 ]
                 if slippage_cost_krw > 0:
                     components.append(fee_component(
                         f'슬리피지 추정 ({slip_pct:.2f}%)', slippage_cost_krw,
                         input_krw=amount_krw,
-                        amount_text='추정값, 실제 체결가 기준',
+                        amount_text='추정값, 실제 체결가 기준', is_fixed=False,
                     ))
                 all_paths.append({
                     'korean_exchange': exchange,
@@ -600,7 +600,7 @@ def find_cheapest_path_dynamic(
                     'breakdown': {
                         'components': components + [
                             fee_component(wd_label, wd_fee_krw,
-                                          input_krw=input_krw_btc_wd, amount_text=wd_amount_text),
+                                          input_krw=input_krw_btc_wd, amount_text=wd_amount_text, is_fixed=True),
                         ],
                         'total_fee_krw': total_fee_krw,
                     },

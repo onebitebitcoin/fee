@@ -938,7 +938,18 @@ export default function ExplorerPage() {
                     {resultPath.breakdown.components.map((c, i) => (
                       <div key={i} className="flex items-start justify-between px-4 py-3 gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
+                            {c.is_fixed != null && (
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                c.is_fixed
+                                  ? 'bg-acc-blue/10 text-acc-blue'
+                                  : 'bg-acc-amber/10 text-acc-amber'
+                              }`}>
+                                {c.is_fixed ? '고정' : '변동'}
+                              </span>
+                            )}
+                          </div>
                           {fmtAmountText(c.amount_text) && (
                             <p className="text-[10px] text-label-tertiary num mt-0.5">{fmtAmountText(c.amount_text)}</p>
                           )}

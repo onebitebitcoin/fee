@@ -146,10 +146,13 @@ def fee_component(
     amount_text: str | None = None,
     input_krw: int | None = None,
     source_url: str | None = None,
+    is_fixed: bool = False,
 ) -> dict:
     """수수료 구성요소 딕셔너리 생성.
 
     rate_pct 미지정 시 input_krw 기준으로 자동 계산 (각 노드의 실제 통과 금액 대비 비율).
+    is_fixed=True: 금액 고정 수수료 (출금 고정비, LN 출금 sats 등)
+    is_fixed=False: 비율 수수료 (taker fee, 스왑 % 등)
     """
     if rate_pct is None and input_krw and input_krw > 0:
         rate_pct = amount_krw / input_krw * 100
@@ -160,4 +163,5 @@ def fee_component(
         'input_krw': input_krw,
         'amount_text': amount_text,
         'source_url': source_url,
+        'is_fixed': is_fixed,
     }

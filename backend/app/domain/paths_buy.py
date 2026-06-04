@@ -144,12 +144,13 @@ def _build_btc_paths(
             'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
             'breakdown': {
                 'components': [
-                    fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
+                    fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
                     fee_component(
                         wd_label,
                         withdrawal_fee_krw,
                         amount_text=wd_amount_text,
                         source_url=get_withdrawal_source_url(exchange, 'BTC', row.network_label),
+                        is_fixed=True,
                     ),
                 ],
                 'total_fee_krw': total_fee_krw,
@@ -225,41 +226,46 @@ def _build_usdt_paths(
             btc_received = btc_at_global - global_onchain_wd_fee
             total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw + global_onchain_wd_fee_krw
             wd_components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
+                fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
                 fee_component(
                     'USDT 출금 수수료',
                     withdrawal_fee_krw,
                     amount_text=f'{row.fee} USDT',
                     source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
+                    is_fixed=True,
                 ),
                 fee_component(
                     '해외 BTC 매수 수수료',
                     round(global_trading_fee_usdt * ctx.usd_krw_rate),
                     rate_pct=ctx.global_taker * 100,
                     amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
+                    is_fixed=False,
                 ),
                 fee_component(
                     f'해외 BTC 출금 수수료 ({global_exchange})',
                     global_onchain_wd_fee_krw,
                     amount_text=f'{global_onchain_wd_fee} BTC',
+                    is_fixed=True,
                 ),
             ]
         else:
             btc_received = btc_at_global
             total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw
             wd_components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
+                fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
                 fee_component(
                     'USDT 출금 수수료',
                     withdrawal_fee_krw,
                     amount_text=f'{row.fee} USDT',
                     source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
+                    is_fixed=True,
                 ),
                 fee_component(
                     '해외 BTC 매수 수수료',
                     round(global_trading_fee_usdt * ctx.usd_krw_rate),
                     rate_pct=ctx.global_taker * 100,
                     amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
+                    is_fixed=False,
                 ),
             ]
 
@@ -429,29 +435,33 @@ def find_cheapest_path_from_snapshot_rows(
                     )
 
                     components = [
-                        fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100),
+                        fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
                         fee_component(
                             'USDT 출금 수수료',
                             withdrawal_fee_krw,
                             amount_text=f'{row.fee} USDT',
                             source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
+                            is_fixed=True,
                         ),
                         fee_component(
                             '해외 BTC 매수 수수료',
                             round(global_trading_fee_usdt * ctx.usd_krw_rate),
                             rate_pct=ctx.global_taker * 100,
                             amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
+                            is_fixed=False,
                         ),
                         fee_component(
                             f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
                             global_ln_wd_fee_krw,
                             amount_text=f'{global_ln_wd_fee} BTC',
+                            is_fixed=True,
                         ),
                         fee_component(
                             f'라이트닝 스왑 수수료 ({swap.service_name})',
                             ln_swap_fee_krw,
                             rate_pct=swap.fee_pct,
                             amount_text=f'{round(ln_swap_fee_btc, 8)} BTC',
+                            is_fixed=False,
                         ),
                     ]
 
