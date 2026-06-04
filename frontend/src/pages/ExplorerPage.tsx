@@ -724,31 +724,6 @@ export default function ExplorerPage() {
                   );
                 })}
               </div>
-              {domestic && (() => {
-                const info = DOMESTIC_INFO[domestic];
-                const vol = koreaVolumeMap[domestic];
-                const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
-                return (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
-                    className="ios-card rounded-2xl p-4 space-y-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">거래소 정보</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info?.country ?? '대한민국'}</p></div>
-                      <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
-                      <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
-                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
-                      {vol != null && <div><span className="text-label-tertiary">24H BTC 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
-                      {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
-                    </div>
-                    {info?.url && (
-                      <a href={info.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
-                        <Globe className="w-3 h-3" /> {info.url.replace('https://', '')}
-                      </a>
-                    )}
-                  </motion.div>
-                );
-              })()}
               {domestic && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -774,6 +749,31 @@ export default function ExplorerPage() {
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">출금 통과 조건</h1>
                 <p className="text-sm text-label-secondary mt-1">출금 전 확인이 필요한 조건들이에요</p>
               </div>
+              {/* 거래소 기본 정보 */}
+              {(() => {
+                const info = DOMESTIC_INFO[domestic];
+                const vol = koreaVolumeMap[domestic];
+                const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
+                return (
+                  <div className="ios-card rounded-2xl p-4 space-y-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">거래소 정보</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info?.country ?? '대한민국'}</p></div>
+                      <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
+                      <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
+                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
+                      {vol != null && <div><span className="text-label-tertiary">24H BTC 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
+                      {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
+                    </div>
+                    {info?.url && (
+                      <a href={info.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
+                        <Globe className="w-3 h-3" /> {info.url.replace('https://', '')}
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
               <GatemanPanel
                 gates={getDomesticGates(domestic, liveRegistry?.domestic)}
                 title={`${fmtEx(domestic)} 출금 조건`}
