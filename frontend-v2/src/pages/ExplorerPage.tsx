@@ -149,11 +149,6 @@ function OptionCard({
           </motion.div>
         </>
       )}
-      {recommended && !selected && (
-        <span className="absolute top-3 right-3 text-[9px] font-bold text-acc-amber uppercase tracking-wide">
-          추천
-        </span>
-      )}
       {children}
     </motion.button>
   );
@@ -641,8 +636,7 @@ export default function ExplorerPage() {
                     >
                       <OptionCard
                         selected={domestic === exchange}
-                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); setPhase('coin'); }}
-                        recommended={exchange === recDomestic}
+                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
@@ -659,7 +653,7 @@ export default function ExplorerPage() {
                           <div className="text-right">
                             {koreaVolumeMap[exchange] != null
                               ? <p className="text-[11px] text-label-tertiary num">
-                                  BTC 거래량 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
+                                  24H BTC {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
                                 </p>
                               : <p className="text-[11px] text-label-tertiary">예상 수령</p>
                             }
@@ -670,6 +664,16 @@ export default function ExplorerPage() {
                   );
                 })}
               </div>
+              {domestic && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('coin')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
             </motion.div>
           )}
 
@@ -692,10 +696,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={coin === c}
-                      onClick={() => {
-                        setCoin(c); setGlobal(null); setNetwork(null);
-                        setPhase(c === 'BTC' ? 'network' : 'global');
-                      }}
+                      onClick={() => { setCoin(c); setGlobal(null); setNetwork(null); }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -718,6 +719,16 @@ export default function ExplorerPage() {
                   </motion.div>
                 ))}
               </div>
+              {coin && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase(coin === 'BTC' ? 'network' : 'global')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
             </motion.div>
           )}
 
@@ -748,8 +759,7 @@ export default function ExplorerPage() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
                       <OptionCard
                         selected={global === exchange}
-                        recommended={i === 0}
-                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setPhase('network'); }}
+                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -779,6 +789,16 @@ export default function ExplorerPage() {
                   );
                 })}
               </div>
+              {global && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('network')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
             </motion.div>
           )}
 
@@ -797,21 +817,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={network === n}
-                      recommended={i === 0}
-                      onClick={() => {
-                        setNetwork(n);
-                        setSwapSvc(null);
-                        // lightning 스왑 서비스가 있으면 서비스 선택 단계로
-                        const lnPaths = (coin === 'BTC'
-                          ? Object.values(allData?.byGlobal ?? {})[0]?.all_paths ?? []
-                          : allData?.byGlobal[global!]?.all_paths ?? []
-                        ).filter(p =>
-                          p.korean_exchange === domestic &&
-                          p.network === n &&
-                          p.path_type === 'lightning_exit',
-                        );
-                        setPhase(lnPaths.length > 0 ? 'swap_service' : 'result');
-                      }}
+                      onClick={() => { setNetwork(n); setSwapSvc(null); }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -825,6 +831,26 @@ export default function ExplorerPage() {
                   </motion.div>
                 ))}
               </div>
+              {network && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => {
+                    const lnPaths = (coin === 'BTC'
+                      ? Object.values(allData?.byGlobal ?? {})[0]?.all_paths ?? []
+                      : allData?.byGlobal[global!]?.all_paths ?? []
+                    ).filter(p =>
+                      p.korean_exchange === domestic &&
+                      p.network === network &&
+                      p.path_type === 'lightning_exit',
+                    );
+                    setPhase(lnPaths.length > 0 ? 'swap_service' : 'result');
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
             </motion.div>
           )}
 
@@ -843,8 +869,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={swapSvc === name}
-                      recommended={i === 0}
-                      onClick={() => { setSwapSvc(name); setPhase('result'); }}
+                      onClick={() => { setSwapSvc(name); }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -868,6 +893,16 @@ export default function ExplorerPage() {
                   </motion.div>
                 ))}
               </div>
+              {swapSvc && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('result')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  결과 보기 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
             </motion.div>
           )}
 
