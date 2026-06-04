@@ -1159,22 +1159,42 @@ export default function ExplorerPage() {
 
                 <div className="sep mt-5 mb-4 relative z-10" />
 
-                <div className="flex justify-center gap-6 relative z-10">
-                  <div>
-                    <p className="text-[11px] text-label-tertiary">총 수수료</p>
-                    <p className="text-lg font-bold text-acc-red num mt-0.5">
-                      -{formatFeeKrw(resultPath.total_fee_krw)}
-                    </p>
-                    <p className="text-[11px] text-label-tertiary num">{formatPercent(resultPath.fee_pct)}</p>
-                  </div>
-                  <div className="w-px bg-sys-separator" />
-                  <div>
-                    <p className="text-[11px] text-label-tertiary">투자금</p>
-                    <p className="text-lg font-bold text-label-primary num mt-0.5">
-                      ₩{amountKrw.toLocaleString('ko-KR')}
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
+                  const kimpKrw = kimchi != null ? Math.round(amountKrw * (kimchi / 100) / (1 + kimchi / 100)) : null;
+                  return (
+                    <div className="flex justify-center gap-4 relative z-10 flex-wrap">
+                      <div className="text-center">
+                        <p className="text-[11px] text-label-tertiary">수수료</p>
+                        <p className="text-lg font-bold text-acc-red num mt-0.5">
+                          -{formatFeeKrw(resultPath.total_fee_krw)}
+                        </p>
+                        <p className="text-[11px] text-label-tertiary num">{formatPercent(resultPath.fee_pct)}</p>
+                      </div>
+                      {kimpKrw != null && (
+                        <>
+                          <div className="w-px bg-sys-separator" />
+                          <div className="text-center">
+                            <p className="text-[11px] text-label-tertiary">김치 프리미엄</p>
+                            <p className={`text-lg font-bold num mt-0.5 ${kimchi! > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                              {kimchi! > 0 ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}
+                            </p>
+                            <p className={`text-[11px] font-semibold num ${kimchi! > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                              {kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      <div className="w-px bg-sys-separator" />
+                      <div className="text-center">
+                        <p className="text-[11px] text-label-tertiary">투자금</p>
+                        <p className="text-lg font-bold text-label-primary num mt-0.5">
+                          ₩{amountKrw.toLocaleString('ko-KR')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
 
               {/* Route path visualization */}
@@ -1233,37 +1253,6 @@ export default function ExplorerPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Kimchi premium impact */}
-              {(() => {
-                const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
-                if (kimchi == null) return null;
-                const kimpKrw = Math.round(amountKrw * (kimchi / 100) / (1 + kimchi / 100));
-                const isPositive = kimchi > 0;
-                return (
-                  <div>
-                    <SectionLabel>김치 프리미엄 영향</SectionLabel>
-                    <div className="ios-card rounded-2xl px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-label-secondary">
-                          {isPositive ? '프리미엄으로 인한 추가 비용' : '역프리미엄으로 인한 절감'}
-                        </p>
-                        <p className="text-[10px] text-label-tertiary mt-0.5">
-                          {fmtEx(domestic!)} 기준 실시간 김치 프리미엄
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-bold num ${isPositive ? 'text-acc-red' : 'text-acc-green'}`}>
-                          {isPositive ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}
-                        </p>
-                        <p className={`text-[10px] font-semibold num mt-0.5 ${isPositive ? 'text-acc-red' : 'text-acc-green'}`}>
-                          {isPositive ? '+' : ''}{kimchi.toFixed(2)}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Fee breakdown */}
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
