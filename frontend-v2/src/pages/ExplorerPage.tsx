@@ -261,6 +261,17 @@ export default function ExplorerPage() {
     return result;
   }, [allData]);
 
+  // 한국 거래소 24h 거래량 맵 (ticker snapshot 기준)
+  const koreaVolumeMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const t of (allData?.tickers ?? [])) {
+      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.volume_24h_btc) {
+        m[t.exchange] = t.volume_24h_btc;
+      }
+    }
+    return m;
+  }, [allData]);
+
   const domesticOptions = useMemo(() => {
     const map = new Map<string, number>();
     for (const data of Object.values(allData?.byGlobal ?? {}))
@@ -270,8 +281,8 @@ export default function ExplorerPage() {
       }
     return [...map.entries()]
       .map(([exchange, best]) => ({ exchange, best }))
-      .sort((a, b) => b.best - a.best);
-  }, [allData]);
+      .sort((a, b) => (koreaVolumeMap[b.exchange] ?? 0) - (koreaVolumeMap[a.exchange] ?? 0));
+  }, [allData, koreaVolumeMap]);
 
   const recDomestic = useMemo(() => {
     const b = bestByBtc(applyPref(allPaths, pref));
@@ -645,7 +656,10 @@ export default function ExplorerPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-bold text-label-primary num">{formatSats(best)}</p>
-                            <p className="text-[11px] text-label-tertiary">예상 수령</p>
+                            {koreaVolumeMap[exchange] != null
+                              ? <p className="text-[11px] text-label-tertiary num">{koreaVolumeMap[exchange]!.toFixed(0)} BTC</p>
+                              : <p className="text-[11px] text-label-tertiary">예상 수령</p>
+                            }
                           </div>
                         </div>
                       </OptionCard>
