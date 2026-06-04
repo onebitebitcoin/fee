@@ -12,7 +12,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'input' | 'loading' | 'domestic' | 'coin' | 'global' | 'network' | 'result';
+type Phase = 'input' | 'loading' | 'domestic' | 'coin' | 'global' | 'network' | 'swap_service' | 'result';
 type CoinType = 'USDT' | 'BTC';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
@@ -25,7 +25,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'coin', 'global', 'network', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'coin', 'global', 'network', 'swap_service', 'result'];
 const phaseIdx = (p: Phase) => PHASES.indexOf(p);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -213,6 +213,7 @@ export default function ExplorerPage() {
   const [coin, setCoin]           = useState<CoinType | null>(null);
   const [global, setGlobal]       = useState<GlobalExchange | null>(null);
   const [network, setNetwork]     = useState<string | null>(null);
+  const [swapSvc, setSwapSvc]     = useState<string | null>(null);
 
   const prevPhase = useRef<Phase>('input');
 
@@ -311,27 +312,61 @@ export default function ExplorerPage() {
     return [...map.entries()].map(([n, best]) => ({ network: n, best }));
   }, [allData, domestic, coin, global]);
 
+  // Available lightning swap services for current selection (network step → swap_service step)
+  const swapServiceOptions = useMemo(() => {
+    if (!allData || !domestic || !network) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
+    const basePaths = coin === 'BTC'
+      ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
+          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.network === network)
+      : global
+        ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+            p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
+        : [];
+    const lnPaths = basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
+    const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number }>();
+    for (const p of lnPaths) {
+      const name = p.lightning_exit_provider!;
+      const existing = svcMap.get(name);
+      if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
+        const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
+        const fee_pct = swapComp?.rate_pct ?? 0;
+        svcMap.set(name, {
+          name,
+          fee_pct,
+          kyc: p.exit_service_kyc_status === 'kyc',
+          btc_received: p.btc_received ?? 0,
+        });
+      }
+    }
+    return [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
+  }, [allData, domestic, coin, global, network]);
+
   const resultPath = useMemo((): CheapestPathEntry | null => {
     if (!allData || !domestic || !coin || !network) return null;
-    if (coin === 'BTC') {
-      const paths = (Object.values(allData.byGlobal)[0]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.network === network);
-      return bestByBtc(applyPref(paths, pref));
+    const basePaths = coin === 'BTC'
+      ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
+          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.network === network)
+      : global
+        ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+            p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
+        : [];
+    if (swapSvc) {
+      const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
+      return bestByBtc(filtered) ?? bestByBtc(basePaths);
     }
-    if (!global) return null;
-    const paths = (allData.byGlobal[global]?.all_paths ?? [])
-      .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network);
-    return bestByBtc(applyPref(paths, pref));
-  }, [allData, domestic, coin, global, network, pref]);
+    return bestByBtc(applyPref(basePaths, pref));
+  }, [allData, domestic, coin, global, network, swapSvc, pref]);
 
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
   const steps = useMemo(() => {
     const s: Phase[] = ['domestic', 'coin'];
     if (coin === 'USDT') s.push('global');
-    s.push('network', 'result');
+    s.push('network');
+    if (swapServiceOptions.length > 0) s.push('swap_service');
+    s.push('result');
     return s;
-  }, [coin]);
+  }, [coin, swapServiceOptions]);
 
   const stepIdx = steps.indexOf(phase);
 
@@ -341,7 +376,7 @@ export default function ExplorerPage() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
     setAllData(null); setError(null);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     try {
       const [tickerRes, ...pathResults] = await Promise.all([
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
@@ -370,7 +405,8 @@ export default function ExplorerPage() {
   function handleBack() {
     const map: Partial<Record<Phase, Phase>> = {
       coin: 'domestic', global: 'coin', network: coin === 'BTC' ? 'coin' : 'global',
-      result: 'network',
+      swap_service: 'network',
+      result: swapSvc ? 'swap_service' : 'network',
     };
     const prev = map[phase];
     if (prev) { setPhase(prev); }
@@ -378,7 +414,7 @@ export default function ExplorerPage() {
 
   function reset() {
     setPhase('input'); setAllData(null); setError(null);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -714,7 +750,20 @@ export default function ExplorerPage() {
                     <OptionCard
                       selected={network === n}
                       recommended={i === 0}
-                      onClick={() => { setNetwork(n); setPhase('result'); }}
+                      onClick={() => {
+                        setNetwork(n);
+                        setSwapSvc(null);
+                        // lightning 스왑 서비스가 있으면 서비스 선택 단계로
+                        const lnPaths = (coin === 'BTC'
+                          ? Object.values(allData?.byGlobal ?? {})[0]?.all_paths ?? []
+                          : allData?.byGlobal[global!]?.all_paths ?? []
+                        ).filter(p =>
+                          p.korean_exchange === domestic &&
+                          p.network === n &&
+                          p.path_type === 'lightning_exit',
+                        );
+                        setPhase(lnPaths.length > 0 ? 'swap_service' : 'result');
+                      }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -729,6 +778,50 @@ export default function ExplorerPage() {
                         <div className="text-right">
                           <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
                           <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
+                        </div>
+                      </div>
+                    </OptionCard>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Swap Service ── */}
+          {phase === 'swap_service' && (
+            <motion.div key="swap_service" variants={variants} initial="enter" animate="center" exit="exit"
+              transition={SPRING_SLOW} className="space-y-4 pt-2">
+              <div>
+                <h1 className="text-2xl font-bold text-label-primary tracking-tight">스왑 서비스</h1>
+                <p className="text-sm text-label-secondary mt-1">Lightning → 온체인 변환 서비스를 선택해요</p>
+              </div>
+              <div className="space-y-2.5">
+                {swapServiceOptions.map(({ name, fee_pct, kyc, btc_received }, i) => (
+                  <motion.div key={name}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
+                    <OptionCard
+                      selected={swapSvc === name}
+                      recommended={i === 0}
+                      onClick={() => { setSwapSvc(name); setPhase('result'); }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Lightning weight="fill" className="w-4 h-4 text-acc-amber" />
+                            <p className="text-sm font-bold text-label-primary">{name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-label-secondary num">수수료 {fee_pct.toFixed(2)}%</p>
+                            {kyc
+                              ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">KYC</span>
+                              : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">Non-KYC</span>
+                            }
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-label-primary num">{formatSats(btc_received)}</p>
+                          <p className="text-[11px] text-label-tertiary">예상 수령</p>
                         </div>
                       </div>
                     </OptionCard>
