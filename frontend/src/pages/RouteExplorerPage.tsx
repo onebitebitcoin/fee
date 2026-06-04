@@ -228,9 +228,8 @@ export function RouteExplorerPage() {
     const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
     const usdtBest = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
     const btcBest  = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC'));
-    if (usdtBest) opts.push({ coin: 'USDT',    best: usdtBest });
-    if (btcBest)  opts.push({ coin: 'BTC',     best: btcBest  });
-    if (btcBest)  opts.push({ coin: 'BTC_VIA', best: btcBest  });
+    if (usdtBest) opts.push({ coin: 'USDT', best: usdtBest });
+    if (btcBest)  opts.push({ coin: 'BTC',  best: btcBest  });
     return opts;
   }, [allData, selectedDomestic]);
 
@@ -739,7 +738,7 @@ export function RouteExplorerPage() {
                     {/* coin */}
                     {phase === 'coin' && (
                       <StepCard active>
-                        <StepHeader icon={<Coin className="w-3.5 h-3.5" />} label="출금 경로 선택" done={false} />
+                        <StepHeader icon={<Coin className="w-3.5 h-3.5" />} label="국내 거래소 출금 방식" done={false} />
                         {selectedDomestic && <StepContext nodes={[{ id: selectedDomestic, label: fmtEx(selectedDomestic), role: '국내 거래소', roleColor: 'amber' }]} />}
                         <div className="space-y-2 mt-3">
                           {coinOptions.map(({ coin, best }) => {
@@ -752,20 +751,17 @@ export function RouteExplorerPage() {
                               <ChoiceBtn key={coin} selected={selectedCoin === coin} onClick={() => handleCoinSelect(coin)} horizontal>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 경유</span></>}
-                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">비트코인 직접 출금</span></>}
-                                    {coin === 'BTC_VIA' && <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">비트코인 → 해외거래소 경유</span></>}
+                                    {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 사서 해외거래소 경유</span></>}
+                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">국내거래소에서 비트코인 출금</span></>}
                                   </div>
                                   <div className="text-xs text-bnb-muted mt-0.5">
                                     {coin === 'USDT' && 'USDT 출금 → 해외 거래소 비트코인 매수 → 개인 지갑'}
-                                    {coin === 'BTC' && '한국 거래소 비트코인 출금 → 개인 지갑 (직접)'}
-                                    {coin === 'BTC_VIA' && '비트코인 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
+                                    {coin === 'BTC' && '한국 거래소 비트코인 직접 출금 → 개인 지갑'}
                                   </div>
                                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                     {coin === 'BTC' && perTxLimit != null && <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>}
                                     {coin === 'BTC' && perTxLimit == null && <InfoTag color="neutral">1회 출금 제한 확인 필요</InfoTag>}
                                     {coin === 'BTC' && numTxs > 1 && <InfoTag color="amber">{numTxs}회 출금 필요 (수수료 {numTxs}×)</InfoTag>}
-                                    {coin === 'BTC_VIA' && <InfoTag color="blue">거래소 주소 — 1회 제한 없음</InfoTag>}
                                   </div>
                                 </div>
                               </ChoiceBtn>
