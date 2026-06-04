@@ -660,7 +660,7 @@ export default function ExplorerPage() {
                             <p className="text-sm font-bold text-label-primary num">{formatSats(best)}</p>
                             {koreaVolumeMap[exchange] != null
                               ? <p className="text-[11px] text-label-tertiary num">
-                                  거래량 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(0)}억원
+                                  BTC 거래량 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
                                 </p>
                               : <p className="text-[11px] text-label-tertiary">예상 수령</p>
                             }
