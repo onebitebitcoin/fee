@@ -713,9 +713,6 @@ export default function ExplorerPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0 ml-3">
-                          <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
-                        </div>
                       </div>
                     </OptionCard>
                   </motion.div>

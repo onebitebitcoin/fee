@@ -762,7 +762,6 @@ export function RouteExplorerPage() {
                                     {coin === 'BTC_VIA' && <InfoTag color="blue">거래소 주소 — 1회 제한 없음</InfoTag>}
                                   </div>
                                 </div>
-                                <FeeTag path={best} align="right" />
                               </ChoiceBtn>
                             );
                           })}
