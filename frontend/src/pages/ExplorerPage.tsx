@@ -611,7 +611,7 @@ export default function ExplorerPage() {
               {/* Hero amount input */}
               <div className="ios-card rounded-3xl p-6">
                 <p className="text-xs font-semibold text-label-tertiary uppercase tracking-wider mb-5">
-                  투자 금액
+                  구매 금액
                 </p>
 
                 {/* Unit toggle — macOS segmented control */}
@@ -1235,7 +1235,7 @@ export default function ExplorerPage() {
                         <div className="ios-card rounded-2xl px-4 py-3 text-left">
                           <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">국내 원화 기준</p>
                           <p className="text-xs text-label-secondary leading-relaxed">
-                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 투자하면 받은 비트코인 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
+                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 구매하면 받은 비트코인 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${krwPnL < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                             {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '손해' : '이득'}
