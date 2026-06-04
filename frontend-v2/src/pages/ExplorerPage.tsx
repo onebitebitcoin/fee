@@ -740,28 +740,50 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-secondary mt-1">USDT를 받을 거래소를 고르세요</p>
               </div>
               <div className="space-y-2.5">
-                {globalOptions.map(({ exchange, best }, i) => (
-                  <motion.div key={exchange}
-                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
-                    <OptionCard
-                      selected={global === exchange}
-                      recommended={i === 0}
-                      onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setPhase('network'); }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <ExFavicon id={exchange} size={22} />
-                          <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                {globalOptions.map(({ exchange, best }, i) => {
+                  const tradingComp = best.breakdown?.components.find(c =>
+                    c.label.includes('BTC 매수') || c.label.includes('FDUSD 매수'),
+                  );
+                  const wdComp = best.breakdown?.components.find(c =>
+                    c.label.includes('BTC 출금') && c.is_fixed,
+                  );
+                  return (
+                    <motion.div key={exchange}
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
+                      <OptionCard
+                        selected={global === exchange}
+                        recommended={i === 0}
+                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setPhase('network'); }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <ExFavicon id={exchange} size={22} />
+                            <div>
+                              <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {tradingComp?.rate_pct != null && (
+                                  <span className="text-[10px] text-label-tertiary num">
+                                    거래 <span className="text-acc-amber font-medium">{tradingComp.rate_pct.toFixed(2)}% 변동</span>
+                                  </span>
+                                )}
+                                {wdComp && fmtAmountText(wdComp.amount_text) && (
+                                  <span className="text-[10px] text-label-tertiary num">
+                                    출금 <span className="text-acc-blue font-medium">{fmtAmountText(wdComp.amount_text)} 고정</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
+                            <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
-                          <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
-                        </div>
-                      </div>
-                    </OptionCard>
-                  </motion.div>
-                ))}
+                      </OptionCard>
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -843,8 +865,8 @@ export default function ExplorerPage() {
                             <Lightning weight="fill" className="w-4 h-4 text-acc-amber" />
                             <p className="text-sm font-bold text-label-primary">{name}</p>
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-label-secondary num">수수료 {fee_pct.toFixed(2)}%</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
                             {kyc
                               ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">KYC</span>
                               : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">Non-KYC</span>
@@ -929,6 +951,37 @@ export default function ExplorerPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Kimchi premium impact */}
+              {(() => {
+                const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
+                if (kimchi == null) return null;
+                const kimpKrw = Math.round(amountKrw * (kimchi / 100) / (1 + kimchi / 100));
+                const isPositive = kimchi > 0;
+                return (
+                  <div>
+                    <SectionLabel>김치 프리미엄 영향</SectionLabel>
+                    <div className="ios-card rounded-2xl px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-label-secondary">
+                          {isPositive ? '프리미엄으로 인한 추가 비용' : '역프리미엄으로 인한 절감'}
+                        </p>
+                        <p className="text-[10px] text-label-tertiary mt-0.5">
+                          {fmtEx(domestic!)} 기준 실시간 김치 프리미엄
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-bold num ${isPositive ? 'text-acc-red' : 'text-acc-green'}`}>
+                          {isPositive ? '-' : '+'}{formatFeeKrw(Math.abs(kimpKrw))}
+                        </p>
+                        <p className={`text-[10px] font-semibold num mt-0.5 ${isPositive ? 'text-acc-red' : 'text-acc-green'}`}>
+                          {isPositive ? '+' : ''}{kimchi.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Fee breakdown */}
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
