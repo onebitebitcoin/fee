@@ -261,12 +261,14 @@ export default function ExplorerPage() {
     return result;
   }, [allData]);
 
-  // 한국 거래소 24h 거래량 맵 (ticker snapshot 기준)
+  // 한국 거래소 24h 거래량 맵 — KRW 단위 (BTC 거래량 × BTC/KRW 기준가)
   const koreaVolumeMap = useMemo(() => {
+    const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
+    const btcKrw = ref ? ref.global_btc_price_usd * ref.usd_krw_rate : 0;
     const m: Record<string, number> = {};
     for (const t of (allData?.tickers ?? [])) {
-      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.volume_24h_btc) {
-        m[t.exchange] = t.volume_24h_btc;
+      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.volume_24h_btc && btcKrw) {
+        m[t.exchange] = t.volume_24h_btc * btcKrw;  // KRW
       }
     }
     return m;
@@ -657,7 +659,9 @@ export default function ExplorerPage() {
                           <div className="text-right">
                             <p className="text-sm font-bold text-label-primary num">{formatSats(best)}</p>
                             {koreaVolumeMap[exchange] != null
-                              ? <p className="text-[11px] text-label-tertiary num">{koreaVolumeMap[exchange]!.toFixed(0)} BTC</p>
+                              ? <p className="text-[11px] text-label-tertiary num">
+                                  {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(0)}억원
+                                </p>
                               : <p className="text-[11px] text-label-tertiary">예상 수령</p>
                             }
                           </div>
