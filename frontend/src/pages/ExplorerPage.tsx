@@ -7,7 +7,7 @@ import {
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
-import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
+import { formatFeeKrw, formatNumber, formatPercent, formatSats, SATS_PER_BTC } from '../lib/formatBtc';
 import { getDomesticGates, getGlobalGates, ONCHAIN_GATES } from '../lib/gatemanRegistry';
 import type { GateItem, LiveRegistry } from '../lib/gatemanRegistry';
 import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../types';
@@ -269,8 +269,10 @@ export default function ExplorerPage() {
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
   const [btcMethod, setBtcMethod]     = useState<'onchain' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
+  const [displaySats, setDisplaySats]   = useState(0);
 
   const prevPhase = useRef<Phase>('input');
+  const satRafRef = useRef<number | null>(null);
 
   const amountKrw = parseFloat(amount || '0') * (unit === '만원' ? 10_000 : 100_000_000);
 
@@ -309,6 +311,13 @@ export default function ExplorerPage() {
     }
     return result;
   }, [allData]);
+
+  const domesticBtcKrw = useMemo(() => {
+    if (!allData || !domestic) return null;
+    return allData.tickers.find(t =>
+      t.exchange === domestic && t.currency === 'KRW' && t.pair?.includes('BTC')
+    )?.price ?? null;
+  }, [allData, domestic]);
 
   // 한국 거래소 24h 거래량 맵 — KRW 단위 (BTC 거래량 × BTC/KRW 기준가)
   const koreaVolumeMap = useMemo(() => {
@@ -430,6 +439,22 @@ export default function ExplorerPage() {
     }
     return bestByBtc(applyPref(basePaths, pref));
   }, [allData, domestic, coin, global, network, swapSvc, pref]);
+
+  useEffect(() => {
+    if (!resultPath?.btc_received) { setDisplaySats(0); return; }
+    const target = Math.round(resultPath.btc_received * SATS_PER_BTC);
+    const duration = 1200;
+    const startTime = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - (1 - t) ** 3;
+      setDisplaySats(Math.round(target * eased));
+      if (t < 1) satRafRef.current = requestAnimationFrame(tick);
+    };
+    satRafRef.current = requestAnimationFrame(tick);
+    return () => { if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current); };
+  }, [resultPath?.btc_received]);
 
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
@@ -880,7 +905,7 @@ export default function ExplorerPage() {
                 <div className="space-y-2.5">
                   <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                     <p className="font-semibold text-label-primary">온체인 vs 라이트닝</p>
-                    <p className="text-label-secondary"><span className="font-medium text-label-primary">온체인:</span> 블록체인에 직접 기록. 채굴 수수료 발생, 10~60분 소요.</p>
+                    <p className="text-label-secondary"><span className="font-medium text-label-primary">온체인:</span> 블록체인에 직접 기록. 거래소 고정 출금 수수료 부과 (Bitcoin 채굴 수수료 아님), 10~60분 소요.</p>
                     <p className="text-label-secondary"><span className="font-medium text-label-primary">라이트닝:</span> 2nd Layer 즉시 결제, 수수료 저렴. 국내 거래소 미지원.</p>
                   </div>
                   <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
@@ -1048,6 +1073,15 @@ export default function ExplorerPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-bold text-label-primary">{n}</p>
+                          {(() => {
+                            const wdFee = best.breakdown?.components.find(c => c.is_fixed === true);
+                            const amt = wdFee ? fmtAmountText(wdFee.amount_text) : null;
+                            return (
+                              <p className="text-[10px] text-label-tertiary mt-0.5">
+                                거래소 고정 출금 수수료{amt ? <> <span className="text-acc-blue font-medium num">{amt}</span></> : ''}
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div className="text-right">
                           <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
@@ -1057,6 +1091,7 @@ export default function ExplorerPage() {
                   </motion.div>
                 ))}
               </div>
+              <p className="text-[10px] text-label-tertiary text-center px-2">Bitcoin 채굴 수수료(네트워크 수수료)와 별개로 거래소가 부과하는 고정 출금 수수료입니다</p>
               {network && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -1153,15 +1188,21 @@ export default function ExplorerPage() {
                 <Wallet weight="fill" className="w-8 h-8 text-acc-amber mx-auto mb-4 relative z-10" />
                 <p className="text-xs text-label-secondary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
                 <p className="text-5xl font-bold text-label-primary num leading-none relative z-10">
-                  {formatSats(resultPath.btc_received ?? 0)}
+                  {formatNumber(displaySats)}
                 </p>
                 <p className="text-sm text-label-secondary mt-1 num relative z-10">sats</p>
+                {domesticBtcKrw != null && resultPath.btc_received != null && (
+                  <p className="text-xs text-label-tertiary mt-1 num relative z-10">
+                    ≈ ₩{formatNumber(Math.round(resultPath.btc_received * domesticBtcKrw))}
+                  </p>
+                )}
 
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
                   const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
                   const kimpKrw = kimchi != null ? Math.round(amountKrw * (kimchi / 100) / (1 + kimchi / 100)) : null;
+                  const totalImpact = kimpKrw != null ? resultPath.total_fee_krw + kimpKrw : null;
                   return (
                     <div className="flex justify-center gap-4 relative z-10 flex-wrap">
                       <div className="text-center">
@@ -1171,7 +1212,7 @@ export default function ExplorerPage() {
                         </p>
                         <p className="text-[11px] text-label-tertiary num">{formatPercent(resultPath.fee_pct)}</p>
                       </div>
-                      {kimpKrw != null && (
+                      {kimpKrw != null && totalImpact != null && (
                         <>
                           <div className="w-px bg-sys-separator" />
                           <div className="text-center">
@@ -1181,6 +1222,16 @@ export default function ExplorerPage() {
                             </p>
                             <p className={`text-[11px] font-semibold num ${kimchi! > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                               {kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%
+                            </p>
+                          </div>
+                          <div className="w-px bg-sys-separator" />
+                          <div className="text-center">
+                            <p className="text-[11px] text-label-tertiary">합계</p>
+                            <p className={`text-lg font-bold num mt-0.5 ${totalImpact >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                              {totalImpact >= 0 ? '-' : '+'}{formatFeeKrw(Math.abs(totalImpact))}
+                            </p>
+                            <p className={`text-[11px] num ${totalImpact >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                              {(Math.abs(totalImpact) / amountKrw * 100).toFixed(2)}%
                             </p>
                           </div>
                         </>
