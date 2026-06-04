@@ -484,6 +484,18 @@ def find_cheapest_path_dynamic(
         except Exception:
             maintenance_status = {}
 
+        # 김치 프리미엄 계산 — 포렉스 환율 기준 (kimpga 동일 방식)
+        global_btc_price_krw_ref = global_btc_price_usd * usd_krw_rate
+        kimchi_premiums: dict[str, float] = {}
+        korean_btc_prices: dict[str, int] = {}
+        for ex in GROUPS['korea']:
+            try:
+                kr_price = float(fut_tickers[ex].result()['price'])
+                korean_btc_prices[ex] = round(kr_price)
+                kimchi_premiums[ex] = round((kr_price / global_btc_price_krw_ref - 1) * 100, 4)
+            except Exception:
+                pass
+
         # USDT 김치 프리미엄 (각 한국 거래소 USDT/KRW 실거래가 vs 포렉스 환율)
         korean_usdt_prices: dict[str, float] = {}
         usdt_kimchi_premiums: dict[str, float] = {}
@@ -494,21 +506,6 @@ def find_cheapest_path_dynamic(
                 usdt_kimchi_premiums[ex] = round((usdt_price / usd_krw_rate - 1) * 100, 4)
             except Exception:
                 korean_usdt_prices[ex] = usd_krw_rate  # fallback: 포렉스 환율
-
-        # 김치 프리미엄 계산 — kimpga 방식: 한국 USDT/KRW 평균을 환율 기준으로 사용
-        # 포렉스 환율 대신 실제 크립토 시장 환율(USDT/KRW)을 기준으로 해야 정확
-        usdt_prices_valid = [v for v in korean_usdt_prices.values() if v > 0]
-        krw_ref_rate = (sum(usdt_prices_valid) / len(usdt_prices_valid)) if usdt_prices_valid else usd_krw_rate
-        global_btc_price_krw_ref = global_btc_price_usd * krw_ref_rate
-        kimchi_premiums: dict[str, float] = {}
-        korean_btc_prices: dict[str, int] = {}
-        for ex in GROUPS['korea']:
-            try:
-                kr_price = float(fut_tickers[ex].result()['price'])
-                korean_btc_prices[ex] = round(kr_price)
-                kimchi_premiums[ex] = round((kr_price / global_btc_price_krw_ref - 1) * 100, 4)
-            except Exception:
-                pass
 
         # 슬리피지 프로파일 로드
         from backend.app.domain.korea_exchange_registry import get_slippage

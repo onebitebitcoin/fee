@@ -498,13 +498,12 @@ def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
         if cached is not None:
             return {**cached, 'cached': True}
 
-    def _fetch_korea(exchange: str) -> tuple[str, float | None, float | None]:
+    def _fetch_korea(exchange: str) -> tuple[str, float | None]:
         try:
-            btc = float(KOREA_FETCHERS[exchange]()['price'])
-            usdt = float(KOREA_FETCHERS[exchange]('USDT')['price'])
-            return exchange, btc, usdt
+            ticker = KOREA_FETCHERS[exchange]()
+            return exchange, float(ticker['price'])
         except Exception:
-            return exchange, None, None
+            return exchange, None
 
     def _fetch_global() -> tuple[float | None, float | None]:
         try:
@@ -514,28 +513,23 @@ def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
         except Exception:
             return None, None
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         korea_futures = {executor.submit(_fetch_korea, ex): ex for ex in KOREA_FETCHERS}
         global_future = executor.submit(_fetch_global)
 
         korea_prices: dict[str, float] = {}
-        korea_usdt_prices: dict[str, float] = {}
         for fut in as_completed(korea_futures):
-            ex, btc_price, usdt_price = fut.result()
-            if btc_price is not None:
-                korea_prices[ex] = btc_price
-            if usdt_price is not None:
-                korea_usdt_prices[ex] = usdt_price
+            ex, price = fut.result()
+            if price is not None:
+                korea_prices[ex] = price
 
         btc_usd, usd_krw = global_future.result()
 
     if btc_usd is None or usd_krw is None or not korea_prices:
         raise HTTPException(status_code=503, detail='실시간 시세 조회 실패')
 
-    # kimpga 방식: 포렉스 환율 대신 한국 거래소 USDT/KRW 평균을 기준으로 사용
-    usdt_vals = [v for v in korea_usdt_prices.values() if v > 0]
-    krw_ref_rate = sum(usdt_vals) / len(usdt_vals) if usdt_vals else usd_krw
-    global_btc_price_krw = btc_usd * krw_ref_rate
+    # 포렉스 환율 기준 (kimpga 동일 방식)
+    global_btc_price_krw = btc_usd * usd_krw
     kimp: dict[str, float] = {
         ex: round((price / global_btc_price_krw - 1) * 100, 4)
         for ex, price in korea_prices.items()
@@ -546,7 +540,6 @@ def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
         'korean_btc_prices': korea_prices,
         'global_btc_price_krw': round(global_btc_price_krw),
         'usd_krw_rate': round(usd_krw, 2),
-        'krw_ref_rate': round(krw_ref_rate, 2),  # USDT/KRW 평균 (실제 기준 환율)
         'fetched_at': int(time.time()),
         'cached': False,
     }
