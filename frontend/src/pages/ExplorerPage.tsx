@@ -435,10 +435,12 @@ export default function ExplorerPage() {
 
   const steps = useMemo(() => {
     const s: Phase[] = ['domestic', 'domestic_gate', 'coin'];
-    if (coin === 'BTC') s.push('btc_method');
-    if (coin === 'USDT') s.push('global');
-    s.push('network');
-    if (swapServiceOptions.length > 0) s.push('swap_service');
+    if (coin === 'BTC') {
+      s.push('btc_method');
+    } else {
+      s.push('global', 'network');
+      if (swapServiceOptions.length > 0) s.push('swap_service');
+    }
     s.push('result');
     return s;
   }, [coin, swapServiceOptions]);
@@ -485,9 +487,9 @@ export default function ExplorerPage() {
       coin:          'domestic_gate',
       btc_method:    'coin',
       global:        'coin',
-      network:       coin === 'BTC' ? 'btc_method' : 'global',
+      network:       'global',
       swap_service:  'network',
-      result:        swapSvc ? 'swap_service' : 'network',
+      result:        coin === 'BTC' ? 'btc_method' : swapSvc ? 'swap_service' : 'network',
     };
     const prev = map[phase];
     if (prev) setPhase(prev);
@@ -887,10 +889,14 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('network')}
+                  onClick={() => {
+                    const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
+                    setNetwork(btcNetwork);
+                    setPhase('result');
+                  }}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
-                  다음 <ArrowRight className="w-4 h-4" />
+                  결과 보기 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
             </motion.div>
