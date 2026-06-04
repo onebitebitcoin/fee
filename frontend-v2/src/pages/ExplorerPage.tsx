@@ -26,6 +26,50 @@ const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinba
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
 const PHASES: Phase[] = ['input', 'loading', 'domestic', 'coin', 'global', 'network', 'swap_service', 'result'];
+
+// ─── Exchange Info ─────────────────────────────────────────────────────────────
+
+interface DomesticInfo {
+  bank: string;       // 연계 은행
+  carf: number;       // CARF 시행 연도
+  country: string;
+  url: string;
+  lightning: boolean;
+}
+
+const DOMESTIC_INFO: Record<string, DomesticInfo> = {
+  upbit:   { bank: '케이뱅크',   carf: 2027, country: '대한민국', url: 'https://upbit.com',   lightning: false },
+  bithumb: { bank: 'NH농협은행', carf: 2027, country: '대한민국', url: 'https://bithumb.com', lightning: false },
+  coinone: { bank: '신한은행',   carf: 2027, country: '대한민국', url: 'https://coinone.co.kr', lightning: false },
+  korbit:  { bank: '우리은행',   carf: 2027, country: '대한민국', url: 'https://korbit.co.kr', lightning: false },
+  gopax:   { bank: '전북은행',   carf: 2027, country: '대한민국', url: 'https://gopax.co.kr',  lightning: false },
+};
+
+interface GlobalInfo {
+  country: string;
+  carf: number;
+  risk: 'low' | 'med' | 'high';
+  fatca: boolean;
+  url: string;
+  lightning: boolean;
+  vol24hB: number;  // 24H 거래량 (단위: 억 USD, 정적 참고값)
+}
+
+const GLOBAL_INFO: Record<string, GlobalInfo> = {
+  binance:  { country: 'UAE',    carf: 2028, risk: 'med',  fatca: false, url: 'https://binance.com',  lightning: true,  vol24hB: 200 },
+  okx:      { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://okx.com',      lightning: true,  vol24hB: 40  },
+  bybit:    { country: 'UAE',    carf: 2028, risk: 'med',  fatca: false, url: 'https://bybit.com',    lightning: false, vol24hB: 30  },
+  bitget:   { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://bitget.com',   lightning: false, vol24hB: 10  },
+  kraken:   { country: '미국',   carf: 2028, risk: 'med',  fatca: true,  url: 'https://kraken.com',   lightning: false, vol24hB: 5   },
+  coinbase: { country: '미국',   carf: 2028, risk: 'high', fatca: true,  url: 'https://coinbase.com', lightning: false, vol24hB: 15  },
+};
+
+const RISK_LABEL: Record<string, string> = { low: '낮음', med: '중간', high: '높음' };
+const RISK_COLOR: Record<string, string> = {
+  low:  'text-acc-green bg-acc-green/10',
+  med:  'text-acc-amber bg-acc-amber/10',
+  high: 'text-acc-red bg-acc-red/10',
+};
 const phaseIdx = (p: Phase) => PHASES.indexOf(p);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -664,6 +708,31 @@ export default function ExplorerPage() {
                   );
                 })}
               </div>
+              {domestic && (() => {
+                const info = DOMESTIC_INFO[domestic];
+                const vol = koreaVolumeMap[domestic];
+                const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
+                return (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
+                    className="ios-card rounded-2xl p-4 space-y-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">거래소 정보</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info?.country ?? '대한민국'}</p></div>
+                      <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
+                      <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
+                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
+                      {vol != null && <div><span className="text-label-tertiary">24H BTC 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
+                      {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
+                    </div>
+                    {info?.url && (
+                      <a href={info.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
+                        <Globe className="w-3 h-3" /> {info.url.replace('https://', '')}
+                      </a>
+                    )}
+                  </motion.div>
+                );
+              })()}
               {domestic && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -789,6 +858,34 @@ export default function ExplorerPage() {
                   );
                 })}
               </div>
+              {global && (() => {
+                const info = GLOBAL_INFO[global];
+                if (!info) return null;
+                return (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
+                    className="ios-card rounded-2xl p-4 space-y-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">거래소 정보</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info.country}</p></div>
+                      <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info.carf}년</p></div>
+                      <div><span className="text-label-tertiary">위험도</span>
+                        <p className={`inline-flex items-center mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${RISK_COLOR[info.risk]}`}>
+                          {RISK_LABEL[info.risk]}
+                        </p>
+                      </div>
+                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info.lightning ? '지원' : '미지원'}</p></div>
+                      {info.fatca && <div><span className="text-label-tertiary">규제</span><p className="font-medium text-acc-red mt-0.5">FATCA</p></div>}
+                      <div><span className="text-label-tertiary">24H 거래량 (참고)</span>
+                        <p className="font-medium text-label-primary mt-0.5 num">~${info.vol24hB}억</p>
+                      </div>
+                    </div>
+                    <a href={info.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
+                      <Globe className="w-3 h-3" /> {info.url.replace('https://', '')}
+                    </a>
+                  </motion.div>
+                );
+              })()}
               {global && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
