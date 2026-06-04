@@ -571,7 +571,7 @@ export default function ExplorerPage() {
               </motion.button>
             )}
             <span className="text-sm font-semibold text-label-primary tracking-tight">
-              BTC 경로 탐색
+              비트코인 경로 탐색
             </span>
           </div>
 
@@ -757,7 +757,7 @@ export default function ExplorerPage() {
                           <div className="text-right">
                             {koreaVolumeMap[exchange] != null
                               ? <p className="text-[11px] text-label-tertiary num">
-                                  24H BTC {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
+                                  24H 비트코인 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
                                 </p>
                               : <p className="text-[11px] text-label-tertiary">예상 수령</p>
                             }
@@ -781,7 +781,7 @@ export default function ExplorerPage() {
                       <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
                       <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
                       <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
-                      {vol != null && <div><span className="text-label-tertiary">24H BTC 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
+                      {vol != null && <div><span className="text-label-tertiary">24H 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
                     </div>
                     {info?.url && (
@@ -1235,7 +1235,7 @@ export default function ExplorerPage() {
                         <div className="ios-card rounded-2xl px-4 py-3 text-left">
                           <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">국내 원화 기준</p>
                           <p className="text-xs text-label-secondary leading-relaxed">
-                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 투자하면 받은 BTC 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
+                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 투자하면 받은 비트코인 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${krwPnL < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                             {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '손해' : '이득'}
@@ -1261,7 +1261,7 @@ export default function ExplorerPage() {
                             </span>
                           </p>
                           <p className="text-xs text-label-secondary leading-relaxed">
-                            같은 BTC를 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
+                            같은 비트코인을 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
                             {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '이득' : '손해'}
@@ -1320,7 +1320,7 @@ export default function ExplorerPage() {
                                   <ExFavicon id={p.korean_exchange} size={16} />
                                   <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
                                   <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin}</span>
+                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
                                   {p.transfer_coin === 'USDT' && p._g && (
                                     <>
                                       <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
@@ -1364,7 +1364,7 @@ export default function ExplorerPage() {
                     </div>
                     <div className="flex flex-col items-center px-1">
                       <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                      <p className="text-[9px] text-label-tertiary mt-1">{resultPath.transfer_coin}</p>
+                      <p className="text-[9px] text-label-tertiary mt-1">{resultPath.transfer_coin === 'BTC' ? '비트코인' : resultPath.transfer_coin}</p>
                     </div>
                     {/* 해외 거래소 (USDT 경유) */}
                     {global && (
@@ -1375,7 +1375,7 @@ export default function ExplorerPage() {
                         </div>
                         <div className="flex flex-col items-center px-1">
                           <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                          <p className="text-[9px] text-label-tertiary mt-1">BTC</p>
+                          <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
                         </div>
                       </>
                     )}
