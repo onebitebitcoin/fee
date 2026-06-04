@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  ArrowDown, ArrowLeft, ArrowRight, CheckCircle, Coin, CurrencyDollar,
+  ArrowDown, ArrowLeft, ArrowRight, CaretDown, CheckCircle, Coin, CurrencyDollar,
   Globe, Lightning, MapPin, ShieldCheck, TrendDown, EyeSlash, ArrowsClockwise,
   Warning, Wallet,
 } from '@phosphor-icons/react';
@@ -270,9 +270,17 @@ export default function ExplorerPage() {
   const [btcMethod, setBtcMethod]     = useState<'onchain' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
+  const [showAltPaths, setShowAltPaths] = useState(false);
 
-  const prevPhase = useRef<Phase>('input');
-  const satRafRef = useRef<number | null>(null);
+  const prevPhase  = useRef<Phase>('input');
+  const satRafRef  = useRef<number | null>(null);
+  const stepEndRef = useRef<HTMLDivElement>(null);
+
+  function scrollToStepEnd() {
+    requestAnimationFrame(() =>
+      stepEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    );
+  }
 
   const amountKrw = parseFloat(amount || '0') * (unit === '만원' ? 10_000 : 100_000_000);
 
@@ -440,6 +448,14 @@ export default function ExplorerPage() {
     return bestByBtc(applyPref(basePaths, pref));
   }, [allData, domestic, coin, global, network, swapSvc, pref]);
 
+  const altPaths = useMemo(() => {
+    if (!resultPath?.btc_received || !allPaths.length) return [];
+    return allPaths
+      .filter(p => (p.btc_received ?? 0) > (resultPath.btc_received ?? 0))
+      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0))
+      .slice(0, 8);
+  }, [allPaths, resultPath]);
+
   useEffect(() => {
     if (!resultPath?.btc_received) { setDisplaySats(0); return; }
     const target = Math.round(resultPath.btc_received * SATS_PER_BTC);
@@ -524,7 +540,7 @@ export default function ExplorerPage() {
   function reset() {
     setPhase('input'); setAllData(null); setError(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
-    setBtcMethod(null);
+    setBtcMethod(null); setShowAltPaths(false);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -724,7 +740,7 @@ export default function ExplorerPage() {
                     >
                       <OptionCard
                         selected={domestic === exchange}
-                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); }}
+                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
@@ -787,6 +803,7 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -836,7 +853,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={coin === c}
-                      onClick={() => { setCoin(c); setGlobal(null); setNetwork(null); setBtcMethod(null); }}
+                      onClick={() => { setCoin(c); setGlobal(null); setNetwork(null); setBtcMethod(null); scrollToStepEnd(); }}
                     >
                       <div className="flex items-center gap-3">
                         {c === 'USDT'
@@ -867,6 +884,7 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -879,7 +897,7 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-secondary mt-1">비트코인을 어떻게 보낼까요?</p>
               </div>
               <div className="space-y-2.5">
-                <OptionCard selected={btcMethod === 'onchain'} onClick={() => setBtcMethod('onchain')}>
+                <OptionCard selected={btcMethod === 'onchain'} onClick={() => { setBtcMethod('onchain'); scrollToStepEnd(); }}>
                   <div className="flex items-center gap-3">
                     <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
                     <div>
@@ -925,6 +943,7 @@ export default function ExplorerPage() {
                   결과 보기 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -955,7 +974,7 @@ export default function ExplorerPage() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
                       <OptionCard
                         selected={global === exchange}
-                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); }}
+                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -1023,6 +1042,7 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -1068,7 +1088,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={network === n}
-                      onClick={() => { setNetwork(n); setSwapSvc(null); }}
+                      onClick={() => { setNetwork(n); setSwapSvc(null); scrollToStepEnd(); }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -1112,6 +1132,7 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -1130,7 +1151,7 @@ export default function ExplorerPage() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={swapSvc === name}
-                      onClick={() => { setSwapSvc(name); }}
+                      onClick={() => { setSwapSvc(name); scrollToStepEnd(); }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -1252,6 +1273,84 @@ export default function ExplorerPage() {
                   );
                 })()}
               </motion.div>
+
+              {/* Alternative paths recommendation */}
+              {altPaths.length > 0 && (() => {
+                const bestAlt = altPaths[0];
+                const savingsKrw = domesticBtcKrw != null
+                  ? Math.round(((bestAlt.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
+                  : Math.round(resultPath.total_fee_krw - bestAlt.total_fee_krw);
+                return (
+                  <div>
+                    <button
+                      onClick={() => setShowAltPaths(v => !v)}
+                      className="w-full ios-card rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 text-left"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-xl bg-acc-green/15 flex items-center justify-center flex-shrink-0">
+                          <TrendDown className="w-4 h-4 text-acc-green" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-label-primary">
+                            ₩{formatNumber(savingsKrw)} 더 절약할 수 있는 경로가 있어요
+                          </p>
+                          <p className="text-[10px] text-label-tertiary mt-0.5">
+                            {altPaths.length}개의 더 저렴한 경로 {showAltPaths ? '접기' : '보기'}
+                          </p>
+                        </div>
+                      </div>
+                      <CaretDown className={`w-4 h-4 text-label-tertiary flex-shrink-0 transition-transform duration-200 ${showAltPaths ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showAltPaths && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-2 space-y-2"
+                      >
+                        {altPaths.map((p, i) => {
+                          const altSavingsKrw = domesticBtcKrw != null
+                            ? Math.round(((p.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
+                            : Math.round(resultPath.total_fee_krw - p.total_fee_krw);
+                          return (
+                            <div key={p.path_id ?? i} className="ios-card rounded-2xl px-4 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-1 flex-wrap min-w-0 flex-1">
+                                  <ExFavicon id={p.korean_exchange} size={16} />
+                                  <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin}</span>
+                                  {p.transfer_coin === 'USDT' && p._g && (
+                                    <>
+                                      <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                      <ExFavicon id={p._g} size={16} />
+                                      <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
+                                    </>
+                                  )}
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <span className="text-[10px] text-label-tertiary">{p.network}</span>
+                                  {p.global_exit_mode === 'lightning' && (
+                                    <span className="text-[9px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full font-medium">라이트닝</span>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs font-bold text-acc-green num">+₩{formatNumber(altSavingsKrw)}</p>
+                                  <p className="text-[10px] text-label-tertiary num mt-0.5">{formatPercent(p.fee_pct)}</p>
+                                </div>
+                              </div>
+                              <div className="mt-1.5 flex gap-3 text-[10px] text-label-tertiary">
+                                <span>수수료 <span className="text-acc-red num font-medium">-{formatFeeKrw(p.total_fee_krw)}</span></span>
+                                <span>수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Route path visualization */}
               <div>
