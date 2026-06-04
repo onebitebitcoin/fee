@@ -757,7 +757,7 @@ export default function ExplorerPage() {
                           <div className="text-right">
                             {koreaVolumeMap[exchange] != null
                               ? <p className="text-[11px] text-label-tertiary num">
-                                  24H 비트코인 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
+                                  24시간 비트코인 거래량 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
                                 </p>
                               : <p className="text-[11px] text-label-tertiary">예상 수령</p>
                             }
@@ -781,7 +781,7 @@ export default function ExplorerPage() {
                       <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
                       <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
                       <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
-                      {vol != null && <div><span className="text-label-tertiary">24H 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
+                      {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
                     </div>
                     {info?.url && (
