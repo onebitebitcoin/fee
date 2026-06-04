@@ -15,7 +15,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'global_gate' | 'network' | 'swap_service' | 'result';
-type CoinType = 'USDT' | 'BTC';
+type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
 interface AllData {
@@ -362,19 +362,22 @@ export default function ExplorerPage() {
     const anyData = Object.values(allData.byGlobal)[0];
     const paths = (anyData?.all_paths ?? []).filter(p => p.korean_exchange === domestic);
     const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
-    const u = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
-    const b = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC'));
-    if (u) opts.push({ coin: 'USDT', best: u });
-    if (b) opts.push({ coin: 'BTC',  best: b });
+    const u  = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
+    const b  = bestByBtc(paths.filter(p => p.route_variant === 'btc_direct'));
+    const bg = bestByBtc(paths.filter(p => p.route_variant === 'btc_via_global'));
+    if (u)  opts.push({ coin: 'USDT',       best: u });
+    if (b)  opts.push({ coin: 'BTC',         best: b });
+    if (bg) opts.push({ coin: 'BTC_GLOBAL',  best: bg });
     return opts;
   }, [allData, domestic]);
 
   const globalOptions = useMemo(() => {
-    if (!allData || !domestic || coin !== 'USDT') return [];
+    if (!allData || !domestic || (coin !== 'USDT' && coin !== 'BTC_GLOBAL')) return [];
     return GLOBAL_EXCHANGES
       .map(g => {
         const paths = (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'USDT',
+          p.korean_exchange === domestic &&
+          (coin === 'BTC_GLOBAL' ? p.route_variant === 'btc_via_global' : p.transfer_coin === 'USDT'),
         );
         const best = bestByBtc(paths);
         if (!best) return null;
@@ -389,7 +392,11 @@ export default function ExplorerPage() {
     let paths: CheapestPathEntry[];
     if (coin === 'BTC') {
       paths = (Object.values(allData.byGlobal)[0]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'BTC');
+        .filter(p => p.korean_exchange === domestic && p.route_variant === 'btc_direct');
+    } else if (coin === 'BTC_GLOBAL') {
+      if (!global) return [];
+      paths = (allData.byGlobal[global]?.all_paths ?? [])
+        .filter(p => p.korean_exchange === domestic && p.route_variant === 'btc_via_global');
     } else {
       if (!global) return [];
       paths = (allData.byGlobal[global]?.all_paths ?? [])
@@ -406,9 +413,11 @@ export default function ExplorerPage() {
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
     if (!allData || !domestic || !network) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
+    // BTC_GLOBAL 경로는 라이트닝 스왑 없음
+    if (coin === 'BTC_GLOBAL') return [];
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.network === network)
+          p.korean_exchange === domestic && p.route_variant === 'btc_direct' && p.network === network)
       : global
         ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
             p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
@@ -436,11 +445,16 @@ export default function ExplorerPage() {
     if (!allData || !domestic || !coin || !network) return null;
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.network === network)
-      : global
-        ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-            p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
-        : [];
+          p.korean_exchange === domestic && p.route_variant === 'btc_direct' && p.network === network)
+      : coin === 'BTC_GLOBAL'
+        ? global
+          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+              p.korean_exchange === domestic && p.route_variant === 'btc_via_global' && p.network === network)
+          : []
+        : global
+          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
+          : [];
     if (swapSvc) {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
       return bestByBtc(filtered) ?? bestByBtc(basePaths);
@@ -478,6 +492,8 @@ export default function ExplorerPage() {
     const s: Phase[] = ['domestic', 'domestic_gate', 'coin'];
     if (coin === 'BTC') {
       s.push('btc_method');
+    } else if (coin === 'BTC_GLOBAL') {
+      s.push('global', 'global_gate', 'network');
     } else {
       s.push('global', 'global_gate', 'network');
       if (swapServiceOptions.length > 0) s.push('swap_service');
@@ -531,7 +547,7 @@ export default function ExplorerPage() {
       global_gate:   'global',
       network:       'global_gate',
       swap_service:  'network',
-      result:        coin === 'BTC' ? 'btc_method' : swapSvc ? 'swap_service' : 'network',
+      result:        coin === 'BTC' ? 'btc_method' : (coin === 'BTC_GLOBAL' || !swapSvc) ? 'network' : 'swap_service',
     };
     const prev = map[phase];
     if (prev) setPhase(prev);
@@ -858,15 +874,21 @@ export default function ExplorerPage() {
                       <div className="flex items-center gap-3">
                         {c === 'USDT'
                           ? <CurrencyDollar weight="fill" className="w-8 h-8 text-acc-green" />
+                          : c === 'BTC_GLOBAL'
+                            ? <Globe weight="fill" className="w-8 h-8 text-acc-blue" />
                           : <Coin weight="fill" className="w-8 h-8 text-acc-amber" />}
                         <div>
                           <p className="text-sm font-bold text-label-primary">
-                            {c === 'USDT' ? 'USDT 사서 해외거래소 경유' : '국내거래소에서 비트코인 출금'}
+                            {c === 'USDT' ? 'USDT → 해외거래소 비트코인 매수'
+                              : c === 'BTC_GLOBAL' ? '비트코인 → 해외거래소 경유'
+                              : '비트코인 직접 출금'}
                           </p>
                           <p className="text-xs text-label-secondary mt-0.5">
                             {c === 'USDT'
                               ? 'USDT 출금 → 해외 거래소 비트코인 매수 → 개인 지갑'
-                              : '한국 거래소 비트코인 직접 출금 → 개인 지갑'}
+                              : c === 'BTC_GLOBAL'
+                                ? '비트코인 출금 → 해외 거래소 경유 → 개인 지갑'
+                                : '한국 거래소 비트코인 직접 출금 → 개인 지갑'}
                           </p>
                         </div>
                       </div>

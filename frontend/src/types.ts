@@ -101,7 +101,7 @@ export type WalletFeeEstimate = {
 
 export type CheapestPathEntry = {
   path_id: string;
-  route_variant?: 'btc_direct' | 'usdt_via_global' | 'lightning_direct' | 'lightning_via_global';
+  route_variant?: 'btc_direct' | 'btc_via_global' | 'usdt_via_global' | 'lightning_direct' | 'lightning_via_global';
   korean_exchange: string;
   transfer_coin: string;
   network: string;

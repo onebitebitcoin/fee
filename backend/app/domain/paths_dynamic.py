@@ -415,6 +415,96 @@ def _build_ln_exit_paths(
     return paths
 
 
+def _build_btc_via_global_paths(
+    exchange: str,
+    btc_wd_networks: list,
+    korean_taker: float,
+    amount_krw: int,
+    effective_btc_price_krw: float,
+    korean_btc_price_krw: float,
+    slip_pct: float,
+    global_exchange: str,
+    global_btc_price_usd: float,
+    global_onchain_wd_fee: float | None,
+    global_onchain_wd_fee_krw: int,
+    maintenance_status: dict,
+) -> list[dict]:
+    """국내 비트코인 출금 → 글로벌 거래소 입금 → 비트코인 출금 → 개인 지갑.
+
+    해외 거래소에서 별도 매매 없이 비트코인을 바로 내 지갑으로 출금한다.
+    수수료: 국내 매수 + 국내 BTC 출금 + 해외 BTC 출금
+    """
+    if global_onchain_wd_fee is None:
+        return []
+
+    paths = []
+    for network in btc_wd_networks:
+        if not network.get('enabled', True) or network.get('fee') is None:
+            continue
+        if is_suspended(maintenance_status, exchange, 'BTC', network['label']):
+            continue
+
+        domestic_wd_fee_btc: float = network['fee']
+        trading_fee_krw = round(amount_krw * korean_taker)
+        btc_bought = (amount_krw - trading_fee_krw) / effective_btc_price_krw
+        btc_after_domestic_wd = btc_bought - domestic_wd_fee_btc
+        if btc_after_domestic_wd <= 0:
+            continue
+        btc_received = btc_after_domestic_wd - global_onchain_wd_fee
+        if btc_received <= 0:
+            continue
+
+        domestic_wd_fee_krw = round(domestic_wd_fee_btc * effective_btc_price_krw)
+        slippage_cost_krw = (
+            round((effective_btc_price_krw - korean_btc_price_krw) * btc_bought)
+            if slip_pct > 0 else 0
+        )
+        total_fee_krw = trading_fee_krw + domestic_wd_fee_krw + global_onchain_wd_fee_krw + slippage_cost_krw
+
+        input_krw_buy = amount_krw
+        input_krw_domestic_wd = round(btc_bought * effective_btc_price_krw)
+        input_krw_global_wd = round(btc_after_domestic_wd * effective_btc_price_krw)
+
+        components = [
+            fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
+        ]
+        if slippage_cost_krw > 0:
+            components.append(fee_component(
+                f'슬리피지 추정 ({slip_pct:.2f}%)', slippage_cost_krw,
+                input_krw=input_krw_buy,
+                amount_text='추정값, 실제 체결가 기준', is_fixed=False,
+            ))
+        components += [
+            fee_component(
+                '국내 비트코인 출금 수수료', domestic_wd_fee_krw,
+                input_krw=input_krw_domestic_wd,
+                amount_text=f'{domestic_wd_fee_btc} BTC', is_fixed=True,
+            ),
+            fee_component(
+                f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
+                input_krw=input_krw_global_wd,
+                amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
+            ),
+        ]
+
+        paths.append({
+            'korean_exchange': exchange,
+            'transfer_coin': 'BTC',
+            'route_variant': 'btc_via_global',
+            'network': network['label'],
+            'global_exit_mode': 'onchain',
+            'global_exit_network': 'Bitcoin',
+            'quote_strategy': 'btc_via_global',
+            'slippage_pct': slip_pct,
+            'btc_received': round(btc_received, 8),
+            'btc_received_usd': round(btc_received * global_btc_price_usd, 2),
+            'total_fee_krw': total_fee_krw,
+            'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
+            'breakdown': {'components': components, 'total_fee_krw': total_fee_krw},
+        })
+    return paths
+
+
 def find_cheapest_path_dynamic(
     amount_krw: int = 1_000_000,
     global_exchange: str = 'binance',
@@ -593,6 +683,7 @@ def find_cheapest_path_dynamic(
                 all_paths.append({
                     'korean_exchange': exchange,
                     'transfer_coin': 'BTC',
+                    'route_variant': 'btc_direct',
                     'network': network['label'],
                     'global_exit_mode': 'direct',
                     'global_exit_network': network['label'],
@@ -612,6 +703,22 @@ def find_cheapest_path_dynamic(
                         'total_fee_krw': total_fee_krw,
                     },
                 })
+
+            # BTC → 글로벌 거래소 경유 → BTC 출금 경로 (신규)
+            all_paths.extend(_build_btc_via_global_paths(
+                exchange=exchange,
+                btc_wd_networks=btc_wd_networks,
+                korean_taker=korean_taker,
+                amount_krw=amount_krw,
+                effective_btc_price_krw=effective_btc_price_krw,
+                korean_btc_price_krw=korean_btc_price_krw,
+                slip_pct=slip_pct,
+                global_exchange=global_exchange,
+                global_btc_price_usd=global_btc_price_usd,
+                global_onchain_wd_fee=global_onchain_wd_fee,
+                global_onchain_wd_fee_krw=global_onchain_wd_fee_krw,
+                maintenance_status=maintenance_status,
+            ))
 
             # USDT → BTC/USDT taker 경로 (기존)
             all_paths.extend(_build_usdt_onchain_paths(
