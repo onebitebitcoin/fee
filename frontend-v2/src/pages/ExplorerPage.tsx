@@ -225,6 +225,7 @@ export default function ExplorerPage() {
   const [global, setGlobal]       = useState<GlobalExchange | null>(null);
   const [network, setNetwork]     = useState<string | null>(null);
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
+  const [liveKimp, setLiveKimp]   = useState<Record<string, number> | null>(null);
 
   const prevPhase = useRef<Phase>('input');
 
@@ -386,15 +387,17 @@ export default function ExplorerPage() {
   async function handleSearch() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
-    setAllData(null); setError(null);
+    setAllData(null); setError(null); setLiveKimp(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     try {
-      const [tickerRes, ...pathResults] = await Promise.all([
+      const [tickerRes, kimpRes, ...pathResults] = await Promise.all([
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
+        api.getLiveKimp().catch(() => null),
         ...GLOBAL_EXCHANGES.map(g =>
           api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
         ),
       ]);
+      if (kimpRes?.kimp) setLiveKimp(kimpRes.kimp);
       const byGlobal: Record<string, CheapestPathResponse> = {};
       GLOBAL_EXCHANGES.forEach((g, i) => {
         const r = pathResults[i];
@@ -615,7 +618,7 @@ export default function ExplorerPage() {
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
-                  const kimp = snapshotKimp[exchange] ?? null;
+                  const kimp = (liveKimp ?? snapshotKimp)[exchange] ?? null;
                   return (
                     <motion.div
                       key={exchange}
