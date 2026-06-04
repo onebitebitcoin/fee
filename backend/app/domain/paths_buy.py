@@ -230,7 +230,7 @@ def _build_usdt_paths(
                 fee_component(
                     'USDT 출금 수수료',
                     withdrawal_fee_krw,
-                    amount_text=f'{row.fee} USDT',
+                    amount_text=f'{row.fee:g} USDT',
                     source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
                     is_fixed=True,
                 ),
@@ -244,7 +244,7 @@ def _build_usdt_paths(
                 fee_component(
                     f'해외 BTC 출금 수수료 ({global_exchange})',
                     global_onchain_wd_fee_krw,
-                    amount_text=f'{global_onchain_wd_fee} BTC',
+                    amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats',
                     is_fixed=True,
                 ),
             ]
@@ -256,7 +256,7 @@ def _build_usdt_paths(
                 fee_component(
                     'USDT 출금 수수료',
                     withdrawal_fee_krw,
-                    amount_text=f'{row.fee} USDT',
+                    amount_text=f'{row.fee:g} USDT',
                     source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
                     is_fixed=True,
                 ),
@@ -439,7 +439,7 @@ def find_cheapest_path_from_snapshot_rows(
                         fee_component(
                             'USDT 출금 수수료',
                             withdrawal_fee_krw,
-                            amount_text=f'{row.fee} USDT',
+                            amount_text=f'{row.fee:g} USDT',
                             source_url=get_withdrawal_source_url(exchange, 'USDT', row.network_label),
                             is_fixed=True,
                         ),

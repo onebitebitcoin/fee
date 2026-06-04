@@ -203,7 +203,7 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert 'Coinos' in lightning_providers_in_paths
     assert 'BitFlower' not in lightning_providers_in_paths
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
-    assert usdt_path['breakdown']['components'][1]['amount_text'] == '9.0 USDT'
+    assert usdt_path['breakdown']['components'][1]['amount_text'] == '9 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
     lightning_paths = [path for path in payload['all_paths'] if path.get('path_type') == 'lightning_exit']
     assert lightning_paths
