@@ -643,9 +643,9 @@ export default function ExplorerPage() {
                 <SectionLabel>우선순위</SectionLabel>
                 <div className="grid grid-cols-3 gap-2.5">
                   {([
-                    { id: 'cheapest' as Preference,  Icon: TrendDown,  label: '최저 수수료', sub: 'KYC 무관' },
-                    { id: 'non_kyc'  as Preference,  Icon: EyeSlash,   label: 'Non-KYC',   sub: '익명 우선' },
-                    { id: 'lightning' as Preference, Icon: Lightning,  label: 'Lightning', sub: 'LN 출금' },
+                    { id: 'cheapest' as Preference,  Icon: TrendDown,  label: '최저 수수료', sub: '인증 무관' },
+                    { id: 'non_kyc'  as Preference,  Icon: EyeSlash,   label: '익명 우선',   sub: '인증 불필요' },
+                    { id: 'lightning' as Preference, Icon: Lightning,  label: '라이트닝', sub: 'LN 출금' },
                   ]).map(({ id, Icon, label, sub }) => (
                     <motion.button
                       key={id}
@@ -764,7 +764,7 @@ export default function ExplorerPage() {
                       <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info?.country ?? '대한민국'}</p></div>
                       <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info?.carf ?? 2027}년</p></div>
                       <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
-                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
+                      <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
                       {vol != null && <div><span className="text-label-tertiary">24H BTC 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
                     </div>
@@ -1000,7 +1000,7 @@ export default function ExplorerPage() {
                           {RISK_LABEL[info.risk]}
                         </p>
                       </div>
-                      <div><span className="text-label-tertiary">Lightning 지원</span><p className={`font-medium mt-0.5 ${info.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info.lightning ? '지원' : '미지원'}</p></div>
+                      <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info.lightning ? '지원' : '미지원'}</p></div>
                       {info.fatca && <div><span className="text-label-tertiary">규제</span><p className="font-medium text-acc-red mt-0.5">FATCA</p></div>}
                       <div><span className="text-label-tertiary">24H 거래량 (참고)</span>
                         <p className="font-medium text-label-primary mt-0.5 num">~${info.vol24hB}억</p>
@@ -1121,7 +1121,7 @@ export default function ExplorerPage() {
               transition={SPRING_SLOW} className="space-y-4 pt-2">
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">스왑 서비스</h1>
-                <p className="text-sm text-label-secondary mt-1">Lightning → 온체인 변환 서비스를 선택해요</p>
+                <p className="text-sm text-label-secondary mt-1">라이트닝 → 온체인 변환 서비스를 선택해요</p>
               </div>
               <div className="space-y-2.5">
                 {swapServiceOptions.map(({ name, fee_pct, kyc, btc_received }, i) => (
@@ -1141,8 +1141,8 @@ export default function ExplorerPage() {
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
                             {kyc
-                              ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">KYC</span>
-                              : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">Non-KYC</span>
+                              ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">인증 필요</span>
+                              : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>
                             }
                           </div>
                         </div>
@@ -1305,7 +1305,7 @@ export default function ExplorerPage() {
                   </div>
                   <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
                     <span>네트워크 <span className="text-label-secondary font-medium">{resultPath.network}</span></span>
-                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '⚡ Lightning' : '온체인'}</span></span>
+                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '⚡ 라이트닝' : '온체인'}</span></span>
                   </div>
                 </div>
               </div>
@@ -1350,10 +1350,10 @@ export default function ExplorerPage() {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5">
-                {resultPath.domestic_kyc_status === 'kyc' && <Chip color="amber">국내 KYC 필요</Chip>}
-                {resultPath.global_kyc_status === 'kyc'   && <Chip color="amber">해외 KYC 필요</Chip>}
-                {resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 Non-KYC</Chip>}
-                {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">Lightning 출금</Chip>}
+                {resultPath.domestic_kyc_status === 'kyc' && <Chip color="amber">국내 인증 필요</Chip>}
+                {resultPath.global_kyc_status === 'kyc'   && <Chip color="amber">해외 인증 필요</Chip>}
+                {resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 인증 불필요</Chip>}
+                {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">라이트닝 출금</Chip>}
               </div>
 
               {/* Retry */}

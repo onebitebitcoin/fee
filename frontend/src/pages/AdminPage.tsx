@@ -169,7 +169,7 @@ function GlobalExchangeTable({
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="border-b border-sys-separator">
-              {['거래소', '국가', 'CARF 연도', 'Taker 수수료 (%)', 'FATCA', '비고'].map(h => (
+              {['거래소', '국가', 'CARF 연도', '거래 수수료 (%)', 'FATCA', '비고'].map(h => (
                 <th key={h} className="text-left py-2 px-3 text-label-tertiary font-medium">{h}</th>
               ))}
             </tr>
@@ -195,7 +195,7 @@ function GlobalExchangeTable({
             <p className="font-semibold text-sm text-label-primary mb-3">{node.name}</p>
             <FieldRow label="국가"><EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} /></FieldRow>
             <FieldRow label="CARF 연도"><EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} /></FieldRow>
-            <FieldRow label="Taker 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
+            <FieldRow label="거래 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
             <FieldRow label="FATCA"><FatcaBtn node={node} i={i} /></FieldRow>
             <FieldRow label="비고"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></FieldRow>
           </div>
@@ -227,7 +227,7 @@ function EdgePropertiesSection() {
       title: '국내 BTC 출금 엣지 (개인 지갑)', color: 'amber',
       props: [
         { name: 'fee', desc: '출금 수수료 (BTC)', source: '크롤링' },
-        { name: 'network', desc: 'Bitcoin, Lightning 등', source: '크롤링' },
+        { name: 'network', desc: '비트코인, 라이트닝 등', source: '크롤링' },
         { name: 'perTxKrwLimit', desc: '1회 KRW 출금 제한', source: '어드민 설정' },
         { name: 'dailyBtcLimit', desc: '일일 BTC 한도', source: '어드민 설정' },
       ],
@@ -442,7 +442,7 @@ export function AdminPage() {
             <div className="px-4 py-3 border-b border-sys-separator">
               <p className="text-xs text-label-secondary">
                 {tab === 'korean' && '국내 거래소 노드 속성 — 셀을 클릭해 편집. 저장 후 메인 화면에 반영됩니다.'}
-                {tab === 'global' && '해외 거래소 노드 속성 — 셀을 클릭해 편집. FATCA 버튼으로 토글.'}
+                {tab === 'global' && '해외 거래소 노드 속성 — 셀을 클릭해 편집. 미국세금신고(FATCA) 버튼으로 토글.'}
                 {tab === 'edges'  && '출금 엣지(Transfer Edge) 속성 정의 — 크롤링 데이터는 실시간 갱신됨.'}
               </p>
             </div>
