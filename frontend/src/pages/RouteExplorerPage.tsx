@@ -11,6 +11,8 @@ import { api } from '../lib/api';
 import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
 import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
 import { getKoreanNode } from '../lib/adminSettings';
+import { getDomesticGates, getGlobalGates, ONCHAIN_GATES } from '../lib/gatemanRegistry';
+import type { GateItem } from '../lib/gatemanRegistry';
 import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerRow } from '../types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ export function RouteExplorerPage() {
   const [selectedTradeMethod, setSelectedTradeMethod] = useState<TradeMethod | null>(null);
   const [selectedExitMode, setSelectedExitMode]       = useState<ExitMode | null>(null);
   const [selectedSwapService, setSelectedSwapService] = useState<string | null>(null);
+  const [selectedBtcMethod, setSelectedBtcMethod]     = useState<'onchain' | null>(null);
   const [preference, setPreference]                   = useState<Preference>('cheapest');
   const [error, setError]                             = useState<string | null>(null);
   const [liveKimp, setLiveKimp]                       = useState<LiveKimpResponse | null>(null);
@@ -393,7 +396,7 @@ export function RouteExplorerPage() {
     setPhase('loading');
     setSelectedDomestic(null); setSelectedCoin(null); setSelectedGlobal(null);
     setSelectedNetwork(null); setSelectedTradeMethod(null);
-    setSelectedExitMode(null); setSelectedSwapService(null);
+    setSelectedExitMode(null); setSelectedSwapService(null); setSelectedBtcMethod(null);
     setAllData(null); setError(null); setFailedExchanges([]);
     try {
       const [tickerRes, ...pathResults] = await Promise.all([
@@ -444,20 +447,36 @@ export function RouteExplorerPage() {
     setSelectedDomestic(ex);
     setSelectedCoin(null); setSelectedGlobal(null); setSelectedNetwork(null);
     setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null);
-    setPhase('coin');
+    setSelectedBtcMethod(null);
+    // phase stays 'domestic' — user reviews gateman then clicks 다음
+  }
+
+  function handleDomesticConfirm() {
+    if (selectedDomestic) setPhase('coin');
   }
 
   function handleCoinSelect(coin: CoinType) {
     setSelectedCoin(coin);
     setSelectedGlobal(null); setSelectedNetwork(null);
     setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null);
-    setPhase(coin === 'BTC' ? 'network' : 'global');
+    setSelectedBtcMethod(null);
+    if (coin === 'USDT') setPhase('global');
+    // BTC: stay on coin phase to pick onchain/lightning sub-option
+  }
+
+  function handleBtcMethodConfirm() {
+    if (selectedBtcMethod === 'onchain') setPhase('network');
   }
 
   function handleGlobalSelect(g: GlobalExchange) {
     setSelectedGlobal(g);
     setSelectedNetwork(null); setSelectedTradeMethod(null);
     setSelectedExitMode(null); setSelectedSwapService(null);
+    // phase stays 'global' — user reviews gateman then clicks 다음
+  }
+
+  function handleGlobalConfirm() {
+    if (!selectedGlobal) return;
     setPhase('network');
   }
 
@@ -496,13 +515,13 @@ export function RouteExplorerPage() {
     setPhase('input'); setAllData(null); setFailedExchanges([]);
     setSelectedDomestic(null); setSelectedCoin(null); setSelectedGlobal(null);
     setSelectedNetwork(null); setSelectedTradeMethod(null);
-    setSelectedExitMode(null); setSelectedSwapService(null); setError(null);
+    setSelectedExitMode(null); setSelectedSwapService(null); setSelectedBtcMethod(null); setError(null);
   }
 
   function goBackTo(p: Phase) {
     setPhase(p);
-    if (p === 'domestic')     { setSelectedCoin(null); setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
-    if (p === 'coin')         { setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
+    if (p === 'domestic')     { setSelectedCoin(null); setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); setSelectedBtcMethod(null); }
+    if (p === 'coin')         { setSelectedGlobal(null); setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); setSelectedBtcMethod(null); }
     if (p === 'global')       { setSelectedNetwork(null); setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
     if (p === 'network')      { setSelectedTradeMethod(null); setSelectedExitMode(null); setSelectedSwapService(null); }
     if (p === 'trade_method') { setSelectedExitMode(null); setSelectedSwapService(null); }
@@ -732,6 +751,22 @@ export function RouteExplorerPage() {
                             );
                           })}
                         </div>
+
+                        {/* 국내 거래소 Gateman */}
+                        {selectedDomestic && (
+                          <div className="mt-3 space-y-2">
+                            <GatemanPanel
+                              gates={getDomesticGates(selectedDomestic)}
+                              title={`${fmtEx(selectedDomestic)} 출금 통과 조건`}
+                            />
+                            <button
+                              onClick={handleDomesticConfirm}
+                              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-brand-500 text-stone-900 hover:bg-brand-400 transition-all duration-200"
+                            >
+                              확인 후 다음
+                            </button>
+                          </div>
+                        )}
                       </StepCard>
                     )}
 
@@ -748,23 +783,76 @@ export function RouteExplorerPage() {
                               ? best.num_withdrawal_txs
                               : (coin === 'BTC' && perTxLimit && perTxLimit > 0) ? Math.ceil(amountKrw / perTxLimit) : 1;
                             return (
-                              <ChoiceBtn key={coin} selected={selectedCoin === coin} onClick={() => handleCoinSelect(coin)} horizontal>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 사서 해외거래소 경유</span></>}
-                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">국내거래소에서 비트코인 출금</span></>}
+                              <div key={coin}>
+                                <ChoiceBtn selected={selectedCoin === coin} onClick={() => handleCoinSelect(coin)} horizontal>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 사서 해외거래소 경유</span></>}
+                                      {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">국내거래소에서 비트코인 출금</span></>}
+                                    </div>
+                                    <div className="text-xs text-bnb-muted mt-0.5">
+                                      {coin === 'USDT' && 'USDT 출금 → 해외 거래소 비트코인 매수 → 개인 지갑'}
+                                      {coin === 'BTC' && '한국 거래소 비트코인 직접 출금 → 개인 지갑'}
+                                    </div>
+                                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                      {coin === 'BTC' && perTxLimit != null && <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>}
+                                      {coin === 'BTC' && perTxLimit == null && <InfoTag color="neutral">1회 출금 제한 확인 필요</InfoTag>}
+                                      {coin === 'BTC' && numTxs > 1 && <InfoTag color="amber">{numTxs}회 출금 필요 (수수료 {numTxs}×)</InfoTag>}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-bnb-muted mt-0.5">
-                                    {coin === 'USDT' && 'USDT 출금 → 해외 거래소 비트코인 매수 → 개인 지갑'}
-                                    {coin === 'BTC' && '한국 거래소 비트코인 직접 출금 → 개인 지갑'}
+                                </ChoiceBtn>
+
+                                {/* BTC 선택 시: 출금 네트워크 방식 선택 */}
+                                {coin === 'BTC' && selectedCoin === 'BTC' && (
+                                  <div className="mt-2 ml-2 space-y-2">
+                                    <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-1">출금 네트워크 방식</p>
+
+                                    {/* 온체인 */}
+                                    <ChoiceBtn selected={selectedBtcMethod === 'onchain'} onClick={() => setSelectedBtcMethod('onchain')} horizontal>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <ArrowDown className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                                          <span className="font-semibold text-sm">온체인 출금</span>
+                                        </div>
+                                        <div className="text-xs text-bnb-muted mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송</div>
+                                      </div>
+                                    </ChoiceBtn>
+
+                                    {/* 라이트닝 - 비활성 */}
+                                    <ChoiceBtn selected={false} onClick={() => {}} disabled horizontal>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <Lightning className="w-3.5 h-3.5 text-bnb-muted flex-shrink-0" />
+                                          <span className="font-semibold text-sm text-bnb-muted">라이트닝</span>
+                                          <span className="text-[10px] font-bold bg-dark-200 text-bnb-muted px-1.5 py-0.5 rounded">국내 거래소 미지원</span>
+                                        </div>
+                                        <div className="text-xs text-bnb-muted/60 mt-0.5">국내 거래소에서는 Lightning Network 출금을 지원하지 않습니다</div>
+                                      </div>
+                                    </ChoiceBtn>
+
+                                    {/* 설명 + Gateman */}
+                                    {selectedBtcMethod === 'onchain' && (
+                                      <div className="space-y-2">
+                                        <div className="rounded-xl border border-dark-200 bg-dark-400 p-3 text-xs text-bnb-muted space-y-1.5">
+                                          <p className="font-semibold text-stone-300">온체인 vs 라이트닝</p>
+                                          <p><span className="text-stone-300 font-medium">온체인:</span> Bitcoin 블록체인에 직접 기록. 채굴 수수료 발생, 10~60분 소요. 큰 금액에 유리.</p>
+                                          <p><span className="text-stone-300 font-medium">라이트닝:</span> 2nd Layer 즉시 결제. 수수료 저렴. 그러나 국내 거래소는 현재 미지원.</p>
+                                        </div>
+                                        <GatemanPanel gates={ONCHAIN_GATES} title="온체인 출금 주의사항" />
+                                      </div>
+                                    )}
+
+                                    {/* 다음 버튼 */}
+                                    <button
+                                      disabled={selectedBtcMethod !== 'onchain'}
+                                      onClick={handleBtcMethodConfirm}
+                                      className="w-full mt-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed bg-brand-500 text-stone-900 hover:bg-brand-400 disabled:bg-dark-200 disabled:text-bnb-muted"
+                                    >
+                                      다음
+                                    </button>
                                   </div>
-                                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                                    {coin === 'BTC' && perTxLimit != null && <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>}
-                                    {coin === 'BTC' && perTxLimit == null && <InfoTag color="neutral">1회 출금 제한 확인 필요</InfoTag>}
-                                    {coin === 'BTC' && numTxs > 1 && <InfoTag color="amber">{numTxs}회 출금 필요 (수수료 {numTxs}×)</InfoTag>}
-                                  </div>
-                                </div>
-                              </ChoiceBtn>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -815,6 +903,22 @@ export function RouteExplorerPage() {
                             );
                           })}
                         </div>
+
+                        {/* 해외 거래소 Gateman */}
+                        {selectedGlobal && (
+                          <div className="mt-3 space-y-2">
+                            <GatemanPanel
+                              gates={getGlobalGates(selectedGlobal)}
+                              title={`${fmtEx(selectedGlobal)} 입출금 통과 조건`}
+                            />
+                            <button
+                              onClick={handleGlobalConfirm}
+                              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-brand-500 text-stone-900 hover:bg-brand-400 transition-all duration-200"
+                            >
+                              확인 후 다음
+                            </button>
+                          </div>
+                        )}
                       </StepCard>
                     )}
 
@@ -1723,6 +1827,43 @@ function InfoTag({ color, children }: { color: TagColor; children: React.ReactNo
     <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${TAG_CLS[color]}`}>
       {children}
     </span>
+  );
+}
+
+// ── GatemanPanel ──────────────────────────────────────────────────────────────
+
+const GATE_CFG = {
+  required:    { dot: 'bg-red-500',   text: 'text-red-400',   badge: 'bg-red-950/50 text-red-400 border-red-500/30',   label: '필수' },
+  conditional: { dot: 'bg-amber-400', text: 'text-amber-400', badge: 'bg-amber-950/40 text-amber-400 border-amber-500/30', label: '조건부' },
+  info:        { dot: 'bg-blue-500',  text: 'text-blue-400',  badge: 'bg-blue-950/40 text-blue-400 border-blue-500/30',   label: '참고' },
+};
+
+function GatemanPanel({ gates, title = '통과 조건 확인' }: { gates: GateItem[]; title?: string }) {
+  return (
+    <div className="rounded-xl border border-dark-200 bg-dark-400/60 p-3 space-y-2">
+      <div className="flex items-center gap-1.5 mb-1">
+        <ShieldCheck className="w-3.5 h-3.5 text-bnb-muted flex-shrink-0" />
+        <span className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider">{title}</span>
+      </div>
+      {gates.map((g, i) => {
+        const cfg = GATE_CFG[g.level];
+        return (
+          <div key={i} className="flex gap-2.5 items-start">
+            <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${cfg.dot}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={`text-xs font-semibold ${cfg.text}`}>{g.label}</span>
+                <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${cfg.badge}`}>{cfg.label}</span>
+                {g.condition && (
+                  <span className="text-[9px] text-bnb-muted/70">({g.condition})</span>
+                )}
+              </div>
+              <p className="text-[10px] text-bnb-muted mt-0.5 leading-relaxed">{g.desc}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
