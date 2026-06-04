@@ -148,6 +148,12 @@ export function RouteExplorerPage() {
     return result;
   }, [allData]);
 
+  const usdKrwRate = useMemo(() => {
+    if (!allData) return 1400;
+    const ref = allData.byGlobal['binance'] ?? Object.values(allData.byGlobal)[0];
+    return ref?.usd_krw_rate ?? 1400;
+  }, [allData]);
+
   const allTaggedPaths = useMemo(() => {
     if (!allData) return [] as (CheapestPathEntry & { _g: string })[];
     return Object.entries(allData.byGlobal).flatMap(([g, d]) =>
@@ -717,7 +723,7 @@ export function RouteExplorerPage() {
                                   {exchange === recDomestic && <span className="text-[10px] font-bold bg-brand-500 text-stone-900 px-1.5 py-0.5 rounded flex-shrink-0">추천</span>}
                                 </div>
                                 {takerFee != null && <div className="text-xs text-bnb-muted mt-0.5">수수료 {takerFee.toFixed(2)}%</div>}
-                                {vol?.volume_24h_usd != null && <div className="text-[10px] text-bnb-muted mt-0.5">24H {fmtVol(vol.volume_24h_usd)}</div>}
+                                {vol?.volume_24h_usd != null && <div className="text-[10px] text-bnb-muted mt-0.5">거래량 {fmtVolEok(vol.volume_24h_usd, usdKrwRate)}</div>}
                                 {kimchi != null && (
                                   <div className={`text-xs mt-0.5 font-semibold ${kimchi > 2 ? 'text-red-400' : kimchi > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     {kimchi >= 0 ? `+${kimchi.toFixed(1)}%` : `${kimchi.toFixed(1)}%`} 김프
@@ -747,13 +753,13 @@ export function RouteExplorerPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     {coin === 'USDT' && <><CurrencyDollar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" weight="bold" /><span className="font-semibold text-sm">USDT 경유</span></>}
-                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC 직접 출금</span></>}
-                                    {coin === 'BTC_VIA' && <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">BTC → 해외거래소 경유</span></>}
+                                    {coin === 'BTC' && <><Coin className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">비트코인 직접 출금</span></>}
+                                    {coin === 'BTC_VIA' && <><Coin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" weight="fill" /><span className="font-semibold text-sm">비트코인 → 해외거래소 경유</span></>}
                                   </div>
                                   <div className="text-xs text-bnb-muted mt-0.5">
-                                    {coin === 'USDT' && 'USDT 출금 → 해외 거래소 BTC 매수 → 개인 지갑'}
-                                    {coin === 'BTC' && '한국 거래소 BTC 출금 → 개인 지갑 (직접)'}
-                                    {coin === 'BTC_VIA' && 'BTC 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
+                                    {coin === 'USDT' && 'USDT 출금 → 해외 거래소 비트코인 매수 → 개인 지갑'}
+                                    {coin === 'BTC' && '한국 거래소 비트코인 출금 → 개인 지갑 (직접)'}
+                                    {coin === 'BTC_VIA' && '비트코인 출금 → 해외 거래소 입금 → 개인 지갑 (2단계)'}
                                   </div>
                                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                     {coin === 'BTC' && perTxLimit != null && <InfoTag color="red">1회 {(perTxLimit / 10000).toFixed(0)}만원 제한</InfoTag>}
@@ -799,7 +805,7 @@ export function RouteExplorerPage() {
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                     {carf && <span className="text-xs text-bnb-muted">{carf.country}</span>}
-                                    {vol?.volume_24h_usd != null && <span className="text-[10px] text-bnb-muted">24H {fmtVol(vol.volume_24h_usd)}</span>}
+                                    {vol?.volume_24h_usd != null && <span className="text-[10px] text-bnb-muted">거래량 {fmtVolEok(vol.volume_24h_usd, usdKrwRate)}</span>}
                                     {vol?.trust_rank != null && <span className="text-[10px] text-bnb-muted">#{vol.trust_rank}</span>}
                                   </div>
                                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
@@ -1328,7 +1334,7 @@ function RightInfoPanel({
               />
             )}
             {domVol?.volume_24h_usd != null && (
-              <InfoRow label="24H 거래량" value={fmtVol(domVol.volume_24h_usd) ?? '-'} />
+              <InfoRow label="국내 거래소 24H 거래량" value={fmtVolEok(domVol.volume_24h_usd, usdKrwRate) ?? '-'} />
             )}
             <InfoRow label="규제" value="KYC + CARF 2027" />
           </div>
@@ -1348,7 +1354,7 @@ function RightInfoPanel({
             {globCarf && <InfoRow label="CARF 시행" value={`${globCarf.carfYear}년`} />}
             {globCarf?.fatca && <InfoRow label="FATCA" value="해당" valueClass="text-red-400 font-semibold" />}
             {globVol?.volume_24h_usd != null && (
-              <InfoRow label="24H 거래량" value={fmtVol(globVol.volume_24h_usd) ?? '-'} />
+              <InfoRow label="해외거래소 24H 거래량" value={fmtVolEok(globVol.volume_24h_usd, usdKrwRate) ?? '-'} />
             )}
             {globVol?.trust_rank != null && (
               <InfoRow label="신뢰도 순위" value={`#${globVol.trust_rank}`} />
@@ -1363,7 +1369,7 @@ function RightInfoPanel({
           <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">네트워크</p>
           <div className="space-y-1.5 text-xs">
             <InfoRow label="선택" value={selectedNetwork} />
-            {selectedCoin && <InfoRow label="코인" value={selectedCoin === 'BTC_VIA' ? 'BTC' : selectedCoin} />}
+            {selectedCoin && <InfoRow label="코인" value={selectedCoin === 'USDT' ? 'USDT' : '비트코인'} />}
           </div>
         </div>
       )}
@@ -1729,6 +1735,15 @@ function fmtVol(usd: number | null | undefined): string | null {
   if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
   if (usd >= 1_000_000)     return `$${(usd / 1_000_000).toFixed(0)}M`;
   return `$${(usd / 1_000).toFixed(0)}K`;
+}
+
+function fmtVolEok(usd: number | null | undefined, usdKrwRate: number): string | null {
+  if (!usd || !usdKrwRate) return null;
+  const eok = (usd * usdKrwRate) / 100_000_000;
+  if (eok >= 10_000) return `약 ${(eok / 10_000).toFixed(1)}조원`;
+  if (eok >= 1_000) return `약 ${Math.round(eok / 100) * 100}억원`;
+  if (eok >= 100) return `약 ${Math.round(eok / 10) * 10}억원`;
+  return `약 ${Math.round(eok)}억원`;
 }
 
 function getFeeCategory(label: string): { label: string; color: TagColor } | null {
