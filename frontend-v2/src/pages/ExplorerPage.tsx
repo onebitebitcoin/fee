@@ -816,12 +816,6 @@ export default function ExplorerPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-bold text-label-primary">{n}</p>
-                          {best.global_exit_mode === 'lightning' && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Lightning weight="fill" className="w-3 h-3 text-acc-amber" />
-                              <p className="text-[11px] text-acc-amber">Lightning 출금</p>
-                            </div>
-                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
