@@ -14,7 +14,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'input' | 'loading' | 'domestic' | 'coin' | 'global' | 'network' | 'swap_service' | 'result';
+type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'network' | 'swap_service' | 'result';
 type CoinType = 'USDT' | 'BTC';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
@@ -27,7 +27,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'coin', 'global', 'network', 'swap_service', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'network', 'swap_service', 'result'];
 
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
@@ -434,7 +434,8 @@ export default function ExplorerPage() {
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
   const steps = useMemo(() => {
-    const s: Phase[] = ['domestic', 'coin'];
+    const s: Phase[] = ['domestic', 'domestic_gate', 'coin'];
+    if (coin === 'BTC') s.push('btc_method');
     if (coin === 'USDT') s.push('global');
     s.push('network');
     if (swapServiceOptions.length > 0) s.push('swap_service');
@@ -480,12 +481,16 @@ export default function ExplorerPage() {
 
   function handleBack() {
     const map: Partial<Record<Phase, Phase>> = {
-      coin: 'domestic', global: 'coin', network: coin === 'BTC' ? 'coin' : 'global',
-      swap_service: 'network',
-      result: swapSvc ? 'swap_service' : 'network',
+      domestic_gate: 'domestic',
+      coin:          'domestic_gate',
+      btc_method:    'coin',
+      global:        'coin',
+      network:       coin === 'BTC' ? 'btc_method' : 'global',
+      swap_service:  'network',
+      result:        swapSvc ? 'swap_service' : 'network',
     };
     const prev = map[phase];
-    if (prev) { setPhase(prev); }
+    if (prev) setPhase(prev);
   }
 
   function reset() {
@@ -745,20 +750,42 @@ export default function ExplorerPage() {
                 );
               })()}
               {domestic && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  transition={SPRING_FAST} className="space-y-3">
-                  <GatemanPanel
-                    gates={getDomesticGates(domestic, liveRegistry?.domestic)}
-                    title={`${fmtEx(domestic)} 출금 통과 조건`}
-                  />
-                  <motion.button
-                    onClick={() => setPhase('coin')}
-                    className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    확인 후 다음 <ArrowRight className="w-4 h-4" />
-                  </motion.button>
-                </motion.div>
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('domestic_gate')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
               )}
+            </motion.div>
+          )}
+
+          {/* ── Domestic Gate ── */}
+          {phase === 'domestic_gate' && domestic && (
+            <motion.div key="domestic_gate" variants={variants} initial="enter" animate="center" exit="exit"
+              transition={SPRING_SLOW} className="space-y-4 pt-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <ExFavicon id={domestic} size={16} />
+                  <p className="text-xs text-label-secondary">{fmtEx(domestic)}</p>
+                </div>
+                <h1 className="text-2xl font-bold text-label-primary tracking-tight">출금 통과 조건</h1>
+                <p className="text-sm text-label-secondary mt-1">출금 전 확인이 필요한 조건들이에요</p>
+              </div>
+              <GatemanPanel
+                gates={getDomesticGates(domestic, liveRegistry?.domestic)}
+                title={`${fmtEx(domestic)} 출금 조건`}
+              />
+              <motion.button
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={SPRING_FAST}
+                onClick={() => setPhase('coin')}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+              >
+                확인 후 다음 <ArrowRight className="w-4 h-4" />
+              </motion.button>
             </motion.div>
           )}
 
@@ -799,60 +826,68 @@ export default function ExplorerPage() {
                         </div>
                       </div>
                     </OptionCard>
-
-                    {/* BTC 선택 시: 온체인 / 라이트닝 서브 옵션 */}
-                    {c === 'BTC' && coin === 'BTC' && (
-                      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                        transition={SPRING_FAST} className="mt-2 space-y-2 pl-2">
-                        <p className="text-[10px] font-semibold text-label-tertiary uppercase tracking-wider">출금 네트워크 방식</p>
-
-                        {/* 온체인 */}
-                        <OptionCard selected={btcMethod === 'onchain'} onClick={() => setBtcMethod('onchain')}>
-                          <div className="flex items-center gap-3">
-                            <ArrowDown weight="bold" className="w-5 h-5 text-acc-amber flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-semibold text-label-primary">온체인 출금</p>
-                              <p className="text-xs text-label-tertiary mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송</p>
-                            </div>
-                          </div>
-                        </OptionCard>
-
-                        {/* 라이트닝 - 비활성 */}
-                        <OptionCard selected={false} onClick={() => {}} disabled>
-                          <div className="flex items-center gap-3">
-                            <Lightning weight="fill" className="w-5 h-5 text-label-disabled flex-shrink-0" />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-semibold text-label-disabled">라이트닝</p>
-                                <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">국내 거래소 미지원</span>
-                              </div>
-                              <p className="text-xs text-label-disabled mt-0.5">국내 거래소에서는 Lightning Network 출금을 지원하지 않습니다</p>
-                            </div>
-                          </div>
-                        </OptionCard>
-
-                        {/* 온체인 선택 시 설명 + Gateman */}
-                        {btcMethod === 'onchain' && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={SPRING_FAST}
-                            className="space-y-2">
-                            <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
-                              <p className="font-semibold text-label-primary">온체인 vs 라이트닝</p>
-                              <p className="text-label-secondary"><span className="font-medium text-label-primary">온체인:</span> Bitcoin 블록체인에 직접 기록. 채굴 수수료 발생, 10~60분 소요. 큰 금액에 유리.</p>
-                              <p className="text-label-secondary"><span className="font-medium text-label-primary">라이트닝:</span> 2nd Layer 즉시 결제. 수수료 저렴. 그러나 국내 거래소는 현재 미지원.</p>
-                            </div>
-                            <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
-                          </motion.div>
-                        )}
-                      </motion.div>
-                    )}
                   </motion.div>
                 ))}
               </div>
-              {coin && (coin !== 'BTC' || btcMethod === 'onchain') && (
+              {coin && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase(coin === 'BTC' ? 'network' : 'global')}
+                  onClick={() => setPhase(coin === 'BTC' ? 'btc_method' : 'global')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── BTC Method ── */}
+          {phase === 'btc_method' && (
+            <motion.div key="btc_method" variants={variants} initial="enter" animate="center" exit="exit"
+              transition={SPRING_SLOW} className="space-y-4 pt-2">
+              <div>
+                <h1 className="text-2xl font-bold text-label-primary tracking-tight">출금 네트워크 방식</h1>
+                <p className="text-sm text-label-secondary mt-1">비트코인을 어떻게 보낼까요?</p>
+              </div>
+              <div className="space-y-2.5">
+                <OptionCard selected={btcMethod === 'onchain'} onClick={() => setBtcMethod('onchain')}>
+                  <div className="flex items-center gap-3">
+                    <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-label-primary">온체인 출금</p>
+                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송. 10~60분 소요.</p>
+                    </div>
+                  </div>
+                </OptionCard>
+                <OptionCard selected={false} onClick={() => {}} disabled>
+                  <div className="flex items-center gap-3">
+                    <Lightning weight="fill" className="w-7 h-7 text-label-disabled flex-shrink-0" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-label-disabled">라이트닝</p>
+                        <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">국내 거래소 미지원</span>
+                      </div>
+                      <p className="text-xs text-label-disabled mt-0.5">즉시 결제 가능하나 국내 거래소에서 지원하지 않습니다</p>
+                    </div>
+                  </div>
+                </OptionCard>
+              </div>
+              {btcMethod === 'onchain' && (
+                <div className="space-y-2.5">
+                  <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
+                    <p className="font-semibold text-label-primary">온체인 vs 라이트닝</p>
+                    <p className="text-label-secondary"><span className="font-medium text-label-primary">온체인:</span> 블록체인에 직접 기록. 채굴 수수료 발생, 10~60분 소요.</p>
+                    <p className="text-label-secondary"><span className="font-medium text-label-primary">라이트닝:</span> 2nd Layer 즉시 결제, 수수료 저렴. 국내 거래소 미지원.</p>
+                  </div>
+                  <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
+                </div>
+              )}
+              {btcMethod === 'onchain' && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => setPhase('network')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
