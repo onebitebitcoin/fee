@@ -657,7 +657,6 @@ export default function ExplorerPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-label-primary num">{formatSats(best)}</p>
                             {koreaVolumeMap[exchange] != null
                               ? <p className="text-[11px] text-label-tertiary num">
                                   BTC 거래량 {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
@@ -715,7 +714,6 @@ export default function ExplorerPage() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 ml-3">
-                          <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
                           <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
                         </div>
                       </div>
@@ -776,7 +774,6 @@ export default function ExplorerPage() {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
                             <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
                           </div>
                         </div>
@@ -830,7 +827,6 @@ export default function ExplorerPage() {
                           )}
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-label-primary num">{formatSats(best.btc_received ?? 0)}</p>
                           <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
                         </div>
                       </div>
@@ -874,8 +870,7 @@ export default function ExplorerPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-label-primary num">{formatSats(btc_received)}</p>
-                          <p className="text-[11px] text-label-tertiary">예상 수령</p>
+                          <p className="text-[11px] text-label-tertiary">{formatPercent(fee_pct)}</p>
                         </div>
                       </div>
                     </OptionCard>
