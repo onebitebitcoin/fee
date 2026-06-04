@@ -811,11 +811,21 @@ export default function ExplorerPage() {
                   <SectionLabel>수수료 내역</SectionLabel>
                   <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
                     {resultPath.breakdown.components.map((c, i) => (
-                      <div key={i} className="flex items-center justify-between px-4 py-3">
-                        <p className="text-xs text-label-secondary">{c.label}</p>
-                        <p className="text-xs font-medium text-acc-red num">
-                          -{formatFeeKrw(c.amount_krw)}
-                        </p>
+                      <div key={i} className="flex items-start justify-between px-4 py-3 gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
+                          {c.amount_text && (
+                            <p className="text-[10px] text-label-tertiary num mt-0.5">{c.amount_text}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-semibold text-acc-red num">
+                            -{formatFeeKrw(c.amount_krw)}
+                          </p>
+                          {c.rate_pct != null && (
+                            <p className="text-[10px] text-label-tertiary num mt-0.5">{c.rate_pct.toFixed(4)}%</p>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
