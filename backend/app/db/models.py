@@ -198,3 +198,13 @@ class CarfExchangeInfo(Base):
     map_location_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sources_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AdminConfig(Base):
+    __tablename__ = 'admin_config'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    value_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_source: Mapped[str] = mapped_column(String(50), nullable=False, default='manual')

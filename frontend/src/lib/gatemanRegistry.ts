@@ -92,12 +92,30 @@ export const ONCHAIN_GATES: GateItem[] = [
   { label: '입금 확인 시간 소요', desc: '1 블록 확인에 약 10분, 거래소 입금 반영까지 1~6 블록(10분~1시간) 소요됩니다.', level: 'info' },
 ];
 
-// ── 조회 함수 ─────────────────────────────────────────────────────────────────
+// ── 조회 함수 (정적 기본값 기준) ──────────────────────────────────────────────
 
-export function getDomesticGates(exchangeId: string): GateItem[] {
-  return DOMESTIC[exchangeId.toLowerCase()] ?? DOMESTIC_DEFAULT;
+export function getDomesticGates(
+  exchangeId: string,
+  live?: Record<string, GateItem[]>,
+): GateItem[] {
+  const id = exchangeId.toLowerCase();
+  return live?.[id] ?? DOMESTIC[id] ?? DOMESTIC_DEFAULT;
 }
 
-export function getGlobalGates(exchangeId: string): GateItem[] {
-  return GLOBAL[exchangeId.toLowerCase()] ?? GLOBAL_DEFAULT;
+export function getGlobalGates(
+  exchangeId: string,
+  live?: Record<string, GateItem[]>,
+): GateItem[] {
+  const id = exchangeId.toLowerCase();
+  return live?.[id] ?? GLOBAL[id] ?? GLOBAL_DEFAULT;
+}
+
+// ── 타입 내보내기 ──────────────────────────────────────────────────────────────
+
+export interface LiveRegistry {
+  domestic: Record<string, GateItem[]>;
+  global: Record<string, GateItem[]>;
+  onchain: GateItem[];
+  updated_at: string;
+  updated_source: string;
 }

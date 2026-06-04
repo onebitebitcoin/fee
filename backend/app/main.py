@@ -27,6 +27,22 @@ def _warm_withdrawal_cache() -> None:
         logger.warning('Withdrawal cache warmup failed: %s', exc)
 
 
+async def _auto_crawl_loop() -> None:
+    """매 1시간마다 자동 크롤링을 실행한다."""
+    from backend.app.db.session import SessionLocal
+    from backend.app.services.crawl_service import CrawlService
+
+    await asyncio.sleep(3600)  # 첫 실행은 1시간 후
+    while True:
+        try:
+            with SessionLocal() as db:
+                result = CrawlService(db).run_full_crawl(trigger='scheduled')
+                logger.info('Scheduled crawl completed: id=%s status=%s', result.id, result.status)
+        except Exception as exc:
+            logger.warning('Scheduled crawl failed: %s', exc)
+        await asyncio.sleep(3600)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -34,7 +50,9 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor(max_workers=1)
     loop.run_in_executor(executor, _warm_withdrawal_cache)
+    crawl_task = asyncio.create_task(_auto_crawl_loop())
     yield
+    crawl_task.cancel()
     executor.shutdown(wait=False)
 
 

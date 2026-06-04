@@ -279,7 +279,7 @@ function EdgePropertiesSection() {
 
 // ── Main AdminPage ─────────────────────────────────────────────────────────────
 
-type Tab = 'korean' | 'global' | 'edges' | 'crawl';
+type Tab = 'korean' | 'global' | 'edges' | 'gateman' | 'notices' | 'crawl';
 
 export function AdminPage() {
   const navigate = useNavigate();
@@ -400,10 +400,12 @@ export function AdminPage() {
         <div className="max-w-5xl mx-auto px-4 pb-0 border-t border-dark-200/40 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex gap-0 min-w-max">
             {([
-              { id: 'korean', label: '국내 거래소 노드' },
-              { id: 'global', label: '해외 거래소 노드' },
-              { id: 'edges',  label: '출금 엣지 속성' },
-              { id: 'crawl',  label: '크롤 상태' },
+              { id: 'korean',  label: '국내 거래소 노드' },
+              { id: 'global',  label: '해외 거래소 노드' },
+              { id: 'edges',   label: '출금 엣지 속성' },
+              { id: 'gateman', label: '게이트맨 레지스트리' },
+              { id: 'notices', label: '공지사항' },
+              { id: 'crawl',   label: '크롤 상태' },
             ] as { id: Tab; label: string }[]).map(t => (
               <button
                 key={t.id}
@@ -424,7 +426,7 @@ export function AdminPage() {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className="bg-dark-300 border border-dark-200 rounded-xl overflow-hidden">
-          {tab !== 'crawl' && (
+          {(tab !== 'crawl' && tab !== 'gateman' && tab !== 'notices') && (
             <div className="p-4 border-b border-dark-200">
               <p className="text-xs text-bnb-muted">
                 {tab === 'korean' && '국내 거래소 노드 속성 — 셀을 클릭해 편집. 저장 후 메인 화면에 반영됩니다.'}
@@ -433,7 +435,7 @@ export function AdminPage() {
               </p>
             </div>
           )}
-          <div className={tab !== 'crawl' ? 'p-4' : ''}>
+          <div className={(tab !== 'crawl' && tab !== 'gateman' && tab !== 'notices') ? 'p-4' : ''}>
             {tab === 'korean' && (
               <KoreanExchangeTable
                 nodes={settings.koreanNodes}
@@ -446,11 +448,326 @@ export function AdminPage() {
                 onChange={nodes => setSettings(s => ({ ...s, globalNodes: nodes }))}
               />
             )}
-            {tab === 'edges' && <EdgePropertiesSection />}
-            {tab === 'crawl' && <CrawlStatusPanel />}
+            {tab === 'edges'   && <EdgePropertiesSection />}
+            {tab === 'gateman' && <GatemanRegistryPanel />}
+            {tab === 'notices' && <NoticesPanel />}
+            {tab === 'crawl'   && <CrawlStatusPanel />}
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+// ── GatemanRegistryPanel ────────────────────────────────────────────────────
+
+type GateLevel = 'required' | 'conditional' | 'info';
+interface GateItem { label: string; desc: string; level: GateLevel; condition: string | null }
+type RegistryData = { domestic: Record<string, GateItem[]>; global: Record<string, GateItem[]>; onchain: GateItem[] };
+
+const LEVEL_CFG = {
+  required:    { badge: 'bg-red-950/50 text-red-400 border-red-500/30',   label: '필수' },
+  conditional: { badge: 'bg-amber-950/40 text-amber-400 border-amber-500/30', label: '조건부' },
+  info:        { badge: 'bg-blue-950/40 text-blue-400 border-blue-500/30',   label: '참고' },
+};
+
+function GateItemRow({ item, onDelete, onChange }: {
+  item: GateItem;
+  onDelete: () => void;
+  onChange: (patch: Partial<GateItem>) => void;
+}) {
+  return (
+    <div className="flex gap-2 items-start p-2 rounded-lg border border-dark-200 bg-dark-400/40">
+      <div className="flex-1 space-y-1">
+        <input
+          value={item.label}
+          onChange={e => onChange({ label: e.target.value })}
+          className="w-full bg-dark-400 border border-dark-200 rounded px-2 py-1 text-xs outline-none focus:border-brand-500/50"
+          placeholder="라벨"
+        />
+        <textarea
+          value={item.desc}
+          onChange={e => onChange({ desc: e.target.value })}
+          rows={2}
+          className="w-full bg-dark-400 border border-dark-200 rounded px-2 py-1 text-[11px] text-bnb-muted outline-none focus:border-brand-500/50 resize-none"
+          placeholder="설명"
+        />
+        <div className="flex gap-2 items-center flex-wrap">
+          <select
+            value={item.level}
+            onChange={e => onChange({ level: e.target.value as GateLevel })}
+            className="bg-dark-400 border border-dark-200 rounded px-1.5 py-0.5 text-[10px] outline-none"
+          >
+            {(['required', 'conditional', 'info'] as GateLevel[]).map(l => (
+              <option key={l} value={l}>{LEVEL_CFG[l].label}</option>
+            ))}
+          </select>
+          <input
+            value={item.condition ?? ''}
+            onChange={e => onChange({ condition: e.target.value || null })}
+            className="flex-1 bg-dark-400 border border-dark-200 rounded px-2 py-0.5 text-[10px] outline-none focus:border-brand-500/50"
+            placeholder="조건 (선택)"
+          />
+          <span className={`text-[9px] px-1 py-0.5 rounded border ${LEVEL_CFG[item.level].badge}`}>{LEVEL_CFG[item.level].label}</span>
+        </div>
+      </div>
+      <button onClick={onDelete} className="text-bnb-muted hover:text-red-400 transition-colors mt-1 flex-shrink-0">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function ExchangeGateEditor({ label, gates, onChange }: {
+  label: string; gates: GateItem[]; onChange: (g: GateItem[]) => void;
+}) {
+  function addGate() {
+    onChange([...gates, { label: '', desc: '', level: 'required', condition: null }]);
+  }
+  function updateGate(i: number, patch: Partial<GateItem>) {
+    onChange(gates.map((g, idx) => idx === i ? { ...g, ...patch } : g));
+  }
+  function deleteGate(i: number) {
+    onChange(gates.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div className="border border-dark-200 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-dark-400/60 border-b border-dark-200">
+        <span className="text-xs font-semibold">{label}</span>
+        <button onClick={addGate} className="text-[10px] text-brand-400 hover:text-brand-300 flex items-center gap-1">
+          <Check className="w-3 h-3" /> 항목 추가
+        </button>
+      </div>
+      <div className="p-3 space-y-2">
+        {gates.length === 0 && <p className="text-[10px] text-bnb-muted">게이트 항목 없음</p>}
+        {gates.map((g, i) => (
+          <GateItemRow key={i} item={g} onDelete={() => deleteGate(i)} onChange={p => updateGate(i, p)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GatemanRegistryPanel() {
+  const [data, setData] = useState<RegistryData | null>(null);
+  const [meta, setMeta] = useState<{ updated_at: string; updated_source: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  useEffect(() => {
+    api.getGatemanRegistry().then(res => {
+      setData(res.data as RegistryData);
+      setMeta({ updated_at: res.updated_at, updated_source: res.updated_source });
+    }).finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave() {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const res = await api.updateGatemanRegistry(data as unknown as Record<string, unknown>);
+      setMeta(m => m ? { ...m, updated_at: res.updated_at, updated_source: 'manual' } : null);
+      setMsg({ text: '저장됨', ok: true });
+    } catch {
+      setMsg({ text: '저장 실패', ok: false });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMsg(null), 2500);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const res = await api.refreshGatemanRegistry();
+      const reg = await api.getGatemanRegistry();
+      setData(reg.data as RegistryData);
+      setMeta({ updated_at: res.updated_at, updated_source: 'crawl' });
+      setMsg({ text: `크롤 완료 (${res.crawl_status})`, ok: true });
+    } catch {
+      setMsg({ text: '크롤링 실패', ok: false });
+    } finally {
+      setRefreshing(false);
+      setTimeout(() => setMsg(null), 3000);
+    }
+  }
+
+  function fmtDate(iso: string) {
+    return new Intl.DateTimeFormat('ko-KR', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul',
+    }).format(new Date(iso));
+  }
+
+  if (loading) return <div className="p-6 text-xs text-bnb-muted">로딩 중...</div>;
+  if (!data)   return <div className="p-6 text-xs text-red-400">데이터 없음</div>;
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-xs text-bnb-muted space-y-0.5">
+          {meta && (
+            <>
+              <p>최근 업데이트: <span className="text-stone-300">{fmtDate(meta.updated_at)}</span></p>
+              <p>출처: <span className={meta.updated_source === 'crawl' ? 'text-blue-400' : meta.updated_source === 'manual' ? 'text-amber-400' : 'text-bnb-muted'}>{meta.updated_source}</span></p>
+            </>
+          )}
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          {msg && (
+            <span className={`text-xs px-2 py-1 rounded ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</span>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-dark-200 text-bnb-muted hover:text-bnb-text transition-colors disabled:opacity-40"
+          >
+            <ArrowsClockwise className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? '크롤링 중...' : '새로고침 (크롤 후 초기화)'}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-brand-500 text-stone-900 font-semibold hover:bg-brand-400 transition-colors disabled:opacity-40"
+          >
+            <FloppyDisk className="w-3.5 h-3.5" />
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+
+      {/* 국내 거래소 */}
+      <div>
+        <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">국내 거래소</p>
+        <div className="space-y-3">
+          {Object.entries(data.domestic).map(([exId, gates]) => (
+            <ExchangeGateEditor
+              key={exId}
+              label={exId}
+              gates={gates}
+              onChange={g => setData(d => d ? { ...d, domestic: { ...d.domestic, [exId]: g } } : d)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 해외 거래소 */}
+      <div>
+        <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">해외 거래소</p>
+        <div className="space-y-3">
+          {Object.entries(data.global).map(([exId, gates]) => (
+            <ExchangeGateEditor
+              key={exId}
+              label={exId}
+              gates={gates}
+              onChange={g => setData(d => d ? { ...d, global: { ...d.global, [exId]: g } } : d)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 온체인 공통 */}
+      <div>
+        <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2">온체인 공통 주의사항</p>
+        <ExchangeGateEditor
+          label="onchain"
+          gates={data.onchain}
+          onChange={g => setData(d => d ? { ...d, onchain: g } : d)}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── NoticesPanel ─────────────────────────────────────────────────────────────
+
+function NoticesPanel() {
+  const [items, setItems] = useState<Array<{
+    id: number; exchange: string; title: string; url: string | null;
+    published_at: string | null; noticed_at: string | null;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  async function fetchNotices() {
+    setLoading(true);
+    try {
+      const res = await api.getAdminNotices(100);
+      setItems(res.items);
+      setLastFetch(new Date());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { fetchNotices(); }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(fetchNotices, 3_600_000);
+    return () => clearInterval(id);
+  }, [autoRefresh]);
+
+  function fmtDate(iso: string | null) {
+    if (!iso) return '-';
+    return new Intl.DateTimeFormat('ko-KR', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul',
+    }).format(new Date(iso));
+  }
+
+  const byExchange = items.reduce<Record<string, typeof items>>((acc, n) => {
+    (acc[n.exchange] = acc[n.exchange] ?? []).push(n);
+    return acc;
+  }, {});
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-xs text-bnb-muted">
+          {lastFetch && <span>마지막 조회: {fmtDate(lastFetch.toISOString())}</span>}
+          <span className="ml-3">공지 {items.length}건</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-bnb-muted cursor-pointer">
+            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
+            1시간 자동 갱신
+          </label>
+          <button
+            onClick={fetchNotices}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded border border-dark-200 text-bnb-muted hover:text-bnb-text transition-colors disabled:opacity-40"
+          >
+            <ArrowsClockwise className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </button>
+        </div>
+      </div>
+
+      {Object.entries(byExchange).map(([exchange, notices]) => (
+        <div key={exchange}>
+          <p className="text-[10px] font-semibold text-bnb-muted uppercase tracking-wider mb-2 px-1">{exchange}</p>
+          <div className="space-y-1.5">
+            {notices.map(n => (
+              <div key={n.id} className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg border border-dark-200 bg-dark-400/40">
+                <div className="flex-1 min-w-0">
+                  {n.url
+                    ? <a href={n.url} target="_blank" rel="noreferrer" className="text-xs text-brand-400 hover:underline truncate block">{n.title}</a>
+                    : <p className="text-xs truncate">{n.title}</p>
+                  }
+                </div>
+                <span className="text-[10px] text-bnb-muted flex-shrink-0">{fmtDate(n.noticed_at)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {items.length === 0 && !loading && (
+        <p className="text-xs text-bnb-muted text-center py-8">공지사항 없음</p>
+      )}
     </div>
   );
 }

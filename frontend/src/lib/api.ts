@@ -83,4 +83,32 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': adminKey },
     }),
+
+  getGatemanRegistry: (): Promise<{
+    data: Record<string, unknown>;
+    updated_at: string;
+    updated_source: string;
+  }> => request('/api/v1/admin/registry'),
+
+  updateGatemanRegistry: (data: Record<string, unknown>): Promise<{ ok: boolean; updated_at: string }> =>
+    request('/api/v1/admin/registry', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': '0000' },
+      body: JSON.stringify(data),
+    }),
+
+  refreshGatemanRegistry: (): Promise<{
+    ok: boolean; crawl_id: number; crawl_status: string; updated_at: string;
+  }> =>
+    request('/api/v1/admin/registry/refresh', {
+      method: 'POST',
+      headers: { 'X-Admin-Password': '0000' },
+    }),
+
+  getAdminNotices: (limit = 50): Promise<{
+    items: Array<{
+      id: number; exchange: string; title: string; url: string | null;
+      published_at: string | null; noticed_at: string | null;
+    }>;
+  }> => request(`/api/v1/admin/notices?limit=${limit}`),
 };

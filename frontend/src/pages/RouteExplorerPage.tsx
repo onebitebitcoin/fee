@@ -12,7 +12,7 @@ import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
 import { formatFeeKrw, formatPercent, formatSats } from '../lib/formatBtc';
 import { getKoreanNode } from '../lib/adminSettings';
 import { getDomesticGates, getGlobalGates, ONCHAIN_GATES } from '../lib/gatemanRegistry';
-import type { GateItem } from '../lib/gatemanRegistry';
+import type { GateItem, LiveRegistry } from '../lib/gatemanRegistry';
 import type { CheapestPathEntry, CheapestPathResponse, LiveKimpResponse, TickerRow } from '../types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -121,6 +121,7 @@ export function RouteExplorerPage() {
   const [liveKimp, setLiveKimp]                       = useState<LiveKimpResponse | null>(null);
   const [kimpLoading, setKimpLoading]                 = useState(false);
   const [exchangeVolumes, setExchangeVolumes]         = useState<Record<string, { volume_24h_usd: number | null; volume_7d_usd: number | null; volume_30d_usd: number | null; trust_rank: number | null }>>({});
+  const [liveRegistry, setLiveRegistry]               = useState<LiveRegistry | null>(null);
 
   const amountKrw = parseFloat(amountInput || '0') * (amountUnit === '만원' ? 10_000 : 100_000_000);
 
@@ -536,6 +537,12 @@ export function RouteExplorerPage() {
   const [slideDir, setSlideDir] = useState<'forward' | 'back'>('forward');
   const prevPhaseRef = useRef<Phase>('input');
   useEffect(() => {
+    api.getGatemanRegistry().then(res => {
+      setLiveRegistry(res.data as LiveRegistry);
+    }).catch(() => { /* use static defaults */ });
+  }, []);
+
+  useEffect(() => {
     setSlideDir(phaseIdx(phase) >= phaseIdx(prevPhaseRef.current) ? 'forward' : 'back');
     prevPhaseRef.current = phase;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -756,7 +763,7 @@ export function RouteExplorerPage() {
                         {selectedDomestic && (
                           <div className="mt-3 space-y-2">
                             <GatemanPanel
-                              gates={getDomesticGates(selectedDomestic)}
+                              gates={getDomesticGates(selectedDomestic, liveRegistry?.domestic)}
                               title={`${fmtEx(selectedDomestic)} 출금 통과 조건`}
                             />
                             <button
@@ -838,7 +845,7 @@ export function RouteExplorerPage() {
                                           <p><span className="text-stone-300 font-medium">온체인:</span> Bitcoin 블록체인에 직접 기록. 채굴 수수료 발생, 10~60분 소요. 큰 금액에 유리.</p>
                                           <p><span className="text-stone-300 font-medium">라이트닝:</span> 2nd Layer 즉시 결제. 수수료 저렴. 그러나 국내 거래소는 현재 미지원.</p>
                                         </div>
-                                        <GatemanPanel gates={ONCHAIN_GATES} title="온체인 출금 주의사항" />
+                                        <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
                                       </div>
                                     )}
 
@@ -908,7 +915,7 @@ export function RouteExplorerPage() {
                         {selectedGlobal && (
                           <div className="mt-3 space-y-2">
                             <GatemanPanel
-                              gates={getGlobalGates(selectedGlobal)}
+                              gates={getGlobalGates(selectedGlobal, liveRegistry?.global)}
                               title={`${fmtEx(selectedGlobal)} 입출금 통과 조건`}
                             />
                             <button
