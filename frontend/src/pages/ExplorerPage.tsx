@@ -418,6 +418,7 @@ export default function ExplorerPage() {
       return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
         p.korean_exchange === domestic &&
         p.transfer_coin === 'USDT' &&
+        (network ? p.network === network : true) &&
         p.path_type === 'lightning_exit',
       );
     }
@@ -429,7 +430,7 @@ export default function ExplorerPage() {
       );
     }
     return false;
-  }, [allData, domestic, global, coin]);
+  }, [allData, domestic, global, coin, network]);
 
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
@@ -1300,7 +1301,18 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-secondary mt-1">라이트닝 → 온체인 변환 서비스를 선택해요</p>
               </div>
               <div className="space-y-2.5">
-                {swapServiceOptions.map(({ name, fee_pct, kyc, btc_received }, i) => (
+                {swapServiceOptions.length === 0 ? (
+                  <div className="ios-card rounded-2xl p-5 text-center space-y-2">
+                    <p className="text-sm font-semibold text-label-secondary">사용 가능한 스왑 서비스 없음</p>
+                    <p className="text-xs text-label-tertiary">현재 라이트닝 스왑 서비스 데이터를 불러오지 못했습니다. 다시 시도하거나 온체인 출금을 선택해주세요.</p>
+                    <button
+                      onClick={handleBack}
+                      className="mt-2 text-xs text-acc-amber font-semibold underline underline-offset-2"
+                    >
+                      출금 방식 다시 선택
+                    </button>
+                  </div>
+                ) : swapServiceOptions.map(({ name, fee_pct, kyc, btc_received }, i) => (
                   <motion.div key={name}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
