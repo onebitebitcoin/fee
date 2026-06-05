@@ -14,7 +14,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'global_gate' | 'network' | 'swap_service' | 'result';
+type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'global_gate' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
 type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
 type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
@@ -27,7 +27,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'network', 'swap_service', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'global_exit_method', 'network', 'swap_service', 'result'];
 
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
@@ -267,7 +267,8 @@ export default function ExplorerPage() {
   const [network, setNetwork]     = useState<string | null>(null);
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
-  const [btcMethod, setBtcMethod]     = useState<'onchain' | null>(null);
+  const [btcMethod, setBtcMethod]         = useState<'onchain' | null>(null);
+  const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
@@ -410,6 +411,16 @@ export default function ExplorerPage() {
     return [...map.entries()].map(([n, best]) => ({ network: n, best }));
   }, [allData, domestic, coin, global]);
 
+  // Lightning exit paths available for current global exchange selection (before network is chosen)
+  const hasLightningPaths = useMemo(() => {
+    if (!allData || !domestic || !global || coin !== 'USDT') return false;
+    return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
+      p.korean_exchange === domestic &&
+      p.transfer_coin === 'USDT' &&
+      p.path_type === 'lightning_exit',
+    );
+  }, [allData, domestic, global, coin]);
+
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
     if (!allData || !domestic || !network) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
@@ -443,7 +454,7 @@ export default function ExplorerPage() {
 
   const resultPath = useMemo((): CheapestPathEntry | null => {
     if (!allData || !domestic || !coin || !network) return null;
-    const basePaths = coin === 'BTC'
+    let basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
       : coin === 'BTC_GLOBAL'
@@ -455,12 +466,17 @@ export default function ExplorerPage() {
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
               p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
           : [];
+    if (globalExitMethod === 'onchain') {
+      basePaths = basePaths.filter(p => p.path_type !== 'lightning_exit');
+    } else if (globalExitMethod === 'lightning') {
+      basePaths = basePaths.filter(p => p.path_type === 'lightning_exit');
+    }
     if (swapSvc) {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
       return bestByBtc(filtered) ?? bestByBtc(basePaths);
     }
     return bestByBtc(applyPref(basePaths, pref));
-  }, [allData, domestic, coin, global, network, swapSvc, pref]);
+  }, [allData, domestic, coin, global, network, swapSvc, pref, globalExitMethod]);
 
   const altPaths = useMemo(() => {
     if (!resultPath?.btc_received || !allPaths.length) return [];
@@ -505,12 +521,16 @@ export default function ExplorerPage() {
     } else if (coin === 'BTC_GLOBAL') {
       s.push('global', 'global_gate', 'network');
     } else {
-      s.push('global', 'global_gate', 'network');
-      if (swapServiceOptions.length > 0) s.push('swap_service');
+      s.push('global', 'global_gate', 'global_exit_method');
+      if (globalExitMethod === 'lightning') {
+        s.push('swap_service');
+      } else {
+        s.push('network');
+      }
     }
     s.push('result');
     return s;
-  }, [coin, swapServiceOptions]);
+  }, [coin, globalExitMethod]);
 
   const stepIdx = steps.indexOf(phase);
 
@@ -520,7 +540,7 @@ export default function ExplorerPage() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
     setAllData(null); setError(null); setLiveKimp(null);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
     try {
       const [tickerRes, kimpRes, ...pathResults] = await Promise.all([
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
@@ -550,14 +570,19 @@ export default function ExplorerPage() {
 
   function handleBack() {
     const map: Partial<Record<Phase, Phase>> = {
-      domestic_gate: 'domestic',
-      coin:          'domestic_gate',
-      btc_method:    'coin',
-      global:        'coin',
-      global_gate:   'global',
-      network:       'global_gate',
-      swap_service:  'network',
-      result:        coin === 'BTC' ? 'btc_method' : (coin === 'BTC_GLOBAL' || !swapSvc) ? 'network' : 'swap_service',
+      domestic_gate:      'domestic',
+      coin:               'domestic_gate',
+      btc_method:         'coin',
+      global:             'coin',
+      global_gate:        'global',
+      global_exit_method: 'global_gate',
+      network:            coin === 'BTC_GLOBAL' ? 'global_gate' : 'global_exit_method',
+      swap_service:       globalExitMethod === 'lightning' ? 'global_exit_method' : 'network',
+      result:             coin === 'BTC' ? 'btc_method'
+                          : coin === 'BTC_GLOBAL' ? 'network'
+                          : swapSvc ? 'swap_service'
+                          : globalExitMethod === 'lightning' ? 'global_exit_method'
+                          : 'network',
     };
     const prev = map[phase];
     if (prev) setPhase(prev);
@@ -566,7 +591,7 @@ export default function ExplorerPage() {
   function reset() {
     setPhase('input'); setAllData(null); setError(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
-    setBtcMethod(null); setShowAltPaths(false);
+    setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -1006,7 +1031,7 @@ export default function ExplorerPage() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
                       <OptionCard
                         selected={global === exchange}
-                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); scrollToStepEnd(); }}
+                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setGlobalExitMethod(null); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -1098,11 +1123,92 @@ export default function ExplorerPage() {
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                onClick={() => setPhase('network')}
+                onClick={() => setPhase(coin === 'BTC_GLOBAL' ? 'network' : 'global_exit_method')}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
                 확인 후 다음 <ArrowRight className="w-4 h-4" />
               </motion.button>
+            </motion.div>
+          )}
+
+          {/* ── Global Exit Method ── */}
+          {phase === 'global_exit_method' && global && (
+            <motion.div key="global_exit_method" variants={variants} initial="enter" animate="center" exit="exit"
+              transition={SPRING_SLOW} className="space-y-4 pt-2">
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ExFavicon id={global} size={14} />
+                  <p className="text-xs text-label-secondary">{fmtEx(global)}</p>
+                </div>
+                <h1 className="text-2xl font-bold text-label-primary tracking-tight">출금 방식</h1>
+                <p className="text-sm text-label-secondary mt-1">해외 거래소에서 어떻게 출금할까요?</p>
+              </div>
+              <div className="space-y-2.5">
+                <OptionCard
+                  selected={globalExitMethod === 'onchain'}
+                  onClick={() => { setGlobalExitMethod('onchain'); setNetwork(null); scrollToStepEnd(); }}
+                >
+                  <div className="flex items-center gap-3">
+                    <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-label-primary">온체인 출금</p>
+                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인으로 출금. 10~60분 소요.</p>
+                    </div>
+                  </div>
+                </OptionCard>
+                <OptionCard
+                  selected={globalExitMethod === 'lightning'}
+                  onClick={() => { if (hasLightningPaths) { setGlobalExitMethod('lightning'); setNetwork(null); scrollToStepEnd(); } }}
+                  disabled={!hasLightningPaths}
+                >
+                  <div className="flex items-center gap-3">
+                    <Lightning weight="fill" className={`w-7 h-7 flex-shrink-0 ${hasLightningPaths ? 'text-acc-amber' : 'text-label-disabled'}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-bold ${hasLightningPaths ? 'text-label-primary' : 'text-label-disabled'}`}>라이트닝 출금</p>
+                        {!hasLightningPaths && (
+                          <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">경로 없음</span>
+                        )}
+                      </div>
+                      <p className={`text-xs mt-0.5 ${hasLightningPaths ? 'text-label-secondary' : 'text-label-disabled'}`}>
+                        온체인 출금 후 스왑 서비스를 통해 라이트닝 지갑으로 전달. 수수료 절감 가능.
+                      </p>
+                    </div>
+                  </div>
+                </OptionCard>
+              </div>
+              {globalExitMethod === 'onchain' && (
+                <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
+                  <p className="font-semibold text-label-primary">온체인 출금</p>
+                  <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록. 거래소 고정 출금 수수료 부과 (채굴 수수료 아님). 10~60분 소요.</p>
+                </div>
+              )}
+              {globalExitMethod === 'lightning' && (
+                <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
+                  <p className="font-semibold text-label-primary">라이트닝 출금 흐름</p>
+                  <p className="text-label-secondary">해외 거래소 → <span className="text-label-primary font-medium">온체인 BTC 출금</span> → 스왑 서비스 → <span className="text-acc-amber font-medium">라이트닝 지갑</span></p>
+                  <p className="text-label-tertiary">스왑 서비스 수수료가 별도 발생합니다.</p>
+                </div>
+              )}
+              {globalExitMethod && (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING_FAST}
+                  onClick={() => {
+                    if (globalExitMethod === 'lightning') {
+                      const btcNet = networkOptions[0]?.network ?? 'Bitcoin';
+                      setNetwork(btcNet);
+                      setPhase('swap_service');
+                    } else {
+                      setPhase('network');
+                    }
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                >
+                  다음 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
+              <div ref={stepEndRef} />
             </motion.div>
           )}
 
@@ -1149,6 +1255,7 @@ export default function ExplorerPage() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => {
+                    if (globalExitMethod === 'onchain') { setPhase('result'); return; }
                     const lnPaths = (coin === 'BTC'
                       ? Object.values(allData?.byGlobal ?? {})[0]?.all_paths ?? []
                       : allData?.byGlobal[global!]?.all_paths ?? []
