@@ -464,23 +464,25 @@ export default function ExplorerPage() {
 
   const altPaths = useMemo(() => {
     if (!resultPath?.btc_received || !allPaths.length) return [];
+    // btc_received 내림차순 정렬 후 dedup — 각 조합의 최고 경로만 남긴다
+    const sorted = [...allPaths]
+      .filter(p => (p.btc_received ?? 0) > (resultPath.btc_received ?? 0))
+      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0));
     const seen = new Set<string>();
-    return allPaths
-      .filter(p => {
-        if ((p.btc_received ?? 0) <= (resultPath.btc_received ?? 0)) return false;
-        // path_id에는 글로벌 거래소 prefix가 포함되므로 (예: binance__gopax__btc__...)
-        // 글로벌 거래소와 무관한 경로(btc_direct 등)는 korean_exchange+coin+network+variant로 구분
-        const rv = p.route_variant ?? '';
-        const isGlobalDependent = rv === 'usdt_via_global' || rv === 'btc_via_global' || rv === 'lightning_via_global';
-        const key = isGlobalDependent
-          ? (p.path_id ?? `${p._g}__${p.korean_exchange}__${p.transfer_coin}__${p.network}__${p.swap_service ?? ''}`)
-          : `${p.korean_exchange}__${p.transfer_coin}__${p.network}__${rv}__${p.swap_service ?? ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0))
-      .slice(0, 8);
+    const result: typeof sorted = [];
+    for (const p of sorted) {
+      const rv = p.route_variant ?? '';
+      const isGlobalDependent = rv === 'usdt_via_global' || rv === 'btc_via_global' || rv === 'lightning_via_global';
+      // 글로벌 경유 경로: 글로벌 거래소별로 구분 / 직접 경로: 국내 거래소+코인 기준 최고 1개만
+      const key = isGlobalDependent
+        ? `${p._g}__${p.korean_exchange}__${p.transfer_coin}`
+        : `${p.korean_exchange}__${p.transfer_coin}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(p);
+      if (result.length >= 8) break;
+    }
+    return result;
   }, [allPaths, resultPath]);
 
   useEffect(() => {
