@@ -468,7 +468,13 @@ export default function ExplorerPage() {
     return allPaths
       .filter(p => {
         if ((p.btc_received ?? 0) <= (resultPath.btc_received ?? 0)) return false;
-        const key = p.path_id ?? `${p.korean_exchange}__${p.transfer_coin}__${p.network}__${p.swap_service ?? ''}`;
+        // path_id에는 글로벌 거래소 prefix가 포함되므로 (예: binance__gopax__btc__...)
+        // 글로벌 거래소와 무관한 경로(btc_direct 등)는 korean_exchange+coin+network+variant로 구분
+        const rv = p.route_variant ?? '';
+        const isGlobalDependent = rv === 'usdt_via_global' || rv === 'btc_via_global' || rv === 'lightning_via_global';
+        const key = isGlobalDependent
+          ? (p.path_id ?? `${p._g}__${p.korean_exchange}__${p.transfer_coin}__${p.network}__${p.swap_service ?? ''}`)
+          : `${p.korean_exchange}__${p.transfer_coin}__${p.network}__${rv}__${p.swap_service ?? ''}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
