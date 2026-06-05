@@ -122,6 +122,7 @@ def _build_btc_paths(
         paths.append({
             'korean_exchange': exchange,
             'transfer_coin': 'BTC',
+            'route_variant': 'btc_direct',
             'network': row.network_label,
             'domestic_withdrawal_network': row.network_label,
             'global_exit_mode': 'onchain',
@@ -158,6 +159,97 @@ def _build_btc_paths(
         })
 
     return paths, disabled_paths
+
+
+def _build_btc_via_global_paths(
+    exchange: str,
+    ctx: SnapshotContext,
+    amount_krw: int,
+    global_exchange: str,
+    global_onchain_wd_fee: float | None,
+    global_onchain_wd_fee_krw: int,
+) -> list[dict]:
+    """국내 BTC 출금 → 글로벌 거래소 경유 → 개인 지갑."""
+    if global_onchain_wd_fee is None:
+        return []
+
+    ticker_row = ctx.ticker_by_exchange.get(exchange)
+    if ticker_row is None:
+        return []
+
+    korean_btc_price_krw = float(ticker_row.price)
+    korean_taker = (
+        ticker_row.taker_fee_pct / 100
+        if ticker_row.taker_fee_pct is not None
+        else TRADING_FEES[exchange]['taker']
+    )
+
+    paths: list[dict] = []
+    for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
+        if not row.enabled or row.fee is None:
+            continue
+        if is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label):
+            continue
+
+        trading_fee_krw = round(amount_krw * korean_taker)
+        btc_bought = (amount_krw - trading_fee_krw) / korean_btc_price_krw
+        domestic_wd_fee_btc = row.fee
+        btc_after_domestic_wd = btc_bought - domestic_wd_fee_btc
+        if btc_after_domestic_wd <= 0:
+            continue
+        btc_received = btc_after_domestic_wd - global_onchain_wd_fee
+        if btc_received <= 0:
+            continue
+
+        domestic_wd_fee_krw = (
+            int(round(row.fee_krw)) if row.fee_krw is not None
+            else round(domestic_wd_fee_btc * korean_btc_price_krw)
+        )
+        total_fee_krw = trading_fee_krw + domestic_wd_fee_krw + global_onchain_wd_fee_krw
+
+        paths.append({
+            'korean_exchange': exchange,
+            'transfer_coin': 'BTC',
+            'route_variant': 'btc_via_global',
+            'network': row.network_label,
+            'domestic_withdrawal_network': row.network_label,
+            'global_exit_mode': 'onchain',
+            'global_exit_network': 'Bitcoin',
+            'lightning_exit_provider': None,
+            'num_withdrawal_txs': 1,
+            'krw_per_tx_limit': None,
+            'path_id': _build_path_id(
+                global_exchange=global_exchange,
+                korean_exchange=exchange,
+                transfer_coin='BTC',
+                domestic_withdrawal_network=row.network_label,
+                global_exit_mode='onchain',
+                global_exit_network='Bitcoin',
+                lightning_exit_provider=None,
+            ) + '__via_global',
+            'btc_received': round(btc_received, 8),
+            'btc_received_usd': round(btc_received * ctx.global_btc_price_usd, 2),
+            'total_fee_krw': total_fee_krw,
+            'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
+            'breakdown': {
+                'components': [
+                    fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
+                    fee_component(
+                        '국내 BTC 출금 수수료', domestic_wd_fee_krw,
+                        amount_text=f'{domestic_wd_fee_btc} BTC',
+                        source_url=get_withdrawal_source_url(exchange, 'BTC', row.network_label),
+                        is_fixed=True,
+                    ),
+                    fee_component(
+                        f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
+                        amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
+                    ),
+                ],
+                'total_fee_krw': total_fee_krw,
+            },
+        })
+
+    return paths
 
 
 def _build_usdt_paths(
@@ -340,6 +432,10 @@ def find_cheapest_path_from_snapshot_rows(
         p, d = _build_btc_paths(exchange, ctx, amount_krw, global_exchange)
         paths.extend(p)
         disabled_paths.extend(d)
+        paths.extend(_build_btc_via_global_paths(
+            exchange, ctx, amount_krw, global_exchange,
+            global_onchain_wd_fee, global_onchain_wd_fee_krw,
+        ))
         p, d = _build_usdt_paths(
             exchange, ctx, amount_krw, global_exchange,
             global_onchain_wd_fee, global_onchain_wd_fee_krw, global_onchain_network_label,
