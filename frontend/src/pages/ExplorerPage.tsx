@@ -27,7 +27,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'global_exit_method', 'network', 'swap_service', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'network', 'global_exit_method', 'swap_service', 'result'];
 
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
@@ -519,14 +519,11 @@ export default function ExplorerPage() {
     if (coin === 'BTC') {
       s.push('btc_method');
     } else if (coin === 'BTC_GLOBAL') {
-      s.push('global', 'global_gate', 'network');
-    } else {
       s.push('global', 'global_gate', 'global_exit_method');
-      if (globalExitMethod === 'lightning') {
-        s.push('swap_service');
-      } else {
-        s.push('network');
-      }
+    } else {
+      // USDT: network → global_exit_method → (swap_service if lightning)
+      s.push('global', 'global_gate', 'network', 'global_exit_method');
+      if (globalExitMethod === 'lightning') s.push('swap_service');
     }
     s.push('result');
     return s;
@@ -575,14 +572,12 @@ export default function ExplorerPage() {
       btc_method:         'coin',
       global:             'coin',
       global_gate:        'global',
-      global_exit_method: 'global_gate',
-      network:            coin === 'BTC_GLOBAL' ? 'global_gate' : 'global_exit_method',
-      swap_service:       globalExitMethod === 'lightning' ? 'global_exit_method' : 'network',
+      global_exit_method: coin === 'BTC_GLOBAL' ? 'global_gate' : 'network',
+      network:            'global_gate',
+      swap_service:       'global_exit_method',
       result:             coin === 'BTC' ? 'btc_method'
-                          : coin === 'BTC_GLOBAL' ? 'network'
-                          : swapSvc ? 'swap_service'
-                          : globalExitMethod === 'lightning' ? 'global_exit_method'
-                          : 'network',
+                          : coin === 'BTC_GLOBAL' ? 'global_exit_method'
+                          : swapSvc ? 'swap_service' : 'global_exit_method',
     };
     const prev = map[phase];
     if (prev) setPhase(prev);
@@ -1123,7 +1118,7 @@ export default function ExplorerPage() {
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                onClick={() => setPhase(coin === 'BTC_GLOBAL' ? 'network' : 'global_exit_method')}
+                onClick={() => setPhase(coin === 'BTC_GLOBAL' ? 'global_exit_method' : 'network')}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
                 확인 후 다음 <ArrowRight className="w-4 h-4" />
@@ -1156,26 +1151,32 @@ export default function ExplorerPage() {
                     </div>
                   </div>
                 </OptionCard>
-                <OptionCard
-                  selected={globalExitMethod === 'lightning'}
-                  onClick={() => { if (hasLightningPaths) { setGlobalExitMethod('lightning'); setNetwork(null); scrollToStepEnd(); } }}
-                  disabled={!hasLightningPaths}
-                >
-                  <div className="flex items-center gap-3">
-                    <Lightning weight="fill" className={`w-7 h-7 flex-shrink-0 ${hasLightningPaths ? 'text-acc-amber' : 'text-label-disabled'}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm font-bold ${hasLightningPaths ? 'text-label-primary' : 'text-label-disabled'}`}>라이트닝 출금</p>
-                        {!hasLightningPaths && (
-                          <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">경로 없음</span>
-                        )}
+                {(() => {
+                  const lnAvailable = coin === 'BTC_GLOBAL' ? false : hasLightningPaths;
+                  const lnBadge = coin === 'BTC_GLOBAL' ? '준비중' : !hasLightningPaths ? '경로 없음' : null;
+                  return (
+                    <OptionCard
+                      selected={globalExitMethod === 'lightning'}
+                      onClick={() => { if (lnAvailable) { setGlobalExitMethod('lightning'); setNetwork(null); scrollToStepEnd(); } }}
+                      disabled={!lnAvailable}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Lightning weight="fill" className={`w-7 h-7 flex-shrink-0 ${lnAvailable ? 'text-acc-amber' : 'text-label-disabled'}`} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className={`text-sm font-bold ${lnAvailable ? 'text-label-primary' : 'text-label-disabled'}`}>라이트닝 출금</p>
+                            {lnBadge && (
+                              <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">{lnBadge}</span>
+                            )}
+                          </div>
+                          <p className={`text-xs mt-0.5 ${lnAvailable ? 'text-label-secondary' : 'text-label-disabled'}`}>
+                            온체인 출금 후 스왑 서비스를 통해 라이트닝 지갑으로 전달. 수수료 절감 가능.
+                          </p>
+                        </div>
                       </div>
-                      <p className={`text-xs mt-0.5 ${hasLightningPaths ? 'text-label-secondary' : 'text-label-disabled'}`}>
-                        온체인 출금 후 스왑 서비스를 통해 라이트닝 지갑으로 전달. 수수료 절감 가능.
-                      </p>
-                    </div>
-                  </div>
-                </OptionCard>
+                    </OptionCard>
+                  );
+                })()}
               </div>
               {globalExitMethod === 'onchain' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
@@ -1196,11 +1197,15 @@ export default function ExplorerPage() {
                   transition={SPRING_FAST}
                   onClick={() => {
                     if (globalExitMethod === 'lightning') {
-                      const btcNet = networkOptions[0]?.network ?? 'Bitcoin';
-                      setNetwork(btcNet);
+                      // USDT: network already set from previous step; go to swap_service
                       setPhase('swap_service');
                     } else {
-                      setPhase('network');
+                      // BTC_GLOBAL onchain: auto-select network and show result
+                      if (coin === 'BTC_GLOBAL') {
+                        const btcNet = networkOptions[0]?.network ?? 'Bitcoin';
+                        setNetwork(btcNet);
+                      }
+                      setPhase('result');
                     }
                   }}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
@@ -1254,18 +1259,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => {
-                    if (globalExitMethod === 'onchain') { setPhase('result'); return; }
-                    const lnPaths = (coin === 'BTC'
-                      ? Object.values(allData?.byGlobal ?? {})[0]?.all_paths ?? []
-                      : allData?.byGlobal[global!]?.all_paths ?? []
-                    ).filter(p =>
-                      p.korean_exchange === domestic &&
-                      p.network === network &&
-                      p.path_type === 'lightning_exit',
-                    );
-                    setPhase(lnPaths.length > 0 ? 'swap_service' : 'result');
-                  }}
+                  onClick={() => setPhase('global_exit_method')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
