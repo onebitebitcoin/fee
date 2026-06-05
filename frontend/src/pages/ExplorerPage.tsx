@@ -1164,7 +1164,7 @@ export default function ExplorerPage() {
               <div className="space-y-2.5">
                 <OptionCard
                   selected={globalExitMethod === 'onchain'}
-                  onClick={() => { setGlobalExitMethod('onchain'); setNetwork(null); scrollToStepEnd(); }}
+                  onClick={() => { setGlobalExitMethod('onchain'); if (coin === 'BTC_GLOBAL') setNetwork(null); scrollToStepEnd(); }}
                 >
                   <div className="flex items-center gap-3">
                     <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
@@ -1180,7 +1180,7 @@ export default function ExplorerPage() {
                   return (
                     <OptionCard
                       selected={globalExitMethod === 'lightning'}
-                      onClick={() => { if (lnAvailable) { setGlobalExitMethod('lightning'); setNetwork(null); scrollToStepEnd(); } }}
+                      onClick={() => { if (lnAvailable) { setGlobalExitMethod('lightning'); if (coin === 'BTC_GLOBAL') setNetwork(null); scrollToStepEnd(); } }}
                       disabled={!lnAvailable}
                     >
                       <div className="flex items-center gap-3">
