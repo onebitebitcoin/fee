@@ -592,6 +592,110 @@ def find_cheapest_path_from_snapshot_rows(
                         },
                     })
 
+        # BTC_GLOBAL lightning exit: 국내 BTC → 글로벌 거래소 → Lightning 출금 → 스왑 → 개인 지갑
+        if global_ln_wd_fee is not None:
+            for swap in active_swaps_ln_to_onchain:
+                fee_pct_swap = swap.fee_pct / 100
+                fee_fixed_btc_swap = (swap.fee_fixed_sat or 0) / 1e8
+                min_btc = (swap.min_amount_sat or 0) / 1e8
+                max_btc = (swap.max_amount_sat or float('inf')) / 1e8
+
+                for exchange in GROUPS['korea']:
+                    ticker_row = ctx.ticker_by_exchange.get(exchange)
+                    if ticker_row is None:
+                        continue
+                    korean_btc_price_krw = float(ticker_row.price)
+                    korean_taker = (
+                        ticker_row.taker_fee_pct / 100
+                        if ticker_row.taker_fee_pct is not None
+                        else TRADING_FEES[exchange]['taker']
+                    )
+
+                    for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
+                        if not row.enabled or row.fee is None:
+                            continue
+                        if is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label):
+                            continue
+
+                        trading_fee_krw = round(amount_krw * korean_taker)
+                        btc_bought = (amount_krw - trading_fee_krw) / korean_btc_price_krw
+                        domestic_wd_fee_btc = row.fee
+                        btc_after_domestic_wd = btc_bought - domestic_wd_fee_btc
+                        if btc_after_domestic_wd <= 0:
+                            continue
+
+                        btc_after_global_ln_wd = btc_after_domestic_wd - global_ln_wd_fee
+                        if btc_after_global_ln_wd <= 0:
+                            continue
+                        if not (min_btc <= btc_after_global_ln_wd <= max_btc):
+                            continue
+
+                        ln_swap_fee_btc = btc_after_global_ln_wd * fee_pct_swap + fee_fixed_btc_swap
+                        btc_received = btc_after_global_ln_wd - ln_swap_fee_btc
+                        if btc_received <= 0:
+                            continue
+
+                        domestic_wd_fee_krw = (
+                            int(round(row.fee_krw)) if row.fee_krw is not None
+                            else round(domestic_wd_fee_btc * korean_btc_price_krw)
+                        )
+                        ln_swap_fee_krw_val = round(ln_swap_fee_btc * ctx.global_btc_price_usd * ctx.usd_krw_rate)
+                        total_fee_krw = trading_fee_krw + domestic_wd_fee_krw + global_ln_wd_fee_krw + ln_swap_fee_krw_val
+
+                        paths.append({
+                            'korean_exchange': exchange,
+                            'transfer_coin': 'BTC',
+                            'route_variant': 'btc_via_global',
+                            'network': row.network_label,
+                            'path_type': 'lightning_exit',
+                            'domestic_withdrawal_network': row.network_label,
+                            'global_exit_mode': 'lightning',
+                            'global_exit_network': global_ln_wd_row.network_label if global_ln_wd_row else 'Lightning Network',
+                            'lightning_exit_provider': swap.service_name,
+                            'num_withdrawal_txs': 1,
+                            'krw_per_tx_limit': None,
+                            'path_id': _build_path_id(
+                                global_exchange=global_exchange,
+                                korean_exchange=exchange,
+                                transfer_coin='BTC',
+                                domestic_withdrawal_network=row.network_label,
+                                global_exit_mode='lightning',
+                                global_exit_network=global_ln_wd_row.network_label if global_ln_wd_row else 'Lightning Network',
+                                lightning_exit_provider=swap.service_name,
+                            ) + '__via_global',
+                            'btc_received': round(btc_received, 8),
+                            'btc_received_usd': round(btc_received * ctx.global_btc_price_usd, 2),
+                            'total_fee_krw': total_fee_krw,
+                            'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
+                            'lightning_swap_fee_krw': ln_swap_fee_krw_val,
+                            'global_withdrawal_fee_krw': global_ln_wd_fee_krw,
+                            'breakdown': {
+                                'components': [
+                                    fee_component('국내 매수 수수료', trading_fee_krw, rate_pct=korean_taker * 100, is_fixed=False),
+                                    fee_component(
+                                        '국내 BTC 출금 수수료', domestic_wd_fee_krw,
+                                        amount_text=f'{domestic_wd_fee_btc} BTC',
+                                        source_url=get_withdrawal_source_url(exchange, 'BTC', row.network_label),
+                                        is_fixed=True,
+                                    ),
+                                    fee_component(
+                                        f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
+                                        global_ln_wd_fee_krw,
+                                        amount_text=f'{global_ln_wd_fee} BTC',
+                                        is_fixed=True,
+                                    ),
+                                    fee_component(
+                                        f'라이트닝 스왑 수수료 ({swap.service_name})',
+                                        ln_swap_fee_krw_val,
+                                        rate_pct=swap.fee_pct,
+                                        amount_text=f'{round(ln_swap_fee_btc, 8)} BTC',
+                                        is_fixed=False,
+                                    ),
+                                ],
+                                'total_fee_krw': total_fee_krw,
+                            },
+                        })
+
     paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
     lightning_services = sorted({
         s.service_name for s in (lightning_swap_rows or [])

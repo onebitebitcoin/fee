@@ -421,18 +421,31 @@ export default function ExplorerPage() {
     );
   }, [allData, domestic, global, coin]);
 
+  const hasLightningPathsBtcGlobal = useMemo(() => {
+    if (!allData || !domestic || !global || coin !== 'BTC_GLOBAL') return false;
+    return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
+      p.korean_exchange === domestic &&
+      p.route_variant === 'btc_via_global' &&
+      p.path_type === 'lightning_exit',
+    );
+  }, [allData, domestic, global, coin]);
+
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
-    if (!allData || !domestic || !network) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
-    // BTC_GLOBAL 경로는 라이트닝 스왑 없음
-    if (coin === 'BTC_GLOBAL') return [];
+    const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
+    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
-      : global
-        ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-            p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
-        : [];
+      : coin === 'BTC_GLOBAL'
+        ? global
+          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+              p.korean_exchange === domestic && p.route_variant === 'btc_via_global')
+          : []
+        : global
+          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
+              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
+          : [];
     const lnPaths = basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
     const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number }>();
     for (const p of lnPaths) {
@@ -450,17 +463,19 @@ export default function ExplorerPage() {
       }
     }
     return [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
-  }, [allData, domestic, coin, global, network]);
+  }, [allData, domestic, coin, global, network, globalExitMethod]);
 
   const resultPath = useMemo((): CheapestPathEntry | null => {
-    if (!allData || !domestic || !coin || !network) return null;
+    const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
+    if (!allData || !domestic || !coin || (!isBtcGlobalLightning && !network)) return null;
     let basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
       : coin === 'BTC_GLOBAL'
         ? global
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.route_variant === 'btc_via_global' && p.network === network)
+              p.korean_exchange === domestic && p.route_variant === 'btc_via_global' &&
+              (isBtcGlobalLightning || p.network === network))
           : []
         : global
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
@@ -520,6 +535,7 @@ export default function ExplorerPage() {
       s.push('btc_method');
     } else if (coin === 'BTC_GLOBAL') {
       s.push('global', 'global_gate', 'global_exit_method');
+      if (globalExitMethod === 'lightning') s.push('swap_service');
     } else {
       // USDT: network → global_exit_method → (swap_service if lightning)
       s.push('global', 'global_gate', 'network', 'global_exit_method');
@@ -576,8 +592,9 @@ export default function ExplorerPage() {
       network:            'global_gate',
       swap_service:       'global_exit_method',
       result:             coin === 'BTC' ? 'btc_method'
-                          : coin === 'BTC_GLOBAL' ? 'global_exit_method'
-                          : swapSvc ? 'swap_service' : 'global_exit_method',
+                          : coin === 'BTC_GLOBAL'
+                            ? (globalExitMethod === 'lightning' && swapSvc ? 'swap_service' : 'global_exit_method')
+                            : swapSvc ? 'swap_service' : 'global_exit_method',
     };
     const prev = map[phase];
     if (prev) setPhase(prev);
@@ -1152,8 +1169,8 @@ export default function ExplorerPage() {
                   </div>
                 </OptionCard>
                 {(() => {
-                  const lnAvailable = coin === 'BTC_GLOBAL' ? false : hasLightningPaths;
-                  const lnBadge = coin === 'BTC_GLOBAL' ? '준비중' : !hasLightningPaths ? '경로 없음' : null;
+                  const lnAvailable = coin === 'BTC_GLOBAL' ? hasLightningPathsBtcGlobal : hasLightningPaths;
+                  const lnBadge = coin === 'BTC_GLOBAL' ? (!hasLightningPathsBtcGlobal ? '미지원' : null) : (!hasLightningPaths ? '경로 없음' : null);
                   return (
                     <OptionCard
                       selected={globalExitMethod === 'lightning'}
