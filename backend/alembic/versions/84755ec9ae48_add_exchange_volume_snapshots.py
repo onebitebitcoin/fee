@@ -1,5 +1,6 @@
 """add exchange_volume_snapshots"""
 
+# ruff: noqa: E402
 revision = '84755ec9ae48'
 down_revision = '0288843b7964'
 branch_labels = None

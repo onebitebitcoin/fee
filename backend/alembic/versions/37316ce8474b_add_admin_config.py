@@ -1,5 +1,6 @@
 """add_admin_config"""
 
+# ruff: noqa: E402
 revision = '37316ce8474b'
 down_revision = '84755ec9ae48'
 branch_labels = None

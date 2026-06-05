@@ -421,15 +421,6 @@ export default function ExplorerPage() {
     );
   }, [allData, domestic, global, coin]);
 
-  const hasLightningPathsBtcGlobal = useMemo(() => {
-    if (!allData || !domestic || !global || coin !== 'BTC_GLOBAL') return false;
-    return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
-      p.korean_exchange === domestic &&
-      p.route_variant === 'btc_via_global' &&
-      p.path_type === 'lightning_exit',
-    );
-  }, [allData, domestic, global, coin]);
-
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
@@ -1169,8 +1160,8 @@ export default function ExplorerPage() {
                   </div>
                 </OptionCard>
                 {(() => {
-                  const lnAvailable = coin === 'BTC_GLOBAL' ? hasLightningPathsBtcGlobal : hasLightningPaths;
-                  const lnBadge = coin === 'BTC_GLOBAL' ? (!hasLightningPathsBtcGlobal ? '미지원' : null) : (!hasLightningPaths ? '경로 없음' : null);
+                  const lnAvailable = coin !== 'BTC_GLOBAL' && hasLightningPaths;
+                  const lnBadge = coin === 'BTC_GLOBAL' ? 'BTC 경유 미지원' : (!hasLightningPaths ? '경로 없음' : null);
                   return (
                     <OptionCard
                       selected={globalExitMethod === 'lightning'}
