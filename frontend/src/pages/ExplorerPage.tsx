@@ -413,12 +413,22 @@ export default function ExplorerPage() {
 
   // Lightning exit paths available for current global exchange selection (before network is chosen)
   const hasLightningPaths = useMemo(() => {
-    if (!allData || !domestic || !global || coin !== 'USDT') return false;
-    return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
-      p.korean_exchange === domestic &&
-      p.transfer_coin === 'USDT' &&
-      p.path_type === 'lightning_exit',
-    );
+    if (!allData || !domestic || !global) return false;
+    if (coin === 'USDT') {
+      return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
+        p.korean_exchange === domestic &&
+        p.transfer_coin === 'USDT' &&
+        p.path_type === 'lightning_exit',
+      );
+    }
+    if (coin === 'BTC_GLOBAL') {
+      return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
+        p.korean_exchange === domestic &&
+        p.route_variant === 'btc_via_global' &&
+        p.path_type === 'lightning_exit',
+      );
+    }
+    return false;
   }, [allData, domestic, global, coin]);
 
   // Available lightning swap services for current selection (network step → swap_service step)
@@ -525,7 +535,7 @@ export default function ExplorerPage() {
     if (coin === 'BTC') {
       s.push('btc_method');
     } else if (coin === 'BTC_GLOBAL') {
-      s.push('global', 'global_gate', 'global_exit_method');
+      s.push('btc_method', 'global', 'global_gate', 'global_exit_method');
       if (globalExitMethod === 'lightning') s.push('swap_service');
     } else {
       // USDT: network → global_exit_method → (swap_service if lightning)
@@ -577,7 +587,7 @@ export default function ExplorerPage() {
       domestic_gate:      'domestic',
       coin:               'domestic_gate',
       btc_method:         'coin',
-      global:             'coin',
+      global:             coin === 'BTC_GLOBAL' ? 'btc_method' : 'coin',
       global_gate:        'global',
       global_exit_method: coin === 'BTC_GLOBAL' ? 'global_gate' : 'network',
       network:            'global_gate',
@@ -938,7 +948,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase(coin === 'BTC' ? 'btc_method' : 'global')}
+                  onClick={() => setPhase(coin === 'USDT' ? 'global' : 'btc_method')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -994,13 +1004,17 @@ export default function ExplorerPage() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => {
-                    const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
-                    setNetwork(btcNetwork);
-                    setPhase('result');
+                    if (coin === 'BTC_GLOBAL') {
+                      setPhase('global');
+                    } else {
+                      const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
+                      setNetwork(btcNetwork);
+                      setPhase('result');
+                    }
                   }}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
-                  결과 보기 <ArrowRight className="w-4 h-4" />
+                  {coin === 'BTC_GLOBAL' ? '다음' : '결과 보기'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
               <div ref={stepEndRef} />
@@ -1160,8 +1174,8 @@ export default function ExplorerPage() {
                   </div>
                 </OptionCard>
                 {(() => {
-                  const lnAvailable = coin !== 'BTC_GLOBAL' && hasLightningPaths;
-                  const lnBadge = coin === 'BTC_GLOBAL' ? 'BTC 경유 미지원' : (!hasLightningPaths ? '경로 없음' : null);
+                  const lnAvailable = hasLightningPaths;
+                  const lnBadge = !hasLightningPaths ? '경로 없음' : null;
                   return (
                     <OptionCard
                       selected={globalExitMethod === 'lightning'}
