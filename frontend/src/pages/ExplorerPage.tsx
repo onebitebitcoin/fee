@@ -464,8 +464,15 @@ export default function ExplorerPage() {
 
   const altPaths = useMemo(() => {
     if (!resultPath?.btc_received || !allPaths.length) return [];
+    const seen = new Set<string>();
     return allPaths
-      .filter(p => (p.btc_received ?? 0) > (resultPath.btc_received ?? 0))
+      .filter(p => {
+        if ((p.btc_received ?? 0) <= (resultPath.btc_received ?? 0)) return false;
+        const key = p.path_id ?? `${p.korean_exchange}__${p.transfer_coin}__${p.network}__${p.swap_service ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0))
       .slice(0, 8);
   }, [allPaths, resultPath]);
