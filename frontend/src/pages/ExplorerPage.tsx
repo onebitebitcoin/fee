@@ -449,6 +449,11 @@ export default function ExplorerPage() {
     return false;
   }, [allData, domestic, global, coin, network]);
 
+  // 글로벌 거래소가 실제로 라이트닝 출금 경로를 제공하는지 (정적 메타데이터 대신 실제 경로 기반)
+  // okx처럼 라이트닝을 지원하지만 수수료 스냅샷이 비어 경로가 없으면 false → 표시와 게이팅 일치
+  const globalSupportsLightning = (g: string | null): boolean =>
+    !!g && (allData?.byGlobal[g]?.all_paths ?? []).some(p => p.path_type === 'lightning_exit');
+
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
@@ -1153,7 +1158,10 @@ export default function ExplorerPage() {
                           {RISK_LABEL[info.risk]}
                         </p>
                       </div>
-                      <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info.lightning ? '지원' : '미지원'}</p></div>
+                      {(() => {
+                        const lnOk = globalSupportsLightning(global);
+                        return <div><span className="text-label-tertiary">라이트닝 출금</span><p className={`font-medium mt-0.5 ${lnOk ? 'text-acc-amber' : 'text-label-secondary'}`}>{lnOk ? '지원' : '미지원'}</p></div>;
+                      })()}
                       {info.fatca && <div><span className="text-label-tertiary">규제</span><p className="font-medium text-acc-red mt-0.5">FATCA</p></div>}
                       <div><span className="text-label-tertiary">24H 거래량 (참고)</span>
                         <p className="font-medium text-label-primary mt-0.5 num">~${info.vol24hB}억</p>

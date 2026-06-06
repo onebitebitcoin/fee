@@ -72,6 +72,12 @@ export const api = {
       usdt_wd: 'pass' | 'error' | 'missing';
       errors: string[];
     }>;
+    data_gaps: Array<{
+      exchange: string;
+      coin: string;
+      network_label: string | null;
+      issue: string;
+    }>;
   }> => request('/api/v1/market/crawl-status'),
 
   triggerCrawl: (adminKey: string): Promise<{ id: number; status: string; message: string | null }> =>

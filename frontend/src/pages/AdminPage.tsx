@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, FloppyDisk, ArrowCounterClockwise, LockKey,
-  PencilSimple, Check, X, ArrowsClockwise, Lightning,
+  PencilSimple, Check, X, ArrowsClockwise, Lightning, WarningCircle,
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import {
@@ -928,6 +928,30 @@ function CrawlStatusPanel() {
       </div>
 
       {error && <p className="text-acc-red text-xs px-1">{error}</p>}
+
+      {/* 조치 필요: 출금 활성이지만 수수료가 비어 경로에서 제외되는 데이터 갭 */}
+      {data && data.data_gaps.length > 0 && (
+        <div className="ios-card rounded-xl px-4 py-3 border border-acc-amber/30 bg-acc-amber/5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <WarningCircle className="w-4 h-4 text-acc-amber" weight="fill" />
+            <span className="text-sm font-semibold text-label-primary">조치 필요 · 데이터 갭 {data.data_gaps.length}건</span>
+          </div>
+          <p className="text-[11px] text-label-secondary mb-2 leading-snug">
+            출금이 활성 상태이지만 수수료가 수집되지 않아 해당 경로가 계산에서 제외됩니다. 크롤을 다시 실행하거나 수수료를 보완하세요.
+          </p>
+          <div className="space-y-1">
+            {data.data_gaps.map((g, i) => (
+              <div key={`${g.exchange}-${g.coin}-${g.network_label}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-medium capitalize text-label-primary">
+                  {g.exchange} · {g.coin}
+                  {g.network_label && <span className="text-label-tertiary"> ({g.network_label})</span>}
+                </span>
+                <span className="text-[11px] text-acc-amber flex-shrink-0">{g.issue}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Exchange cards */}
       {data && [

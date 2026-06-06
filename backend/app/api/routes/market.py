@@ -439,6 +439,20 @@ def get_crawl_status(db: Session = Depends(get_db)) -> dict:
     has_btc_wd: set[str] = {r.exchange for r in withdrawal_rows if r.coin == 'BTC'}
     has_usdt_wd: set[str] = {r.exchange for r in withdrawal_rows if r.coin == 'USDT'}
 
+    # 데이터 갭: 출금이 활성(enabled)인데 수수료가 비어 경로 계산에서 제외되는 행 (조치 필요)
+    # 예: okx Lightning Network — enabled=True 이지만 fee=None 이면 라이트닝 경로가 생성되지 않음
+    data_gaps = [
+        {
+            'exchange': r.exchange,
+            'coin': r.coin,
+            'network_label': r.network_label,
+            'issue': '출금 활성이지만 수수료 미수집',
+        }
+        for r in withdrawal_rows
+        if r.enabled and r.fee is None
+    ]
+    data_gaps.sort(key=lambda g: (g['exchange'], g['coin'], g['network_label'] or ''))
+
     result_exchanges = []
     for ex in all_exchanges:
         errs = errors_by_exchange.get(ex, [])
@@ -463,6 +477,7 @@ def get_crawl_status(db: Session = Depends(get_db)) -> dict:
             'usd_krw_rate': latest.usd_krw_rate,
         },
         'exchanges': result_exchanges,
+        'data_gaps': data_gaps,
     }
 
 
