@@ -811,10 +811,47 @@ async def _pw_scrape_upbit_limits(browser) -> dict:
         await page.close()
 
 
+async def _pw_scrape_coinone_limits(browser) -> dict:
+    """코인원 입출금 안내 페이지에서 3단계 가상자산 일일 출금 한도를 스크래핑.
+
+    반환: {'krw_daily_verified_digital': int | None}
+    예: {'krw_daily_verified_digital': 7_000_000_000}  # 70억원 (3단계)
+    """
+    page = await browser.new_page()
+    try:
+        await page.goto(
+            "https://coinone.co.kr/support/guide",
+            wait_until="domcontentloaded", timeout=25000,
+        )
+        await page.wait_for_timeout(4000)
+        text = await page.evaluate("() => document.body.innerText")
+        limits: dict = {}
+        for line in text.splitlines():
+            if '가상자산(합산)' in line:
+                # 탭 구분: [label, 1단계, 2단계, 3단계(개별설정), 4단계]
+                parts = [p.strip() for p in line.split('\t')]
+                if len(parts) >= 4:
+                    val_text = parts[3]  # 3단계(개별설정) 값: "~70억 원까지"
+                    m = re.search(r'([\d,]+)\s*억', val_text)
+                    if m:
+                        num = float(m.group(1).replace(',', ''))
+                        limits['krw_daily_verified_digital'] = int(num * 100_000_000)
+                break
+        return limits
+    except Exception:
+        return {}
+    finally:
+        await page.close()
+
+
 async def scrape_korea_withdrawal_limits_async(browser) -> dict[str, dict]:
     """국내 거래소 출금 한도 비동기 스크래핑. {exchange: {krw_daily_verified_digital, ...}} 반환."""
     upbit_limits = await _pw_scrape_upbit_limits(browser)
-    return {'upbit': upbit_limits}
+    coinone_limits = await _pw_scrape_coinone_limits(browser)
+    return {
+        'upbit': upbit_limits,
+        'coinone': coinone_limits,
+    }
 
 
 def scrape_korea_withdrawal_limits() -> dict[str, dict]:
