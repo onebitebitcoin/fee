@@ -910,8 +910,10 @@ export default function ExplorerPage() {
                       <div className="pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">온체인 출금 한도</p>
-                          {mergedLimits.source === 'playwright' && (
-                            <span className="text-[9px] text-acc-green font-medium">크롤 최신화</span>
+                          {mergedLimits.source === 'playwright' ? (
+                            <span className="text-[9px] text-acc-green font-medium">최신 데이터</span>
+                          ) : (
+                            <span className="text-[9px] text-label-tertiary font-medium">수동 데이터</span>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
