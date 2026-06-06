@@ -284,6 +284,7 @@ export default function ExplorerPage() {
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
+  const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
@@ -306,6 +307,21 @@ export default function ExplorerPage() {
     api.getGatemanRegistry().then(res => {
       setLiveRegistry(res.data as unknown as LiveRegistry);
     }).catch(() => { /* use static defaults */ });
+  }, []);
+
+  // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
+  useEffect(() => {
+    const fetch = () =>
+      api.getLiveKimp()
+        .then(res => setBtcPrice({
+          usd: Math.round(res.global_btc_price_krw / res.usd_krw_rate),
+          krw: Math.round(res.global_btc_price_krw),
+          fetchedAt: new Date(),
+        }))
+        .catch(() => { /* keep previous */ });
+    fetch();
+    const id = setInterval(fetch, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -356,12 +372,6 @@ export default function ExplorerPage() {
       }
     }
     return m;
-  }, [allData]);
-
-  const btcPriceInfo = useMemo(() => {
-    const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
-    if (!ref) return null;
-    return { usd: ref.global_btc_price_usd, krw: Math.round(ref.global_btc_price_usd * ref.usd_krw_rate) };
   }, [allData]);
 
   const domesticOptions = useMemo(() => {
@@ -736,9 +746,13 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-tertiary mt-2 num">
                   = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
                 </p>
-                {btcPriceInfo && (
+                {btcPrice && (
                   <p className="text-[11px] text-label-tertiary/60 mt-1.5 num">
-                    BTC {btcPriceInfo.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })} USD · ₩{btcPriceInfo.krw.toLocaleString('ko-KR')}
+                    BTC ${btcPrice.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })} · ₩{btcPrice.krw.toLocaleString('ko-KR')}
+                    {' '}
+                    <span className="opacity-60">
+                      {btcPrice.fetchedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })}
+                    </span>
                   </p>
                 )}
               </div>
