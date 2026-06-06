@@ -54,9 +54,9 @@ const DOMESTIC_INFO: Record<string, DomesticInfo> = {
   },
   bithumb: {
     bank: 'NH농협은행', carf: 2027, country: '대한민국', url: 'https://bithumb.com', lightning: false,
-    krw_per_tx_limit: 1_000_000, btc_per_tx_max: null, btc_daily_verified: 100,
+    krw_per_tx_limit: 1_000_000, btc_per_tx_max: 16, btc_daily_verified: 16,
     personal_wallet_req: '빗썸 앱 → 출금 → 개인지갑 사전 등록',
-    source_note: '빗썸 고객센터 공개 정보 기준 (레벨별 상이)',
+    source_note: '빗썸 공식 영문 고객지원 기준 (en.bithumb.com) — 1일 16 BTC 한도',
   },
   coinone: {
     bank: '신한은행', carf: 2027, country: '대한민국', url: 'https://coinone.co.kr', lightning: false,

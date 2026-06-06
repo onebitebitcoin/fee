@@ -67,14 +67,14 @@ WITHDRAWAL_LIMITS: dict[str, WithdrawalLimits] = {
     ),
     'bithumb': WithdrawalLimits(
         exchange='bithumb',
-        btc_per_tx_max=None,
+        btc_per_tx_max=16.0,
         btc_daily_basic=1.0,
-        btc_daily_verified=100.0,
+        btc_daily_verified=16.0,
         krw_daily_basic=5_000_000,
         krw_daily_verified=500_000_000,
         krw_per_tx_limit=1_000_000,
         personal_wallet_req='빗썸 앱 → 출금 → 개인지갑 사전 등록',
-        source_note='빗썸 고객센터 공개 정보 기준 (레벨별 상이)',
+        source_note='빗썸 공식 영문 고객지원 기준 (en.bithumb.com) — 1일 16 BTC 한도',
     ),
     'coinone': WithdrawalLimits(
         exchange='coinone',

@@ -300,7 +300,14 @@ class CrawlService:
             logger.warning('Korea withdrawal limits scrape failed: %s', exc)
             scraped = {}
 
+        # Playwright로 스크래핑 불가한 거래소의 공식 확인 정적 데이터
+        # 빗썸: Playwright 차단 → en.bithumb.com 공식 영문 고객지원 기준 (1일 16 BTC)
+        STATIC_ONLY: dict[str, dict] = {
+            'bithumb': {'btc_per_tx_max': 16.0},
+        }
+
         count = 0
+        scraped_exchanges: set[str] = set()
         for exchange, limits in scraped.items():
             if not limits:
                 continue
@@ -310,6 +317,20 @@ class CrawlService:
                 krw_daily_verified_digital=limits.get('krw_daily_verified_digital'),
                 btc_per_tx_max=limits.get('btc_per_tx_max'),
                 source='playwright',
+            )
+            self.db.add(snap)
+            scraped_exchanges.add(exchange)
+            count += 1
+
+        for exchange, limits in STATIC_ONLY.items():
+            if exchange in scraped_exchanges:
+                continue
+            snap = KoreaWithdrawalLimitSnapshot(
+                crawl_run_id=crawl_run.id,
+                exchange=exchange,
+                krw_daily_verified_digital=limits.get('krw_daily_verified_digital'),
+                btc_per_tx_max=limits.get('btc_per_tx_max'),
+                source='static',
             )
             self.db.add(snap)
             count += 1
