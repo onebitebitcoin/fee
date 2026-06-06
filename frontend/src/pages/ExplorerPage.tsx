@@ -492,18 +492,35 @@ export default function ExplorerPage() {
       const name = p.lightning_exit_provider!;
       const existing = svcMap.get(name);
       if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
-        const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
-        const fee_pct = swapComp?.rate_pct ?? 0;
-        svcMap.set(name, {
-          name,
-          fee_pct,
-          kyc: p.exit_service_kyc_status === 'kyc',
-          btc_received: p.btc_received ?? 0,
-          source_url: swapComp?.source_url ?? null,
-        });
+        if (name === '__direct__') {
+          svcMap.set(name, {
+            name,
+            fee_pct: 0,
+            kyc: false,
+            btc_received: p.btc_received ?? 0,
+            source_url: null,
+          });
+        } else {
+          const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
+          const fee_pct = swapComp?.rate_pct ?? 0;
+          svcMap.set(name, {
+            name,
+            fee_pct,
+            kyc: p.exit_service_kyc_status === 'kyc',
+            btc_received: p.btc_received ?? 0,
+            source_url: swapComp?.source_url ?? null,
+          });
+        }
       }
     }
-    return [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
+    // __direct__ 먼저, 나머지는 btc_received 내림차순
+    const sorted = [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
+    const directIdx = sorted.findIndex(s => s.name === '__direct__');
+    if (directIdx > 0) {
+      const [direct] = sorted.splice(directIdx, 1);
+      sorted.unshift(direct);
+    }
+    return sorted;
   }, [allData, domestic, coin, global, network, globalExitMethod]);
 
   const resultPath = useMemo((): CheapestPathEntry | null => {
@@ -529,7 +546,7 @@ export default function ExplorerPage() {
     }
     if (swapSvc) {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
-      return bestByBtc(filtered) ?? bestByBtc(basePaths);
+      if (filtered.length > 0) return bestByBtc(filtered);
     }
     return bestByBtc(basePaths);
   }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod]);
@@ -1416,7 +1433,7 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-secondary mt-1">라이트닝 → 온체인 변환 서비스를 선택해요</p>
               </div>
               <div className="space-y-2.5">
-                {swapServiceOptions.length === 0 ? (
+                {swapServiceOptions.filter(o => o.name !== '__direct__').length === 0 && !swapServiceOptions.find(o => o.name === '__direct__') ? (
                   <div className="ios-card rounded-2xl p-5 text-center space-y-2">
                     <p className="text-sm font-semibold text-label-secondary">사용 가능한 스왑 서비스 없음</p>
                     <p className="text-xs text-label-tertiary">현재 라이트닝 스왑 서비스 데이터를 불러오지 못했습니다. 다시 시도하거나 온체인 출금을 선택해주세요.</p>
@@ -1429,6 +1446,52 @@ export default function ExplorerPage() {
                   </div>
                 ) : swapServiceOptions.map(({ name, fee_pct, kyc, btc_received, source_url }, i) => {
                   const isSelected = swapSvc === name;
+                  const isDirect = name === '__direct__';
+
+                  if (isDirect) {
+                    return (
+                      <motion.div key="__direct__"
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
+                        <OptionCard
+                          selected={isSelected}
+                          onClick={() => { setSwapSvc('__direct__'); scrollToStepEnd(); }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-md bg-acc-green/15 flex items-center justify-center">
+                                  <Lightning weight="fill" className="w-3 h-3 text-acc-green" />
+                                </div>
+                                <p className="text-sm font-bold text-label-primary">직접 출금 (스왑 없음)</p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="text-[10px] text-acc-green font-semibold">스왑 수수료 없음</span>
+                                <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">개인 LN 지갑 필요</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[11px] text-acc-green font-semibold">0%</p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              transition={SPRING_FAST}
+                              className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.12)] space-y-1 overflow-hidden"
+                            >
+                              <p className="text-[11px] text-label-secondary leading-relaxed">
+                                글로벌 거래소에서 개인 라이트닝 지갑으로 직접 출금합니다. 스왑 서비스 없이 라이트닝 출금 수수료만 발생합니다.
+                                Phoenix, Breez 등 자기 관리형 라이트닝 지갑이 필요합니다.
+                              </p>
+                            </motion.div>
+                          )}
+                        </OptionCard>
+                      </motion.div>
+                    );
+                  }
+
                   const svcInfo = getLightningServiceInfo(name);
                   const domain = getExchangeDomain(name);
                   const websiteUrl = source_url ?? (domain ? `https://${domain}` : null);
@@ -1704,7 +1767,7 @@ export default function ExplorerPage() {
                       </>
                     )}
                     {/* 스왑 서비스 (라이트닝) */}
-                    {swapSvc && (
+                    {swapSvc && swapSvc !== '__direct__' && (
                       <>
                         <div className="flex flex-col items-center">
                           <ExFavicon id={swapSvc} size={24} />
@@ -1713,6 +1776,14 @@ export default function ExplorerPage() {
                         <div className="flex flex-col items-center px-1">
                           <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                           <p className="text-[9px] text-label-tertiary mt-1">LN</p>
+                        </div>
+                      </>
+                    )}
+                    {swapSvc === '__direct__' && (
+                      <>
+                        <div className="flex flex-col items-center px-1">
+                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                          <p className="text-[9px] text-acc-green mt-1">직접 LN</p>
                         </div>
                       </>
                     )}

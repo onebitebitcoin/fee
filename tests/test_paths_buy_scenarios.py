@@ -225,3 +225,81 @@ def test_available_filters_include_lightning_exit():
     modes = {o["mode"] for o in opts}
     assert "lightning" in modes
     assert "onchain" in modes
+
+
+# ── 직접 LN 출금 경로 (__direct__) ──────────────────────────────────────────
+
+def test_direct_ln_paths_present_when_global_ln_withdrawal_available():
+    """글로벌 거래소 LN 출금 수수료가 있으면 __direct__ 경로가 생성된다."""
+    result = _calc(10_000_000)
+    direct_ln = [
+        p for p in result["all_paths"]
+        if p.get("path_type") == "lightning_exit"
+        and p.get("lightning_exit_provider") == "__direct__"
+    ]
+    assert direct_ln, "__direct__ 라이트닝 경로가 1개 이상 생성되어야 한다"
+
+
+def test_direct_ln_has_zero_swap_fee():
+    """__direct__ 경로는 스왑 수수료가 0 이어야 한다."""
+    result = _calc(10_000_000)
+    for p in result["all_paths"]:
+        if p.get("lightning_exit_provider") == "__direct__":
+            swap_components = [
+                c for c in p["breakdown"]["components"]
+                if "스왑" in c["label"]
+            ]
+            assert swap_components == [], f"__direct__ 경로에 스왑 수수료 항목이 있으면 안 됨: {swap_components}"
+
+
+def test_direct_ln_breakdown_sum_matches_total():
+    """__direct__ 경로 breakdown 합계가 total_fee_krw와 일치한다."""
+    result = _calc(10_000_000)
+    for p in result["all_paths"]:
+        if p.get("lightning_exit_provider") == "__direct__":
+            comp_sum = sum(c["amount_krw"] for c in p["breakdown"]["components"])
+            assert comp_sum == p["total_fee_krw"], \
+                f"__direct__ breakdown 합({comp_sum}) != total_fee_krw({p['total_fee_krw']})"
+
+
+def test_direct_ln_cheaper_than_swap_paths():
+    """동일 국내거래소/코인 조건에서 __direct__는 스왑 경로보다 수수료가 낮아야 한다."""
+    result = _calc(10_000_000, swaps=[_swap("BitFreezer", fee_pct=0.5)])
+    for exchange in ("bithumb",):
+        for coin in ("BTC", "USDT"):
+            direct = [
+                p for p in result["all_paths"]
+                if p["korean_exchange"] == exchange
+                and p.get("transfer_coin") == coin
+                and p.get("lightning_exit_provider") == "__direct__"
+            ]
+            swap = [
+                p for p in result["all_paths"]
+                if p["korean_exchange"] == exchange
+                and p.get("transfer_coin") == coin
+                and p.get("path_type") == "lightning_exit"
+                and p.get("lightning_exit_provider") != "__direct__"
+            ]
+            if direct and swap:
+                min_direct = min(p["total_fee_krw"] for p in direct)
+                min_swap = min(p["total_fee_krw"] for p in swap)
+                assert min_direct < min_swap, \
+                    f"{exchange}/{coin}: __direct__({min_direct}) >= swap({min_swap})"
+
+
+def test_direct_ln_absent_when_no_global_ln_withdrawal():
+    """글로벌 LN 출금 수수료가 없으면 __direct__ 경로도 생성되지 않는다."""
+    rows = _withdrawals()
+    for r in rows:
+        if r.network_label == "Lightning Network":
+            r.fee = None
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=rows, network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    direct_ln = [
+        p for p in result["all_paths"]
+        if p.get("lightning_exit_provider") == "__direct__"
+    ]
+    assert direct_ln == [], "LN 출금 수수료 미수집 시 __direct__ 경로 미생성"
