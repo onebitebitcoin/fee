@@ -32,19 +32,50 @@ const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin'
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
 interface DomesticInfo {
-  bank: string;       // 연계 은행
-  carf: number;       // CARF 시행 연도
+  bank: string;
+  carf: number;
   country: string;
   url: string;
   lightning: boolean;
+  // 온체인 출금 한도 (공개 정책 기준, 변경 가능)
+  krw_per_tx_limit: number | null;  // 1회 KRW 환산 한도 (null=제한없음)
+  btc_per_tx_max: number | null;    // 1회 최대 BTC (null=제한없음)
+  btc_daily_verified: number;       // KYC 인증 완료 시 일일 BTC 한도
+  personal_wallet_req: string;      // 개인 지갑 등록 요건 요약
+  source_note: string;              // 정책 신뢰도/경고
 }
 
 const DOMESTIC_INFO: Record<string, DomesticInfo> = {
-  upbit:   { bank: '케이뱅크',   carf: 2027, country: '대한민국', url: 'https://upbit.com',   lightning: false },
-  bithumb: { bank: 'NH농협은행', carf: 2027, country: '대한민국', url: 'https://bithumb.com', lightning: false },
-  coinone: { bank: '신한은행',   carf: 2027, country: '대한민국', url: 'https://coinone.co.kr', lightning: false },
-  korbit:  { bank: '우리은행',   carf: 2027, country: '대한민국', url: 'https://korbit.co.kr', lightning: false },
-  gopax:   { bank: '전북은행',   carf: 2027, country: '대한민국', url: 'https://gopax.co.kr',  lightning: false },
+  upbit: {
+    bank: '케이뱅크', carf: 2027, country: '대한민국', url: 'https://upbit.com', lightning: false,
+    krw_per_tx_limit: 1_000_000, btc_per_tx_max: null, btc_daily_verified: 100,
+    personal_wallet_req: '업비트 앱 → 출금관리 → 외부지갑 등록 (화이트리스트)',
+    source_note: '업비트 고객센터 공개 정보 기준 (레벨별 상이)',
+  },
+  bithumb: {
+    bank: 'NH농협은행', carf: 2027, country: '대한민국', url: 'https://bithumb.com', lightning: false,
+    krw_per_tx_limit: 1_000_000, btc_per_tx_max: null, btc_daily_verified: 100,
+    personal_wallet_req: '빗썸 앱 → 출금 → 개인지갑 사전 등록',
+    source_note: '빗썸 고객센터 공개 정보 기준 (레벨별 상이)',
+  },
+  coinone: {
+    bank: '신한은행', carf: 2027, country: '대한민국', url: 'https://coinone.co.kr', lightning: false,
+    krw_per_tx_limit: 1_000_000, btc_per_tx_max: null, btc_daily_verified: 50,
+    personal_wallet_req: '코인원 앱 → 자산 → 출금 → 주소록 등록',
+    source_note: '코인원 공개 정보 기준 (추정, 실제 확인 권장)',
+  },
+  korbit: {
+    bank: '우리은행', carf: 2027, country: '대한민국', url: 'https://korbit.co.kr', lightning: false,
+    krw_per_tx_limit: null, btc_per_tx_max: 5, btc_daily_verified: 10,
+    personal_wallet_req: '코빗 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
+    source_note: '코빗: 1회 KRW 제한 없음으로 추정 (확인 권장)',
+  },
+  gopax: {
+    bank: '전북은행', carf: 2027, country: '대한민국', url: 'https://gopax.co.kr', lightning: false,
+    krw_per_tx_limit: 1_000_000, btc_per_tx_max: 2, btc_daily_verified: 5,
+    personal_wallet_req: '고팍스 고객센터 확인 필요 (정책 불분명)',
+    source_note: '⚠️ 추정치 — 고파이 사태 이후 정책 변동 가능, 반드시 확인',
+  },
 };
 
 interface GlobalInfo {
@@ -501,20 +532,23 @@ export default function ExplorerPage() {
   }, [allPaths, resultPath]);
 
   useEffect(() => {
+    if (phase !== 'result') return;
+    if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current);
     if (!resultPath?.btc_received) { setDisplaySats(0); return; }
     const target = Math.round(resultPath.btc_received * SATS_PER_BTC);
-    const duration = 1200;
+    setDisplaySats(0);
+    const duration = 1500;
     const startTime = Date.now();
     const tick = () => {
       const elapsed = Date.now() - startTime;
       const t = Math.min(elapsed / duration, 1);
-      const eased = 1 - (1 - t) ** 3;
+      const eased = 1 - (1 - t) ** 4;
       setDisplaySats(Math.round(target * eased));
       if (t < 1) satRafRef.current = requestAnimationFrame(tick);
     };
     satRafRef.current = requestAnimationFrame(tick);
     return () => { if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current); };
-  }, [resultPath?.btc_received]);
+  }, [phase, resultPath?.btc_received]);
 
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
@@ -797,6 +831,45 @@ export default function ExplorerPage() {
                       {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
                     </div>
+                    {info && (
+                      <div className="pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">온체인 출금 한도</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-label-tertiary">1회 KRW 기준 한도</span>
+                            <p className="font-medium text-label-primary mt-0.5 num">
+                              {info.krw_per_tx_limit != null
+                                ? `${(info.krw_per_tx_limit / 10000).toFixed(0)}만원`
+                                : '제한 없음'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-label-tertiary">1회 최대 BTC</span>
+                            <p className="font-medium text-label-primary mt-0.5 num">
+                              {info.btc_per_tx_max != null ? `${info.btc_per_tx_max} BTC` : '제한 없음'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-label-tertiary">일일 한도 (인증 완료)</span>
+                            <p className="font-medium text-label-primary mt-0.5 num">{info.btc_daily_verified} BTC/일</p>
+                          </div>
+                        </div>
+                        {info.krw_per_tx_limit != null && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-fill-secondary">
+                            <p className="text-[11px] text-label-secondary leading-relaxed">
+                              1회 출금 시 {(info.krw_per_tx_limit / 10000).toFixed(0)}만원 초과분은 여러 트랜잭션으로 분할 출금됩니다.
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-label-tertiary">{info.personal_wallet_req}</p>
+                        {info.source_note.startsWith('⚠️') && (
+                          <div className="flex items-start gap-1.5">
+                            <Warning className="w-3 h-3 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
+                            <p className="text-[10px] text-acc-amber">{info.source_note.replace('⚠️ ', '')}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {vol != null && vol < 500_0000_0000 && (
                       <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
                         <Warning className="w-3.5 h-3.5 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
