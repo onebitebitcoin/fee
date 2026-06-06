@@ -45,14 +45,17 @@ async def _auto_crawl_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from backend.app.api.routes.market import kimp_poll_loop
     init_db()
     seed_carf_exchanges()
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor(max_workers=1)
     loop.run_in_executor(executor, _warm_withdrawal_cache)
     crawl_task = asyncio.create_task(_auto_crawl_loop())
+    kimp_task = asyncio.create_task(kimp_poll_loop(interval=10))
     yield
     crawl_task.cancel()
+    kimp_task.cancel()
     executor.shutdown(wait=False)
 
 

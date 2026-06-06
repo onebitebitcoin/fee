@@ -9,6 +9,14 @@ const EXCHANGE_NAMES: Record<string, string> = {
   coinbase: '코인베이스',
   kraken: '크라켄',
   bitget: '비트겟',
+  bybit: '바이빗',
+  // lightning swap services
+  boltz: 'Boltz',
+  coinos: 'Coinos',
+  bitflower: 'BitFlower',
+  walletofsatoshi: 'Wallet of Satoshi',
+  strike: 'Strike',
+  oksusu: 'Oksusu',
 };
 
 const EXCHANGE_DOMAINS: Record<string, string> = {
@@ -22,6 +30,14 @@ const EXCHANGE_DOMAINS: Record<string, string> = {
   coinbase: 'coinbase.com',
   kraken: 'kraken.com',
   bitget: 'bitget.com',
+  bybit: 'bybit.com',
+  // lightning swap services
+  boltz: 'boltz.exchange',
+  coinos: 'coinos.io',
+  bitflower: 'bitflower.com',
+  walletofsatoshi: 'walletofsatoshi.com',
+  strike: 'strike.me',
+  oksusu: 'oksu.su',
 };
 
 export function fmtEx(name: string): string {

@@ -43,12 +43,8 @@ export const api = {
 
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
 
-  getLiveKimp: (forceRefresh = false): Promise<LiveKimpResponse> => {
-    const url = forceRefresh
-      ? '/api/v1/market/kimp/live?force_refresh=true'
-      : '/api/v1/market/kimp/live';
-    return request(url);
-  },
+  getLiveKimp: (): Promise<LiveKimpResponse> =>
+    request('/api/v1/market/kimp/live'),
 
   getExchangeVolumes: (): Promise<{
     volumes: Record<string, {

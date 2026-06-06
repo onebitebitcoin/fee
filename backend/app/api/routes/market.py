@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -18,6 +20,8 @@ from backend.app.domain.market_core import (
     fetch_binance_spot,
     fetch_usd_krw_rate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -44,7 +48,9 @@ class _TtlCache:
 
 _status_cache = _TtlCache(ttl=60)
 _cheapest_path_cache = _TtlCache(ttl=30)
-_kimp_cache = _TtlCache(ttl=30)
+
+# 백그라운드 polling으로 갱신되는 kimp 최신 데이터
+_kimp_latest: dict | None = None
 
 
 def _get_status_cache() -> dict | None:
@@ -490,14 +496,8 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
     }
 
 
-@router.get('/kimp/live')
-def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
-    """한국 거래소 BTC 실시간 김치 프리미엄 조회 (30초 TTL 캐시)."""
-    if not force_refresh:
-        cached = _kimp_cache.get('kimp_live')
-        if cached is not None:
-            return {**cached, 'cached': True}
-
+def _fetch_kimp_data() -> dict | None:
+    """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환."""
     def _fetch_korea(exchange: str) -> tuple[str, float | None]:
         try:
             ticker = KOREA_FETCHERS[exchange]()
@@ -526,25 +526,42 @@ def get_live_kimp(force_refresh: bool = Query(False)) -> dict:
         btc_usd, usd_krw = global_future.result()
 
     if btc_usd is None or usd_krw is None or not korea_prices:
-        raise HTTPException(status_code=503, detail='실시간 시세 조회 실패')
+        return None
 
-    # 포렉스 환율 기준 (kimpga 동일 방식)
     global_btc_price_krw = btc_usd * usd_krw
     kimp: dict[str, float] = {
         ex: round((price / global_btc_price_krw - 1) * 100, 4)
         for ex, price in korea_prices.items()
     }
-
-    result = {
+    return {
         'kimp': kimp,
         'korean_btc_prices': korea_prices,
         'global_btc_price_krw': round(global_btc_price_krw),
         'usd_krw_rate': round(usd_krw, 2),
         'fetched_at': int(time.time()),
-        'cached': False,
     }
-    _kimp_cache.set('kimp_live', result)
-    return result
+
+
+async def kimp_poll_loop(interval: int = 10) -> None:
+    """백그라운드에서 주기적으로 kimp 데이터를 갱신한다."""
+    global _kimp_latest
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            result = await loop.run_in_executor(None, _fetch_kimp_data)
+            if result is not None:
+                _kimp_latest = result
+        except Exception as exc:
+            logger.warning('kimp poll failed: %s', exc)
+        await asyncio.sleep(interval)
+
+
+@router.get('/kimp/live')
+def get_live_kimp() -> dict:
+    """백그라운드 polling으로 갱신된 최신 kimp 데이터 반환."""
+    if _kimp_latest is None:
+        raise HTTPException(status_code=503, detail='kimp 데이터 수집 중입니다. 잠시 후 다시 시도하세요.')
+    return _kimp_latest
 
 
 @router.get('/carf-exchanges')

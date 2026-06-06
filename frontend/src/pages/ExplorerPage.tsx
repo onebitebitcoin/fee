@@ -2,10 +2,11 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDown, ArrowLeft, ArrowRight, CaretDown, CheckCircle, Coin, CurrencyDollar,
-  Globe, Lightning, MapPin, ShieldCheck, TrendDown, EyeSlash, ArrowsClockwise,
+  Globe, House, Lightning, MapPin, ShieldCheck, TrendDown,
   Warning, Wallet,
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
+import { NetworkIcon } from '../components/NetworkIcon';
 import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, formatSats, SATS_PER_BTC } from '../lib/formatBtc';
 import { getDomesticGates, getGlobalGates, ONCHAIN_GATES } from '../lib/gatemanRegistry';
@@ -16,7 +17,6 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../type
 
 type Phase = 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method' | 'global' | 'global_gate' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
 type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
-type Preference = 'cheapest' | 'non_kyc' | 'lightning';
 
 interface AllData {
   byGlobal: Record<string, CheapestPathResponse>;
@@ -80,20 +80,6 @@ function bestByBtc(paths: CheapestPathEntry[]): CheapestPathEntry | null {
   return paths.length ? paths.reduce((a, b) => (a.btc_received ?? 0) > (b.btc_received ?? 0) ? a : b) : null;
 }
 
-function applyPref(paths: CheapestPathEntry[], pref: Preference): CheapestPathEntry[] {
-  if (pref === 'lightning') {
-    const f = paths.filter(p => p.global_exit_mode === 'lightning');
-    return f.length ? f : paths;
-  }
-  if (pref === 'non_kyc') {
-    const f = paths.filter(p =>
-      p.domestic_kyc_status !== 'kyc' && p.global_kyc_status !== 'kyc' &&
-      (p.exit_service_kyc_status == null || p.exit_service_kyc_status === 'non_kyc'),
-    );
-    return f.length ? f : paths;
-  }
-  return paths;
-}
 
 function fmtKst(ts: number | null): string {
   if (!ts) return '–';
@@ -256,7 +242,6 @@ export default function ExplorerPage() {
   const [phase, setPhase]         = useState<Phase>('input');
   const [amount, setAmount]       = useState('100');
   const [unit, setUnit]           = useState<'만원' | '억원'>('만원');
-  const [pref, setPref]           = useState<Preference>('cheapest');
   const [allData, setAllData]     = useState<AllData | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [dir, setDir]             = useState<1 | -1>(1);
@@ -267,7 +252,8 @@ export default function ExplorerPage() {
   const [network, setNetwork]     = useState<string | null>(null);
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
-  const [btcMethod, setBtcMethod]         = useState<'onchain' | null>(null);
+  const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
+  const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
@@ -354,9 +340,9 @@ export default function ExplorerPage() {
   }, [allData, koreaVolumeMap]);
 
   const recDomestic = useMemo(() => {
-    const b = bestByBtc(applyPref(allPaths, pref));
+    const b = bestByBtc(allPaths);
     return b?.korean_exchange ?? null;
-  }, [allPaths, pref]);
+  }, [allPaths]);
 
   const coinOptions = useMemo(() => {
     if (!allData || !domestic) return [] as { coin: CoinType; best: CheapestPathEntry }[];
@@ -367,8 +353,8 @@ export default function ExplorerPage() {
     const b  = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'));
     const bg = bestByBtc(paths.filter(p => p.route_variant === 'btc_via_global'));
     if (u)  opts.push({ coin: 'USDT',       best: u });
-    if (b)  opts.push({ coin: 'BTC',         best: b });
     if (bg) opts.push({ coin: 'BTC_GLOBAL',  best: bg });
+    if (b)  opts.push({ coin: 'BTC',         best: b });
     return opts;
   }, [allData, domestic]);
 
@@ -492,8 +478,8 @@ export default function ExplorerPage() {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
       return bestByBtc(filtered) ?? bestByBtc(basePaths);
     }
-    return bestByBtc(applyPref(basePaths, pref));
-  }, [allData, domestic, coin, global, network, swapSvc, pref, globalExitMethod]);
+    return bestByBtc(basePaths);
+  }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod]);
 
   const altPaths = useMemo(() => {
     if (!resultPath?.btc_received || !allPaths.length) return [];
@@ -554,7 +540,7 @@ export default function ExplorerPage() {
   async function handleSearch() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
-    setAllData(null); setError(null); setLiveKimp(null);
+    setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
     try {
       const [tickerRes, kimpRes, ...pathResults] = await Promise.all([
@@ -564,7 +550,7 @@ export default function ExplorerPage() {
           api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
         ),
       ]);
-      if (kimpRes?.kimp) setLiveKimp(kimpRes.kimp);
+      if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
       const byGlobal: Record<string, CheapestPathResponse> = {};
       GLOBAL_EXCHANGES.forEach((g, i) => {
         const r = pathResults[i];
@@ -623,18 +609,6 @@ export default function ExplorerPage() {
       <header className="glass-header sticky top-0 z-20">
         <div className="max-w-xl mx-auto px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            {phase !== 'input' && phase !== 'loading' && (
-              <motion.button
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                transition={SPRING_FAST}
-                onClick={handleBack}
-                className="w-7 h-7 rounded-full bg-fill-secondary flex items-center justify-center text-label-secondary hover:text-label-primary hover:bg-fill-primary transition-colors"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" weight="bold" />
-              </motion.button>
-            )}
             <span className="text-sm font-semibold text-label-primary tracking-tight">
               비트코인 경로 탐색
             </span>
@@ -652,7 +626,7 @@ export default function ExplorerPage() {
                 className="text-label-tertiary hover:text-label-secondary transition-colors"
                 title="처음으로"
               >
-                <ArrowsClockwise className="w-3.5 h-3.5" />
+                <House className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -679,28 +653,6 @@ export default function ExplorerPage() {
                   구매 금액
                 </p>
 
-                {/* Unit toggle — macOS segmented control */}
-                <div className="seg-ctrl inline-flex mb-6">
-                  {(['만원', '억원'] as const).map(u => (
-                    <motion.button
-                      key={u}
-                      onClick={() => setUnit(u)}
-                      className={`relative px-4 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
-                        unit === u ? 'text-label-primary' : 'text-label-secondary'
-                      }`}
-                    >
-                      {unit === u && (
-                        <motion.div
-                          layoutId="seg-active"
-                          className="absolute inset-0 bg-fill-primary rounded-[8px]"
-                          transition={SPRING_FAST}
-                        />
-                      )}
-                      <span className="relative z-10">{u}</span>
-                    </motion.button>
-                  ))}
-                </div>
-
                 <div className="flex items-baseline gap-2">
                   <span className="text-acc-amber text-3xl font-semibold">₩</span>
                   <input
@@ -713,43 +665,31 @@ export default function ExplorerPage() {
                     placeholder="100"
                     min="1"
                   />
+                  {/* Unit toggle */}
+                  <div className="seg-ctrl inline-flex flex-shrink-0">
+                    {(['만원', '억원'] as const).map(u => (
+                      <motion.button
+                        key={u}
+                        onClick={() => setUnit(u)}
+                        className={`relative px-4 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
+                          unit === u ? 'text-label-primary' : 'text-label-secondary'
+                        }`}
+                      >
+                        {unit === u && (
+                          <motion.div
+                            layoutId="seg-active"
+                            className="absolute inset-0 bg-fill-primary rounded-[8px]"
+                            transition={SPRING_FAST}
+                          />
+                        )}
+                        <span className="relative z-10">{u}</span>
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
                 <p className="text-sm text-label-tertiary mt-2 num">
                   = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
                 </p>
-              </div>
-
-              {/* Preference */}
-              <div>
-                <SectionLabel>우선순위</SectionLabel>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {([
-                    { id: 'cheapest' as Preference,  Icon: TrendDown,  label: '최저 수수료', sub: '인증 무관' },
-                    { id: 'non_kyc'  as Preference,  Icon: EyeSlash,   label: '익명 우선',   sub: '인증 불필요' },
-                    { id: 'lightning' as Preference, Icon: Lightning,  label: '라이트닝', sub: 'LN 출금' },
-                  ]).map(({ id, Icon, label, sub }) => (
-                    <motion.button
-                      key={id}
-                      onClick={() => setPref(id)}
-                      whileTap={{ scale: 0.95, transition: SPRING_FAST }}
-                      className={[
-                        'p-3.5 rounded-2xl border text-left transition-all duration-200',
-                        pref === id
-                          ? 'bg-acc-amber/10 border-acc-amber/35'
-                          : 'ios-card border-transparent',
-                      ].join(' ')}
-                    >
-                      <Icon
-                        weight={pref === id ? 'fill' : 'regular'}
-                        className={`w-5 h-5 ${pref === id ? 'text-acc-amber' : 'text-label-secondary'}`}
-                      />
-                      <p className={`text-xs font-semibold mt-2 ${pref === id ? 'text-acc-amber' : 'text-label-primary'}`}>
-                        {label}
-                      </p>
-                      <p className="text-[10px] text-label-tertiary mt-0.5">{sub}</p>
-                    </motion.button>
-                  ))}
-                </div>
               </div>
 
               {error && (
@@ -791,7 +731,14 @@ export default function ExplorerPage() {
               transition={SPRING_SLOW} className="space-y-4 pt-2">
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
-                <p className="text-sm text-label-secondary mt-1">출발 거래소를 선택해요</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-label-secondary">출발 거래소를 선택해요</p>
+                  {kimpFetchedAt != null && (
+                    <p className="text-[11px] text-label-tertiary num">
+                      김프 {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
@@ -868,6 +815,9 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -896,6 +846,9 @@ export default function ExplorerPage() {
               >
                 확인 후 다음 <ArrowRight className="w-4 h-4" />
               </motion.button>
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
             </motion.div>
           )}
 
@@ -955,6 +908,9 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -977,34 +933,48 @@ export default function ExplorerPage() {
                     </div>
                   </div>
                 </OptionCard>
-                <OptionCard selected={false} onClick={() => {}} disabled>
+                <OptionCard selected={btcMethod === 'lightning'} onClick={() => { setBtcMethod('lightning'); scrollToStepEnd(); }}>
                   <div className="flex items-center gap-3">
-                    <Lightning weight="fill" className="w-7 h-7 text-label-disabled flex-shrink-0" />
+                    <Lightning weight="fill" className={`w-7 h-7 flex-shrink-0 ${btcMethod === 'lightning' ? 'text-acc-amber' : 'text-label-secondary'}`} />
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-label-disabled">라이트닝</p>
+                        <p className="text-sm font-bold text-label-primary">라이트닝</p>
                         <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">국내 거래소 미지원</span>
                       </div>
-                      <p className="text-xs text-label-disabled mt-0.5">즉시 결제 가능하나 국내 거래소에서 지원하지 않습니다</p>
+                      <p className="text-xs text-label-secondary mt-0.5">즉시 결제 · 수수료 저렴 · 국내 거래소에서 직접 출금 불가</p>
                     </div>
                   </div>
                 </OptionCard>
               </div>
+
               {btcMethod === 'onchain' && (
-                <div className="space-y-2.5">
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
+                  className="space-y-2.5">
                   <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
-                    <p className="font-semibold text-label-primary">온체인 vs 라이트닝</p>
-                    <p className="text-label-secondary"><span className="font-medium text-label-primary">온체인:</span> 블록체인에 직접 기록. 거래소 고정 출금 수수료 부과 (Bitcoin 채굴 수수료 아님), 10~60분 소요.</p>
-                    <p className="text-label-secondary"><span className="font-medium text-label-primary">라이트닝:</span> 2nd Layer 즉시 결제, 수수료 저렴. 국내 거래소 미지원.</p>
+                    <p className="font-semibold text-label-primary">온체인 출금이란?</p>
+                    <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록되는 방식입니다. 거래소가 고정 출금 수수료를 부과하며, 네트워크 혼잡도에 따라 10~60분 소요됩니다.</p>
+                    <p className="text-label-secondary">채굴자 수수료(온체인 네트워크 수수료)는 거래소 출금 수수료에 포함되어 있습니다.</p>
                   </div>
                   <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
-                </div>
+                </motion.div>
               )}
-              {btcMethod === 'onchain' && (
+
+              {btcMethod === 'lightning' && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
+                  className="ios-card rounded-2xl p-4 text-xs space-y-2">
+                  <p className="font-semibold text-label-primary">라이트닝 네트워크란?</p>
+                  <p className="text-label-secondary">Bitcoin 위에 구축된 2nd Layer 결제 프로토콜로, 수수료가 매우 저렴하고 거래가 즉시 완료됩니다.</p>
+                  <p className="text-label-secondary"><span className="font-medium text-acc-red">국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다.</span> 온체인으로 출금 후 별도 스왑 서비스를 이용하는 경로를 원하신다면 코인 선택 단계에서 &apos;BTC → 해외거래소 경유&apos;를 선택하세요.</p>
+                </motion.div>
+              )}
+
+              {btcMethod !== null && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
+                  disabled={btcMethod === 'lightning'}
                   onClick={() => {
+                    if (btcMethod !== 'onchain') return;
                     if (coin === 'BTC_GLOBAL') {
                       setPhase('global');
                     } else {
@@ -1013,11 +983,18 @@ export default function ExplorerPage() {
                       setPhase('result');
                     }
                   }}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                    btcMethod === 'lightning'
+                      ? 'bg-fill-secondary text-label-tertiary cursor-not-allowed'
+                      : 'bg-acc-amber text-white shadow-glow-amber cursor-pointer'
+                  }`}
                 >
                   {coin === 'BTC_GLOBAL' ? '다음' : '결과 보기'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -1117,6 +1094,9 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -1146,6 +1126,9 @@ export default function ExplorerPage() {
               >
                 확인 후 다음 <ArrowRight className="w-4 h-4" />
               </motion.button>
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
             </motion.div>
           )}
 
@@ -1236,6 +1219,9 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -1258,7 +1244,10 @@ export default function ExplorerPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-label-primary">{n}</p>
+                          <div className="flex items-center gap-1.5">
+                            <NetworkIcon network={n} size={16} />
+                            <p className="text-sm font-bold text-label-primary">{n}</p>
+                          </div>
                           {(() => {
                             const wdFee = best.breakdown?.components.find(c => c.is_fixed === true);
                             const amt = wdFee ? fmtAmountText(wdFee.amount_text) : null;
@@ -1288,6 +1277,9 @@ export default function ExplorerPage() {
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
               <div ref={stepEndRef} />
             </motion.div>
           )}
@@ -1323,8 +1315,8 @@ export default function ExplorerPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <Lightning weight="fill" className="w-4 h-4 text-acc-amber" />
-                            <p className="text-sm font-bold text-label-primary">{name}</p>
+                            <ExFavicon id={name} size={20} />
+                            <p className="text-sm font-bold text-label-primary">{fmtEx(name)}</p>
                           </div>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
@@ -1352,6 +1344,9 @@ export default function ExplorerPage() {
                   결과 보기 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
             </motion.div>
           )}
 
@@ -1496,6 +1491,7 @@ export default function ExplorerPage() {
                                     </>
                                   )}
                                   <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <NetworkIcon network={p.network} size={12} />
                                   <span className="text-[10px] text-label-tertiary">{p.network}</span>
                                   {p.global_exit_mode === 'lightning' && (
                                     <span className="text-[9px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full font-medium">라이트닝</span>
@@ -1550,10 +1546,8 @@ export default function ExplorerPage() {
                     {swapSvc && (
                       <>
                         <div className="flex flex-col items-center">
-                          <div className="w-6 h-6 rounded-md bg-acc-amber/15 flex items-center justify-center">
-                            <Lightning weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
-                          </div>
-                          <p className="text-[10px] text-label-secondary mt-1">{swapSvc}</p>
+                          <ExFavicon id={swapSvc} size={24} />
+                          <p className="text-[10px] text-label-secondary mt-1">{fmtEx(swapSvc)}</p>
                         </div>
                         <div className="flex flex-col items-center px-1">
                           <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
@@ -1570,7 +1564,7 @@ export default function ExplorerPage() {
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
-                    <span>네트워크 <span className="text-label-secondary font-medium">{resultPath.network}</span></span>
+                    <span className="flex items-center gap-1">네트워크 <NetworkIcon network={resultPath.network} size={12} /><span className="text-label-secondary font-medium">{resultPath.network}</span></span>
                     <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '⚡ 라이트닝' : '온체인'}</span></span>
                   </div>
                 </div>
@@ -1628,6 +1622,9 @@ export default function ExplorerPage() {
                 className="w-full py-3.5 rounded-2xl bg-fill-secondary text-label-secondary text-sm font-semibold hover:bg-fill-primary transition-colors"
               >
                 다시 탐색
+              </button>
+              <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
               </button>
             </motion.div>
           )}

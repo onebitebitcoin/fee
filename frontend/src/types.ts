@@ -172,7 +172,6 @@ export type LiveKimpResponse = {
   global_btc_price_krw: number;
   usd_krw_rate: number;
   fetched_at: number;
-  cached: boolean;
 };
 
 export type ScrapedPageStatus = {
