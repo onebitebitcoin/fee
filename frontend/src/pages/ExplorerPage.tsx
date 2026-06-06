@@ -7,7 +7,7 @@ import {
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { NetworkIcon } from '../components/NetworkIcon';
-import { fmtEx, getExchangeDomain } from '../lib/exchangeNames';
+import { fmtEx, getExchangeDomain, getLightningServiceInfo } from '../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, formatSats, SATS_PER_BTC } from '../lib/formatBtc';
 import { getDomesticGates, getGlobalGates, ONCHAIN_GATES } from '../lib/gatemanRegistry';
 import type { GateItem, LiveRegistry } from '../lib/gatemanRegistry';
@@ -421,7 +421,7 @@ export default function ExplorerPage() {
   // Available lightning swap services for current selection (network step → swap_service step)
   const swapServiceOptions = useMemo(() => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
-    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number }[];
+    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number; source_url: string | null }[];
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
@@ -435,7 +435,7 @@ export default function ExplorerPage() {
               p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
           : [];
     const lnPaths = basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
-    const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number }>();
+    const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number; source_url: string | null }>();
     for (const p of lnPaths) {
       const name = p.lightning_exit_provider!;
       const existing = svcMap.get(name);
@@ -447,6 +447,7 @@ export default function ExplorerPage() {
           fee_pct,
           kyc: p.exit_service_kyc_status === 'kyc',
           btc_received: p.btc_received ?? 0,
+          source_url: swapComp?.source_url ?? null,
         });
       }
     }
@@ -1304,35 +1305,73 @@ export default function ExplorerPage() {
                       출금 방식 다시 선택
                     </button>
                   </div>
-                ) : swapServiceOptions.map(({ name, fee_pct, kyc, btc_received }, i) => (
-                  <motion.div key={name}
-                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
-                    <OptionCard
-                      selected={swapSvc === name}
-                      onClick={() => { setSwapSvc(name); scrollToStepEnd(); }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <ExFavicon id={name} size={20} />
-                            <p className="text-sm font-bold text-label-primary">{fmtEx(name)}</p>
+                ) : swapServiceOptions.map(({ name, fee_pct, kyc, btc_received, source_url }, i) => {
+                  const isSelected = swapSvc === name;
+                  const svcInfo = getLightningServiceInfo(name);
+                  const domain = getExchangeDomain(name);
+                  const websiteUrl = source_url ?? (domain ? `https://${domain}` : null);
+                  return (
+                    <motion.div key={name}
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
+                      <OptionCard
+                        selected={isSelected}
+                        onClick={() => { setSwapSvc(name); scrollToStepEnd(); }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <ExFavicon id={name} size={20} />
+                              <p className="text-sm font-bold text-label-primary">{fmtEx(name)}</p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
+                              {kyc
+                                ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">인증 필요</span>
+                                : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>
+                              }
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
-                            {kyc
-                              ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">인증 필요</span>
-                              : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>
-                            }
+                          <div className="text-right">
+                            <p className="text-[11px] text-label-tertiary">{formatPercent(fee_pct)}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[11px] text-label-tertiary">{formatPercent(fee_pct)}</p>
-                        </div>
-                      </div>
-                    </OptionCard>
-                  </motion.div>
-                ))}
+                        {isSelected && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            transition={SPRING_FAST}
+                            className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.12)] space-y-2.5 overflow-hidden"
+                          >
+                            {svcInfo && (
+                              <p className="text-[11px] text-label-secondary leading-relaxed">{svcInfo.description}</p>
+                            )}
+                            {svcInfo && svcInfo.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {svcInfo.tags.map(tag => (
+                                  <span key={tag} className="text-[10px] bg-fill-secondary text-label-tertiary px-2 py-0.5 rounded-full">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                            {websiteUrl && (
+                              <a
+                                href={websiteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-[11px] text-acc-amber font-medium hover:underline underline-offset-2"
+                              >
+                                <Globe className="w-3 h-3" />
+                                {domain ?? websiteUrl}
+                                <ArrowRight className="w-2.5 h-2.5 rotate-[-45deg]" />
+                              </a>
+                            )}
+                          </motion.div>
+                        )}
+                      </OptionCard>
+                    </motion.div>
+                  );
+                })}
               </div>
               {swapSvc && (
                 <motion.button
