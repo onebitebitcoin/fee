@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
@@ -148,7 +148,7 @@ class KoreaWithdrawalLimitSnapshot(Base):
     crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
     exchange: Mapped[str] = mapped_column(String(32), index=True)
     # KRW 기반 일일 디지털 자산 출금 한도 (스크래핑 대상)
-    krw_daily_verified_digital: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    krw_daily_verified_digital: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     # 1회 최대 BTC 출금 (API 제공 시)
     btc_per_tx_max: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # 데이터 소스
