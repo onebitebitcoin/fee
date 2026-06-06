@@ -797,6 +797,14 @@ export default function ExplorerPage() {
                       {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && <div><span className="text-label-tertiary">김치 프리미엄</span><p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p></div>}
                     </div>
+                    {vol != null && vol < 500_0000_0000 && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
+                        <Warning className="w-3.5 h-3.5 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
+                        <p className="text-[11px] text-label-secondary leading-relaxed">
+                          <span className="font-semibold text-acc-amber">슬리피지 주의</span> — 거래량이 적어 호가창이 얇습니다. 대규모 매수·매도 시 실제 체결가가 표시가보다 불리할 수 있습니다.
+                        </p>
+                      </div>
+                    )}
                     {info?.url && (
                       <a href={info.url} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
@@ -1078,6 +1086,14 @@ export default function ExplorerPage() {
                         <p className="font-medium text-label-primary mt-0.5 num">~${info.vol24hB}억</p>
                       </div>
                     </div>
+                    {info.vol24hB < 20 && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
+                        <Warning className="w-3.5 h-3.5 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
+                        <p className="text-[11px] text-label-secondary leading-relaxed">
+                          <span className="font-semibold text-acc-amber">슬리피지 주의</span> — 24시간 거래량이 낮아 유동성이 부족합니다. BTC 매수 시 실제 체결가가 호가보다 불리할 수 있으며, 특히 거래 규모가 클수록 영향이 커집니다.
+                        </p>
+                      </div>
+                    )}
                     <a href={info.url} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-[11px] text-acc-blue hover:underline">
                       <Globe className="w-3 h-3" /> {info.url.replace('https://', '')}
