@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
-from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot
+from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot, KoreaWithdrawalLimitSnapshot
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -180,5 +180,23 @@ def get_latest_exchange_volumes(db: Session) -> list[ExchangeVolumeSnapshot]:
         subq,
         (ExchangeVolumeSnapshot.exchange == subq.c.exchange) &
         (ExchangeVolumeSnapshot.recorded_at == subq.c.max_ts),
+    )
+    return list(db.scalars(stmt))
+
+
+def get_latest_korea_withdrawal_limits(db: Session) -> list[KoreaWithdrawalLimitSnapshot]:
+    """거래소별 가장 최근 출금 한도 스냅샷 1개씩 반환."""
+    subq = (
+        select(
+            KoreaWithdrawalLimitSnapshot.exchange,
+            sqlfunc.max(KoreaWithdrawalLimitSnapshot.recorded_at).label('max_ts'),
+        )
+        .group_by(KoreaWithdrawalLimitSnapshot.exchange)
+        .subquery()
+    )
+    stmt = select(KoreaWithdrawalLimitSnapshot).join(
+        subq,
+        (KoreaWithdrawalLimitSnapshot.exchange == subq.c.exchange) &
+        (KoreaWithdrawalLimitSnapshot.recorded_at == subq.c.max_ts),
     )
     return list(db.scalars(stmt))

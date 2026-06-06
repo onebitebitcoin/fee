@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import logging
 
-from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, KoreaWithdrawalLimitSnapshot, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices
@@ -51,9 +51,10 @@ class CrawlService:
             self._crawl_notices(crawl_run)
 
             volume_count = self._crawl_exchange_volumes(crawl_run)
+            limit_count = self._crawl_korea_withdrawal_limits(crawl_run)
 
             crawl_run.status = 'partial_success' if error_count else 'success'
-            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, volumes={volume_count}, errors={error_count}'
+            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, volumes={volume_count}, limits={limit_count}, errors={error_count}'
             _invalidate_market_cache()
         except Exception as exc:
             self.db.rollback()          # 부분 커밋 방지
@@ -289,6 +290,33 @@ class CrawlService:
         except Exception as exc:
             logger.warning('Exchange volume crawl failed: %s', exc)
             return 0
+
+    def _crawl_korea_withdrawal_limits(self, crawl_run: CrawlRun) -> int:
+        """국내 거래소 출금 한도를 Playwright로 스크래핑하여 저장한다."""
+        try:
+            from fee_checker import scrape_korea_withdrawal_limits  # noqa: PLC0415
+            scraped = scrape_korea_withdrawal_limits()
+        except Exception as exc:
+            logger.warning('Korea withdrawal limits scrape failed: %s', exc)
+            scraped = {}
+
+        count = 0
+        for exchange, limits in scraped.items():
+            if not limits:
+                continue
+            snap = KoreaWithdrawalLimitSnapshot(
+                crawl_run_id=crawl_run.id,
+                exchange=exchange,
+                krw_daily_verified_digital=limits.get('krw_daily_verified_digital'),
+                btc_per_tx_max=limits.get('btc_per_tx_max'),
+                source='playwright',
+            )
+            self.db.add(snap)
+            count += 1
+
+        if count:
+            self.db.flush()
+        return count
 
     def _add_error(self, crawl_run_id: int, exchange: str | None, coin: str | None, stage: str, error_message: str) -> None:
         self.db.add(CrawlError(crawl_run_id=crawl_run_id, exchange=exchange, coin=coin, stage=stage, error_message=error_message))

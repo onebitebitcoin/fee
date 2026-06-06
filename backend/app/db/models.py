@@ -28,6 +28,7 @@ class CrawlRun(Base):
     exchange_notices: Mapped[list['ExchangeNotice']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_capability_snapshots: Mapped[list['ExchangeCapabilitySnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_volume_snapshots: Mapped[list['ExchangeVolumeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    korea_withdrawal_limit_snapshots: Mapped[list['KoreaWithdrawalLimitSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
 
 class TickerSnapshot(Base):
@@ -137,6 +138,24 @@ class ExchangeCapabilitySnapshot(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_capability_snapshots')
+
+
+class KoreaWithdrawalLimitSnapshot(Base):
+    """국내 거래소 출금 한도 스냅샷 (크롤링 시 업데이트)."""
+    __tablename__ = 'korea_withdrawal_limit_snapshots'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    exchange: Mapped[str] = mapped_column(String(32), index=True)
+    # KRW 기반 일일 디지털 자산 출금 한도 (스크래핑 대상)
+    krw_daily_verified_digital: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 1회 최대 BTC 출금 (API 제공 시)
+    btc_per_tx_max: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # 데이터 소스
+    source: Mapped[str] = mapped_column(String(32), default='static')  # playwright / api / static
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='korea_withdrawal_limit_snapshots')
 
 
 class ExchangeVolumeSnapshot(Base):

@@ -633,3 +633,33 @@ def get_exchange_volumes(db: Session = Depends(get_db)) -> dict:
             'recorded_at': int(r.recorded_at.timestamp()) if r.recorded_at else None,
         }
     return {'volumes': volumes}
+
+
+@router.get('/withdrawal-limits/latest')
+def get_withdrawal_limits(db: Session = Depends(get_db)) -> dict:
+    """국내 거래소 출금 한도 반환 (크롤 데이터 우선, 정적 데이터 fallback).
+
+    - krw_per_tx_limit    : 트래블룰 1회 KRW 제한 (null=제한없음)
+    - btc_per_tx_max      : 1회 최대 BTC (null=제한없음)
+    - btc_daily_verified  : KYC 인증 완료 일일 BTC 한도 (정적 추정)
+    - krw_daily_verified_digital: 크롤링된 일일 디지털 자산 KRW 한도 (null=미수집)
+    - source              : playwright / static
+    - scraped_at          : 크롤 시각 (unix timestamp, null=정적)
+    """
+    from backend.app.domain.korea_exchange_registry import WITHDRAWAL_LIMITS  # noqa: PLC0415
+
+    scraped_rows = repositories.get_latest_korea_withdrawal_limits(db)
+    scraped_by_exchange: dict[str, object] = {r.exchange: r for r in scraped_rows}
+
+    result: dict[str, dict] = {}
+    for exchange, static_lim in WITHDRAWAL_LIMITS.items():
+        db_row = scraped_by_exchange.get(exchange)
+        result[exchange] = {
+            'krw_per_tx_limit': static_lim.krw_per_tx_limit,
+            'btc_per_tx_max': static_lim.btc_per_tx_max,
+            'btc_daily_verified': static_lim.btc_daily_verified,
+            'krw_daily_verified_digital': db_row.krw_daily_verified_digital if db_row else None,
+            'source': db_row.source if db_row else 'static',
+            'scraped_at': int(db_row.recorded_at.timestamp()) if db_row else None,
+        }
+    return {'limits': result}

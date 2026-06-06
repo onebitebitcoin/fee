@@ -775,6 +775,81 @@ async def _pw_scrape_kraken(browser) -> tuple:
         await page.close()
 
 
+async def _pw_scrape_upbit_limits(browser) -> dict:
+    """업비트 입출금 이용 안내 페이지에서 디지털 자산 일일 출금 한도를 스크래핑.
+
+    반환: {'krw_daily_verified_digital': int | None}
+    예: {'krw_daily_verified_digital': 5_000_000_000}  # 50억원
+    """
+    page = await browser.new_page()
+    try:
+        await page.goto(
+            "https://upbit.com/service_center/guide?tab=deposit_withdraw",
+            wait_until="domcontentloaded", timeout=20000,
+        )
+        await page.wait_for_timeout(2500)
+        rows = await page.evaluate(
+            """() => Array.from(document.querySelectorAll('table tr'))
+                .map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.innerText.trim()))
+                .filter(row => row.length >= 2)"""
+        )
+        limits: dict = {}
+        for row in rows:
+            # "2채널 인증 | 50억원" 행 탐색
+            if any('2채널 인증' in cell for cell in row):
+                for cell in row:
+                    if '억원' in cell and '2채널' not in cell:
+                        val_text = cell.replace('억원', '').replace(',', '').strip()
+                        try:
+                            limits['krw_daily_verified_digital'] = int(float(val_text) * 100_000_000)
+                        except ValueError:
+                            pass
+        return limits
+    except Exception:
+        return {}
+    finally:
+        await page.close()
+
+
+async def scrape_korea_withdrawal_limits_async(browser) -> dict[str, dict]:
+    """국내 거래소 출금 한도 비동기 스크래핑. {exchange: {krw_daily_verified_digital, ...}} 반환."""
+    upbit_limits = await _pw_scrape_upbit_limits(browser)
+    return {'upbit': upbit_limits}
+
+
+def scrape_korea_withdrawal_limits() -> dict[str, dict]:
+    """국내 거래소 출금 한도를 Playwright로 스크래핑한다. 동기 인터페이스."""
+    container: dict = {}
+
+    async def _run_async():
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            container['result'] = {}
+            return
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            try:
+                container['result'] = await scrape_korea_withdrawal_limits_async(browser)
+            finally:
+                await browser.close()
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_run_async())
+        except Exception:
+            container['result'] = {}
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=30)
+    return container.get('result', {})
+
+
 async def _scrape_all_async() -> dict:
     """Playwright로 거래소 BTC 출금 수수료 병렬 스크래핑"""
     try:

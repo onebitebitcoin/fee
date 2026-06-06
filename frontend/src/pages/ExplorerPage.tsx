@@ -290,6 +290,14 @@ export default function ExplorerPage() {
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
+  const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
+    krw_per_tx_limit: number | null;
+    btc_per_tx_max: number | null;
+    btc_daily_verified: number | null;
+    krw_daily_verified_digital: number | null;
+    source: string;
+    scraped_at: number | null;
+  }>>({});
 
   const prevPhase  = useRef<Phase>('input');
   const satRafRef  = useRef<number | null>(null);
@@ -307,6 +315,12 @@ export default function ExplorerPage() {
     api.getGatemanRegistry().then(res => {
       setLiveRegistry(res.data as unknown as LiveRegistry);
     }).catch(() => { /* use static defaults */ });
+  }, []);
+
+  useEffect(() => {
+    api.getWithdrawalLimits().then(res => {
+      setWithdrawalLimits(res.limits);
+    }).catch(() => { /* keep static DOMESTIC_INFO fallback */ });
   }, []);
 
   // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
@@ -864,6 +878,20 @@ export default function ExplorerPage() {
               </div>
               {domestic && (() => {
                 const info = DOMESTIC_INFO[domestic];
+                const apiLimits = withdrawalLimits[domestic] ?? null;
+                // API 크롤 데이터 우선, 없으면 DOMESTIC_INFO static fallback
+                const mergedLimits = {
+                  krw_per_tx_limit: apiLimits?.krw_per_tx_limit ?? info?.krw_per_tx_limit ?? null,
+                  btc_per_tx_max: apiLimits?.btc_per_tx_max ?? info?.btc_per_tx_max ?? null,
+                  btc_daily_verified: (() => {
+                    if (apiLimits?.krw_daily_verified_digital != null && btcPrice?.krw) {
+                      return Math.round(apiLimits.krw_daily_verified_digital / btcPrice.krw * 100) / 100;
+                    }
+                    return apiLimits?.btc_daily_verified ?? info?.btc_daily_verified ?? null;
+                  })(),
+                  krw_daily_verified_digital: apiLimits?.krw_daily_verified_digital ?? null,
+                  source: apiLimits?.source ?? 'static',
+                };
                 const vol = koreaVolumeMap[domestic];
                 const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
                 return (
@@ -880,31 +908,43 @@ export default function ExplorerPage() {
                     </div>
                     {info && (
                       <div className="pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">온체인 출금 한도</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">온체인 출금 한도</p>
+                          {mergedLimits.source === 'playwright' && (
+                            <span className="text-[9px] text-acc-green font-medium">크롤 최신화</span>
+                          )}
+                        </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <span className="text-label-tertiary">1회 KRW 기준 한도</span>
                             <p className="font-medium text-label-primary mt-0.5 num">
-                              {info.krw_per_tx_limit != null
-                                ? `${(info.krw_per_tx_limit / 10000).toFixed(0)}만원`
+                              {mergedLimits.krw_per_tx_limit != null
+                                ? `${(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원`
                                 : '제한 없음'}
                             </p>
                           </div>
                           <div>
                             <span className="text-label-tertiary">1회 최대 BTC</span>
                             <p className="font-medium text-label-primary mt-0.5 num">
-                              {info.btc_per_tx_max != null ? `${info.btc_per_tx_max} BTC` : '제한 없음'}
+                              {mergedLimits.btc_per_tx_max != null ? `${mergedLimits.btc_per_tx_max} BTC` : '제한 없음'}
                             </p>
                           </div>
                           <div>
                             <span className="text-label-tertiary">일일 한도 (인증 완료)</span>
-                            <p className="font-medium text-label-primary mt-0.5 num">{info.btc_daily_verified} BTC/일</p>
+                            <p className="font-medium text-label-primary mt-0.5 num">
+                              {mergedLimits.btc_daily_verified != null ? `${mergedLimits.btc_daily_verified} BTC/일` : '–'}
+                            </p>
+                            {mergedLimits.krw_daily_verified_digital != null && (
+                              <p className="text-[10px] text-label-tertiary mt-0.5 num">
+                                ({(mergedLimits.krw_daily_verified_digital / 100_000_000).toFixed(0)}억원 기준)
+                              </p>
+                            )}
                           </div>
                         </div>
-                        {info.krw_per_tx_limit != null && (
+                        {mergedLimits.krw_per_tx_limit != null && (
                           <div className="flex items-start gap-2 p-2.5 rounded-xl bg-fill-secondary">
                             <p className="text-[11px] text-label-secondary leading-relaxed">
-                              1회 출금 시 {(info.krw_per_tx_limit / 10000).toFixed(0)}만원 초과분은 여러 트랜잭션으로 분할 출금됩니다.
+                              1회 출금 시 {(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원 초과분은 여러 트랜잭션으로 분할 출금됩니다.
                             </p>
                           </div>
                         )}

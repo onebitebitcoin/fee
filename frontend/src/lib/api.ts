@@ -113,4 +113,15 @@ export const api = {
       published_at: string | null; noticed_at: string | null;
     }>;
   }> => request(`/api/v1/admin/notices?limit=${limit}`),
+
+  getWithdrawalLimits: (): Promise<{
+    limits: Record<string, {
+      krw_per_tx_limit: number | null;
+      btc_per_tx_max: number | null;
+      btc_daily_verified: number | null;
+      krw_daily_verified_digital: number | null;
+      source: string;
+      scraped_at: number | null;
+    }>;
+  }> => request('/api/v1/market/withdrawal-limits/latest'),
 };
