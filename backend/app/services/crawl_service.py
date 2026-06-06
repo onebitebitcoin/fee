@@ -228,16 +228,29 @@ class CrawlService:
         return capability_count
 
     def _crawl_notices(self, crawl_run: CrawlRun) -> None:
-        """공지사항을 스크래핑하여 저장한다. 오류가 나도 전체 크롤링 성공에 영향 없음."""
+        """공지사항을 스크래핑하여 저장한다. 오류가 나도 전체 크롤링 성공에 영향 없음.
+
+        (exchange, title, published_at) 조합이 이미 존재하면 삽입하지 않는다.
+        """
         try:
             notices = get_all_notices()
             for notice in notices:
+                exchange = notice.get('exchange', 'unknown')
+                title = notice.get('title', '')
+                published_at = notice.get('published_at')
+                exists = self.db.query(ExchangeNotice).filter(
+                    ExchangeNotice.exchange == exchange,
+                    ExchangeNotice.title == title,
+                    ExchangeNotice.published_at == published_at,
+                ).first()
+                if exists:
+                    continue
                 self.db.add(ExchangeNotice(
                     crawl_run_id=crawl_run.id,
-                    exchange=notice.get('exchange', 'unknown'),
-                    title=notice.get('title', ''),
+                    exchange=exchange,
+                    title=title,
                     url=notice.get('url'),
-                    published_at=notice.get('published_at'),
+                    published_at=published_at,
                 ))
         except Exception as exc:
             logger.warning('Notice scraping failed: %s', exc)

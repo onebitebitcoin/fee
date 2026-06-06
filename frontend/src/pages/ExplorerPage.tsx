@@ -358,6 +358,12 @@ export default function ExplorerPage() {
     return m;
   }, [allData]);
 
+  const btcPriceInfo = useMemo(() => {
+    const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
+    if (!ref) return null;
+    return { usd: ref.global_btc_price_usd, krw: Math.round(ref.global_btc_price_usd * ref.usd_krw_rate) };
+  }, [allData]);
+
   const domesticOptions = useMemo(() => {
     const map = new Map<string, number>();
     for (const data of Object.values(allData?.byGlobal ?? {}))
@@ -730,6 +736,11 @@ export default function ExplorerPage() {
                 <p className="text-sm text-label-tertiary mt-2 num">
                   = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
                 </p>
+                {btcPriceInfo && (
+                  <p className="text-[11px] text-label-tertiary/60 mt-1.5 num">
+                    BTC {btcPriceInfo.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })} USD · ₩{btcPriceInfo.krw.toLocaleString('ko-KR')}
+                  </p>
+                )}
               </div>
 
               {error && (
