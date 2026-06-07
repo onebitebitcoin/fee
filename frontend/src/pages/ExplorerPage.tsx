@@ -836,6 +836,7 @@ export default function ExplorerPage() {
                   {kimpFetchedAt != null && (
                     <p className="text-[11px] text-label-tertiary num">
                       김프 {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
+                      <span className="ml-1.5 opacity-60">· 국내BTC ÷ (바이낸스BTC × USDT/KRW) − 1</span>
                     </p>
                   )}
                 </div>
