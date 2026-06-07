@@ -14,6 +14,15 @@ from backend.app.services.crawl_service import CrawlService
 
 logger = logging.getLogger(__name__)
 
+
+def _iso_utc(dt: datetime | None) -> str | None:
+    """naive datetime을 UTC ISO 문자열로 반환 (timezone 정보 보장)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
 ADMIN_PASSWORD = '0000'
 REGISTRY_KEY = 'gateman_registry'
 
@@ -32,13 +41,13 @@ DEFAULT_REGISTRY: dict = {
         'bithumb': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 주소록에 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증이 완료된 계정에서만 출금 가능합니다.', 'level': 'required', 'condition': None},
-            {'label': 'Travel Rule (여행규칙)', 'desc': '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
             {'label': '고액 출금 자금 출처 증명', 'desc': '고액 출금 시 자금 출처 서류 제출이 요구될 수 있습니다.', 'level': 'conditional', 'condition': '고액 출금 시'},
         ],
         'korbit': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': 'Travel Rule (여행규칙)', 'desc': '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
         ],
         'coinone': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '안심 주소록에 출금 주소를 등록해야 합니다.', 'level': 'required', 'condition': None},
@@ -48,14 +57,14 @@ DEFAULT_REGISTRY: dict = {
         'gopax': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증이 완료된 계정에서만 출금 가능합니다.', 'level': 'required', 'condition': None},
-            {'label': 'Travel Rule (여행규칙)', 'desc': '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
         ],
     },
     'global': {
         'binance': [
             {'label': 'KYC 인증 (Level 1 이상)', 'desc': '신분증 인증이 완료되어야 입출금이 가능합니다.', 'level': 'required', 'condition': None},
             {'label': '일일 출금 한도', 'desc': 'KYC Level 1: $8M/day, 미인증: 출금 불가', 'level': 'info', 'condition': None},
-            {'label': 'Travel Rule', 'desc': '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '한국 KYC 완료 사용자'},
+            {'label': '트레블룰', 'desc': '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '한국 KYC 완료 사용자'},
         ],
         'okx': [
             {'label': 'KYC 인증 필수', 'desc': '개인 신원 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
@@ -119,7 +128,7 @@ def get_registry(db: Session = Depends(get_db)) -> dict:
     row = _get_or_create_registry(db)
     return {
         'data': json.loads(row.value_json),
-        'updated_at': row.updated_at.isoformat(),
+        'updated_at': _iso_utc(row.updated_at),
         'updated_source': row.updated_source,
     }
 
@@ -136,7 +145,7 @@ def update_registry(
     row.updated_at = datetime.now(timezone.utc)
     row.updated_source = 'manual'
     db.commit()
-    return {'ok': True, 'updated_at': row.updated_at.isoformat()}
+    return {'ok': True, 'updated_at': _iso_utc(row.updated_at)}
 
 
 @router.post('/registry/refresh')
@@ -161,7 +170,7 @@ def refresh_registry(
         'ok': True,
         'crawl_id': run.id,
         'crawl_status': run.status,
-        'updated_at': row.updated_at.isoformat(),
+        'updated_at': _iso_utc(row.updated_at),
     }
 
 
@@ -181,8 +190,8 @@ def get_notices(limit: int = 50, db: Session = Depends(get_db)) -> dict:
                 'exchange': r.exchange,
                 'title': r.title,
                 'url': r.url,
-                'published_at': r.published_at.isoformat() if r.published_at else None,
-                'noticed_at': r.noticed_at.isoformat() if r.noticed_at else None,
+                'published_at': _iso_utc(r.published_at),
+                'noticed_at': _iso_utc(r.noticed_at),
             }
             for r in rows
         ]

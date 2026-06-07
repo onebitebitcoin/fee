@@ -848,6 +848,13 @@ function CrawlStatusPanel() {
     return () => clearInterval(id);
   }, [autoRefresh, fetch]);
 
+  // 크롤 실행 중일 때 5초 간격으로 폴링
+  useEffect(() => {
+    if (!data?.running) return;
+    const id = setInterval(fetch, 5_000);
+    return () => clearInterval(id);
+  }, [data?.running, fetch]);
+
   async function handleTrigger() {
     try {
       setTriggering(true);

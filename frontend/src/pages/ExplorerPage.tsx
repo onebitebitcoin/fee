@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  ArrowDown, ArrowLeft, ArrowRight, CaretDown, CheckCircle, Coin, CurrencyDollar,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowSquareOut, CaretDown, CheckCircle, Coin, CurrencyDollar,
   Globe, House, Info, Lightning, MapPin, ShieldCheck, TrendDown,
   Warning, Wallet,
 } from '@phosphor-icons/react';
@@ -950,42 +950,50 @@ export default function ExplorerPage() {
                           {mergedLimits.source === 'playwright' ? (
                             <span className="text-[9px] text-acc-green font-medium">최신 데이터</span>
                           ) : (
-                            <span className="text-[9px] text-label-tertiary font-medium">수동 데이터</span>
+                            <span className="text-[9px] text-acc-amber font-medium">데이터 조회 불가</span>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-label-tertiary">1회 KRW 기준 한도</span>
-                            <p className="font-medium text-label-primary mt-0.5 num">
-                              {mergedLimits.krw_per_tx_limit != null
-                                ? `${(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원`
-                                : '제한 없음'}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-label-tertiary">1회 최대 BTC</span>
-                            <p className="font-medium text-label-primary mt-0.5 num">
-                              {mergedLimits.btc_per_tx_max != null ? `${mergedLimits.btc_per_tx_max} BTC` : '제한 없음'}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-label-tertiary">일일 한도 (인증 완료)</span>
-                            <p className="font-medium text-label-primary mt-0.5 num">
-                              {mergedLimits.btc_daily_verified != null ? `${mergedLimits.btc_daily_verified} BTC/일` : '–'}
-                            </p>
-                            {mergedLimits.krw_daily_verified_digital != null && (
-                              <p className="text-[10px] text-label-tertiary mt-0.5 num">
-                                ({(mergedLimits.krw_daily_verified_digital / 100_000_000).toFixed(0)}억원 기준)
-                              </p>
+                        {mergedLimits.source === 'playwright' ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-label-tertiary">1회 KRW 기준 한도</span>
+                                <p className="font-medium text-label-primary mt-0.5 num">
+                                  {mergedLimits.krw_per_tx_limit != null
+                                    ? `${(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원`
+                                    : '제한 없음'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-label-tertiary">1회 최대 BTC</span>
+                                <p className="font-medium text-label-primary mt-0.5 num">
+                                  {mergedLimits.btc_per_tx_max != null ? `${mergedLimits.btc_per_tx_max} BTC` : '제한 없음'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-label-tertiary">일일 한도 (인증 완료)</span>
+                                <p className="font-medium text-label-primary mt-0.5 num">
+                                  {mergedLimits.btc_daily_verified != null ? `${mergedLimits.btc_daily_verified} BTC/일` : '–'}
+                                </p>
+                                {mergedLimits.krw_daily_verified_digital != null && (
+                                  <p className="text-[10px] text-label-tertiary mt-0.5 num">
+                                    ({(mergedLimits.krw_daily_verified_digital / 100_000_000).toFixed(0)}억원 기준)
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {mergedLimits.krw_per_tx_limit != null && (
+                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-fill-secondary">
+                                <p className="text-[11px] text-label-secondary leading-relaxed">
+                                  1회 출금 시 {(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원 초과분은 여러 트랜잭션으로 분할 출금됩니다.
+                                </p>
+                              </div>
                             )}
-                          </div>
-                        </div>
-                        {mergedLimits.krw_per_tx_limit != null && (
-                          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-fill-secondary">
-                            <p className="text-[11px] text-label-secondary leading-relaxed">
-                              1회 출금 시 {(mergedLimits.krw_per_tx_limit / 10000).toFixed(0)}만원 초과분은 여러 트랜잭션으로 분할 출금됩니다.
-                            </p>
-                          </div>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-label-tertiary leading-relaxed">
+                            최근 크롤링된 출금 한도 데이터가 없어요. 거래소 공식 페이지에서 직접 확인해 주세요.
+                          </p>
                         )}
                         <p className="text-[10px] text-label-tertiary">{info.personal_wallet_req}</p>
                         {info.source_note.startsWith('⚠️') && (
@@ -1137,7 +1145,7 @@ export default function ExplorerPage() {
                     <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
                     <div>
                       <p className="text-sm font-bold text-label-primary">온체인 출금</p>
-                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송. 10~60분 소요.</p>
+                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송. 10분 내외 소요.</p>
                     </div>
                   </div>
                 </OptionCard>
@@ -1160,7 +1168,7 @@ export default function ExplorerPage() {
                   className="space-y-2.5">
                   <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                     <p className="font-semibold text-label-primary">온체인 출금이란?</p>
-                    <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록되는 방식입니다. 거래소가 고정 출금 수수료를 부과하며, 네트워크 혼잡도에 따라 10~60분 소요됩니다.</p>
+                    <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록되는 방식입니다. 거래소가 고정 출금 수수료를 부과하며, 10분 내외 소요됩니다.</p>
                     <p className="text-label-secondary">채굴자 수수료(온체인 네트워크 수수료)는 거래소 출금 수수료에 포함되어 있습니다.</p>
                   </div>
                   <GatemanPanel gates={liveRegistry?.onchain ?? ONCHAIN_GATES} title="온체인 출금 주의사항" />
@@ -1241,22 +1249,14 @@ export default function ExplorerPage() {
                             <ExFavicon id={exchange} size={22} />
                             <div>
                               <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                {tradingComp?.rate_pct != null && (
+                              {tradingComp?.rate_pct != null && (
+                                <div className="flex items-center gap-2 mt-0.5">
                                   <span className="text-[10px] text-label-tertiary num">
                                     거래 <span className="text-acc-amber font-medium">{tradingComp.rate_pct.toFixed(2)}% 변동</span>
                                   </span>
-                                )}
-                                {wdComp && fmtAmountText(wdComp.amount_text) && (
-                                  <span className="text-[10px] text-label-tertiary num">
-                                    출금 <span className="text-acc-blue font-medium">{fmtAmountText(wdComp.amount_text)} 고정</span>
-                                  </span>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
                           </div>
                         </div>
                       </OptionCard>
@@ -1372,7 +1372,7 @@ export default function ExplorerPage() {
                     <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
                     <div>
                       <p className="text-sm font-bold text-label-primary">온체인 출금</p>
-                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인으로 출금. 10~60분 소요.</p>
+                      <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인으로 출금. 10분 내외 소요.</p>
                     </div>
                   </div>
                 </OptionCard>
@@ -1395,7 +1395,7 @@ export default function ExplorerPage() {
                             )}
                           </div>
                           <p className={`text-xs mt-0.5 ${lnAvailable ? 'text-label-secondary' : 'text-label-disabled'}`}>
-                            온체인 출금 후 스왑 서비스를 통해 라이트닝 지갑으로 전달. 수수료 절감 가능.
+                            라이트닝 네트워크로 출금 후 스왑 서비스를 통해 온체인 BTC로 수령. 주소 노출 최소화.
                           </p>
                         </div>
                       </div>
@@ -1406,13 +1406,13 @@ export default function ExplorerPage() {
               {globalExitMethod === 'onchain' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                   <p className="font-semibold text-label-primary">온체인 출금</p>
-                  <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록. 거래소 고정 출금 수수료 부과 (채굴 수수료 아님). 10~60분 소요.</p>
+                  <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록. 거래소 고정 출금 수수료 부과 (채굴 수수료 아님). 10분 내외 소요.</p>
                 </div>
               )}
               {globalExitMethod === 'lightning' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                   <p className="font-semibold text-label-primary">라이트닝 출금 흐름</p>
-                  <p className="text-label-secondary">해외 거래소 → <span className="text-label-primary font-medium">온체인 BTC 출금</span> → 스왑 서비스 → <span className="text-acc-amber font-medium">라이트닝 지갑</span></p>
+                  <p className="text-label-secondary">해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → 스왑 서비스 → <span className="text-label-primary font-medium">온체인 BTC 수령</span></p>
                   <p className="text-label-tertiary">스왑 서비스 수수료가 별도 발생합니다.</p>
                 </div>
               )}
@@ -1476,9 +1476,6 @@ export default function ExplorerPage() {
                               </p>
                             );
                           })()}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[11px] text-label-tertiary">{formatPercent(best.fee_pct)}</p>
                         </div>
                       </div>
                     </OptionCard>
@@ -1549,9 +1546,6 @@ export default function ExplorerPage() {
                                 <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">개인 LN 지갑 필요</span>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[11px] text-acc-green font-semibold">0%</p>
-                            </div>
                           </div>
                           {isSelected && (
                             <motion.div
@@ -1587,6 +1581,17 @@ export default function ExplorerPage() {
                             <div className="flex items-center gap-2">
                               <ExFavicon id={name} size={20} />
                               <p className="text-sm font-bold text-label-primary">{fmtEx(name)}</p>
+                              {websiteUrl && (
+                                <a
+                                  href={websiteUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-label-quaternary hover:text-acc-amber transition-colors"
+                                >
+                                  <ArrowSquareOut className="w-3.5 h-3.5" />
+                                </a>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
@@ -1595,9 +1600,6 @@ export default function ExplorerPage() {
                                 : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>
                               }
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[11px] text-label-tertiary">{formatPercent(fee_pct)}</p>
                           </div>
                         </div>
                         {isSelected && (
@@ -1740,85 +1742,6 @@ export default function ExplorerPage() {
                 })()}
               </motion.div>
 
-              {/* Alternative paths recommendation */}
-              {altPaths.length > 0 && (() => {
-                const bestAlt = altPaths[0];
-                const savingsKrw = domesticBtcKrw != null
-                  ? Math.round(((bestAlt.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
-                  : Math.round(resultPath.total_fee_krw - bestAlt.total_fee_krw);
-                return (
-                  <div>
-                    <button
-                      onClick={() => setShowAltPaths(v => !v)}
-                      className="w-full ios-card rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 text-left"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl bg-acc-green/15 flex items-center justify-center flex-shrink-0">
-                          <TrendDown className="w-4 h-4 text-acc-green" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-label-primary">
-                            ₩{formatNumber(savingsKrw)} 더 절약할 수 있는 경로가 있어요
-                          </p>
-                          <p className="text-[10px] text-label-tertiary mt-0.5">
-                            {altPaths.length}개의 더 저렴한 경로 {showAltPaths ? '접기' : '보기'}
-                          </p>
-                        </div>
-                      </div>
-                      <CaretDown className={`w-4 h-4 text-label-tertiary flex-shrink-0 transition-transform duration-200 ${showAltPaths ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {showAltPaths && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-2 space-y-2"
-                      >
-                        {altPaths.map((p, i) => {
-                          const altSavingsKrw = domesticBtcKrw != null
-                            ? Math.round(((p.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
-                            : Math.round(resultPath.total_fee_krw - p.total_fee_krw);
-                          return (
-                            <div key={p.path_id ?? i} className="ios-card rounded-2xl px-4 py-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-1 flex-wrap min-w-0 flex-1">
-                                  <ExFavicon id={p.korean_exchange} size={16} />
-                                  <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
-                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
-                                  {p.transfer_coin === 'USDT' && p._g && (
-                                    <>
-                                      <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                      <ExFavicon id={p._g} size={16} />
-                                      <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
-                                    </>
-                                  )}
-                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <NetworkIcon network={p.network} size={12} />
-                                  <span className="text-[10px] text-label-tertiary">{p.network}</span>
-                                  {p.global_exit_mode === 'lightning' && (
-                                    <span className="text-[9px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full font-medium">라이트닝</span>
-                                  )}
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <p className="text-xs font-bold text-acc-green num">+₩{formatNumber(altSavingsKrw)}</p>
-                                  <p className="text-[10px] text-label-tertiary num mt-0.5">{formatPercent(p.fee_pct)}</p>
-                                </div>
-                              </div>
-                              <div className="mt-1.5 flex gap-3 text-[10px] text-label-tertiary">
-                                <span>수수료 <span className="text-acc-red num font-medium">-{formatFeeKrw(p.total_fee_krw)}</span></span>
-                                <span>수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </motion.div>
-                    )}
-                  </div>
-                );
-              })()}
-
               {/* Route path visualization */}
               <div>
                 <SectionLabel>이동 경로</SectionLabel>
@@ -1927,6 +1850,86 @@ export default function ExplorerPage() {
                 {resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 인증 불필요</Chip>}
                 {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">라이트닝 출금</Chip>}
               </div>
+
+              {/* Alternative paths recommendation */}
+              {altPaths.length > 0 && (() => {
+                const bestAlt = altPaths[0];
+                const savingsKrw = domesticBtcKrw != null
+                  ? Math.round(((bestAlt.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
+                  : Math.round(resultPath.total_fee_krw - bestAlt.total_fee_krw);
+                return (
+                  <div>
+                    <button
+                      onClick={() => setShowAltPaths(v => !v)}
+                      className="w-full rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 text-left bg-acc-green/10 border border-acc-green/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-acc-green/20 flex items-center justify-center flex-shrink-0">
+                          <TrendDown className="w-4.5 h-4.5 text-acc-green" weight="bold" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-acc-green font-medium">더 저렴한 경로가 있어요</p>
+                          <p className="text-base font-bold text-acc-green num">
+                            ₩{formatNumber(savingsKrw)} <span className="text-sm font-semibold">절약 가능</span>
+                          </p>
+                          <p className="text-[10px] text-acc-green/70 mt-0.5">
+                            {altPaths.length}개 경로 {showAltPaths ? '접기' : '보기'} →
+                          </p>
+                        </div>
+                      </div>
+                      <CaretDown className={`w-4 h-4 text-acc-green/60 flex-shrink-0 transition-transform duration-200 ${showAltPaths ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showAltPaths && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-2 space-y-2"
+                      >
+                        {altPaths.map((p, i) => {
+                          const altSavingsKrw = domesticBtcKrw != null
+                            ? Math.round(((p.btc_received ?? 0) - (resultPath.btc_received ?? 0)) * domesticBtcKrw)
+                            : Math.round(resultPath.total_fee_krw - p.total_fee_krw);
+                          return (
+                            <div key={p.path_id ?? i} className="ios-card rounded-2xl px-4 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-1 flex-wrap min-w-0 flex-1">
+                                  <ExFavicon id={p.korean_exchange} size={16} />
+                                  <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
+                                  {p.transfer_coin === 'USDT' && p._g && (
+                                    <>
+                                      <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                      <ExFavicon id={p._g} size={16} />
+                                      <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
+                                    </>
+                                  )}
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <NetworkIcon network={p.network} size={12} />
+                                  <span className="text-[10px] text-label-tertiary">{p.network}</span>
+                                  {p.global_exit_mode === 'lightning' && (
+                                    <span className="text-[9px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full font-medium">라이트닝</span>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs font-bold text-acc-green num">+₩{formatNumber(altSavingsKrw)}</p>
+                                  <p className="text-[10px] text-label-tertiary num mt-0.5">{formatPercent(p.fee_pct)}</p>
+                                </div>
+                              </div>
+                              <div className="mt-1.5 flex gap-3 text-[10px] text-label-tertiary">
+                                <span>수수료 <span className="text-acc-red num font-medium">-{formatFeeKrw(p.total_fee_krw)}</span></span>
+                                <span>수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Retry */}
               <button
