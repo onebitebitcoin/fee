@@ -56,7 +56,7 @@ def upgrade() -> None:
         sa.Column('fee', sa.Float(), nullable=True),
         sa.Column('fee_usd', sa.Float(), nullable=True),
         sa.Column('fee_krw', sa.Float(), nullable=True),
-        sa.Column('enabled', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+        sa.Column('enabled', sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column('note', sa.Text(), nullable=True),
         sa.Column('recorded_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
