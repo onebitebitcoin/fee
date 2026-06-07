@@ -167,12 +167,9 @@ export type AccessStats = {
 };
 
 export type LiveKimpResponse = {
-  /** Yahoo Finance USD/KRW 실시간 포렉스 기준 김치 프리미엄 (kimpga 등 주요 사이트와 동일 방식, 주표시) */
+  /** Yahoo Finance USD/KRW 실시간 포렉스 기준 김치 프리미엄 (kimpga 등 주요 사이트와 동일 방식) */
   kimp: Record<string, number>;
-  /** 국내 거래소 USDT/KRW 실거래가 기준 김치 프리미엄 — 역테더 프리미엄 제거값 (보조표시) */
-  kimp_forex: Record<string, number>;
   korean_btc_prices: Record<string, number>;
-  usdt_krw_prices: Record<string, number>;
   global_btc_price_krw: number;
   usd_krw_rate: number;
   fetched_at: number;

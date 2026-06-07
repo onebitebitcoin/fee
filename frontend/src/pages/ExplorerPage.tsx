@@ -283,10 +283,8 @@ export default function ExplorerPage() {
   const [network, setNetwork]     = useState<string | null>(null);
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
-  const [liveKimpForex, setLiveKimpForex] = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
-  const [kimpMode, setKimpMode] = useState<'forex' | 'usdt'>('forex');
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
@@ -358,8 +356,7 @@ export default function ExplorerPage() {
     );
   }, [allData]);
 
-  // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷에는 거래소별 USDT/KRW
-  // 실거래가가 없어 USDT 기준 계산이 불가능하므로 포렉스 환율 기준으로 계산한다.
+  // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
     if (!allData) return {} as Record<string, number>;
     const ref = allData.byGlobal['binance'] ?? Object.values(allData.byGlobal)[0];
@@ -632,7 +629,7 @@ export default function ExplorerPage() {
   async function handleSearch() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
-    setAllData(null); setError(null); setLiveKimp(null); setLiveKimpForex(null); setKimpFetchedAt(null);
+    setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
     try {
       const [tickerRes, kimpRes, ...pathResults] = await Promise.all([
@@ -643,7 +640,6 @@ export default function ExplorerPage() {
         ),
       ]);
       if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
-      if (kimpRes?.kimp_forex) { setLiveKimpForex(kimpRes.kimp_forex); }
       const byGlobal: Record<string, CheapestPathResponse> = {};
       GLOBAL_EXCHANGES.forEach((g, i) => {
         const r = pathResults[i];
@@ -835,30 +831,13 @@ export default function ExplorerPage() {
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-sm text-label-secondary">출발 거래소를 선택해요</p>
-                  {/* 세그먼트 컨트롤 */}
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex items-center bg-fill-secondary rounded-lg p-0.5 gap-0.5">
-                      <button
-                        onClick={() => setKimpMode('forex')}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${kimpMode === 'forex' ? 'bg-white dark:bg-fill-primary shadow-sm text-label-primary' : 'text-label-tertiary'}`}
-                      >
-                        원달러
-                      </button>
-                      <button
-                        onClick={() => setKimpMode('usdt')}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${kimpMode === 'usdt' ? 'bg-white dark:bg-fill-primary shadow-sm text-label-primary' : 'text-label-tertiary'}`}
-                      >
-                        USDT
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => setKimpInfoOpen(o => !o)}
-                      className="ml-1 text-label-tertiary hover:text-label-secondary transition-colors"
-                      aria-label="김프 계산 방식 설명"
-                    >
-                      <Info size={15} weight={kimpInfoOpen ? 'fill' : 'regular'} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setKimpInfoOpen(o => !o)}
+                    className="text-label-tertiary hover:text-label-secondary transition-colors"
+                    aria-label="김프 계산 방식 설명"
+                  >
+                    <Info size={15} weight={kimpInfoOpen ? 'fill' : 'regular'} />
+                  </button>
                 </div>
                 {kimpFetchedAt != null && (
                   <p className="text-[11px] text-label-tertiary num mt-0.5">
@@ -872,33 +851,25 @@ export default function ExplorerPage() {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="mt-2 rounded-xl bg-fill-secondary p-3 space-y-2.5 overflow-hidden"
+                    className="mt-2 rounded-xl bg-fill-secondary p-3 space-y-2 overflow-hidden"
                   >
                     <p className="text-[11px] font-semibold text-label-secondary uppercase tracking-wide">김치 프리미엄 계산 방식</p>
-                    <div className={`rounded-lg p-2.5 space-y-1 border ${kimpMode === 'forex' ? 'border-acc-green/40 bg-acc-green/5' : 'border-transparent bg-fill-tertiary'}`}>
-                      <p className="text-[11px] font-semibold text-label-primary flex items-center gap-1">
-                        원달러 기준
-                        {kimpMode === 'forex' && <span className="text-[9px] bg-acc-green/20 text-acc-green px-1.5 py-0.5 rounded-full">현재 선택</span>}
-                      </p>
+                    <div className="rounded-lg p-2.5 space-y-1 bg-fill-tertiary">
+                      <p className="text-[11px] font-semibold text-label-primary">원달러(포렉스) 기준</p>
                       <p className="text-[10px] font-mono text-label-secondary">국내BTC ÷ (바이낸스BTC × USD/KRW) − 1</p>
-                      <p className="text-[10px] text-label-tertiary leading-relaxed">Yahoo Finance 실시간 환율 기준 · kimpga 등 주요 김프 사이트와 동일한 방식</p>
                     </div>
-                    <div className={`rounded-lg p-2.5 space-y-1 border ${kimpMode === 'usdt' ? 'border-acc-amber/40 bg-acc-amber/5' : 'border-transparent bg-fill-tertiary'}`}>
-                      <p className="text-[11px] font-semibold text-label-primary flex items-center gap-1">
-                        USDT 기준
-                        {kimpMode === 'usdt' && <span className="text-[9px] bg-acc-amber/20 text-acc-amber px-1.5 py-0.5 rounded-full">현재 선택</span>}
-                      </p>
-                      <p className="text-[10px] font-mono text-label-secondary">국내BTC ÷ (바이낸스BTC × USDT/KRW) − 1</p>
-                      <p className="text-[10px] text-label-tertiary leading-relaxed">국내 거래소 USDT 실거래가 기준 · 역테더 프리미엄 제거, 순수 BTC 수급 차이만 반영</p>
-                    </div>
+                    <p className="text-[10px] text-label-tertiary leading-relaxed">
+                      Yahoo Finance 실시간 환율(USD/KRW)을 기준으로 계산해요. kimpga 등 주요 김프 사이트와 같은 방식이에요.
+                      국내 거래소의 USDT 시세를 기준으로 삼으면 거래소마다 다른 USDT 수급 차이(역테더 프리미엄)가 섞여 들어가서
+                      "글로벌 시세 대비 국내 시세 괴리"라는 김프 본래의 의미가 흐려져요. 은행 간 실거래 환율을 기준으로 삼아야
+                      더 정확하고 일관된 비교가 가능하기 때문에 원달러 기준을 표준으로 채택했어요.
+                    </p>
                   </motion.div>
                 )}
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
-                  const kimpForex = (liveKimp ?? snapshotKimp)[exchange] ?? null;
-                  const kimpUsdt = liveKimpForex?.[exchange] ?? null;
-                  const kimp = kimpMode === 'forex' ? kimpForex : kimpUsdt;
+                  const kimp = (liveKimp ?? snapshotKimp)[exchange] ?? null;
                   return (
                     <motion.div
                       key={exchange}
@@ -918,7 +889,7 @@ export default function ExplorerPage() {
                               {kimp != null && (
                                 <p className={`text-xs num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
                                   {kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}% 김프
-                                  <span className="ml-1 text-[10px] text-label-tertiary">({kimpMode === 'forex' ? '원달러' : 'USDT'} 기준)</span>
+                                  <span className="ml-1 text-[10px] text-label-tertiary">(원달러 기준)</span>
                                 </p>
                               )}
                             </div>
@@ -955,7 +926,6 @@ export default function ExplorerPage() {
                 };
                 const vol = koreaVolumeMap[domestic];
                 const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
-                const kimpForex = liveKimpForex?.[domestic] ?? null;
                 return (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
                     className="ios-card rounded-2xl p-4 space-y-3">
@@ -970,9 +940,6 @@ export default function ExplorerPage() {
                         <div>
                           <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(원달러 기준)</span></span>
                           <p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
-                          {kimpForex != null && (
-                            <p className="text-[10px] text-label-tertiary mt-0.5 num">USDT 기준 {kimpForex >= 0 ? '+' : ''}{kimpForex.toFixed(2)}%</p>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1714,7 +1681,6 @@ export default function ExplorerPage() {
 
                 {(() => {
                   const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
-                  const kimchiForex = domestic ? (liveKimpForex?.[domestic] ?? null) : null;
                   const satsKrw = domesticBtcKrw != null && resultPath.btc_received != null
                     ? Math.round(resultPath.btc_received * domesticBtcKrw)
                     : null;
@@ -1763,11 +1729,6 @@ export default function ExplorerPage() {
                           <p className="text-xs text-label-secondary leading-relaxed">
                             같은 비트코인을 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
                           </p>
-                          {kimchiForex != null && (
-                            <p className="text-[10px] text-label-tertiary mt-0.5 num">
-                              USDT 기준 {kimchiForex >= 0 ? '+' : ''}{kimchiForex.toFixed(2)}%
-                            </p>
-                          )}
                           <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
                             {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '이득' : '손해'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>

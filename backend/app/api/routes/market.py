@@ -545,20 +545,16 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
 def _fetch_kimp_data() -> dict | None:
     """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환.
 
-    환율 기준 두 가지를 함께 계산한다:
-    - kimp(주표시): Yahoo Finance USD/KRW 실시간 포렉스 기준 — kimpga 등 주요 사이트와 동일한 방식
-    - kimp_forex(보조표시): 거래소별 USDT/KRW 실거래가 기준 — 역테더 프리미엄 제거값 참고용
+    환율은 Yahoo Finance USD/KRW 실시간 포렉스 기준 (kimpga 등 주요 사이트와 동일한 방식).
+    국내 거래소의 USDT/KRW 실거래가를 기준으로 삼으면 거래소별 USDT 수급 차이(역테더 프리미엄)가
+    섞여 들어가 "글로벌 시세 대비 국내 시세 괴리"라는 본래 의미가 흐려지므로 채택하지 않는다.
     """
-    def _fetch_korea(exchange: str) -> tuple[str, float | None, float | None]:
+    def _fetch_korea(exchange: str) -> tuple[str, float | None]:
         try:
             btc_price = float(KOREA_FETCHERS[exchange]()['price'])
         except Exception:
             btc_price = None
-        try:
-            usdt_price = float(KOREA_FETCHERS[exchange]('USDT')['price'])
-        except Exception:
-            usdt_price = None
-        return exchange, btc_price, usdt_price
+        return exchange, btc_price
 
     def _fetch_global() -> tuple[float | None, float | None]:
         try:
@@ -573,37 +569,25 @@ def _fetch_kimp_data() -> dict | None:
         global_future = executor.submit(_fetch_global)
 
         korea_btc_prices: dict[str, float] = {}
-        korea_usdt_prices: dict[str, float] = {}
         for fut in as_completed(korea_futures):
-            ex, btc_price, usdt_price = fut.result()
+            ex, btc_price = fut.result()
             if btc_price is not None:
                 korea_btc_prices[ex] = btc_price
-            if usdt_price is not None:
-                korea_usdt_prices[ex] = usdt_price
 
         btc_usd, usd_krw = global_future.result()
 
     if btc_usd is None or usd_krw is None or not korea_btc_prices:
         return None
 
-    global_btc_price_krw_forex = btc_usd * usd_krw
-    # 주표시: Yahoo Finance 실시간 포렉스 기준 (kimpga 방식)
+    global_btc_price_krw = btc_usd * usd_krw
     kimp: dict[str, float] = {
-        ex: round((price / global_btc_price_krw_forex - 1) * 100, 4)
+        ex: round((price / global_btc_price_krw - 1) * 100, 4)
         for ex, price in korea_btc_prices.items()
-    }
-    # 보조표시: 국내 거래소 USDT/KRW 실거래가 기준 (역테더 프리미엄 제거값)
-    kimp_forex: dict[str, float] = {
-        ex: round((price / (btc_usd * korea_usdt_prices[ex]) - 1) * 100, 4)
-        for ex, price in korea_btc_prices.items()
-        if ex in korea_usdt_prices
     }
     return {
         'kimp': kimp,
-        'kimp_forex': kimp_forex,
         'korean_btc_prices': korea_btc_prices,
-        'usdt_krw_prices': korea_usdt_prices,
-        'global_btc_price_krw': round(global_btc_price_krw_forex),
+        'global_btc_price_krw': round(global_btc_price_krw),
         'usd_krw_rate': round(usd_krw, 2),
         'fetched_at': int(time.time()),
     }
