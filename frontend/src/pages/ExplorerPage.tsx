@@ -836,7 +836,7 @@ export default function ExplorerPage() {
                   {kimpFetchedAt != null && (
                     <p className="text-[11px] text-label-tertiary num">
                       김프 {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
-                      <span className="ml-1.5 opacity-60">· 국내BTC ÷ (바이낸스BTC × USDT/KRW) − 1</span>
+                      <span className="ml-1.5 opacity-60">· 국내BTC ÷ (바이낸스BTC × USD/KRW) − 1</span>
                     </p>
                   )}
                 </div>
@@ -863,7 +863,7 @@ export default function ExplorerPage() {
                               {kimp != null && (
                                 <p className={`text-xs num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
                                   {kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}% 김프
-                                  <span className="ml-1 text-[10px] text-label-tertiary">(USDT 기준)</span>
+                                  <span className="ml-1 text-[10px] text-label-tertiary">(원달러 기준)</span>
                                 </p>
                               )}
                             </div>
@@ -913,10 +913,10 @@ export default function ExplorerPage() {
                       {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                       {kimp != null && (
                         <div>
-                          <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(USDT 기준)</span></span>
+                          <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(원달러 기준)</span></span>
                           <p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
                           {kimpForex != null && (
-                            <p className="text-[10px] text-label-tertiary mt-0.5 num">원달러 기준 {kimpForex >= 0 ? '+' : ''}{kimpForex.toFixed(2)}%</p>
+                            <p className="text-[10px] text-label-tertiary mt-0.5 num">USDT 기준 {kimpForex >= 0 ? '+' : ''}{kimpForex.toFixed(2)}%</p>
                           )}
                         </div>
                       )}
@@ -1702,7 +1702,7 @@ export default function ExplorerPage() {
                             글로벌 시세 기준
                             <span className="ml-1.5 normal-case font-normal">
                               (김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span>
-                              <span className="text-[9px] text-label-tertiary"> · USDT 기준</span>)
+                              <span className="text-[9px] text-label-tertiary"> · 원달러 기준</span>)
                             </span>
                           </p>
                           <p className="text-xs text-label-secondary leading-relaxed">
@@ -1710,7 +1710,7 @@ export default function ExplorerPage() {
                           </p>
                           {kimchiForex != null && (
                             <p className="text-[10px] text-label-tertiary mt-0.5 num">
-                              원달러 기준 김프 {kimchiForex >= 0 ? '+' : ''}{kimchiForex.toFixed(2)}%
+                              USDT 기준 {kimchiForex >= 0 ? '+' : ''}{kimchiForex.toFixed(2)}%
                             </p>
                           )}
                           <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>

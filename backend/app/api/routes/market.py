@@ -3,6 +3,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import requests as _requests
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -48,6 +49,36 @@ class _TtlCache:
 
 _status_cache = _TtlCache(ttl=60)
 _cheapest_path_cache = _TtlCache(ttl=30)
+
+# Yahoo Finance USD/KRW 실시간 환율 캐시 (30초 TTL)
+_usd_krw_cache: dict = {'rate': None, 'ts': 0.0}
+_USD_KRW_CACHE_TTL = 30
+
+
+def _fetch_usd_krw_realtime() -> float:
+    """Yahoo Finance에서 실시간 USD/KRW 환율 조회. 30초 캐시 적용.
+
+    open.er-api.com(하루 1회 갱신) 대신 Yahoo Finance KRW=X ticker를 사용해
+    kimpga 등 주요 사이트와 동일한 실시간 포렉스 기준값을 유지한다.
+    실패 시 open.er-api.com fallback.
+    """
+    now = time.time()
+    if _usd_krw_cache['rate'] is not None and now - _usd_krw_cache['ts'] < _USD_KRW_CACHE_TTL:
+        return float(_usd_krw_cache['rate'])
+    try:
+        r = _requests.get(
+            'https://query1.finance.yahoo.com/v8/finance/chart/KRW=X?interval=1m&range=5m',
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=5,
+        )
+        r.raise_for_status()
+        rate = float(r.json()['chart']['result'][0]['meta']['regularMarketPrice'])
+    except Exception:
+        rate = float(fetch_usd_krw_rate())
+    _usd_krw_cache['rate'] = rate
+    _usd_krw_cache['ts'] = now
+    return rate
+
 
 # 백그라운드 polling으로 갱신되는 kimp 최신 데이터
 _kimp_latest: dict | None = None
@@ -515,10 +546,8 @@ def _fetch_kimp_data() -> dict | None:
     """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환.
 
     환율 기준 두 가지를 함께 계산한다:
-    - kimp(주표시): 거래소별 USDT/KRW 실거래가 기준 — kimpga 등 주요 사이트와 동일한 방식
-    - kimp_forex(보조표시): open.er-api.com 포렉스(은행간) 환율 기준 — 기존 계산 방식
-    국내 거래소의 USDT/KRW 실거래가는 포렉스 환율보다 낮게 형성되는 경향이 있어
-    (역테더 프리미엄), 두 기준의 결과값이 1~2%p가량 차이날 수 있다.
+    - kimp(주표시): Yahoo Finance USD/KRW 실시간 포렉스 기준 — kimpga 등 주요 사이트와 동일한 방식
+    - kimp_forex(보조표시): 거래소별 USDT/KRW 실거래가 기준 — 역테더 프리미엄 제거값 참고용
     """
     def _fetch_korea(exchange: str) -> tuple[str, float | None, float | None]:
         try:
@@ -534,7 +563,7 @@ def _fetch_kimp_data() -> dict | None:
     def _fetch_global() -> tuple[float | None, float | None]:
         try:
             btc_usd = float(fetch_binance_spot()['price'])
-            usd_krw = float(fetch_usd_krw_rate())
+            usd_krw = _fetch_usd_krw_realtime()
             return btc_usd, usd_krw
         except Exception:
             return None, None
@@ -558,11 +587,13 @@ def _fetch_kimp_data() -> dict | None:
         return None
 
     global_btc_price_krw_forex = btc_usd * usd_krw
-    kimp_forex: dict[str, float] = {
+    # 주표시: Yahoo Finance 실시간 포렉스 기준 (kimpga 방식)
+    kimp: dict[str, float] = {
         ex: round((price / global_btc_price_krw_forex - 1) * 100, 4)
         for ex, price in korea_btc_prices.items()
     }
-    kimp: dict[str, float] = {
+    # 보조표시: 국내 거래소 USDT/KRW 실거래가 기준 (역테더 프리미엄 제거값)
+    kimp_forex: dict[str, float] = {
         ex: round((price / (btc_usd * korea_usdt_prices[ex]) - 1) * 100, 4)
         for ex, price in korea_btc_prices.items()
         if ex in korea_usdt_prices

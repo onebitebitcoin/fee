@@ -59,7 +59,7 @@ def test_fetch_kimp_data_returns_both_fields():
     with (
         patch('backend.app.api.routes.market.KOREA_FETCHERS', {'upbit': mock_korea_fetcher}),
         patch('backend.app.api.routes.market.fetch_binance_spot', return_value=fake_btc_usd),
-        patch('backend.app.api.routes.market.fetch_usd_krw_rate', return_value=1545.0),
+        patch('backend.app.api.routes.market._fetch_usd_krw_realtime', return_value=1545.0),
     ):
         result = _fetch_kimp_data()
 
@@ -70,13 +70,13 @@ def test_fetch_kimp_data_returns_both_fields():
     assert 'upbit' in result['kimp']
     assert 'upbit' in result['kimp_forex']
 
-    # USDT 기준 kimchi premium 검증
-    expected_usdt = round((100_000_000 / (65_000 * 1_520) - 1) * 100, 4)
-    assert abs(result['kimp']['upbit'] - expected_usdt) < 0.001
-
-    # 포렉스 기준 kimchi premium 검증
+    # kimp(주표시) = 포렉스 기준 (Yahoo Finance USD/KRW)
     expected_forex = round((100_000_000 / (65_000 * 1_545.0) - 1) * 100, 4)
-    assert abs(result['kimp_forex']['upbit'] - expected_forex) < 0.001
+    assert abs(result['kimp']['upbit'] - expected_forex) < 0.001
 
-    # USDT 기준이 포렉스 기준보다 높아야 함 (역테더 프리미엄)
-    assert result['kimp']['upbit'] > result['kimp_forex']['upbit']
+    # kimp_forex(보조표시) = USDT/KRW 실거래가 기준 (역테더 프리미엄 제거값)
+    expected_usdt = round((100_000_000 / (65_000 * 1_520) - 1) * 100, 4)
+    assert abs(result['kimp_forex']['upbit'] - expected_usdt) < 0.001
+
+    # USDT 기준(보조)이 포렉스 기준(주)보다 높아야 함 (USDT < 달러이므로 역테더 프리미엄 효과)
+    assert result['kimp_forex']['upbit'] > result['kimp']['upbit']
