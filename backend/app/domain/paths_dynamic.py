@@ -581,7 +581,9 @@ def find_cheapest_path_dynamic(
         except Exception:
             maintenance_status = {}
 
-        # 김치 프리미엄 계산 — 포렉스 환율 기준 (kimpga 동일 방식)
+        # 김치 프리미엄 계산 — 포렉스(은행간) 환율 기준
+        # 주의: kimpga 등 일부 사이트는 국내 거래소 USDT/KRW 실거래가를 환율로 사용해
+        # 결과값이 다르게 나올 수 있음 (역테더 프리미엄으로 인한 괴리, 통상 1~2%p 차이)
         global_btc_price_krw_ref = global_btc_price_usd * usd_krw_rate
         kimchi_premiums: dict[str, float] = {}
         korean_btc_prices: dict[str, int] = {}

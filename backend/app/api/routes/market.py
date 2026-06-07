@@ -512,13 +512,24 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
 
 
 def _fetch_kimp_data() -> dict | None:
-    """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환."""
-    def _fetch_korea(exchange: str) -> tuple[str, float | None]:
+    """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환.
+
+    환율 기준 두 가지를 함께 계산한다:
+    - kimp(주표시): 거래소별 USDT/KRW 실거래가 기준 — kimpga 등 주요 사이트와 동일한 방식
+    - kimp_forex(보조표시): open.er-api.com 포렉스(은행간) 환율 기준 — 기존 계산 방식
+    국내 거래소의 USDT/KRW 실거래가는 포렉스 환율보다 낮게 형성되는 경향이 있어
+    (역테더 프리미엄), 두 기준의 결과값이 1~2%p가량 차이날 수 있다.
+    """
+    def _fetch_korea(exchange: str) -> tuple[str, float | None, float | None]:
         try:
-            ticker = KOREA_FETCHERS[exchange]()
-            return exchange, float(ticker['price'])
+            btc_price = float(KOREA_FETCHERS[exchange]()['price'])
         except Exception:
-            return exchange, None
+            btc_price = None
+        try:
+            usdt_price = float(KOREA_FETCHERS[exchange]('USDT')['price'])
+        except Exception:
+            usdt_price = None
+        return exchange, btc_price, usdt_price
 
     def _fetch_global() -> tuple[float | None, float | None]:
         try:
@@ -532,26 +543,36 @@ def _fetch_kimp_data() -> dict | None:
         korea_futures = {executor.submit(_fetch_korea, ex): ex for ex in KOREA_FETCHERS}
         global_future = executor.submit(_fetch_global)
 
-        korea_prices: dict[str, float] = {}
+        korea_btc_prices: dict[str, float] = {}
+        korea_usdt_prices: dict[str, float] = {}
         for fut in as_completed(korea_futures):
-            ex, price = fut.result()
-            if price is not None:
-                korea_prices[ex] = price
+            ex, btc_price, usdt_price = fut.result()
+            if btc_price is not None:
+                korea_btc_prices[ex] = btc_price
+            if usdt_price is not None:
+                korea_usdt_prices[ex] = usdt_price
 
         btc_usd, usd_krw = global_future.result()
 
-    if btc_usd is None or usd_krw is None or not korea_prices:
+    if btc_usd is None or usd_krw is None or not korea_btc_prices:
         return None
 
-    global_btc_price_krw = btc_usd * usd_krw
+    global_btc_price_krw_forex = btc_usd * usd_krw
+    kimp_forex: dict[str, float] = {
+        ex: round((price / global_btc_price_krw_forex - 1) * 100, 4)
+        for ex, price in korea_btc_prices.items()
+    }
     kimp: dict[str, float] = {
-        ex: round((price / global_btc_price_krw - 1) * 100, 4)
-        for ex, price in korea_prices.items()
+        ex: round((price / (btc_usd * korea_usdt_prices[ex]) - 1) * 100, 4)
+        for ex, price in korea_btc_prices.items()
+        if ex in korea_usdt_prices
     }
     return {
         'kimp': kimp,
-        'korean_btc_prices': korea_prices,
-        'global_btc_price_krw': round(global_btc_price_krw),
+        'kimp_forex': kimp_forex,
+        'korean_btc_prices': korea_btc_prices,
+        'usdt_krw_prices': korea_usdt_prices,
+        'global_btc_price_krw': round(global_btc_price_krw_forex),
         'usd_krw_rate': round(usd_krw, 2),
         'fetched_at': int(time.time()),
     }
