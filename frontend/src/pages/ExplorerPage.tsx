@@ -835,16 +835,22 @@ export default function ExplorerPage() {
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-sm text-label-secondary">출발 거래소를 선택해요</p>
-                  {/* 토글 스위치 */}
+                  {/* 세그먼트 컨트롤 */}
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[11px] ${kimpMode === 'forex' ? 'text-label-primary font-medium' : 'text-label-tertiary'}`}>원달러</span>
-                    <button
-                      onClick={() => setKimpMode(m => m === 'forex' ? 'usdt' : 'forex')}
-                      className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${kimpMode === 'usdt' ? 'bg-acc-amber' : 'bg-acc-green/70'}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${kimpMode === 'usdt' ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                    </button>
-                    <span className={`text-[11px] ${kimpMode === 'usdt' ? 'text-label-primary font-medium' : 'text-label-tertiary'}`}>USDT</span>
+                    <div className="flex items-center bg-fill-secondary rounded-lg p-0.5 gap-0.5">
+                      <button
+                        onClick={() => setKimpMode('forex')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${kimpMode === 'forex' ? 'bg-white dark:bg-fill-primary shadow-sm text-label-primary' : 'text-label-tertiary'}`}
+                      >
+                        원달러
+                      </button>
+                      <button
+                        onClick={() => setKimpMode('usdt')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${kimpMode === 'usdt' ? 'bg-white dark:bg-fill-primary shadow-sm text-label-primary' : 'text-label-tertiary'}`}
+                      >
+                        USDT
+                      </button>
+                    </div>
                     <button
                       onClick={() => setKimpInfoOpen(o => !o)}
                       className="ml-1 text-label-tertiary hover:text-label-secondary transition-colors"
