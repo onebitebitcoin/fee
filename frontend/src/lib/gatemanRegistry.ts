@@ -19,13 +19,13 @@ const DOMESTIC: Record<string, GateItem[]> = {
   bithumb: [
     { label: '출금 주소 사전 등록 필수', desc: '출금 주소를 주소록에 미리 등록해야 합니다.', level: 'required' },
     { label: 'KYC 실명 인증 필수', desc: '본인 인증이 완료된 계정에서만 출금 가능합니다.', level: 'required' },
-    { label: '여행규칙', desc: '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
+    { label: '트래블룰', desc: '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
     { label: '고액 출금 자금 출처 증명', desc: '고액 출금 시 자금 출처 서류 제출이 요구될 수 있습니다.', level: 'conditional', condition: '고액 출금 시' },
   ],
   korbit: [
     { label: '출금 주소 사전 등록 필수', desc: '출금 주소를 미리 등록해야 합니다.', level: 'required' },
     { label: 'KYC 실명 인증 필수', desc: '본인 인증 완료 필요합니다.', level: 'required' },
-    { label: '여행규칙', desc: '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
+    { label: '트래블룰', desc: '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
   ],
   coinone: [
     { label: '출금 주소 사전 등록 필수', desc: '안심 주소록에 출금 주소를 등록해야 합니다.', level: 'required' },
@@ -35,14 +35,14 @@ const DOMESTIC: Record<string, GateItem[]> = {
   gopax: [
     { label: '출금 주소 사전 등록 필수', desc: '출금 주소를 미리 등록해야 합니다.', level: 'required' },
     { label: 'KYC 실명 인증 필수', desc: '본인 인증이 완료된 계정에서만 출금 가능합니다.', level: 'required' },
-    { label: '여행규칙', desc: '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
+    { label: '트래블룰', desc: '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
   ],
 };
 
 const DOMESTIC_DEFAULT: GateItem[] = [
   { label: '출금 주소 사전 등록 필수', desc: '출금 주소를 미리 등록해야 합니다.', level: 'required' },
   { label: 'KYC 실명 인증 필수', desc: '본인 인증 완료 필요합니다.', level: 'required' },
-  { label: '여행규칙', desc: '100만원 이상 출금 시 수신자 정보 제출이 필요할 수 있습니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
+  { label: '트래블룰', desc: '100만원 이상 출금 시 수신자 정보 제출이 필요할 수 있습니다.', level: 'conditional', condition: '100만원 이상 출금 시' },
 ];
 
 // ── 해외 거래소 ────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ const GLOBAL: Record<string, GateItem[]> = {
   binance: [
     { label: 'KYC 인증 (Level 1 이상)', desc: '신분증 인증이 완료되어야 입출금이 가능합니다.', level: 'required' },
     { label: '일일 출금 한도', desc: 'KYC Level 1: $8M/day, 미인증: 출금 불가', level: 'info' },
-    { label: '여행규칙', desc: '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', level: 'conditional', condition: '한국 KYC 완료 사용자' },
+    { label: '트래블룰', desc: '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', level: 'conditional', condition: '한국 KYC 완료 사용자' },
   ],
   okx: [
     { label: 'KYC 인증 필수', desc: '개인 신원 인증 완료 필요합니다.', level: 'required' },
