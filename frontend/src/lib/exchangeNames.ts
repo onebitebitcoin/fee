@@ -10,6 +10,7 @@ const EXCHANGE_NAMES: Record<string, string> = {
   kraken: '크라켄',
   bitget: '비트겟',
   bybit: '바이빗',
+  gate: 'Gate.io',
   // lightning swap services
   boltz: 'Boltz',
   coinos: 'Coinos',
@@ -31,6 +32,7 @@ const EXCHANGE_DOMAINS: Record<string, string> = {
   kraken: 'kraken.com',
   bitget: 'bitget.com',
   bybit: 'bybit.com',
+  gate: 'gate.io',
   // lightning swap services
   boltz: 'boltz.exchange',
   coinos: 'coinos.io',

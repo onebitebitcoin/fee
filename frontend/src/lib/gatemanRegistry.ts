@@ -77,6 +77,12 @@ const GLOBAL: Record<string, GateItem[]> = {
     { label: '한국 서비스 제한', desc: 'Coinbase는 한국 거주자에게 서비스를 제공하지 않을 수 있습니다.', level: 'required' },
     { label: '일일 출금 한도', desc: '계정 등급에 따라 한도 상이', level: 'info' },
   ],
+  gate: [
+    { label: 'KYC 인증 필수', desc: '신분증 인증이 필요합니다. KYC 미완료 시 출금 불가.', level: 'required' },
+    { label: '트래블룰 지원 (VerifyVASP·CODE)', desc: 'Gate.io는 VerifyVASP 및 CODE 트래블룰 솔루션을 지원합니다. 국내 거래소와의 이전이 가능합니다.', level: 'info' },
+    { label: '신규 주소 24시간 지연', desc: '새로 추가한 출금 주소는 24시간 후 사용 가능합니다.', level: 'conditional', condition: '신규 주소 등록 시' },
+    { label: '일일 출금 한도', desc: 'KYC Lv1: $10,000/day, Lv2: $1,000,000/day', level: 'info' },
+  ],
 };
 
 const GLOBAL_DEFAULT: GateItem[] = [

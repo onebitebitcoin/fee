@@ -43,6 +43,7 @@ TRADING_FEES = {
     "kraken":   {"maker": 0.0016, "taker": 0.0026},
     "bitget":   {"maker": 0.0010, "taker": 0.0010},
     "bybit":    {"spot": {"maker": 0.0010, "taker": 0.0010}},
+    "gate":     {"spot": {"maker": 0.0010, "taker": 0.0010}},
 }
 
 # ─── 출금 수수료 스크래핑 설정 ───────────────────────────────────
@@ -83,7 +84,7 @@ WITHDRAWAL_API_SOURCE_URLS = {
 # ─── 거래소 그룹 ────────────────────────────────────────────────
 GROUPS = {
     "korea":  ["upbit", "bithumb", "korbit", "coinone", "gopax"],
-    "global": ["binance", "okx", "coinbase", "kraken", "bitget", "bybit"],
+    "global": ["binance", "okx", "coinbase", "kraken", "bitget", "bybit", "gate"],
 }
 ALL_EXCHANGES = GROUPS["korea"] + GROUPS["global"]
 
@@ -270,6 +271,48 @@ def fetch_bitget() -> dict:
         "volume": float(t["baseVolume"]),
         "currency": "USD",
     }
+
+
+def fetch_gate() -> dict:
+    """Gate.io 스팟 BTC/USDT 시세."""
+    r = _get("https://api.gateio.ws/api/v4/spot/tickers", params={"currency_pair": "BTC_USDT"})
+    if r.status_code != 200:
+        raise ValueError(f"Gate.io 오류: {r.status_code}")
+    d = r.json()
+    if not d:
+        raise ValueError("Gate.io 빈 응답")
+    t = d[0]
+    return {
+        "price":   float(t["last"]),
+        "high":    float(t.get("high_24h", 0) or 0),
+        "low":     float(t.get("low_24h", 0) or 0),
+        "volume":  float(t.get("base_volume", 0) or 0),
+        "currency": "USD",
+    }
+
+
+def fetch_gate_withdrawal(coin: str) -> list:
+    """Gate.io 출금 수수료 (공식 fee page 기준 정적값).
+    Source: https://www.gate.com/fee
+    출금 수수료는 시장 상황에 따라 동적으로 변경됨 — 주기적으로 재확인 필요.
+    """
+    _GATE_FEES: dict[str, list[dict]] = {
+        "BTC": [
+            {"label": "Bitcoin (On-chain)", "fee": 0.0005, "min": 0.001, "max": None, "enabled": True,
+             "note": "gate_fee_page_scraped"},
+        ],
+        "USDT": [
+            {"label": "TRC20",  "fee": 1.0,  "min": 10.0, "max": None, "enabled": True,
+             "note": "gate_fee_page_scraped"},
+            {"label": "ERC20",  "fee": 10.0, "min": 20.0, "max": None, "enabled": True,
+             "note": "gate_fee_page_scraped"},
+            {"label": "SOL",    "fee": 1.0,  "min": 10.0, "max": None, "enabled": True,
+             "note": "gate_fee_page_scraped"},
+            {"label": "BSC",    "fee": 1.0,  "min": 10.0, "max": None, "enabled": True,
+             "note": "gate_fee_page_scraped"},
+        ],
+    }
+    return _GATE_FEES.get(coin.upper(), [])
 
 
 def fetch_bybit() -> dict:

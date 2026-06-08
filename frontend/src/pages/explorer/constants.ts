@@ -9,7 +9,7 @@ export interface AllData {
   latestRunAt: number | null;
 }
 
-export const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
+export const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase', 'gate'] as const;
 export type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
 // ── 국내 거래소 정보 ──────────────────────────────────────────────────────────────
@@ -80,6 +80,7 @@ export const GLOBAL_INFO: Record<string, GlobalInfo> = {
   bitget:   { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://bitget.com',   lightning: false, vol24hB: 10  },
   kraken:   { country: '미국',   carf: 2028, risk: 'med',  fatca: true,  url: 'https://kraken.com',   lightning: false, vol24hB: 5   },
   coinbase: { country: '미국',   carf: 2028, risk: 'high', fatca: true,  url: 'https://coinbase.com', lightning: false, vol24hB: 15  },
+  gate:     { country: '파나마', carf: 2028, risk: 'med',  fatca: false, url: 'https://gate.io',       lightning: false, vol24hB: 25  },
 };
 
 export const RISK_LABEL: Record<string, string> = { low: '낮음', med: '중간', high: '높음' };
