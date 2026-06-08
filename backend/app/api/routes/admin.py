@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
+from backend.app.db.carf_seed import seed_carf_exchanges
 from backend.app.db.models import AdminConfig, ExchangeNotice
 from backend.app.db.session import get_db
 from backend.app.services.crawl_service import CrawlService
@@ -172,6 +173,19 @@ def refresh_registry(
         'crawl_status': run.status,
         'updated_at': _iso_utc(row.updated_at),
     }
+
+
+@router.post('/carf/seed')
+def reseed_carf(
+    _: None = Depends(_check_password),
+) -> dict:
+    """CARF 거래소 정보 시드 재실행 (관리자 전용)."""
+    try:
+        seed_carf_exchanges()
+    except Exception as exc:
+        logger.error('CARF seed failed: %s', exc)
+        raise HTTPException(status_code=500, detail=f'시드 실패: {exc}') from exc
+    return {'ok': True}
 
 
 @router.get('/notices')
