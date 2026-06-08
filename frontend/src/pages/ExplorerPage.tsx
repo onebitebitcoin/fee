@@ -888,30 +888,30 @@ export default function ExplorerPage() {
                         selected={domestic === exchange}
                         onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); scrollToStepEnd(); }}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <ExFavicon id={exchange} size={22} />
-                            <div>
-                              <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                {kimp != null && (
-                                  <span className={`text-xs num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
-                                    {kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}% 김프
-                                  </span>
-                                )}
-                                {takerFee != null && (
-                                  <span className="text-[10px] text-label-tertiary num">거래 수수료 {takerFee.toFixed(2)}%</span>
-                                )}
-                              </div>
-                            </div>
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                          <ExFavicon id={exchange} size={22} />
+                          <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">24시간 거래량</p>
+                            <p className="text-xs font-medium text-label-primary num mt-0.5">
+                              {koreaVolumeMap[exchange] != null
+                                ? `${(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원`
+                                : '–'}
+                            </p>
                           </div>
-                          <div className="text-right">
-                            {koreaVolumeMap[exchange] != null
-                              ? <p className="text-[11px] text-label-tertiary num">
-                                  {(koreaVolumeMap[exchange]! / 1_0000_0000).toFixed(1)}억원
-                                </p>
-                              : null
-                            }
+                          <div>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">거래 수수료</p>
+                            <p className="text-xs font-medium text-label-primary num mt-0.5">
+                              {takerFee != null ? `${takerFee.toFixed(2)}%` : '–'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">김프</p>
+                            <p className={`text-xs font-medium num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
+                              {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '–'}
+                            </p>
                           </div>
                         </div>
                       </OptionCard>
