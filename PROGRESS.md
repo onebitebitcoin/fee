@@ -6,12 +6,14 @@ ExplorerPage.tsx(2024줄)를 얇은 컨트롤러로, 각 단계를 독립 모듈
 
 ## 완료된 Phase
 - [x] Phase 1: 공용 모듈 추출 — explorer/flow.ts, explorer/constants.ts, explorer/ui.tsx (순수 이동, build PASS)
+- [x] Phase 2: explorer/ExplorerContext.tsx 생성 (state·파생·핸들러 Provider로 이동) + ExplorerShell 분리
+      + coin onClick의 setGlobal(null) 버그 수정 (global이 상위 단계가 되며 발생한 회귀)
+      build PASS, Playwright USDT/BTC직접 2경로 PASS, console error 0
 
 ## 현재 진행 중
-- [ ] Phase 2: explorer/ExplorerContext.tsx 생성 (모든 state·파생·핸들러를 Provider로 이동) + Shell 분리
+- [ ] Phase 3: steps/*.tsx 11개 추출 + registry.tsx, Shell이 레지스트리 기반 렌더
 
 ## 남은 Phase
-- [ ] Phase 3: steps/*.tsx 11개 추출 + registry.tsx, Shell이 레지스트리 기반 렌더
 - [ ] Phase 4: 죽은 코드 제거 + tsc/build/Playwright 3경로 검증 + INDEX.md 동기화
 
 ## 검증 방법
