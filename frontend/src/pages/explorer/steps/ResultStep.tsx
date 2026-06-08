@@ -14,9 +14,12 @@ export function ResultStep() {
   } = useExplorer();
   if (!resultPath) return null;
   // 경로가 실제로 해외 거래소를 경유하는지 판별 (transient global state가 아닌 결과 데이터 기준).
-  // btc_via_global은 transfer_coin='BTC'이지만 글로벌을 경유하므로 transfer_coin으로는 판별 불가.
+  // - USDT 경로는 항상 글로벌 경유 (buy 모드에선 route_variant 미설정이라 transfer_coin으로 판별).
+  // - btc_via_global은 transfer_coin='BTC'이지만 글로벌 경유 → route_variant로 판별.
   // route_variant 부재 시 fail-closed(false) → BTC 직접 경로에 엉뚱한 거래소가 표시되지 않도록.
-  const usesGlobal = resultPath.route_variant?.endsWith('via_global') ?? false;
+  const usesGlobal =
+    resultPath.transfer_coin === 'USDT' ||
+    (resultPath.route_variant?.endsWith('via_global') ?? false);
   return (
     <>
 

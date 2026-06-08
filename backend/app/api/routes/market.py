@@ -122,12 +122,22 @@ def _enrich_path_payload_with_kyc(payload: dict, global_exchange: str) -> dict:
             path.get('transfer_coin'),
             registry=registry,
         )
-        global_asset = 'BTC' if path.get('transfer_coin') == 'BTC' else 'USDT'
-        path['global_kyc_status'] = kyc_registry.resolve_exchange_asset_kyc_status(
-            global_exchange,
-            global_asset,
-            registry=registry,
+        # 글로벌 거래소를 실제로 경유하는 경로만 global_kyc_status를 채운다.
+        # 직접 출금(btc_direct/lightning_direct)은 해외 거래소를 거치지 않으므로 None.
+        # USDT 경로는 항상 글로벌 경유(buy 모드에선 route_variant 미설정이라 transfer_coin도 함께 본다).
+        uses_global = (
+            path.get('transfer_coin') == 'USDT'
+            or (path.get('route_variant') or '').endswith('via_global')
         )
+        if uses_global:
+            global_asset = 'BTC' if path.get('transfer_coin') == 'BTC' else 'USDT'
+            path['global_kyc_status'] = kyc_registry.resolve_exchange_asset_kyc_status(
+                global_exchange,
+                global_asset,
+                registry=registry,
+            )
+        else:
+            path['global_kyc_status'] = None
         path['exit_service_kyc_status'] = kyc_registry.resolve_service_kyc_status(
             path.get('lightning_exit_provider') or path.get('swap_service'),
             registry=registry,

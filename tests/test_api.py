@@ -192,7 +192,9 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert payload['best_path']['global_exit_mode'] == 'onchain'
     assert payload['best_path']['global_exit_network'] == 'Bitcoin'
     assert payload['best_path']['domestic_kyc_status'] == 'kyc'
-    assert payload['best_path']['global_kyc_status'] == 'kyc'
+    # 최저가 경로는 btc_direct(글로벌 미경유) → global_kyc_status는 None
+    assert payload['best_path']['route_variant'] == 'btc_direct'
+    assert payload['best_path']['global_kyc_status'] is None
     assert payload['best_path']['wallet_kyc_status'] == 'non_kyc'
     assert payload['available_filters']['domestic_withdrawal_networks'] == ['Bitcoin', 'TRC20']
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
@@ -203,6 +205,8 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert 'Coinos' in lightning_providers_in_paths
     assert 'BitFlower' not in lightning_providers_in_paths
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
+    # USDT 경로는 글로벌 경유 → global_kyc_status가 채워진다 (buy 모드는 route_variant 미설정)
+    assert usdt_path['global_kyc_status'] == 'kyc'
     assert usdt_path['breakdown']['components'][1]['amount_text'] == '9 USDT'
     assert usdt_path['breakdown']['components'][1]['amount_krw'] == 12600
     lightning_paths = [path for path in payload['all_paths'] if path.get('path_type') == 'lightning_exit']
