@@ -13,6 +13,10 @@ export function ResultStep() {
     setShowAltPaths, snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
   } = useExplorer();
   if (!resultPath) return null;
+  // 경로가 실제로 해외 거래소를 경유하는지 판별 (transient global state가 아닌 결과 데이터 기준).
+  // btc_via_global은 transfer_coin='BTC'이지만 글로벌을 경유하므로 transfer_coin으로는 판별 불가.
+  // route_variant 부재 시 fail-closed(false) → BTC 직접 경로에 엉뚱한 거래소가 표시되지 않도록.
+  const usesGlobal = resultPath.route_variant?.endsWith('via_global') ?? false;
   return (
     <>
 
@@ -112,8 +116,8 @@ export function ResultStep() {
                       <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                       <p className="text-[9px] text-label-tertiary mt-1">{resultPath.transfer_coin === 'BTC' ? '비트코인' : resultPath.transfer_coin}</p>
                     </div>
-                    {/* 해외 거래소 (USDT 경유) */}
-                    {global && (
+                    {/* 해외 거래소 (글로벌 경유 경로만) */}
+                    {usesGlobal && global && (
                       <>
                         <div className="flex flex-col items-center">
                           <ExFavicon id={global} size={24} />
@@ -202,8 +206,8 @@ export function ResultStep() {
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5">
                 {resultPath.domestic_kyc_status === 'kyc' && <Chip color="amber">국내 인증 필요</Chip>}
-                {resultPath.global_kyc_status === 'kyc'   && <Chip color="amber">해외 인증 필요</Chip>}
-                {resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 인증 불필요</Chip>}
+                {usesGlobal && resultPath.global_kyc_status === 'kyc'   && <Chip color="amber">해외 인증 필요</Chip>}
+                {usesGlobal && resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 인증 불필요</Chip>}
                 {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">라이트닝 출금</Chip>}
               </div>
 
