@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Coin, CurrencyDollar, Globe } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CurrencyBtc, CurrencyDollar, Globe } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { ExFavicon, OptionCard } from '../ui';
@@ -37,8 +37,8 @@ export function CoinStep() {
                         {c === 'USDT'
                           ? <CurrencyDollar weight="fill" className="w-8 h-8 text-acc-green" />
                           : c === 'BTC_GLOBAL'
-                            ? <Globe weight="fill" className="w-8 h-8 text-acc-blue" />
-                          : <Coin weight="fill" className="w-8 h-8 text-acc-amber" />}
+                            ? <CurrencyBtc weight="fill" className="w-8 h-8 text-acc-blue" />
+                          : <CurrencyBtc weight="fill" className="w-8 h-8 text-acc-amber" />}
                         <div>
                           <p className="text-sm font-bold text-label-primary">
                             {c === 'USDT' ? 'USDT → 해외거래소 비트코인 매수'
