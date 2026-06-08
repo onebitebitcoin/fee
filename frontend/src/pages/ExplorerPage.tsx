@@ -29,6 +29,51 @@ type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
 const PHASES: Phase[] = ['input', 'loading', 'domestic', 'global', 'coin', 'btc_method', 'domestic_gate', 'global_gate', 'network', 'global_exit_method', 'swap_service', 'result'];
 
+// ── Flow Graph ─────────────────────────────────────────────────────────────────
+// 각 단계(phase)의 다음/이전 이동을 선언적으로 정의.
+// 순서나 경로를 바꾸려면 여기 FLOW 배열만 수정하면 된다.
+
+type FlowState = {
+  coin: CoinType | null;
+  globalExitMethod: 'onchain' | 'lightning' | null;
+  swapSvc: string | null;
+};
+
+const FLOW: ReadonlyArray<{ id: Phase; next: (s: FlowState) => Phase }> = [
+  { id: 'domestic',           next: ()  => 'global' },
+  { id: 'global',             next: ()  => 'coin' },
+  { id: 'coin',               next: (s) => s.coin === 'USDT' ? 'domestic_gate' : 'btc_method' },
+  { id: 'btc_method',         next: ()  => 'domestic_gate' },
+  { id: 'domestic_gate',      next: (s) => s.coin === 'BTC' ? 'result' : 'global_gate' },
+  { id: 'global_gate',        next: (s) => s.coin === 'BTC_GLOBAL' ? 'global_exit_method' : 'network' },
+  { id: 'network',            next: ()  => 'global_exit_method' },
+  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
+  { id: 'swap_service',       next: ()  => 'result' },
+  { id: 'result',             next: ()  => 'result' },
+];
+
+function flowNext(id: Phase, s: FlowState): Phase {
+  return FLOW.find(f => f.id === id)?.next(s) ?? 'result';
+}
+
+function flowPrev(id: Phase, s: FlowState): Phase | null {
+  for (const step of FLOW) {
+    if (step.id !== id && step.next(s) === id) return step.id;
+  }
+  return null;
+}
+
+function flowSteps(s: FlowState): Phase[] {
+  const seq: Phase[] = [];
+  let cur: Phase = 'domestic';
+  while (cur !== 'result') {
+    seq.push(cur);
+    cur = flowNext(cur, s);
+  }
+  seq.push('result');
+  return seq;
+}
+
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
 interface DomesticInfo {
@@ -610,21 +655,10 @@ export default function ExplorerPage() {
 
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
-  const steps = useMemo(() => {
-    const s: Phase[] = ['domestic', 'global', 'coin'];
-    if (coin === 'BTC') {
-      s.push('btc_method', 'domestic_gate');
-    } else if (coin === 'BTC_GLOBAL') {
-      s.push('btc_method', 'domestic_gate', 'global_gate', 'global_exit_method');
-      if (globalExitMethod === 'lightning') s.push('swap_service');
-    } else {
-      // USDT
-      s.push('domestic_gate', 'global_gate', 'network', 'global_exit_method');
-      if (globalExitMethod === 'lightning') s.push('swap_service');
-    }
-    s.push('result');
-    return s;
-  }, [coin, globalExitMethod]);
+  const steps = useMemo(
+    () => flowSteps({ coin, globalExitMethod, swapSvc }),
+    [coin, globalExitMethod, swapSvc],
+  );
 
   const stepIdx = steps.indexOf(phase);
 
@@ -663,22 +697,21 @@ export default function ExplorerPage() {
   }
 
   function handleBack() {
-    const map: Partial<Record<Phase, Phase>> = {
-      global:             'domestic',
-      coin:               'global',
-      btc_method:         'coin',
-      domestic_gate:      (coin === 'USDT') ? 'coin' : 'btc_method',
-      global_gate:        'domestic_gate',
-      global_exit_method: coin === 'BTC_GLOBAL' ? 'global_gate' : 'network',
-      network:            'global_gate',
-      swap_service:       'global_exit_method',
-      result:             coin === 'BTC' ? 'domestic_gate'
-                          : coin === 'BTC_GLOBAL'
-                            ? (globalExitMethod === 'lightning' && swapSvc ? 'swap_service' : 'global_exit_method')
-                            : swapSvc ? 'swap_service' : 'global_exit_method',
-    };
-    const prev = map[phase];
+    const s: FlowState = { coin, globalExitMethod, swapSvc };
+    const prev = flowPrev(phase, s);
     if (prev) setPhase(prev);
+  }
+
+  function handleNext(from: Phase) {
+    const s: FlowState = { coin, globalExitMethod, swapSvc };
+    // side effects before transition
+    if (from === 'domestic_gate' && coin === 'BTC') {
+      setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
+    }
+    if (from === 'global_exit_method' && coin === 'BTC_GLOBAL' && globalExitMethod === 'onchain') {
+      setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
+    }
+    setPhase(flowNext(from, s));
   }
 
   function reset() {
@@ -1036,7 +1069,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('global')}
+                  onClick={() => handleNext('domestic')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1068,15 +1101,7 @@ export default function ExplorerPage() {
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                onClick={() => {
-                  if (coin === 'BTC') {
-                    const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
-                    setNetwork(btcNetwork);
-                    setPhase('result');
-                  } else {
-                    setPhase('global_gate');
-                  }
-                }}
+                onClick={() => handleNext('domestic_gate')}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
                 다음 <ArrowRight className="w-4 h-4" />
@@ -1137,7 +1162,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase(coin === 'USDT' ? 'domestic_gate' : 'btc_method')}
+                  onClick={() => handleNext('coin')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1208,10 +1233,7 @@ export default function ExplorerPage() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   disabled={btcMethod === 'lightning'}
-                  onClick={() => {
-                    if (btcMethod !== 'onchain') return;
-                    setPhase('domestic_gate');
-                  }}
+                  onClick={() => { if (btcMethod === 'onchain') handleNext('btc_method'); }}
                   className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                     btcMethod === 'lightning'
                       ? 'bg-fill-secondary text-label-tertiary cursor-not-allowed'
@@ -1325,7 +1347,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('coin')}
+                  onClick={() => handleNext('global')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1358,7 +1380,7 @@ export default function ExplorerPage() {
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                onClick={() => setPhase(coin === 'BTC_GLOBAL' ? 'global_exit_method' : 'network')}
+                onClick={() => handleNext('global_gate')}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
                 다음 <ArrowRight className="w-4 h-4" />
@@ -1438,19 +1460,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => {
-                    if (globalExitMethod === 'lightning') {
-                      // USDT: network already set from previous step; go to swap_service
-                      setPhase('swap_service');
-                    } else {
-                      // BTC_GLOBAL onchain: auto-select network and show result
-                      if (coin === 'BTC_GLOBAL') {
-                        const btcNet = networkOptions[0]?.network ?? 'Bitcoin';
-                        setNetwork(btcNet);
-                      }
-                      setPhase('result');
-                    }
-                  }}
+                  onClick={() => handleNext('global_exit_method')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1505,7 +1515,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('global_exit_method')}
+                  onClick={() => handleNext('network')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1661,7 +1671,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('result')}
+                  onClick={() => handleNext('swap_service')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   결과 보기 <ArrowRight className="w-4 h-4" />
