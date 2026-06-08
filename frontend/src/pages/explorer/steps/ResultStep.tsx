@@ -68,7 +68,7 @@ export function ResultStep() {
                             <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 구매하면 받은 비트코인 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${krwPnL < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                            {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '손해' : '이득'}
+                            {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '지출' : '수익'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(krwPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
                         </div>
@@ -95,7 +95,7 @@ export function ResultStep() {
                             같은 비트코인을 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
-                            {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '이득' : '손해'}
+                            {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
                         </div>
