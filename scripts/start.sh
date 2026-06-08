@@ -48,7 +48,4 @@ EOF
 
 alembic -c backend/alembic.ini upgrade head
 
-# 첫 배포 시 Railway DB에서 데이터 백필 (RAILWAY_DATABASE_URL 없으면 자동 skip)
-python scripts/backfill_from_railway.py
-
 exec uvicorn backend.app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
