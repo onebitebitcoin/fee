@@ -1,15 +1,16 @@
 import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Globe, Info, Warning } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
+import { getDomesticGates } from '../../../lib/gatemanRegistry';
 import { DOMESTIC_INFO, SPRING_FAST, SPRING_SLOW } from '../constants';
-import { ExFavicon, OptionCard } from '../ui';
+import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 export function DomesticStep() {
   const {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp,
     kimpFetchedAt, kimpInfoOpen, setKimpInfoOpen, btcPrice, withdrawalLimits, stepEndRef,
-    scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, handleBack, handleNext,
+    scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
   } = useExplorer();
   return (
     <>
@@ -214,6 +215,12 @@ export function DomesticStep() {
                   </motion.div>
                 );
               })()}
+              {domestic && (
+                <GatemanPanel
+                  gates={getDomesticGates(domestic, liveRegistry?.domestic)}
+                  title={`${fmtEx(domestic)} 출금 체크리스트`}
+                />
+              )}
               {domestic && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

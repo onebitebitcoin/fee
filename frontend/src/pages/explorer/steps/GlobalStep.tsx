@@ -1,14 +1,15 @@
 import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Globe, Warning } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
+import { getGlobalGates } from '../../../lib/gatemanRegistry';
 import { GLOBAL_INFO, RISK_LABEL, RISK_COLOR, SPRING_FAST, SPRING_SLOW } from '../constants';
 import type { GlobalExchange } from '../constants';
-import { ExFavicon, OptionCard } from '../ui';
+import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 export function GlobalStep() {
   const {
-    domestic, global, setGlobal, setNetwork, setGlobalExitMethod, stepEndRef,
+    domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
   } = useExplorer();
   return (
@@ -27,9 +28,6 @@ export function GlobalStep() {
                   const tradingComp = best.breakdown?.components.find(c =>
                     c.label.includes('BTC 매수') || c.label.includes('FDUSD 매수'),
                   );
-                  const wdComp = best.breakdown?.components.find(c =>
-                    c.label.includes('BTC 출금') && c.is_fixed,
-                  );
                   return (
                     <motion.div key={exchange}
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -47,11 +45,6 @@ export function GlobalStep() {
                                 {tradingComp?.rate_pct != null && (
                                   <span className="text-[10px] text-label-tertiary num">
                                     거래 수수료 <span className="font-medium text-label-secondary">{tradingComp.rate_pct.toFixed(2)}%</span>
-                                  </span>
-                                )}
-                                {wdComp?.amount_text && (
-                                  <span className="text-[10px] text-label-tertiary">
-                                    출금 <span className="font-medium text-label-secondary">{wdComp.amount_text}</span>
                                   </span>
                                 )}
                               </div>
@@ -102,6 +95,12 @@ export function GlobalStep() {
                   </motion.div>
                 );
               })()}
+              {global && (
+                <GatemanPanel
+                  gates={getGlobalGates(global, liveRegistry?.global)}
+                  title={`${fmtEx(global)} 입출금 체크리스트`}
+                />
+              )}
               {global && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

@@ -400,7 +400,7 @@ function useExplorerValue() {
   function handleNext(from: Phase) {
     const s: FlowState = { coin, globalExitMethod, swapSvc };
     // side effects before transition
-    if (from === 'domestic_gate' && coin === 'BTC') {
+    if (from === 'btc_method' && coin === 'BTC') {
       setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
     }
     if (from === 'global_exit_method' && coin === 'BTC_GLOBAL' && globalExitMethod === 'onchain') {

@@ -7,7 +7,8 @@ import { useExplorer } from '../ExplorerContext';
 
 export function CoinStep() {
   const {
-    domestic, coin, setCoin, setNetwork, setBtcMethod, stepEndRef, scrollToStepEnd,
+    domestic, coin, setCoin, setGlobal, setNetwork, setBtcMethod,
+    setGlobalExitMethod, setSwapSvc, stepEndRef, scrollToStepEnd,
     coinOptions, handleBack, handleNext,
   } = useExplorer();
   return (
@@ -27,7 +28,10 @@ export function CoinStep() {
                     transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                     <OptionCard
                       selected={coin === c}
-                      onClick={() => { setCoin(c); setNetwork(null); setBtcMethod(null); scrollToStepEnd(); }}
+                      onClick={() => {
+                        setCoin(c); setGlobal(null); setNetwork(null); setBtcMethod(null);
+                        setGlobalExitMethod(null); setSwapSvc(null); scrollToStepEnd();
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         {c === 'USDT'

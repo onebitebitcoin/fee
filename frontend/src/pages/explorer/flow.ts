@@ -4,15 +4,15 @@
 // 새 단계 추가: steps/XStep.tsx 작성 → registry.tsx 등록 → 여기 FLOW에 끼워넣기.
 
 export type Phase =
-  | 'input' | 'loading' | 'domestic' | 'domestic_gate' | 'coin' | 'btc_method'
-  | 'global' | 'global_gate' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
+  | 'input' | 'loading' | 'domestic' | 'coin' | 'btc_method'
+  | 'global' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
 
 export type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
 
 // 진행 방향(애니메이션) 판정용 선형 순서
 export const PHASES: Phase[] = [
-  'input', 'loading', 'domestic', 'global', 'coin', 'btc_method',
-  'domestic_gate', 'global_gate', 'network', 'global_exit_method', 'swap_service', 'result',
+  'input', 'loading', 'domestic', 'coin', 'btc_method',
+  'global', 'network', 'global_exit_method', 'swap_service', 'result',
 ];
 
 export const phaseIdx = (p: Phase) => PHASES.indexOf(p);
@@ -25,12 +25,10 @@ export type FlowState = {
 };
 
 export const FLOW: ReadonlyArray<{ id: Phase; next: (s: FlowState) => Phase }> = [
-  { id: 'domestic',           next: ()  => 'global' },
-  { id: 'global',             next: ()  => 'coin' },
-  { id: 'coin',               next: (s) => s.coin === 'USDT' ? 'domestic_gate' : 'btc_method' },
-  { id: 'btc_method',         next: ()  => 'domestic_gate' },
-  { id: 'domestic_gate',      next: (s) => s.coin === 'BTC' ? 'result' : 'global_gate' },
-  { id: 'global_gate',        next: (s) => s.coin === 'BTC_GLOBAL' ? 'global_exit_method' : 'network' },
+  { id: 'domestic',           next: ()  => 'coin' },
+  { id: 'coin',               next: (s) => s.coin === 'USDT' ? 'global' : 'btc_method' },
+  { id: 'btc_method',         next: (s) => s.coin === 'BTC' ? 'result' : 'global' },
+  { id: 'global',             next: (s) => s.coin === 'USDT' ? 'network' : 'global_exit_method' },
   { id: 'network',            next: ()  => 'global_exit_method' },
   { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
   { id: 'swap_service',       next: ()  => 'result' },

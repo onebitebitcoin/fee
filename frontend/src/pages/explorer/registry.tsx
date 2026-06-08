@@ -7,11 +7,9 @@ import type { Phase } from './flow';
 import { LoadingStep } from './steps/LoadingStep';
 import { InputStep } from './steps/InputStep';
 import { DomesticStep } from './steps/DomesticStep';
-import { DomesticGateStep } from './steps/DomesticGateStep';
 import { CoinStep } from './steps/CoinStep';
 import { BtcMethodStep } from './steps/BtcMethodStep';
 import { GlobalStep } from './steps/GlobalStep';
-import { GlobalGateStep } from './steps/GlobalGateStep';
 import { GlobalExitMethodStep } from './steps/GlobalExitMethodStep';
 import { NetworkStep } from './steps/NetworkStep';
 import { SwapServiceStep } from './steps/SwapServiceStep';
@@ -26,11 +24,9 @@ export const STEP_REGISTRY: Record<Phase, StepEntry> = {
   loading:            { Component: LoadingStep },
   input:              { Component: InputStep,            className: 'space-y-6 pt-4' },
   domestic:           { Component: DomesticStep,         className: 'space-y-4 pt-2' },
-  global:             { Component: GlobalStep,           className: 'space-y-4 pt-2' },
   coin:               { Component: CoinStep,             className: 'space-y-4 pt-2' },
   btc_method:         { Component: BtcMethodStep,        className: 'space-y-4 pt-2' },
-  domestic_gate:      { Component: DomesticGateStep,     className: 'space-y-4 pt-2' },
-  global_gate:        { Component: GlobalGateStep,       className: 'space-y-4 pt-2' },
+  global:             { Component: GlobalStep,           className: 'space-y-4 pt-2' },
   network:            { Component: NetworkStep,          className: 'space-y-4 pt-2' },
   global_exit_method: { Component: GlobalExitMethodStep, className: 'space-y-4 pt-2' },
   swap_service:       { Component: SwapServiceStep,      className: 'space-y-4 pt-2' },
