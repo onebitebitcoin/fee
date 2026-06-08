@@ -147,11 +147,6 @@ function useExplorerValue() {
       .sort((a, b) => (koreaVolumeMap[b.exchange] ?? 0) - (koreaVolumeMap[a.exchange] ?? 0));
   }, [allData, koreaVolumeMap]);
 
-  const recDomestic = useMemo(() => {
-    const b = bestByBtc(allPaths);
-    return b?.korean_exchange ?? null;
-  }, [allPaths]);
-
   const coinOptions = useMemo(() => {
     if (!allData || !domestic) return [] as { coin: CoinType; best: CheapestPathEntry }[];
     const anyData = Object.values(allData.byGlobal)[0];
