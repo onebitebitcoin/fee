@@ -3,6 +3,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
+COPY VERSION /app/VERSION
 RUN npm run build
 
 FROM python:3.11-slim AS backend-base
