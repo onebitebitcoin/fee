@@ -48,9 +48,10 @@ function ExplorerShell() {
       {/* Header */}
       <header className="glass-header sticky top-0 z-20">
         <div className="max-w-xl mx-auto px-5 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            <img src="/favicon.svg" alt="" className="w-5 h-5" />
             <span className="text-sm font-semibold text-label-primary tracking-tight">
-              비트코인 경로 탐색
+              수수료는 얼마 들까
             </span>
           </div>
 
