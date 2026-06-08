@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowSquareOut, CaretDown, Check, CheckCircle, Coin, CurrencyDollar,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowSquareOut, CaretDown, CheckCircle, Coin, CurrencyDollar,
   Globe, House, Info, Lightning, MapPin, ShieldCheck, TrendDown,
   Warning, Wallet,
 } from '@phosphor-icons/react';
@@ -27,7 +27,7 @@ interface AllData {
 const GLOBAL_EXCHANGES = ['binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase'] as const;
 type GlobalExchange = typeof GLOBAL_EXCHANGES[number];
 
-const PHASES: Phase[] = ['input', 'loading', 'domestic', 'domestic_gate', 'coin', 'btc_method', 'global', 'global_gate', 'network', 'global_exit_method', 'swap_service', 'result'];
+const PHASES: Phase[] = ['input', 'loading', 'domestic', 'global', 'coin', 'btc_method', 'domestic_gate', 'global_gate', 'network', 'global_exit_method', 'swap_service', 'result'];
 
 // ─── Exchange Info ─────────────────────────────────────────────────────────────
 
@@ -289,8 +289,6 @@ export default function ExplorerPage() {
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
-  const [domesticGatesChecked, setDomesticGatesChecked] = useState(false);
-  const [globalGatesChecked, setGlobalGatesChecked] = useState(false);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
@@ -347,8 +345,6 @@ export default function ExplorerPage() {
     setDir(cur >= prev ? 1 : -1);
     prevPhase.current = phase;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (phase === 'domestic_gate') setDomesticGatesChecked(false);
-    if (phase === 'global_gate') setGlobalGatesChecked(false);
   }, [phase]);
 
   // ── Derived options ──────────────────────────────────────────────────────────
@@ -426,13 +422,17 @@ export default function ExplorerPage() {
   }, [allData, domestic]);
 
   const globalOptions = useMemo(() => {
-    if (!allData || !domestic || (coin !== 'USDT' && coin !== 'BTC_GLOBAL')) return [];
+    if (!allData || !domestic) return [];
     return GLOBAL_EXCHANGES
       .map(g => {
-        const paths = (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic &&
-          (coin === 'BTC_GLOBAL' ? p.route_variant === 'btc_via_global' : p.transfer_coin === 'USDT'),
+        let paths = (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
+          p.korean_exchange === domestic,
         );
+        if (coin === 'USDT') {
+          paths = paths.filter(p => p.transfer_coin === 'USDT');
+        } else if (coin === 'BTC_GLOBAL') {
+          paths = paths.filter(p => p.route_variant === 'btc_via_global');
+        }
         const best = bestByBtc(paths);
         if (!best) return null;
         return { exchange: g, best };
@@ -611,15 +611,15 @@ export default function ExplorerPage() {
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
   const steps = useMemo(() => {
-    const s: Phase[] = ['domestic', 'domestic_gate', 'coin'];
+    const s: Phase[] = ['domestic', 'global', 'coin'];
     if (coin === 'BTC') {
-      s.push('btc_method');
+      s.push('btc_method', 'domestic_gate');
     } else if (coin === 'BTC_GLOBAL') {
-      s.push('btc_method', 'global', 'global_gate', 'global_exit_method');
+      s.push('btc_method', 'domestic_gate', 'global_gate', 'global_exit_method');
       if (globalExitMethod === 'lightning') s.push('swap_service');
     } else {
-      // USDT: network → global_exit_method → (swap_service if lightning)
-      s.push('global', 'global_gate', 'network', 'global_exit_method');
+      // USDT
+      s.push('domestic_gate', 'global_gate', 'network', 'global_exit_method');
       if (globalExitMethod === 'lightning') s.push('swap_service');
     }
     s.push('result');
@@ -664,15 +664,15 @@ export default function ExplorerPage() {
 
   function handleBack() {
     const map: Partial<Record<Phase, Phase>> = {
-      domestic_gate:      'domestic',
-      coin:               'domestic_gate',
+      global:             'domestic',
+      coin:               'global',
       btc_method:         'coin',
-      global:             coin === 'BTC_GLOBAL' ? 'btc_method' : 'coin',
-      global_gate:        'global',
+      domestic_gate:      (coin === 'USDT') ? 'coin' : 'btc_method',
+      global_gate:        'domestic_gate',
       global_exit_method: coin === 'BTC_GLOBAL' ? 'global_gate' : 'network',
       network:            'global_gate',
       swap_service:       'global_exit_method',
-      result:             coin === 'BTC' ? 'btc_method'
+      result:             coin === 'BTC' ? 'domestic_gate'
                           : coin === 'BTC_GLOBAL'
                             ? (globalExitMethod === 'lightning' && swapSvc ? 'swap_service' : 'global_exit_method')
                             : swapSvc ? 'swap_service' : 'global_exit_method',
@@ -1036,7 +1036,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('domestic_gate')}
+                  onClick={() => setPhase('global')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1059,25 +1059,27 @@ export default function ExplorerPage() {
                   <p className="text-xs text-label-secondary">{fmtEx(domestic)}</p>
                 </div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">출금 체크리스트</h1>
-                <p className="text-sm text-label-secondary mt-1">항목을 클릭해 모두 확인하면 다음으로 이동할 수 있어요</p>
+                <p className="text-sm text-label-secondary mt-1">출금 전 확인이 필요한 항목이에요</p>
               </div>
               <GatemanPanel
                 gates={getDomesticGates(domestic, liveRegistry?.domestic)}
                 title={`${fmtEx(domestic)} 출금 체크리스트`}
-                onAllChecked={setDomesticGatesChecked}
               />
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                disabled={!domesticGatesChecked}
-                onClick={() => setPhase('coin')}
-                className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-                  domesticGatesChecked
-                    ? 'bg-acc-amber text-white shadow-glow-amber cursor-pointer'
-                    : 'bg-fill-secondary text-label-tertiary cursor-not-allowed'
-                }`}
+                onClick={() => {
+                  if (coin === 'BTC') {
+                    const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
+                    setNetwork(btcNetwork);
+                    setPhase('result');
+                  } else {
+                    setPhase('global_gate');
+                  }
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
-                {domesticGatesChecked ? '다음' : '모든 항목을 확인해주세요'} <ArrowRight className="w-4 h-4" />
+                다음 <ArrowRight className="w-4 h-4" />
               </motion.button>
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
                 <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
@@ -1135,7 +1137,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase(coin === 'USDT' ? 'global' : 'btc_method')}
+                  onClick={() => setPhase(coin === 'USDT' ? 'domestic_gate' : 'btc_method')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1208,13 +1210,7 @@ export default function ExplorerPage() {
                   disabled={btcMethod === 'lightning'}
                   onClick={() => {
                     if (btcMethod !== 'onchain') return;
-                    if (coin === 'BTC_GLOBAL') {
-                      setPhase('global');
-                    } else {
-                      const btcNetwork = networkOptions[0]?.network ?? 'Bitcoin';
-                      setNetwork(btcNetwork);
-                      setPhase('result');
-                    }
+                    setPhase('domestic_gate');
                   }}
                   className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                     btcMethod === 'lightning'
@@ -1222,7 +1218,7 @@ export default function ExplorerPage() {
                       : 'bg-acc-amber text-white shadow-glow-amber cursor-pointer'
                   }`}
                 >
-                  {coin === 'BTC_GLOBAL' ? '다음' : '결과 보기'} <ArrowRight className="w-4 h-4" />
+                  다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
@@ -1243,7 +1239,7 @@ export default function ExplorerPage() {
                   <Globe className="w-4 h-4 text-label-secondary" />
                 </div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">해외 거래소</h1>
-                <p className="text-sm text-label-secondary mt-1">USDT를 받을 거래소를 고르세요</p>
+                <p className="text-sm text-label-secondary mt-1">경유할 해외 거래소를 선택해요</p>
               </div>
               <div className="space-y-2.5">
                 {globalOptions.map(({ exchange, best }, i) => {
@@ -1329,7 +1325,7 @@ export default function ExplorerPage() {
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  onClick={() => setPhase('global_gate')}
+                  onClick={() => setPhase('coin')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
@@ -1353,25 +1349,19 @@ export default function ExplorerPage() {
                   <p className="text-xs text-label-secondary">{fmtEx(global)}</p>
                 </div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">입출금 체크리스트</h1>
-                <p className="text-sm text-label-secondary mt-1">항목을 클릭해 모두 확인하면 다음으로 이동할 수 있어요</p>
+                <p className="text-sm text-label-secondary mt-1">입출금 전 확인이 필요한 항목이에요</p>
               </div>
               <GatemanPanel
                 gates={getGlobalGates(global, liveRegistry?.global)}
                 title={`${fmtEx(global)} 입출금 체크리스트`}
-                onAllChecked={setGlobalGatesChecked}
               />
               <motion.button
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={SPRING_FAST}
-                disabled={!globalGatesChecked}
                 onClick={() => setPhase(coin === 'BTC_GLOBAL' ? 'global_exit_method' : 'network')}
-                className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-                  globalGatesChecked
-                    ? 'bg-acc-amber text-white shadow-glow-amber cursor-pointer'
-                    : 'bg-fill-secondary text-label-tertiary cursor-not-allowed'
-                }`}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
               >
-                {globalGatesChecked ? '다음' : '모든 항목을 확인해주세요'} <ArrowRight className="w-4 h-4" />
+                다음 <ArrowRight className="w-4 h-4" />
               </motion.button>
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
                 <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
@@ -1991,81 +1981,18 @@ const GATE_CFG = {
 function GatemanPanel({
   gates,
   title = '체크리스트',
-  onAllChecked,
 }: {
   gates: GateItem[];
   title?: string;
-  onAllChecked?: (v: boolean) => void;
 }) {
-  const [checkedSet, setCheckedSet] = useState<Set<number>>(new Set());
-  const allChecked = gates.length > 0 && checkedSet.size === gates.length;
-
-  useEffect(() => {
-    onAllChecked?.(allChecked);
-  }, [allChecked]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggle = (idx: number) => {
-    setCheckedSet(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
-      return next;
-    });
-  };
-
-  const isInteractive = !!onAllChecked;
-
   return (
     <div className="ios-card rounded-2xl p-4 space-y-1.5">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-label-tertiary flex-shrink-0" />
-          <span className="text-[10px] font-semibold text-label-tertiary uppercase tracking-wider">{title}</span>
-        </div>
-        {isInteractive && (
-          <span className={`text-[10px] font-semibold transition-colors ${allChecked ? 'text-acc-green' : 'text-label-tertiary'}`}>
-            {checkedSet.size}/{gates.length} 확인
-          </span>
-        )}
+      <div className="flex items-center gap-1.5 mb-2">
+        <ShieldCheck className="w-3.5 h-3.5 text-label-tertiary flex-shrink-0" />
+        <span className="text-[10px] font-semibold text-label-tertiary uppercase tracking-wider">{title}</span>
       </div>
       {gates.map((g, i) => {
         const cfg = GATE_CFG[g.level];
-        const checked = checkedSet.has(i);
-        if (isInteractive) {
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => toggle(i)}
-              className={`w-full flex gap-3 items-start text-left rounded-xl px-3 py-2.5 transition-all duration-150 border ${
-                checked
-                  ? 'bg-acc-green/8 border-acc-green/25'
-                  : 'bg-fill-secondary/40 border-transparent hover:bg-fill-secondary hover:border-fill-primary'
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all duration-150 ${
-                checked ? 'bg-acc-green border-acc-green' : `${cfg.borderCls} opacity-60`
-              }`}>
-                {checked && <Check className="w-2.5 h-2.5 text-white" weight="bold" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`text-xs font-semibold ${checked ? 'text-label-secondary' : cfg.textCls}`}>{g.label}</span>
-                  <span className={`text-[9px] font-bold px-1 py-0.5 rounded transition-colors ${
-                    checked ? 'bg-acc-green/10 text-acc-green' : 'bg-fill-secondary text-label-tertiary'
-                  }`}>
-                    {checked ? '확인' : cfg.label}
-                  </span>
-                  {g.condition && !checked && (
-                    <span className="text-[9px] text-label-tertiary">({g.condition})</span>
-                  )}
-                </div>
-                <p className={`text-[11px] mt-0.5 leading-relaxed ${checked ? 'text-label-tertiary' : 'text-label-secondary'}`}>
-                  {g.desc}
-                </p>
-              </div>
-            </button>
-          );
-        }
         return (
           <div key={i} className="flex gap-2.5 items-start">
             <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
