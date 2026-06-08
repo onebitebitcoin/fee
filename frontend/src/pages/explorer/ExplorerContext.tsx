@@ -45,9 +45,10 @@ function useExplorerValue() {
     scraped_at: number | null;
   }>>({});
 
-  const prevPhase  = useRef<Phase>('input');
-  const satRafRef  = useRef<number | null>(null);
-  const stepEndRef = useRef<HTMLDivElement>(null);
+  const prevPhase      = useRef<Phase>('input');
+  const satRafRef      = useRef<number | null>(null);
+  const stepEndRef     = useRef<HTMLDivElement>(null);
+  const skipPopstate   = useRef(false);
 
   function scrollToStepEnd() {
     requestAnimationFrame(() =>
@@ -384,6 +385,7 @@ function useExplorerValue() {
         tickers: tickerRes.items,
         latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
       });
+      history.pushState({ phase: 'domestic' }, '');
       setPhase('domestic');
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
@@ -391,10 +393,29 @@ function useExplorerValue() {
     }
   }
 
+  // 브라우저/앱 뒤로가기 지원
+  useEffect(() => {
+    const onPopstate = () => {
+      if (skipPopstate.current) { skipPopstate.current = false; return; }
+      const s: FlowState = { coin, globalExitMethod, swapSvc };
+      const prev = flowPrev(phase, s);
+      if (prev) {
+        skipPopstate.current = true;
+        history.pushState({ phase: prev }, '');
+        setDir(-1);
+        setPhase(prev);
+      }
+    };
+    window.addEventListener('popstate', onPopstate);
+    return () => window.removeEventListener('popstate', onPopstate);
+  }, [phase, coin, globalExitMethod, swapSvc]);
+
   function handleBack() {
     const s: FlowState = { coin, globalExitMethod, swapSvc };
     const prev = flowPrev(phase, s);
-    if (prev) setPhase(prev);
+    if (prev) {
+      history.back();
+    }
   }
 
   function handleNext(from: Phase) {
@@ -406,7 +427,9 @@ function useExplorerValue() {
     if (from === 'global_exit_method' && coin === 'BTC_GLOBAL' && globalExitMethod === 'onchain') {
       setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
     }
-    setPhase(flowNext(from, s));
+    const next = flowNext(from, s);
+    history.pushState({ phase: next }, '');
+    setPhase(next);
   }
 
   function reset() {
