@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     cors_origins: str = '*'
     crawl_interval_minutes: int = 60
     manual_crawl_enabled: bool = True
-    admin_api_key: str = 'dev-secret-key'  # 프로덕션에서는 환경 변수로 오버라이드 필요
+    admin_api_key: str = '0000'
     frontend_dist_dir: Path = Field(default=FRONTEND_DIST_DIR)
     playground_service_nodes_url: str = 'https://playground.onebitebitcoin.com/api/service-nodes/admin?username=guest'
     openai_api_key: Optional[str] = None
