@@ -211,7 +211,7 @@ function CautionPanel({ group, exchanges }: {
   group: 'korea' | 'global';
   exchanges: { id: string; name: string }[];
 }) {
-  const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY ?? 'dev-secret-key';
+  const ADMIN_KEY = sessionStorage.getItem('admin_key') ?? 'dev-secret-key';
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [msg, setMsg] = useState<Record<string, string>>({});
@@ -389,6 +389,7 @@ export function AdminPage() {
     if (pwInput === ADMIN_PASSWORD) {
       setAuthed(true);
       sessionStorage.setItem('admin_authed', '1');
+      sessionStorage.setItem('admin_key', pwInput);
       setPwError(false);
     } else {
       setPwError(true);
@@ -959,7 +960,7 @@ function CrawlStatusPanel() {
   async function handleTrigger() {
     try {
       setTriggering(true);
-      const key = import.meta.env.VITE_ADMIN_API_KEY ?? 'dev-secret-key';
+      const key = sessionStorage.getItem('admin_key') ?? 'dev-secret-key';
       await api.triggerCrawl(key);
       setTimeout(fetch, 2000);
     } catch {
