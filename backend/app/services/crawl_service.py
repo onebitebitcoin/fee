@@ -35,29 +35,43 @@ class CrawlService:
         self.db.commit()
         self.db.refresh(crawl_run)
 
-        ticker_count = 0
-        withdrawal_count = 0
-        network_count = 0
-        lightning_count = 0
-        capability_count = 0
-        error_count = 0
-        _ln_btc_exchanges: set[str] = set()
-
         try:
-            ticker_count, withdrawal_count, error_count, _ln_btc_exchanges = self._crawl_tickers_and_withdrawals(crawl_run)
-            network_count = self._crawl_network_status(crawl_run)
-            lightning_count = self._crawl_lightning_fees(crawl_run)
+            usd_krw_rate = live_market.fetch_usd_krw_rate()
+            crawl_run.usd_krw_rate = usd_krw_rate
+
+            # Phase 1: 독립 스테이지를 동시 fetch (DB 저장 없음)
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                f_exchange  = pool.submit(self._fetch_exchange_data, usd_krw_rate)
+                f_network   = pool.submit(live_market.get_network_status, 'all')
+                f_lightning = pool.submit(get_all_lightning_swap_fees)
+                f_notices   = pool.submit(get_all_notices)
+            # with 블록 종료 시 모든 Future 완료 보장
+            exchange_raw  = f_exchange.result()
+            network_raw   = f_network.result()
+            lightning_raw = f_lightning.result()
+            notice_raw    = f_notices.result()
+
+            # Phase 2: 순차 DB 저장 (SQLAlchemy Session 단일 스레드 보장)
+            ticker_count, withdrawal_count, error_count, _ln_btc_exchanges = \
+                self._save_exchange_data(crawl_run, exchange_raw)
+            network_count   = self._save_network_status(crawl_run, network_raw)
+            lightning_count = self._save_lightning_fees(crawl_run, lightning_raw)
             capability_count = self._crawl_capabilities(crawl_run, _ln_btc_exchanges)
-            self._crawl_notices(crawl_run)
+            self._save_notices(crawl_run, notice_raw)
 
             volume_count = self._crawl_exchange_volumes(crawl_run)
-            limit_count = self._crawl_korea_withdrawal_limits(crawl_run)
+            limit_count  = self._crawl_korea_withdrawal_limits(crawl_run)
 
             crawl_run.status = 'partial_success' if error_count else 'success'
-            crawl_run.message = f'tickers={ticker_count}, withdrawals={withdrawal_count}, networks={network_count}, lightning_swaps={lightning_count}, capabilities={capability_count}, volumes={volume_count}, limits={limit_count}, errors={error_count}'
+            crawl_run.message = (
+                f'tickers={ticker_count}, withdrawals={withdrawal_count}, '
+                f'networks={network_count}, lightning_swaps={lightning_count}, '
+                f'capabilities={capability_count}, volumes={volume_count}, '
+                f'limits={limit_count}, errors={error_count}'
+            )
             _invalidate_market_cache()
         except Exception as exc:
-            self.db.rollback()          # 부분 커밋 방지
+            self.db.rollback()
             self._add_error(crawl_run.id, None, None, 'crawl', str(exc))
             crawl_run.status = 'failed'
             crawl_run.message = str(exc)
@@ -68,18 +82,9 @@ class CrawlService:
             self.db.refresh(crawl_run)
         return crawl_run
 
-    def _crawl_tickers_and_withdrawals(self, crawl_run: CrawlRun) -> tuple[int, int, int, set[str]]:
-        """티커 및 출금 수수료를 병렬 수집하고 (ticker_count, withdrawal_count, error_count, ln_btc_exchanges)를 반환한다."""
-        usd_krw_rate = live_market.fetch_usd_krw_rate()
-        crawl_run.usd_krw_rate = usd_krw_rate
-
-        ticker_count = 0
-        withdrawal_count = 0
-        error_count = 0
-        ln_btc_exchanges: set[str] = set()
-
+    def _fetch_exchange_data(self, usd_krw_rate: float) -> dict[str, dict]:
+        """전 거래소의 ticker + BTC/USDT withdrawal을 병렬 fetch하고 결과 dict를 반환한다. DB 접근 없음."""
         def _fetch_one(exchange: str) -> dict:
-            """단일 거래소의 ticker + BTC/USDT withdrawal을 반환한다."""
             return {
                 'exchange': exchange,
                 'ticker': live_market.get_ticker(exchange),
@@ -87,7 +92,6 @@ class CrawlService:
                 'usdt_wd': live_market.get_withdrawal_fees(exchange, 'USDT'),
             }
 
-        # 병렬 fetch (최대 10개 스레드)
         fetch_results: dict[str, dict] = {}
         with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_exchange = {executor.submit(_fetch_one, ex): ex for ex in live_market.ALL_EXCHANGES}
@@ -103,8 +107,17 @@ class CrawlService:
                         'btc_wd': {'error': str(exc)},
                         'usdt_wd': {'error': str(exc)},
                     }
+        return fetch_results
 
-        # DB 저장은 메인 스레드에서 순차적으로 (Session 스레드 안전 보장)
+    def _save_exchange_data(
+        self, crawl_run: CrawlRun, fetch_results: dict[str, dict],
+    ) -> tuple[int, int, int, set[str]]:
+        """fetch_results를 DB에 순차 저장하고 (ticker_count, withdrawal_count, error_count, ln_btc_exchanges)를 반환한다."""
+        ticker_count = 0
+        withdrawal_count = 0
+        error_count = 0
+        ln_btc_exchanges: set[str] = set()
+
         for exchange in live_market.ALL_EXCHANGES:
             result = fetch_results[exchange]
             ticker_payload = result['ticker']
@@ -165,10 +178,9 @@ class CrawlService:
 
         return ticker_count, withdrawal_count, error_count, ln_btc_exchanges
 
-    def _crawl_network_status(self, crawl_run: CrawlRun) -> int:
-        """네트워크 상태를 수집하고 저장 건수를 반환한다."""
+    def _save_network_status(self, crawl_run: CrawlRun, network_payload: dict) -> int:
+        """network_payload를 DB에 저장하고 건수를 반환한다."""
         network_count = 0
-        network_payload = live_market.get_network_status('all')
         exchanges = network_payload.get('exchanges', {}) if isinstance(network_payload, dict) else {}
         for exchange, data in exchanges.items():
             suspended = data.get('suspended_networks', [])
@@ -190,10 +202,9 @@ class CrawlService:
                 network_count += 1
         return network_count
 
-    def _crawl_lightning_fees(self, crawl_run: CrawlRun) -> int:
-        """Lightning 스왑 수수료를 수집하고 저장 건수를 반환한다. 오류가 나도 전체 크롤링 성공에 영향 없음."""
+    def _save_lightning_fees(self, crawl_run: CrawlRun, lightning_fees: list[dict]) -> int:
+        """lightning_fees를 DB에 저장하고 건수를 반환한다. 오류가 나도 전체 크롤링 성공에 영향 없음."""
         lightning_count = 0
-        lightning_fees = get_all_lightning_swap_fees()
         for fee_data in lightning_fees:
             if fee_data.get('error'):
                 logger.warning('Lightning swap fee partial: %s - %s', fee_data.get('service_name'), fee_data['error'])
@@ -228,14 +239,13 @@ class CrawlService:
             capability_count += 1
         return capability_count
 
-    def _crawl_notices(self, crawl_run: CrawlRun) -> None:
-        """공지사항을 스크래핑하여 저장한다. 오류가 나도 전체 크롤링 성공에 영향 없음.
+    def _save_notices(self, crawl_run: CrawlRun, notices_data: list) -> None:
+        """notices_data를 DB에 저장한다. 오류가 나도 전체 크롤링 성공에 영향 없음.
 
         (exchange, title, published_at) 조합이 이미 존재하면 삽입하지 않는다.
         """
         try:
-            notices = get_all_notices()
-            for notice in notices:
+            for notice in notices_data:
                 exchange = notice.get('exchange', 'unknown')
                 title = notice.get('title', '')
                 published_at = notice.get('published_at')
@@ -254,7 +264,7 @@ class CrawlService:
                     published_at=published_at,
                 ))
         except Exception as exc:
-            logger.warning('Notice scraping failed: %s', exc)
+            logger.warning('Notice saving failed: %s', exc)
 
     def _crawl_exchange_volumes(self, crawl_run: CrawlRun) -> int:
         """CoinGecko에서 거래소 24H 거래량을 가져와 저장한다. 하루 1회만 실제 API 호출.
