@@ -4,7 +4,6 @@ Lightning Network 스왑 서비스 실시간 수수료 스크래퍼
 지원 서비스:
   - Boltz Exchange (boltz.exchange): 공개 REST API 사용
   - Coinos.io (coinos.io): 공개 REST API 사용
-  - BitFlower (bitflower.com): 웹 스크래핑
   - Wallet of Satoshi (walletofsatoshi.com): 웹 스크래핑 / 고정 수수료
   - Strike (strike.me): 공개 API 사용
   - Oksusu / Corn Wallet (team.oksu.su): 공식 사이트 스크래핑 / 고정 수수료
@@ -145,68 +144,6 @@ def fetch_coinos_fees() -> dict:
 
     logger.info('Coinos 스크래핑 실패, 알려진 고정값 0.50%% 사용')
     return _build_result(0.5)
-
-
-def fetch_bitflower_fees() -> dict:
-    """
-    BitFlower Lightning 스왑 수수료 조회.
-    BitFlower는 Lightning ↔ On-chain 스왑 서비스.
-    공개 API: https://bitflower.com/api/v1/fees 또는 웹 스크래핑
-    """
-    service_name = 'BitFlower'
-    source_url = 'https://bitflower.com'
-    api_urls = [
-        'https://bitflower.com/api/v1/fees',
-        'https://bitflower.com/api/fees',
-        'https://api.bitflower.com/v1/fees',
-        'https://api.bitflower.com/fees',
-    ]
-    for api_url in api_urls:
-        try:
-            resp = requests.get(api_url, headers=_HEADERS, timeout=_TIMEOUT)
-            if resp.status_code == 200:
-                data = resp.json()
-                fee_pct = float(data.get('fee_pct', data.get('fee', data.get('percent', 0.5))))
-                fee_fixed_sat = int(data.get('fee_fixed_sat', data.get('base_fee', 0)))
-                min_amount_sat = int(data.get('min_amount_sat', data.get('min_amount', 10_000)))
-                max_amount_sat = int(data.get('max_amount_sat', data.get('max_amount', 10_000_000)))
-                return {
-                    'service_name': service_name,
-                    'fee_pct': fee_pct,
-                    'fee_fixed_sat': fee_fixed_sat,
-                    'min_amount_sat': min_amount_sat,
-                    'max_amount_sat': max_amount_sat,
-                    'enabled': True,
-                    'source_url': source_url,
-                    'error': None,
-                    'direction': 'onchain_to_ln',
-                }
-        except Exception:
-            continue
-
-    # 웹 스크래핑 시도
-    try:
-        resp = requests.get(source_url, headers={**_HEADERS, 'Accept': 'text/html'}, timeout=_TIMEOUT)
-        if resp.status_code == 200:
-            text = resp.text.lower()
-            fee_matches = re.findall(r'(\d+(?:\.\d+)?)\s*%', text)
-            if fee_matches:
-                fee_pct = float(fee_matches[0])
-                return {
-                    'service_name': service_name,
-                    'fee_pct': fee_pct,
-                    'fee_fixed_sat': 0,
-                    'min_amount_sat': 10_000,
-                    'max_amount_sat': 10_000_000,
-                    'enabled': True,
-                    'source_url': source_url,
-                    'error': 'API 미발견, 웹 스크래핑으로 추정',
-                    'direction': 'onchain_to_ln',
-                }
-    except Exception as exc2:
-        logger.warning('BitFlower 웹 스크래핑 실패: %s', exc2)
-
-    return _error_result(service_name, source_url, '모든 API 및 스크래핑 시도 실패')
 
 
 def fetch_wos_fees() -> dict:
@@ -428,7 +365,6 @@ def get_all_lightning_swap_fees() -> list[dict]:
         fetch_boltz_fees,
         fetch_boltz_reverse_fees,
         fetch_coinos_fees,
-        fetch_bitflower_fees,
         fetch_bitfreezer_fees,
         fetch_wos_fees,
         fetch_strike_fees,

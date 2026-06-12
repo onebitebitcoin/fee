@@ -136,14 +136,14 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
         ),
         LightningSwapFeeSnapshot(
             crawl_run_id=crawl_run.id,
-            service_name='BitFlower',
+            service_name='BitFreezer',
             fee_pct=0.39,
             fee_fixed_sat=0,
             min_amount_sat=1,
             max_amount_sat=1_000_000_000,
             enabled=True,
-            source_url='https://bitflower.com',
-            direction='onchain_to_ln',
+            source_url='https://bitfreezer.vercel.app',
+            direction='ln_to_onchain',
         ),
         LightningSwapFeeSnapshot(
             crawl_run_id=crawl_run.id,
@@ -200,10 +200,9 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
     assert {'mode': 'onchain', 'network': 'Bitcoin'} in payload['available_filters']['global_exit_options']
     assert {'mode': 'lightning', 'network': 'Lightning Network'} in payload['available_filters']['global_exit_options']
     assert 'Coinos' in payload['available_filters']['lightning_exit_providers']
-    # 방향 필터링: buy 모드에는 ln_to_onchain 서비스(Coinos/BitFreezer)만 포함, onchain_to_ln(BitFlower)은 제외
+    # 방향 필터링: buy 모드에는 ln_to_onchain 서비스(Coinos/BitFreezer)만 포함
     lightning_providers_in_paths = {p.get('lightning_exit_provider') for p in payload['all_paths'] if p.get('lightning_exit_provider')}
     assert 'Coinos' in lightning_providers_in_paths
-    assert 'BitFlower' not in lightning_providers_in_paths
     usdt_path = next(path for path in payload['all_paths'] if path['transfer_coin'] == 'USDT' and path['network'] == 'TRC20' and path['global_exit_mode'] == 'onchain')
     # USDT 경로는 글로벌 경유 → global_kyc_status가 채워진다 (buy 모드는 route_variant 미설정)
     assert usdt_path['global_kyc_status'] == 'kyc'
@@ -361,14 +360,14 @@ def test_exchange_status_includes_kyc_metadata(mocker):
         ),
         LightningSwapFeeSnapshot(
             crawl_run_id=crawl_run.id,
-            service_name='BitFlower',
+            service_name='BitFreezer',
             fee_pct=0.39,
             fee_fixed_sat=0,
             min_amount_sat=1,
             max_amount_sat=1_000_000_000,
             enabled=True,
-            source_url='https://bitflower.com',
-            direction='onchain_to_ln',
+            source_url='https://bitfreezer.vercel.app',
+            direction='ln_to_onchain',
         ),
     ])
     db.commit()
