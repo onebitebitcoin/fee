@@ -56,23 +56,21 @@ _USD_KRW_CACHE_TTL = 30
 
 
 def _fetch_usd_krw_realtime() -> float:
-    """Yahoo Finance에서 실시간 USD/KRW 환율 조회. 30초 캐시 적용.
+    """Upbit USDT/KRW 실시간 환율 조회. 30초 캐시 적용.
 
-    open.er-api.com(하루 1회 갱신) 대신 Yahoo Finance KRW=X ticker를 사용해
-    kimpga 등 주요 사이트와 동일한 실시간 포렉스 기준값을 유지한다.
-    실패 시 open.er-api.com fallback.
+    Upbit KRW-USDT 체결가를 USD/KRW 기준값으로 사용한다.
+    실패 시 Dunamu API → open.er-api.com fallback.
     """
     now = time.time()
     if _usd_krw_cache['rate'] is not None and now - _usd_krw_cache['ts'] < _USD_KRW_CACHE_TTL:
         return float(_usd_krw_cache['rate'])
     try:
         r = _requests.get(
-            'https://query1.finance.yahoo.com/v8/finance/chart/KRW=X?interval=1m&range=5m',
-            headers={'User-Agent': 'Mozilla/5.0'},
+            'https://api.upbit.com/v1/ticker?markets=KRW-USDT',
             timeout=5,
         )
         r.raise_for_status()
-        rate = float(r.json()['chart']['result'][0]['meta']['regularMarketPrice'])
+        rate = float(r.json()[0]['trade_price'])
     except Exception:
         rate = float(fetch_usd_krw_rate())
     _usd_krw_cache['rate'] = rate
