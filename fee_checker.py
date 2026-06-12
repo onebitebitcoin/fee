@@ -99,7 +99,20 @@ def _get(url: str, **kwargs) -> requests.Response:
 
 
 def fetch_usd_krw_rate() -> float:
-    """USD/KRW 실시간 환율 조회 (open.er-api.com 무료 API)"""
+    """USD/KRW 실시간 환율 조회.
+
+    1순위: Dunamu(업비트 운영사) 실시간 API — 수분 단위 갱신.
+    2순위: open.er-api.com fallback — 하루 1회 갱신.
+    """
+    try:
+        r = _get("https://quotation-api-cdn.dunamu.com/v1/forex/recent?codes=FRX.KRWUSD")
+        if r.status_code == 200:
+            data = r.json()
+            if data and isinstance(data, list):
+                return float(data[0]["basePrice"])
+    except Exception:
+        pass
+
     r = _get("https://open.er-api.com/v6/latest/USD")
     if r.status_code != 200:
         raise ValueError(f"환율 조회 오류: {r.status_code}")
