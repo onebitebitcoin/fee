@@ -38,6 +38,8 @@ function useExplorerValue() {
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
 
+  const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error'>>({});
+
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
     krw_per_tx_limit: number | null;
     btc_per_tx_max: number | null;
@@ -371,20 +373,39 @@ function useExplorerValue() {
     setPhase('loading');
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
+
+    const initProgress: Record<string, 'loading' | 'done' | 'error'> = {};
+    GLOBAL_EXCHANGES.forEach(g => { initProgress[g] = 'loading'; });
+    setExchangeProgress(initProgress);
+
+    const TIMEOUT_MS = 12_000;
+    function withTimeout<T>(p: Promise<T>): Promise<T | null> {
+      return Promise.race([p, new Promise<null>(res => setTimeout(() => res(null), TIMEOUT_MS))]);
+    }
+
     try {
-      const [tickerRes, kimpRes, ...pathResults] = await Promise.all([
+      const [tickerRes, kimpRes] = await Promise.all([
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
         api.getLiveKimp().catch(() => null),
-        ...GLOBAL_EXCHANGES.map(g =>
-          api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
-        ),
       ]);
       if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
+
       const byGlobal: Record<string, CheapestPathResponse> = {};
-      GLOBAL_EXCHANGES.forEach((g, i) => {
-        const r = pathResults[i];
-        if (r && !r.error) byGlobal[g] = r;
-      });
+      await Promise.all(
+        GLOBAL_EXCHANGES.map(async g => {
+          try {
+            const r = await withTimeout(
+              api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
+            );
+            const status = r && !r.error ? 'done' : 'error';
+            setExchangeProgress(prev => ({ ...prev, [g]: status }));
+            if (r && !r.error) byGlobal[g] = r;
+          } catch {
+            setExchangeProgress(prev => ({ ...prev, [g]: 'error' }));
+          }
+        }),
+      );
+
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');
       setAllData({
         byGlobal,
@@ -467,6 +488,7 @@ function useExplorerValue() {
     showAltPaths, setShowAltPaths,
     withdrawalLimits,
     cautionMap,
+    exchangeProgress,
     amountKrw,
     stepEndRef,
     scrollToStepEnd,

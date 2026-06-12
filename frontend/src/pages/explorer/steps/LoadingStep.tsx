@@ -1,5 +1,7 @@
+import { useExplorer } from '../ExplorerContext';
 import { LoadingScreen } from '../ui';
 
 export function LoadingStep() {
-  return <LoadingScreen />;
+  const { exchangeProgress } = useExplorer();
+  return <LoadingScreen progress={exchangeProgress} />;
 }

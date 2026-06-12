@@ -1,9 +1,9 @@
 // ── 공용 프레젠테이션 컴포넌트 ────────────────────────────────────────────────────
 // 단계 컴포넌트들이 공유하는 표시용 컴포넌트 모음.
 
-import { motion } from 'motion/react';
-import { CheckCircle, Coin, ShieldCheck } from '@phosphor-icons/react';
-import { getExchangeDomain } from '../../lib/exchangeNames';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle, Coin, ShieldCheck, CircleNotch, X } from '@phosphor-icons/react';
+import { getExchangeDomain, fmtEx } from '../../lib/exchangeNames';
 import type { GateItem } from '../../lib/gatemanRegistry';
 import { SPRING_FAST } from './constants';
 
@@ -105,14 +105,22 @@ export function StepDots({ current, total }: { current: number; total: number })
   );
 }
 
-export function LoadingScreen() {
+export function LoadingScreen({
+  progress = {},
+}: {
+  progress?: Record<string, 'loading' | 'done' | 'error'>;
+}) {
+  const exchanges = Object.keys(progress);
+  const doneCount = Object.values(progress).filter(s => s === 'done').length;
+  const total = exchanges.length;
+
   return (
     <motion.div
       key="loading"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col items-center justify-center min-h-[60vh] gap-8"
+      className="flex flex-col items-center justify-center min-h-[60vh] gap-6"
     >
       <motion.div
         animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
@@ -122,10 +130,42 @@ export function LoadingScreen() {
         <Coin weight="fill" className="w-7 h-7 text-acc-amber" />
       </motion.div>
 
-      <div className="text-center space-y-1.5">
+      <div className="text-center space-y-1">
         <p className="text-sm font-semibold text-label-primary">경로 계산 중</p>
-        <p className="text-xs text-label-tertiary">거래소별 실시간 데이터 수집 중...</p>
+        {total > 0 ? (
+          <p className="text-xs text-label-tertiary">{doneCount} / {total} 거래소 완료</p>
+        ) : (
+          <p className="text-xs text-label-tertiary">거래소별 실시간 데이터 수집 중...</p>
+        )}
       </div>
+
+      {total > 0 && (
+        <div className="flex flex-col gap-2 w-56">
+          <AnimatePresence>
+            {exchanges.map(g => {
+              const st = progress[g];
+              return (
+                <motion.div
+                  key={g}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2.5"
+                >
+                  <ExFavicon id={g} size={16} />
+                  <span className="flex-1 text-xs text-label-secondary">{fmtEx(g)}</span>
+                  {st === 'loading' && (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                      <CircleNotch className="w-3.5 h-3.5 text-label-tertiary" />
+                    </motion.div>
+                  )}
+                  {st === 'done' && <CheckCircle weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
+                  {st === 'error' && <X className="w-3.5 h-3.5 text-label-tertiary" />}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
       <div className="w-48 h-1 bg-fill-secondary rounded-full overflow-hidden relative">
         <div className="scan-line h-full rounded-full" />
