@@ -60,6 +60,8 @@ export function InputStep() {
                     <span className="opacity-60">
                       {btcPrice.fetchedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })}
                     </span>
+                    {' · '}
+                    <span className="opacity-50">Binance · Yahoo Finance</span>
                   </p>
                 )}
               </div>
