@@ -88,7 +88,7 @@ def get_kyc_registry(force_refresh: bool = False) -> dict[str, dict]:
             _logger.warning('Failed to load playground KYC registry: %s', exc)
             if _cache['registry']:
                 return dict(_cache['registry'])
-            raise
+            return {}  # API 불가 + 캐시 없음 → KYC 없이 진행
         _cache['registry'] = dict(registry)
         _cache['expires_at'] = now + _CACHE_TTL_SECONDS
         return dict(_cache['registry'])
