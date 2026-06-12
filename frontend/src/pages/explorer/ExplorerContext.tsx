@@ -400,7 +400,6 @@ function useExplorerValue() {
       const s: FlowState = { coin, globalExitMethod, swapSvc };
       const prev = flowPrev(phase, s);
       if (prev) {
-        skipPopstate.current = true;
         history.pushState({ phase: prev }, '');
         setDir(-1);
         setPhase(prev);

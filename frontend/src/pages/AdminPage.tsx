@@ -890,9 +890,13 @@ function CrawlStatusPanel() {
             )}
             {run && !isRunning && (
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                run.status === 'completed' ? 'bg-acc-green/10 text-acc-green' : 'bg-acc-red/10 text-acc-red'
+                run.status === 'success'
+                  ? 'bg-acc-green/10 text-acc-green'
+                  : run.status === 'partial_success'
+                    ? 'bg-acc-amber/10 text-acc-amber'
+                    : 'bg-acc-red/10 text-acc-red'
               }`}>
-                {run.status === 'completed' ? '완료' : '실패'}
+                {run.status === 'success' ? '완료' : run.status === 'partial_success' ? '일부 완료' : '실패'}
               </span>
             )}
             {run && (
@@ -927,9 +931,15 @@ function CrawlStatusPanel() {
 
         {data && (
           <div className="flex items-center gap-3 text-xs pt-1 border-t border-sys-separator">
-            <span className="text-label-tertiary">전체 {data.exchanges.length}개 거래소</span>
-            <span className="text-acc-green font-semibold">{totalPass}개 정상</span>
-            {totalFail > 0 && <span className="text-acc-red font-semibold">{totalFail}개 오류</span>}
+            <span className="text-label-tertiary">전체 {data.exchanges.length}개</span>
+            <span className="text-acc-green font-semibold">성공 {totalPass}</span>
+            <span className={totalFail > 0 ? 'text-acc-red font-semibold' : 'text-label-tertiary'}>
+              실패 {totalFail}
+            </span>
+            {(() => {
+              const missing = data.exchanges.length - totalPass - totalFail;
+              return missing > 0 ? <span className="text-label-tertiary">미수집 {missing}</span> : null;
+            })()}
           </div>
         )}
       </div>
