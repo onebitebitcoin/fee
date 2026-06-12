@@ -205,6 +205,91 @@ function GlobalExchangeTable({
   );
 }
 
+// ── Caution Panel ─────────────────────────────────────────────────────────────
+
+function CautionPanel({ group, exchanges }: {
+  group: 'korea' | 'global';
+  exchanges: { id: string; name: string }[];
+}) {
+  const ADMIN_KEY = import.meta.env.VITE_ADMIN_API_KEY ?? 'dev-secret-key';
+  const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string }>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [msg, setMsg] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    api.getCaution().then(data => {
+      const init: Record<string, { caution: boolean; reason: string }> = {};
+      for (const ex of exchanges) {
+        init[ex.id] = { caution: data[ex.id]?.caution ?? false, reason: data[ex.id]?.reason ?? '' };
+      }
+      setCautionMap(init);
+    }).catch(() => {});
+  }, [exchanges]);
+
+  async function save(id: string) {
+    const cur = cautionMap[id];
+    if (!cur) return;
+    setSaving(s => ({ ...s, [id]: true }));
+    try {
+      await api.updateCaution(id, group, cur.caution, cur.reason || null, ADMIN_KEY);
+      setMsg(m => ({ ...m, [id]: '저장됨' }));
+      setTimeout(() => setMsg(m => { const n = { ...m }; delete n[id]; return n; }), 2000);
+    } catch {
+      setMsg(m => ({ ...m, [id]: '저장 실패' }));
+      setTimeout(() => setMsg(m => { const n = { ...m }; delete n[id]; return n; }), 2000);
+    } finally {
+      setSaving(s => ({ ...s, [id]: false }));
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {exchanges.map(ex => {
+        const cur = cautionMap[ex.id] ?? { caution: false, reason: '' };
+        return (
+          <div key={ex.id} className="flex items-start gap-3 py-2.5 border-b border-sys-separator last:border-0">
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-label-primary mb-1.5">{ex.name}</p>
+              <input
+                value={cur.reason}
+                onChange={e => setCautionMap(m => ({ ...m, [ex.id]: { ...cur, reason: e.target.value } }))}
+                disabled={!cur.caution}
+                placeholder={cur.caution ? '유의 이유 입력...' : '유의 해제 상태'}
+                className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-3 py-1.5 text-xs outline-none focus:border-acc-amber/50 disabled:bg-fill-tertiary disabled:text-label-disabled"
+              />
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pt-0.5">
+              <button
+                onClick={() => setCautionMap(m => ({ ...m, [ex.id]: { ...cur, caution: !cur.caution } }))}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  cur.caution
+                    ? 'bg-acc-red/10 text-acc-red'
+                    : 'bg-fill-secondary text-label-tertiary'
+                }`}
+              >
+                {cur.caution ? '유의' : '정상'}
+              </button>
+              <button
+                onClick={() => save(ex.id)}
+                disabled={saving[ex.id]}
+                className={`text-[10px] px-2 py-0.5 rounded-lg transition-colors ${
+                  msg[ex.id] === '저장됨'
+                    ? 'text-acc-green'
+                    : msg[ex.id] === '저장 실패'
+                    ? 'text-acc-red'
+                    : 'text-acc-amber hover:text-acc-orange'
+                }`}
+              >
+                {saving[ex.id] ? '...' : msg[ex.id] ?? '저장'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Edge Properties Section ───────────────────────────────────────────────────
 
 function EdgePropertiesSection() {
@@ -438,29 +523,45 @@ export function AdminPage() {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-6">
         {(tab === 'korean' || tab === 'global' || tab === 'edges') && (
-          <div className="ios-card rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-sys-separator">
-              <p className="text-xs text-label-secondary">
-                {tab === 'korean' && '국내 거래소 노드 속성 — 셀을 클릭해 편집. 저장 후 메인 화면에 반영됩니다.'}
-                {tab === 'global' && '해외 거래소 노드 속성 — 셀을 클릭해 편집. 미국세금신고(FATCA) 버튼으로 토글.'}
-                {tab === 'edges'  && '출금 엣지(Transfer Edge) 속성 정의 — 크롤링 데이터는 실시간 갱신됨.'}
-              </p>
+          <div className="space-y-4">
+            <div className="ios-card rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-sys-separator">
+                <p className="text-xs text-label-secondary">
+                  {tab === 'korean' && '국내 거래소 노드 속성 — 셀을 클릭해 편집. 저장 후 메인 화면에 반영됩니다.'}
+                  {tab === 'global' && '해외 거래소 노드 속성 — 셀을 클릭해 편집. 미국세금신고(FATCA) 버튼으로 토글.'}
+                  {tab === 'edges'  && '출금 엣지(Transfer Edge) 속성 정의 — 크롤링 데이터는 실시간 갱신됨.'}
+                </p>
+              </div>
+              <div className="p-4">
+                {tab === 'korean' && (
+                  <KoreanExchangeTable
+                    nodes={settings.koreanNodes}
+                    onChange={nodes => setSettings(s => ({ ...s, koreanNodes: nodes }))}
+                  />
+                )}
+                {tab === 'global' && (
+                  <GlobalExchangeTable
+                    nodes={settings.globalNodes}
+                    onChange={nodes => setSettings(s => ({ ...s, globalNodes: nodes }))}
+                  />
+                )}
+                {tab === 'edges' && <EdgePropertiesSection />}
+              </div>
             </div>
-            <div className="p-4">
-              {tab === 'korean' && (
-                <KoreanExchangeTable
-                  nodes={settings.koreanNodes}
-                  onChange={nodes => setSettings(s => ({ ...s, koreanNodes: nodes }))}
-                />
-              )}
-              {tab === 'global' && (
-                <GlobalExchangeTable
-                  nodes={settings.globalNodes}
-                  onChange={nodes => setSettings(s => ({ ...s, globalNodes: nodes }))}
-                />
-              )}
-              {tab === 'edges' && <EdgePropertiesSection />}
-            </div>
+            {(tab === 'korean' || tab === 'global') && (
+              <div className="ios-card rounded-2xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-sys-separator">
+                  <p className="text-xs font-semibold text-label-primary">유의 거래소 설정</p>
+                  <p className="text-[11px] text-label-tertiary mt-0.5">유의로 설정하면 거래소 리스트에 "유의" 뱃지가 표시됩니다.</p>
+                </div>
+                <div className="p-4">
+                  <CautionPanel
+                    group={tab === 'korean' ? 'korea' : 'global'}
+                    exchanges={(tab === 'korean' ? settings.koreanNodes : settings.globalNodes).map(n => ({ id: n.id, name: n.name }))}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
         {tab === 'gateman' && <GatemanRegistryPanel />}

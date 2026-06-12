@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
 from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot, KoreaWithdrawalLimitSnapshot
+from backend.app.db.models import ExchangeCautionInfo
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -200,3 +201,28 @@ def get_latest_korea_withdrawal_limits(db: Session) -> list[KoreaWithdrawalLimit
         (KoreaWithdrawalLimitSnapshot.recorded_at == subq.c.max_ts),
     )
     return list(db.scalars(stmt))
+
+
+def get_all_caution_info(db: Session) -> list[ExchangeCautionInfo]:
+    return list(db.scalars(select(ExchangeCautionInfo)))
+
+
+def upsert_caution_info(
+    db: Session,
+    exchange_id: str,
+    group: str,
+    caution: bool,
+    reason: str | None,
+) -> ExchangeCautionInfo:
+    from datetime import datetime, UTC
+    row = db.get(ExchangeCautionInfo, exchange_id)
+    if row is None:
+        row = ExchangeCautionInfo(exchange_id=exchange_id, group=group, caution=caution, caution_reason=reason)
+        db.add(row)
+    else:
+        row.caution = caution
+        row.caution_reason = reason
+        row.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(row)
+    return row

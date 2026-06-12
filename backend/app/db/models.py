@@ -219,6 +219,17 @@ class CarfExchangeInfo(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ExchangeCautionInfo(Base):
+    """어드민이 설정한 거래소별 유의 플래그 및 사유."""
+    __tablename__ = 'exchange_caution_info'
+
+    exchange_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    group: Mapped[str] = mapped_column(String(16), nullable=False)  # 'korea' | 'global'
+    caution: Mapped[bool] = mapped_column(Boolean, default=False)
+    caution_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AdminConfig(Base):
     __tablename__ = 'admin_config'
 

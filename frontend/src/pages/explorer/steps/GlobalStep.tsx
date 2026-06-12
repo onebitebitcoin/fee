@@ -11,6 +11,7 @@ export function GlobalStep() {
   const {
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
+    cautionMap,
   } = useExplorer();
   return (
     <>
@@ -40,7 +41,15 @@ export function GlobalStep() {
                           <div className="flex items-center gap-2.5 min-w-0">
                             <ExFavicon id={exchange} size={22} />
                             <div>
-                              <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                                {cautionMap[exchange]?.caution && (
+                                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-acc-red/10 text-acc-red flex-shrink-0">유의</span>
+                                )}
+                              </div>
+                              {cautionMap[exchange]?.caution && cautionMap[exchange].reason && (
+                                <p className="text-[11px] text-acc-red mt-0.5 leading-relaxed">{cautionMap[exchange].reason}</p>
+                              )}
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 {tradingComp?.rate_pct != null && (
                                   <span className="text-[10px] text-label-tertiary num">

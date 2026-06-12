@@ -124,4 +124,20 @@ export const api = {
       scraped_at: number | null;
     }>;
   }> => request('/api/v1/market/withdrawal-limits/latest'),
+
+  getCaution: (): Promise<Record<string, { caution: boolean; reason: string | null }>> =>
+    request('/api/v1/exchanges/caution'),
+
+  updateCaution: (
+    exchangeId: string,
+    group: string,
+    caution: boolean,
+    reason: string | null,
+    adminKey: string,
+  ): Promise<{ exchange_id: string; caution: boolean; reason: string | null }> =>
+    request(`/api/v1/exchanges/caution/${exchangeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adminKey },
+      body: JSON.stringify({ group, caution, reason }),
+    }),
 };

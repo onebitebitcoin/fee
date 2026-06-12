@@ -36,6 +36,8 @@ function useExplorerValue() {
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
+  const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
+
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
     krw_per_tx_limit: number | null;
     btc_per_tx_max: number | null;
@@ -68,6 +70,10 @@ function useExplorerValue() {
     api.getWithdrawalLimits().then(res => {
       setWithdrawalLimits(res.limits);
     }).catch(() => { /* keep static DOMESTIC_INFO fallback */ });
+  }, []);
+
+  useEffect(() => {
+    api.getCaution().then(setCautionMap).catch(() => { /* keep empty */ });
   }, []);
 
   // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
@@ -460,6 +466,7 @@ function useExplorerValue() {
     displaySats,
     showAltPaths, setShowAltPaths,
     withdrawalLimits,
+    cautionMap,
     amountKrw,
     stepEndRef,
     scrollToStepEnd,

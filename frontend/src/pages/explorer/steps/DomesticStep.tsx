@@ -11,6 +11,7 @@ export function DomesticStep() {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp,
     kimpFetchedAt, kimpInfoOpen, setKimpInfoOpen, btcPrice, withdrawalLimits, stepEndRef,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
+    cautionMap,
   } = useExplorer();
   return (
     <>
@@ -74,7 +75,13 @@ export function DomesticStep() {
                         <div className="flex items-center gap-2.5 mb-2.5">
                           <ExFavicon id={exchange} size={22} />
                           <p className="text-sm font-semibold text-label-primary">{fmtEx(exchange)}</p>
+                          {cautionMap[exchange]?.caution && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-acc-red/10 text-acc-red flex-shrink-0">유의</span>
+                          )}
                         </div>
+                        {cautionMap[exchange]?.caution && cautionMap[exchange].reason && (
+                          <p className="text-[11px] text-acc-red mb-2 leading-relaxed">{cautionMap[exchange].reason}</p>
+                        )}
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <p className="text-[9px] text-label-tertiary uppercase tracking-wide">24시간 거래량</p>
