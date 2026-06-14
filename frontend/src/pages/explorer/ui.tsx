@@ -107,12 +107,38 @@ export function StepDots({ current, total }: { current: number; total: number })
 
 export function LoadingScreen({
   progress = {},
+  domesticKeys = [],
 }: {
   progress?: Record<string, 'loading' | 'done' | 'error'>;
+  domesticKeys?: string[];
 }) {
-  const exchanges = Object.keys(progress);
+  const allKeys = Object.keys(progress);
+  const domesticInProgress = domesticKeys.filter(k => k in progress);
+  const globalKeys = allKeys.filter(k => !domesticKeys.includes(k));
   const doneCount = Object.values(progress).filter(s => s === 'done').length;
-  const total = exchanges.length;
+  const total = allKeys.length;
+
+  const renderItem = (g: string) => {
+    const st = progress[g];
+    return (
+      <motion.div
+        key={g}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-2.5"
+      >
+        <ExFavicon id={g} size={16} />
+        <span className="flex-1 text-xs text-label-secondary">{fmtEx(g)}</span>
+        {st === 'loading' && (
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+            <CircleNotch className="w-3.5 h-3.5 text-label-tertiary" />
+          </motion.div>
+        )}
+        {st === 'done' && <CheckCircle weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
+        {st === 'error' && <X className="w-3.5 h-3.5 text-label-tertiary" />}
+      </motion.div>
+    );
+  };
 
   return (
     <motion.div
@@ -141,29 +167,21 @@ export function LoadingScreen({
 
       {total > 0 && (
         <div className="flex flex-col gap-2 w-56">
-          <AnimatePresence>
-            {exchanges.map(g => {
-              const st = progress[g];
-              return (
-                <motion.div
-                  key={g}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2.5"
-                >
-                  <ExFavicon id={g} size={16} />
-                  <span className="flex-1 text-xs text-label-secondary">{fmtEx(g)}</span>
-                  {st === 'loading' && (
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                      <CircleNotch className="w-3.5 h-3.5 text-label-tertiary" />
-                    </motion.div>
-                  )}
-                  {st === 'done' && <CheckCircle weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
-                  {st === 'error' && <X className="w-3.5 h-3.5 text-label-tertiary" />}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+          {domesticInProgress.length > 0 && (
+            <>
+              <p className="text-[10px] text-label-tertiary font-medium uppercase tracking-wide mb-0.5">국내</p>
+              <AnimatePresence>{domesticInProgress.map(renderItem)}</AnimatePresence>
+            </>
+          )}
+          {domesticInProgress.length > 0 && globalKeys.length > 0 && (
+            <div className="border-t border-fill-tertiary my-1" />
+          )}
+          {globalKeys.length > 0 && (
+            <>
+              <p className="text-[10px] text-label-tertiary font-medium uppercase tracking-wide mb-0.5">해외</p>
+              <AnimatePresence>{globalKeys.map(renderItem)}</AnimatePresence>
+            </>
+          )}
         </div>
       )}
 

@@ -12,7 +12,7 @@ import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../../t
 import type { Phase, CoinType, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
-import { GLOBAL_EXCHANGES, bestByBtc } from './constants';
+import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByBtc } from './constants';
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
@@ -374,7 +374,9 @@ function useExplorerValue() {
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
 
+    const DOMESTIC_EXCHANGES = Object.keys(DOMESTIC_INFO);
     const initProgress: Record<string, 'loading' | 'done' | 'error'> = {};
+    DOMESTIC_EXCHANGES.forEach(d => { initProgress[d] = 'loading'; });
     GLOBAL_EXCHANGES.forEach(g => { initProgress[g] = 'loading'; });
     setExchangeProgress(initProgress);
 
@@ -388,6 +390,13 @@ function useExplorerValue() {
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
         api.getLiveKimp().catch(() => null),
       ]);
+      // 국내 거래소 데이터는 ticker API로 수집 — 완료 표시
+      const domesticStatus = tickerRes.items.length > 0 ? 'done' : 'error';
+      setExchangeProgress(prev => {
+        const next = { ...prev };
+        DOMESTIC_EXCHANGES.forEach(d => { next[d] = domesticStatus; });
+        return next;
+      });
       if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
 
       const byGlobal: Record<string, CheapestPathResponse> = {};
@@ -407,6 +416,8 @@ function useExplorerValue() {
       );
 
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');
+      // 모든 해외 거래소 완료 후 UI에 최종 상태가 표시되도록 잠시 대기
+      await new Promise(res => setTimeout(res, 400));
       setAllData({
         byGlobal,
         tickers: tickerRes.items,
