@@ -648,17 +648,16 @@ def fetch_kraken_withdrawal(coin: str) -> list:
         resp = _get(WITHDRAWAL_API_SOURCE_URLS["kraken"])
         if resp.status_code != 200:
             raise ValueError(f"Kraken USDT 출금 수수료 조회 실패: {resp.status_code}")
-        # 페이지가 임베디드 JSON 구조로 변경됨 (2024~)
-        # "asset":"USDT",...,"withdrawal_network_info":{"network":"Ethereum"...},"fee":"0.4469","min_amount":"0.53628"
+        # name_display 필드 기준 매칭 (2025~ JSON 구조)
         results = _extract_kraken_table_fee(resp.text, [
-            ("ERC20", r'"asset":"USDT"[^}]*?"withdrawal_network_info":\{"network":"Ethereum"[^}]*?\}[^{}]*?"fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]+)"'),
-            ("TRC20", r'"asset":"USDT"[^}]*?"withdrawal_network_info":\{"network":"Tron"[^}]*?\}[^{}]*?"fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]+)"'),
+            ("ERC20", r'"name_display":"USDT - Ethereum","fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]*)"'),
+            ("TRC20", r'"name_display":"USDT - Tron","fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]*)"'),
         ])
         if not results:
-            # 레거시 prose 포맷 fallback (페이지 롤백 대비)
+            # 이전 JSON 구조 fallback
             results = _extract_kraken_table_fee(resp.text, [
-                ("ERC20", r"Tether\s*\(Ethereum\).*?Withdrawal fee\s*(?P<fee>[0-9.]+)\s*USDT.*?Minimum\s*(?P<min>[0-9.]+)\s*USDT"),
-                ("TRC20", r"Tether\s*\(Tron\).*?Withdrawal fee\s*(?P<fee>[0-9.]+)\s*USDT.*?Minimum\s*(?P<min>[0-9.]+)\s*USDT"),
+                ("ERC20", r'"asset":"USDT"[^}]*?"withdrawal_network_info":\{"network":"Ethereum"[^}]*?\}[^{}]*?"fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]+)"'),
+                ("TRC20", r'"asset":"USDT"[^}]*?"withdrawal_network_info":\{"network":"Tron"[^}]*?\}[^{}]*?"fee":"(?P<fee>[0-9.]+)","min_amount":"(?P<min>[0-9.]+)"'),
             ])
         if not results:
             raise ValueError("Kraken USDT 출금 수수료 스크래핑 실패")

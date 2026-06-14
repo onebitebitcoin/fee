@@ -446,12 +446,8 @@ class TestGetScrapedWithdrawal:
         }]
 
     def test_kraken_usdt_scrapes_official_support_article(self, monkeypatch):
-        html = """
-        <html><body>
-        Tether (Ethereum) Withdrawal fee 2.3 USDT Minimum 10 USDT
-        Tether (Tron) Withdrawal fee 1.0 USDT Minimum 5 USDT
-        </body></html>
-        """
+        # 2025~ Kraken 페이지 JSON 구조 (name_display 필드 기준)
+        html = '{"data":[{"name_display":"USDT - Ethereum","fee":"2.3","min_amount":"10.0"},{"name_display":"USDT - Tron","fee":"1.0","min_amount":"5.0"}]}'
 
         class DummyResponse:
             status_code = 200

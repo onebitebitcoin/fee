@@ -443,6 +443,9 @@ function useExplorerValue() {
         history.pushState({ phase: prev }, '');
         setDir(-1);
         setPhase(prev);
+      } else if (phase === 'domestic') {
+        setDir(-1);
+        setPhase('input');
       }
     };
     window.addEventListener('popstate', onPopstate);
@@ -454,6 +457,8 @@ function useExplorerValue() {
     const prev = flowPrev(phase, s);
     if (prev) {
       history.back();
+    } else if (phase === 'domestic') {
+      reset();
     }
   }
 
