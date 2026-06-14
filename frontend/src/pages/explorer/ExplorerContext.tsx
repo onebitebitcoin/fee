@@ -38,8 +38,9 @@ function useExplorerValue() {
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
 
-  const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error'>>({});
+  const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
+  const [failedGlobalExchanges, setFailedGlobalExchanges] = useState<string[]>([]);
 
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
     krw_per_tx_limit: number | null;
@@ -375,16 +376,36 @@ function useExplorerValue() {
     setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
+    setFailedGlobalExchanges([]);
 
     const DOMESTIC_EXCHANGES = Object.keys(DOMESTIC_INFO);
-    const initProgress: Record<string, 'loading' | 'done' | 'error'> = {};
+    const initProgress: Record<string, 'loading' | 'done' | 'error' | 'retrying'> = {};
     DOMESTIC_EXCHANGES.forEach(d => { initProgress[d] = 'loading'; });
     GLOBAL_EXCHANGES.forEach(g => { initProgress[g] = 'loading'; });
     setExchangeProgress(initProgress);
 
-    const TIMEOUT_MS = 12_000;
+    const TIMEOUT_MS = 15_000;
+    const MAX_RETRIES = 2;
     function withTimeout<T>(p: Promise<T>): Promise<T | null> {
       return Promise.race([p, new Promise<null>(res => setTimeout(() => res(null), TIMEOUT_MS))]);
+    }
+
+    async function fetchExchangeWithRetry(g: string): Promise<CheapestPathResponse | null> {
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          setExchangeProgress(prev => ({ ...prev, [g]: 'retrying' }));
+          await new Promise(res => setTimeout(res, 3000));
+        }
+        try {
+          const r = await withTimeout(
+            api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
+          );
+          if (r && !r.error) return r;
+        } catch {
+          // continue to next attempt
+        }
+      }
+      return null;
     }
 
     try {
@@ -403,21 +424,21 @@ function useExplorerValue() {
       if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
 
       const byGlobal: Record<string, CheapestPathResponse> = {};
+      const failed: string[] = [];
       await Promise.all(
         GLOBAL_EXCHANGES.map(async g => {
-          try {
-            const r = await withTimeout(
-              api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
-            );
-            const status = r && !r.error ? 'done' : 'error';
-            setExchangeProgress(prev => ({ ...prev, [g]: status }));
-            if (r && !r.error) byGlobal[g] = r;
-          } catch {
+          const r = await fetchExchangeWithRetry(g);
+          if (r) {
+            byGlobal[g] = r;
+            setExchangeProgress(prev => ({ ...prev, [g]: 'done' }));
+          } else {
+            failed.push(g);
             setExchangeProgress(prev => ({ ...prev, [g]: 'error' }));
           }
         }),
       );
 
+      setFailedGlobalExchanges(failed);
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');
       // 최소 2초 표시 보장: 캐시 응답이 빠를 때도 완료 상태가 화면에 보이도록
       const elapsed = Date.now() - loadingStartedAt;
@@ -486,6 +507,7 @@ function useExplorerValue() {
     setPhase('input'); setAllData(null); setError(null); setLoadingDone(false);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
+    setFailedGlobalExchanges([]);
   }
 
   return {
@@ -514,6 +536,7 @@ function useExplorerValue() {
     cautionMap,
     exchangeProgress,
     loadingDone,
+    failedGlobalExchanges,
     amountKrw,
     stepEndRef,
     scrollToStepEnd,

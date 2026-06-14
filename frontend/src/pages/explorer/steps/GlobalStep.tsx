@@ -1,8 +1,8 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Globe, Warning } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Globe, Warning, WarningCircle } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { getGlobalGates } from '../../../lib/gatemanRegistry';
-import { GLOBAL_INFO, RISK_LABEL, RISK_COLOR, SPRING_FAST, SPRING_SLOW } from '../constants';
+import { GLOBAL_EXCHANGES, GLOBAL_INFO, RISK_LABEL, RISK_COLOR, SPRING_FAST, SPRING_SLOW } from '../constants';
 import type { GlobalExchange } from '../constants';
 import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
@@ -11,8 +11,15 @@ export function GlobalStep() {
   const {
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
-    cautionMap,
+    cautionMap, failedGlobalExchanges,
   } = useExplorer();
+
+  // 조회 성공한 거래소 목록
+  const successExchangeIds = new Set(globalOptions.map(o => o.exchange));
+  // GLOBAL_EXCHANGES 순서 유지하며 실패 거래소만 추출
+  const failedInOrder = GLOBAL_EXCHANGES.filter(
+    g => failedGlobalExchanges.includes(g) && !successExchangeIds.has(g),
+  );
   return (
     <>
               <div>
@@ -64,6 +71,24 @@ export function GlobalStep() {
                     </motion.div>
                   );
                 })}
+                {failedInOrder.map((exchange, i) => (
+                  <motion.div key={exchange}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...SPRING_SLOW, delay: (globalOptions.length + i) * 0.04 }}>
+                    <div className="rounded-2xl border border-fill-tertiary bg-fill-secondary/40 p-3.5 opacity-60">
+                      <div className="flex items-center gap-2.5">
+                        <ExFavicon id={exchange} size={22} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-label-secondary">{fmtEx(exchange)}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <WarningCircle className="w-3 h-3 text-acc-red flex-shrink-0" weight="fill" />
+                            <p className="text-[11px] text-acc-red">조회 실패 — 데이터를 불러오지 못했어요</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
               {global && (() => {
                 const info = GLOBAL_INFO[global];

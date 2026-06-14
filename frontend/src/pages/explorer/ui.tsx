@@ -110,7 +110,7 @@ export function LoadingScreen({
   domesticKeys = [],
   isReady = false,
 }: {
-  progress?: Record<string, 'loading' | 'done' | 'error'>;
+  progress?: Record<string, 'loading' | 'done' | 'error' | 'retrying'>;
   domesticKeys?: string[];
   isReady?: boolean;
 }) {
@@ -131,10 +131,15 @@ export function LoadingScreen({
       >
         <ExFavicon id={g} size={16} />
         <span className="flex-1 text-xs text-label-secondary">{fmtEx(g)}</span>
-        {st === 'loading' && (
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-            <CircleNotch className="w-3.5 h-3.5 text-label-tertiary" />
-          </motion.div>
+        {(st === 'loading' || st === 'retrying') && (
+          <div className="flex items-center gap-1">
+            {st === 'retrying' && (
+              <span className="text-[10px] text-acc-amber">재시도</span>
+            )}
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+              <CircleNotch className={`w-3.5 h-3.5 ${st === 'retrying' ? 'text-acc-amber' : 'text-label-tertiary'}`} />
+            </motion.div>
+          </div>
         )}
         {st === 'done' && <CheckCircle weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
         {st === 'error' && <X className="w-3.5 h-3.5 text-label-tertiary" />}
