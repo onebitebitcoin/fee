@@ -39,6 +39,7 @@ function useExplorerValue() {
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error'>>({});
+  const [loadingDone, setLoadingDone] = useState(false);
 
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
     krw_per_tx_limit: number | null;
@@ -371,6 +372,7 @@ function useExplorerValue() {
   async function handleSearch() {
     if (!amountKrw || amountKrw < 10_000) return;
     setPhase('loading');
+    setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
 
@@ -425,8 +427,7 @@ function useExplorerValue() {
         tickers: tickerRes.items,
         latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
       });
-      history.pushState({ phase: 'domestic' }, '');
-      setPhase('domestic');
+      setLoadingDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
       setPhase('input');
@@ -476,8 +477,13 @@ function useExplorerValue() {
     setPhase(next);
   }
 
+  function handleLoadingNext() {
+    history.pushState({ phase: 'domestic' }, '');
+    setPhase('domestic');
+  }
+
   function reset() {
-    setPhase('input'); setAllData(null); setError(null);
+    setPhase('input'); setAllData(null); setError(null); setLoadingDone(false);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
   }
@@ -507,6 +513,7 @@ function useExplorerValue() {
     withdrawalLimits,
     cautionMap,
     exchangeProgress,
+    loadingDone,
     amountKrw,
     stepEndRef,
     scrollToStepEnd,
@@ -530,6 +537,7 @@ function useExplorerValue() {
     handleSearch,
     handleBack,
     handleNext,
+    handleLoadingNext,
     reset,
   };
 }

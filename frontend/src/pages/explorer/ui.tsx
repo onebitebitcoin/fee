@@ -108,9 +108,11 @@ export function StepDots({ current, total }: { current: number; total: number })
 export function LoadingScreen({
   progress = {},
   domesticKeys = [],
+  isReady = false,
 }: {
   progress?: Record<string, 'loading' | 'done' | 'error'>;
   domesticKeys?: string[];
+  isReady?: boolean;
 }) {
   const allKeys = Object.keys(progress);
   const domesticInProgress = domesticKeys.filter(k => k in progress);
@@ -148,16 +150,24 @@ export function LoadingScreen({
       exit={{ opacity: 0 }}
       className="flex flex-col items-center justify-center min-h-[60vh] gap-6"
     >
-      <motion.div
-        animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
-        transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
-        className="w-14 h-14 rounded-full bg-acc-amber/15 flex items-center justify-center"
-      >
-        <Coin weight="fill" className="w-7 h-7 text-acc-amber" />
-      </motion.div>
+      {isReady ? (
+        <div className="w-14 h-14 rounded-full bg-acc-green/15 flex items-center justify-center">
+          <CheckCircle weight="fill" className="w-7 h-7 text-acc-green" />
+        </div>
+      ) : (
+        <motion.div
+          animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
+          transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+          className="w-14 h-14 rounded-full bg-acc-amber/15 flex items-center justify-center"
+        >
+          <Coin weight="fill" className="w-7 h-7 text-acc-amber" />
+        </motion.div>
+      )}
 
       <div className="text-center space-y-1">
-        <p className="text-sm font-semibold text-label-primary">경로 계산 중</p>
+        <p className="text-sm font-semibold text-label-primary">
+          {isReady ? '조회 완료' : '경로 계산 중'}
+        </p>
         {total > 0 ? (
           <p className="text-xs text-label-tertiary">{doneCount} / {total} 거래소 완료</p>
         ) : (
@@ -185,9 +195,11 @@ export function LoadingScreen({
         </div>
       )}
 
-      <div className="w-48 h-1 bg-fill-secondary rounded-full overflow-hidden relative">
-        <div className="scan-line h-full rounded-full" />
-      </div>
+      {!isReady && (
+        <div className="w-48 h-1 bg-fill-secondary rounded-full overflow-hidden relative">
+          <div className="scan-line h-full rounded-full" />
+        </div>
+      )}
     </motion.div>
   );
 }
