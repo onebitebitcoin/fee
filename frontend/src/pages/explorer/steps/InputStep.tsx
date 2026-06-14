@@ -7,8 +7,39 @@ export function InputStep() {
   const {
     amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, handleSearch,
   } = useExplorer();
+
+  const kimp = btcPrice?.kimchiPremium;
+  const kimpColor = kimp == null
+    ? 'text-label-tertiary'
+    : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green';
+
   return (
     <>
+              {/* BTC 시세 상단 패널 */}
+              {btcPrice && (
+                <div className="ios-card rounded-2xl px-4 py-3 flex items-center">
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] text-label-tertiary mb-0.5">Binance</p>
+                    <p className="text-[13px] font-bold text-label-primary num">
+                      ${btcPrice.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                  <div className="w-px self-stretch bg-separator mx-1" />
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] text-label-tertiary mb-0.5">Upbit</p>
+                    <p className="text-[13px] font-bold text-label-primary num">
+                      ₩{(btcPrice.upbitKrw ?? btcPrice.krw).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div className="w-px self-stretch bg-separator mx-1" />
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] text-label-tertiary mb-0.5">김치 프리미엄</p>
+                    <p className={`text-[13px] font-bold num ${kimpColor}`}>
+                      {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Hero amount input */}
               <div className="ios-card rounded-3xl p-6">
@@ -53,17 +84,6 @@ export function InputStep() {
                 <p className="text-sm text-label-tertiary mt-2 num">
                   = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
                 </p>
-                {btcPrice && (
-                  <p className="text-[11px] text-label-tertiary/60 mt-1.5 num">
-                    BTC ${btcPrice.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })} · ₩{btcPrice.krw.toLocaleString('ko-KR')}
-                    {' '}
-                    <span className="opacity-60">
-                      {btcPrice.fetchedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })}
-                    </span>
-                    {' · '}
-                    <span className="opacity-50">Binance · Upbit</span>
-                  </p>
-                )}
               </div>
 
               {error && (
