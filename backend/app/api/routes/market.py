@@ -50,7 +50,7 @@ class _TtlCache:
 _status_cache = _TtlCache(ttl=60)
 _cheapest_path_cache = _TtlCache(ttl=30)
 
-# Yahoo Finance USD/KRW 실시간 환율 캐시 (30초 TTL)
+# Upbit USDT/KRW 실시간 환율 캐시 (30초 TTL)
 _usd_krw_cache: dict = {'rate': None, 'ts': 0.0}
 _USD_KRW_CACHE_TTL = 30
 
@@ -553,7 +553,7 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
 def _fetch_kimp_data() -> dict | None:
     """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환.
 
-    환율은 Yahoo Finance USD/KRW 실시간 포렉스 기준 (kimpga 등 주요 사이트와 동일한 방식).
+    환율은 Upbit USDT/KRW 실시간 체결가 기준 (30초 TTL 캐시).
     국내 거래소의 USDT/KRW 실거래가를 기준으로 삼으면 거래소별 USDT 수급 차이(역테더 프리미엄)가
     섞여 들어가 "글로벌 시세 대비 국내 시세 괴리"라는 본래 의미가 흐려지므로 채택하지 않는다.
     """

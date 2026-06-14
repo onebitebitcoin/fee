@@ -47,10 +47,10 @@ export function DomesticStep() {
                       <p className="text-[10px] font-mono text-label-secondary">국내BTC ÷ (바이낸스BTC × USD/KRW) − 1</p>
                     </div>
                     <p className="text-[10px] text-label-tertiary leading-relaxed">
-                      Yahoo Finance 실시간 환율(USD/KRW)을 기준으로 계산해요. kimpga 등 주요 김프 사이트와 같은 방식이에요.
+                      업비트 USDT/KRW 실시간 체결가를 환율 기준으로 사용해요. 30초 TTL 캐시로 갱신돼요.
                       국내 거래소의 USDT 시세를 기준으로 삼으면 거래소마다 다른 USDT 수급 차이(역테더 프리미엄)가 섞여 들어가서
-                      "글로벌 시세 대비 국내 시세 괴리"라는 김프 본래의 의미가 흐려져요. 은행 간 실거래 환율을 기준으로 삼아야
-                      더 정확하고 일관된 비교가 가능하기 때문에 원달러 기준을 표준으로 채택했어요.
+                      "글로벌 시세 대비 국내 시세 괴리"라는 김프 본래의 의미가 흐려져요. 업비트 USDT는 거래량이 가장 많고
+                      달러 현물 환율에 가장 근접해 있어 원달러 기준으로 채택했어요.
                     </p>
                   </motion.div>
                 )}
