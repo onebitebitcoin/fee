@@ -386,6 +386,7 @@ function useExplorerValue() {
     }
 
     try {
+      const loadingStartedAt = Date.now();
       const [tickerRes, kimpRes] = await Promise.all([
         api.getTickers().catch(() => ({ last_run: null, items: [] as TickerRow[] })),
         api.getLiveKimp().catch(() => null),
@@ -416,8 +417,9 @@ function useExplorerValue() {
       );
 
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');
-      // 모든 해외 거래소 완료 후 UI에 최종 상태가 표시되도록 잠시 대기
-      await new Promise(res => setTimeout(res, 400));
+      // 최소 2초 표시 보장: 캐시 응답이 빠를 때도 완료 상태가 화면에 보이도록
+      const elapsed = Date.now() - loadingStartedAt;
+      await new Promise(res => setTimeout(res, Math.max(400, 2000 - elapsed)));
       setAllData({
         byGlobal,
         tickers: tickerRes.items,
