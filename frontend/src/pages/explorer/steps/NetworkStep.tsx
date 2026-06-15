@@ -66,7 +66,7 @@ export function NetworkStep() {
         {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url, notice_published_at }, i) => {
           const linkUrl = notice_url ?? noticeUrl;
           const dateStr = notice_published_at
-            ? new Date(notice_published_at * 1000).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
+            ? new Date(typeof notice_published_at === 'number' ? notice_published_at * 1000 : notice_published_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
             : null;
           return (
             <motion.div key={`disabled-${n}`}
