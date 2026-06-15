@@ -38,6 +38,12 @@ function useExplorerValue() {
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
 
+  // ── 추천 경로 필터 (제외 필터) ──────────────────────────────────────────────────
+  const [excludeExchanges, setExcludeExchanges] = useState<Set<string>>(new Set());
+  const [excludeServices,  setExcludeServices]  = useState<Set<string>>(new Set());
+  const [excludeOnchain,   setExcludeOnchain]   = useState(false);
+  const [excludeLightning, setExcludeLightning] = useState(false);
+
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -116,14 +122,13 @@ function useExplorerValue() {
     );
   }, [allData]);
 
-  const topRecommendedPaths = useMemo(() => {
+  // 필터 적용 전 전체 dedup+sort 목록 (필터 옵션 도출용)
+  const allRecommendedPaths = useMemo(() => {
     if (!allPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
-    // 각 고유 경로(국내거래소 + 코인타입 + 글로벌거래소 + 네트워크 + 출금방식)별 최고 btc_received 유지
     const getRouteKey = (p: CheapestPathEntry & { _g: string }) => {
       const isUsdt = p.transfer_coin === 'USDT';
       const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
       const coinPart = isUsdt ? 'USDT' : isViaGlobal ? 'BTC_GLOBAL' : 'BTC_DIRECT';
-      // BTC 직접 출금은 글로벌 거래소 무관 → _g 제외
       const globalPart = (isUsdt || isViaGlobal) ? p._g : '';
       return `${p.korean_exchange}|${coinPart}|${globalPart}|${p.network}|${p.global_exit_mode}`;
     };
@@ -133,13 +138,27 @@ function useExplorerValue() {
       const cur = best.get(key);
       if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
     }
-    return [...best.values()]
-      .sort((a, b) => {
-        const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
-        if (diff !== 0) return diff;
-        return (b.btc_received ?? 0) - (a.btc_received ?? 0);
-      });
+    return [...best.values()].sort((a, b) => {
+      const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
+      if (diff !== 0) return diff;
+      return (b.btc_received ?? 0) - (a.btc_received ?? 0);
+    });
   }, [allPaths]);
+
+  // 필터 적용 결과 (화면 표시용)
+  const topRecommendedPaths = useMemo(() => {
+    return allRecommendedPaths.filter(p => {
+      if (excludeExchanges.has(p.korean_exchange)) return false;
+      if (p.path_type === 'lightning_exit') {
+        if (excludeLightning) return false;
+        const svc = p.lightning_exit_provider;
+        if (svc && svc !== '__direct__' && excludeServices.has(svc)) return false;
+      } else {
+        if (excludeOnchain) return false;
+      }
+      return true;
+    });
+  }, [allRecommendedPaths, excludeExchanges, excludeServices, excludeOnchain, excludeLightning]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
@@ -633,6 +652,8 @@ function useExplorerValue() {
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
     setFailedGlobalExchanges([]);
+    setExcludeExchanges(new Set()); setExcludeServices(new Set());
+    setExcludeOnchain(false); setExcludeLightning(false);
   }
 
   return {
@@ -668,7 +689,13 @@ function useExplorerValue() {
     scrollToStepEnd,
     // ── 파생 데이터 ──
     allPaths,
+    allRecommendedPaths,
     topRecommendedPaths,
+    // ── 필터 ──
+    excludeExchanges, setExcludeExchanges,
+    excludeServices,  setExcludeServices,
+    excludeOnchain,   setExcludeOnchain,
+    excludeLightning, setExcludeLightning,
     snapshotKimp,
     domesticBtcKrw,
     koreaVolumeMap,
