@@ -117,17 +117,24 @@ function useExplorerValue() {
 
   const topRecommendedPaths = useMemo(() => {
     if (!allPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
-    const seen = new Set<string>();
-    const result: (CheapestPathEntry & { _g: string })[] = [];
-    const sorted = [...allPaths].sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0));
-    for (const p of sorted) {
-      const key = `${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      result.push(p);
-      if (result.length >= 8) break;
+    // 각 고유 경로(국내거래소 + 코인타입 + 글로벌거래소 + 네트워크 + 출금방식)별 최고 btc_received 유지
+    const getRouteKey = (p: CheapestPathEntry & { _g: string }) => {
+      const isUsdt = p.transfer_coin === 'USDT';
+      const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
+      const coinPart = isUsdt ? 'USDT' : isViaGlobal ? 'BTC_GLOBAL' : 'BTC_DIRECT';
+      // BTC 직접 출금은 글로벌 거래소 무관 → _g 제외
+      const globalPart = (isUsdt || isViaGlobal) ? p._g : '';
+      return `${p.korean_exchange}|${coinPart}|${globalPart}|${p.network}|${p.global_exit_mode}`;
+    };
+    const best = new Map<string, CheapestPathEntry & { _g: string }>();
+    for (const p of allPaths) {
+      const key = getRouteKey(p);
+      const cur = best.get(key);
+      if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
     }
-    return result;
+    return [...best.values()]
+      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0))
+      .slice(0, 10);
   }, [allPaths]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
