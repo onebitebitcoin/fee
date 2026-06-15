@@ -44,7 +44,7 @@ function useExplorerValue() {
   const [excludeServices,        setExcludeServices]        = useState<Set<string>>(new Set());
   const [excludeOnchain,         setExcludeOnchain]         = useState(false);
   const [excludeLightning,       setExcludeLightning]       = useState(false);
-  const [excludeDisabled,        setExcludeDisabled]        = useState(false);
+  const [excludeDisabled,        setExcludeDisabled]        = useState(true);
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
