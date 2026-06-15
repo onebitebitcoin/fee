@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 from backend.app.domain.path_helpers import (
     fee_component,
@@ -14,6 +15,24 @@ from backend.app.domain.path_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def row_from_dict(d: dict) -> SimpleNamespace:
+    """live-fetch 출금 dict를 withdraw_leg가 소비하는 row 객체로 변환.
+
+    live 데이터 키: {'label', 'fee', 'enabled', 'min', 'max', 'fee_krw'?}
+    → row 속성: network_label / fee / enabled / fee_krw / min_withdrawal / max_withdrawal
+
+    fee_krw는 live dict에 보통 없으므로 None (withdraw_leg가 price_krw로 환산).
+    """
+    return SimpleNamespace(
+        network_label=d.get('label', ''),
+        fee=d.get('fee'),
+        enabled=d.get('enabled', True),
+        fee_krw=d.get('fee_krw'),
+        min_withdrawal=d.get('min'),
+        max_withdrawal=d.get('max'),
+    )
 
 
 @dataclass(frozen=True)
@@ -163,6 +182,101 @@ def global_buy_leg(
         is_fixed=False,
     )
     return Leg(amount_out=btc_out, fee_krw=fee_krw, components=[comp])
+
+
+def global_buy_maker_leg(
+    usdt_in: float,
+    maker_fee: float,
+    convert_spread: float,
+    btc_usd: float,
+    usd_krw: float,
+) -> Leg:
+    """USDT → FDUSD 전환 → BTC/FDUSD 지정가(maker) 매수 엣지 (dynamic 전용).
+
+    USDT를 FDUSD로 전환(스프레드 비용) 후 maker 수수료로 BTC 매수.
+    components: [전환 스프레드, maker 매수 수수료] 2개.
+    """
+    convert_fee_usdt = usdt_in * convert_spread
+    fdusd_amount = usdt_in - convert_fee_usdt
+    convert_fee_krw = round(convert_fee_usdt * usd_krw)
+
+    maker_fee_fdusd = fdusd_amount * maker_fee
+    fdusd_for_btc = fdusd_amount - maker_fee_fdusd
+    btc_out = fdusd_for_btc / btc_usd
+    maker_fee_krw = round(maker_fee_fdusd * usd_krw)
+
+    fee_krw = convert_fee_krw + maker_fee_krw
+    comps = [
+        fee_component(
+            'USDT→FDUSD 전환 스프레드',
+            convert_fee_krw,
+            rate_pct=convert_spread * 100,
+            amount_text=f'{round(convert_fee_usdt, 6)} USDT',
+            is_fixed=False,
+        ),
+        fee_component(
+            f'BTC/FDUSD 매수 수수료 (maker {maker_fee * 100:g}%)',
+            maker_fee_krw,
+            rate_pct=maker_fee * 100,
+            amount_text=f'{round(maker_fee_fdusd, 8)} FDUSD',
+            is_fixed=False,
+        ),
+    ]
+    return Leg(amount_out=btc_out, fee_krw=fee_krw, components=comps)
+
+
+def korea_sell_leg(
+    amount_asset: float,
+    korean_taker: float,
+    korean_price: float,
+    source_asset: str,
+    usd_krw_rate: float,
+) -> Leg:
+    """자산 → KRW 매도 엣지 (매도 방향).
+
+    source_asset: 'BTC'이면 korean_price(원화 시세) 기준, 'USDT'면 usd_krw_rate 기준.
+    Returns Leg(amount_out=수령 KRW, fee_krw=매도 수수료).
+    """
+    if source_asset == 'BTC':
+        gross_krw = amount_asset * korean_price
+        label = '국내 BTC 매도 수수료'
+    else:  # USDT → KRW 전환
+        gross_krw = amount_asset * usd_krw_rate
+        label = '국내 KRW 전환 수수료'
+
+    sell_fee_krw = round(gross_krw * korean_taker)
+    krw_out = round(gross_krw - sell_fee_krw)
+
+    comp = fee_component(
+        label,
+        sell_fee_krw,
+        rate_pct=korean_taker * 100,
+        amount_text=f'{round(amount_asset, 8)} {source_asset}',
+        is_fixed=False,
+    )
+    return Leg(amount_out=krw_out, fee_krw=sell_fee_krw, components=[comp])
+
+
+def global_sell_leg(
+    btc_in: float,
+    global_taker: float,
+    btc_usd: float,
+    usd_krw: float,
+) -> Leg:
+    """글로벌 거래소 BTC → USDT 매도 엣지 (매도 방향)."""
+    gross_usdt = btc_in * btc_usd
+    global_sell_fee_usdt = gross_usdt * global_taker
+    usdt_out = gross_usdt - global_sell_fee_usdt
+    fee_krw = round(global_sell_fee_usdt * usd_krw)
+
+    comp = fee_component(
+        '해외 BTC 매도 수수료',
+        fee_krw,
+        rate_pct=global_taker * 100,
+        amount_text=f'{round(gross_usdt, 8)} USDT',
+        is_fixed=False,
+    )
+    return Leg(amount_out=usdt_out, fee_krw=fee_krw, components=[comp])
 
 
 def swap_leg(

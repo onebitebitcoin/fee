@@ -9,7 +9,18 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.app.domain.path_graph import Blocked, Leg, global_buy_leg, korea_buy_leg, swap_leg, withdraw_leg
+from backend.app.domain.path_graph import (
+    Blocked,
+    Leg,
+    global_buy_leg,
+    global_buy_maker_leg,
+    global_sell_leg,
+    korea_buy_leg,
+    korea_sell_leg,
+    row_from_dict,
+    swap_leg,
+    withdraw_leg,
+)
 
 # 공통 상수
 USD_KRW = 1400.0
@@ -337,3 +348,103 @@ class TestLegInvariant:
         b = Blocked(reason='test')
         with pytest.raises((AttributeError, TypeError)):
             b.reason = 'other'  # type: ignore[misc]
+
+
+# ── row_from_dict 어댑터 ──────────────────────────────────────────────────────
+
+class TestRowFromDict:
+    def test_maps_live_dict_keys_to_row_attrs(self):
+        # Arrange
+        d = {'label': 'Lightning Network', 'fee': 0.000001, 'enabled': True, 'min': 2e-05, 'max': 0.01}
+        # Act
+        row = row_from_dict(d)
+        # Assert
+        assert row.network_label == 'Lightning Network'
+        assert row.fee == 0.000001
+        assert row.enabled is True
+        assert row.fee_krw is None
+        assert row.min_withdrawal == 2e-05
+        assert row.max_withdrawal == 0.01
+
+    def test_missing_keys_default_safely(self):
+        # Arrange — min/max/enabled 누락
+        d = {'label': 'Bitcoin', 'fee': 0.0005}
+        # Act
+        row = row_from_dict(d)
+        # Assert
+        assert row.enabled is True       # 기본 True
+        assert row.min_withdrawal is None
+        assert row.max_withdrawal is None
+
+    def test_adapted_row_works_with_withdraw_leg(self):
+        # Arrange — live dict를 어댑터 통해 withdraw_leg에 투입
+        row = row_from_dict({'label': 'Lightning Network', 'fee': 0.000001, 'enabled': True, 'max': 0.01})
+        # Act — 한도 내
+        ok = withdraw_leg(row, 0.005, coin='BTC', price_krw=KRW_PER_BTC, usd_krw=USD_KRW)
+        # 한도 초과
+        blocked = withdraw_leg(row, 0.5, coin='BTC', price_krw=KRW_PER_BTC, usd_krw=USD_KRW)
+        # Assert
+        assert isinstance(ok, Leg)
+        assert isinstance(blocked, Blocked)
+        assert '최대 한도' in blocked.reason
+
+
+# ── korea_sell_leg (매도) ─────────────────────────────────────────────────────
+
+class TestKoreaSellLeg:
+    def test_btc_sell_subtracts_taker_fee(self):
+        # Arrange — 1 BTC 매도, taker 0.25%
+        # Act
+        leg = korea_sell_leg(1.0, 0.0025, KRW_PER_BTC, 'BTC', USD_KRW)
+        # Assert — gross 1.4억, 수수료 0.25%
+        assert leg.fee_krw == round(KRW_PER_BTC * 0.0025)
+        assert leg.amount_out == round(KRW_PER_BTC - leg.fee_krw)
+        assert 'BTC 매도' in leg.components[0]['label']
+
+    def test_usdt_converts_at_usd_krw(self):
+        # Arrange — 100 USDT → KRW
+        # Act
+        leg = korea_sell_leg(100.0, 0.001, KRW_PER_BTC, 'USDT', USD_KRW)
+        # Assert — gross 100 * 1400
+        gross = 100.0 * USD_KRW
+        assert leg.fee_krw == round(gross * 0.001)
+        assert leg.amount_out == round(gross - leg.fee_krw)
+        assert 'KRW 전환' in leg.components[0]['label']
+
+
+# ── global_sell_leg (매도) ────────────────────────────────────────────────────
+
+class TestGlobalSellLeg:
+    def test_btc_to_usdt_subtracts_taker(self):
+        # Arrange — 0.01 BTC 매도, taker 0.1%
+        # Act
+        leg = global_sell_leg(0.01, 0.001, BTC_USD, USD_KRW)
+        # Assert
+        gross_usdt = 0.01 * BTC_USD
+        assert leg.amount_out == pytest.approx(gross_usdt * (1 - 0.001))
+        assert leg.fee_krw == round(gross_usdt * 0.001 * USD_KRW)
+
+
+# ── global_buy_maker_leg (FDUSD) ─────────────────────────────────────────────
+
+class TestGlobalBuyMakerLeg:
+    def test_convert_spread_and_maker_fee_components(self):
+        # Arrange — 1000 USDT, 전환 스프레드 0.05%, maker 0%
+        # Act
+        leg = global_buy_maker_leg(1000.0, 0.0, 0.0005, BTC_USD, USD_KRW)
+        # Assert — 2개 컴포넌트 (전환 + maker)
+        assert len(leg.components) == 2
+        assert 'FDUSD 전환' in leg.components[0]['label']
+        assert 'maker' in leg.components[1]['label']
+        # maker 0% → maker 수수료 0, 전환 스프레드만
+        convert_fee_usdt = 1000.0 * 0.0005
+        assert leg.fee_krw == round(convert_fee_usdt * USD_KRW)
+
+    def test_btc_out_after_convert_and_maker(self):
+        # Arrange — maker 0.1%, 전환 0.05%
+        # Act
+        leg = global_buy_maker_leg(1000.0, 0.001, 0.0005, BTC_USD, USD_KRW)
+        # Assert — FDUSD 전환 후 maker 매수
+        fdusd = 1000.0 * (1 - 0.0005)
+        btc = (fdusd * (1 - 0.001)) / BTC_USD
+        assert leg.amount_out == pytest.approx(btc)
