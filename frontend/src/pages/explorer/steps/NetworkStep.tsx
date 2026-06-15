@@ -5,31 +5,10 @@ import { SPRING_FAST, SPRING_SLOW, fmtAmountText } from '../constants';
 import { OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
-const NOTICE_URL: Record<string, string> = {
-  bithumb: 'https://feed.bithumb.com/notice',
-  upbit:   'https://upbit.com/service_center/notice',
-  coinone: 'https://coinone.co.kr/support/notice',
-  korbit:  'https://www.korbit.co.kr/board/notice',
-  gopax:   'https://www.gopax.co.kr/help-center',
-};
-
 function formatReason(reason: string | null | undefined): string {
   if (!reason) return '출금 중단';
   if (reason === 'System Maintenance') return '점검 중';
   return reason;
-}
-
-const SUSPENSION_MESSAGE_KO: Record<string, string> = {
-  'In order to protect your assets, we have temporarily disabled withdrawals and deposits.':
-    '자산 보호를 위해 입출금이 일시 중단되었습니다.',
-  'Deposits and withdrawals are temporarily suspended.': '입출금이 일시 중단되었습니다.',
-  'Withdrawals are temporarily suspended.': '출금이 일시 중단되었습니다.',
-  'Deposits are temporarily suspended.': '입금이 일시 중단되었습니다.',
-};
-
-function formatSuspensionMessage(msg: string | null | undefined): string | null {
-  if (!msg) return null;
-  return SUSPENSION_MESSAGE_KO[msg] ?? msg;
 }
 
 export function NetworkStep() {
@@ -37,8 +16,6 @@ export function NetworkStep() {
     network, setNetwork, setSwapSvc, stepEndRef, scrollToStepEnd, networkOptions,
     disabledNetworkOptions, domestic, handleBack, handleNext,
   } = useExplorer();
-
-  const noticeUrl = domestic ? NOTICE_URL[domestic] : undefined;
 
   return (
     <>
@@ -76,8 +53,7 @@ export function NetworkStep() {
           </motion.div>
         ))}
 
-        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url, notice_published_at, notice_title }, i) => {
-          const linkUrl = notice_url ?? noticeUrl;
+        {disabledNetworkOptions.map(({ network: n, reason, notice_url, notice_published_at, notice_title }, i) => {
           const dateStr = notice_published_at
             ? new Date(typeof notice_published_at === 'number' ? notice_published_at * 1000 : notice_published_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
             : null;
@@ -86,34 +62,32 @@ export function NetworkStep() {
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ ...SPRING_SLOW, delay: (networkOptions.length + i) * 0.06 }}>
               <div className="rounded-2xl ios-card px-4 py-3 opacity-50">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <NetworkIcon network={n} size={16} />
                       <p className="text-sm font-bold text-label-primary">{n}</p>
-                      <span className="text-[10px] font-medium text-label-tertiary bg-fill-tertiary px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                      <span className="text-[10px] font-medium text-label-tertiary bg-fill-tertiary px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0">
                         <Warning className="w-3 h-3" weight="bold" />
                         {formatReason(reason)}
                       </span>
                     </div>
-                    {notice_title && (
-                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{notice_title}</p>
+                    {notice_title && notice_url ? (
+                      <a
+                        href={notice_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-0.5 mt-0.5 group"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <p className="text-[10px] text-acc-blue leading-tight">{notice_title}</p>
+                        <ArrowSquareOut className="w-2.5 h-2.5 text-acc-blue shrink-0 mt-0.5" />
+                      </a>
+                    ) : (
+                      <p className="text-[10px] text-label-tertiary mt-0.5">빗썸 API 비활성</p>
                     )}
+                    {dateStr && <p className="text-[9px] text-label-tertiary mt-0.5">{dateStr}</p>}
                   </div>
-                  {linkUrl && (
-                    <a
-                      href={linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex flex-col items-end gap-0.5 shrink-0 ml-2"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <span className="flex items-center gap-0.5 text-[10px] text-acc-blue">
-                        {notice_url ? '공지' : '공지 목록'} <ArrowSquareOut className="w-3 h-3" />
-                      </span>
-                      {dateStr && <span className="text-[9px] text-label-tertiary">{dateStr}</span>}
-                    </a>
-                  )}
                 </div>
               </div>
             </motion.div>
