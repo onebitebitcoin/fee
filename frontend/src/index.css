@@ -110,6 +110,10 @@ body::before {
 }
 .marquee-track:hover { animation-play-state: paused; }
 
+/* ── Scrollbar hidden utility ── */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

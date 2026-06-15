@@ -81,9 +81,9 @@ export function RecommendationStep() {
                   {i + 1}
                 </span>
 
-                {/* Route */}
-                <div className="min-w-0 self-center">
-                  <p className="text-[12px] font-medium text-label-primary truncate">
+                {/* Route — 넘치면 가로 스크롤 */}
+                <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
+                  <p className="text-[12px] font-medium text-label-primary whitespace-nowrap">
                     {routeText(p)}
                   </p>
                 </div>
