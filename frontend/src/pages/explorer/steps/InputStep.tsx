@@ -1,7 +1,35 @@
 import { motion } from 'motion/react';
 import { ArrowRight, CircleNotch, MagnifyingGlass, Warning } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
+import { ExFavicon } from '../ui';
+import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
+
+const EXCHANGES = [
+  'upbit', 'bithumb', 'coinone', 'korbit', 'gopax',
+  'binance', 'okx', 'bybit', 'bitget', 'kraken', 'coinbase', 'gate',
+];
+
+function ExchangeMarquee() {
+  const items = [...EXCHANGES, ...EXCHANGES]; // 두 번 반복 → 끊김 없는 루프
+  return (
+    <div className="overflow-hidden -mx-4 relative">
+      {/* 좌우 fade */}
+      <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+        style={{ background: 'linear-gradient(to right, var(--color-bg-primary), transparent)' }} />
+      <div className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+        style={{ background: 'linear-gradient(to left, var(--color-bg-primary), transparent)' }} />
+      <div className="marquee-track py-1">
+        {items.map((id, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-1.5">
+            <ExFavicon id={id} size={20} />
+            <span className="text-[11px] font-medium text-label-tertiary whitespace-nowrap">{fmtEx(id)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function InputStep() {
   const {
@@ -16,6 +44,9 @@ export function InputStep() {
 
   return (
     <>
+              {/* 지원 거래소 마퀴 */}
+              <ExchangeMarquee />
+
               {/* BTC 시세 상단 패널 */}
               {btcPrice && (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-center">
