@@ -44,6 +44,7 @@ function useExplorerValue() {
   const [excludeServices,        setExcludeServices]        = useState<Set<string>>(new Set());
   const [excludeOnchain,         setExcludeOnchain]         = useState(false);
   const [excludeLightning,       setExcludeLightning]       = useState(false);
+  const [excludeDisabled,        setExcludeDisabled]        = useState(false);
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
@@ -164,9 +165,10 @@ function useExplorerValue() {
       } else {
         if (excludeOnchain) return false;
       }
+      if (excludeDisabled && p.disabled) return false;
       return true;
     });
-  }, [allRecommendedPaths, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning]);
+  }, [allRecommendedPaths, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
@@ -716,6 +718,7 @@ function useExplorerValue() {
     excludeServices,        setExcludeServices,
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
+    excludeDisabled,        setExcludeDisabled,
     snapshotKimp,
     domesticBtcKrw,
     koreaVolumeMap,

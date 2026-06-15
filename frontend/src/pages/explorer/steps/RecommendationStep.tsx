@@ -71,6 +71,7 @@ export function RecommendationStep() {
     excludeServices,        setExcludeServices,
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
+    excludeDisabled,        setExcludeDisabled,
   } = useExplorer();
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -98,10 +99,11 @@ export function RecommendationStep() {
   );
   const hasLightningPaths = allRecommendedPaths.some(p => p.path_type === 'lightning_exit');
   const hasOnchainPaths   = allRecommendedPaths.some(p => p.path_type !== 'lightning_exit');
+  const hasDisabledPaths  = allRecommendedPaths.some(p => p.disabled);
 
   const activeFilterCount =
     excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size +
-    (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0);
+    (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0) + (excludeDisabled ? 1 : 0);
 
   function toggleExchange(id: string) {
     setExcludeExchanges(prev => {
@@ -136,6 +138,7 @@ export function RecommendationStep() {
     setExcludeServices(new Set());
     setExcludeOnchain(false);
     setExcludeLightning(false);
+    setExcludeDisabled(false);
     setVisibleCount(PAGE_SIZE);
   }
 
@@ -179,6 +182,16 @@ export function RecommendationStep() {
             className="overflow-hidden"
           >
             <div className="ios-card rounded-2xl p-4 space-y-4">
+              {/* 비활성화 경로 */}
+              {hasDisabledPaths && (
+                <div>
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">비활성화 경로</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <ToggleChip label="비활성화 제외" active={excludeDisabled} onClick={() => { setExcludeDisabled((o: boolean) => !o); setVisibleCount(PAGE_SIZE); }} />
+                  </div>
+                </div>
+              )}
+
               {/* 출금 방식 */}
               {(hasOnchainPaths || hasLightningPaths) && (
                 <div>
