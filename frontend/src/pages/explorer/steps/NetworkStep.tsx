@@ -1,6 +1,5 @@
 import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, ArrowSquareOut, Warning } from '@phosphor-icons/react';
-import { NetworkIcon } from '../../../components/NetworkIcon';
 import { SPRING_FAST, SPRING_SLOW, fmtAmountText } from '../constants';
 import { OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
@@ -33,9 +32,12 @@ export function NetworkStep() {
               onClick={() => { setNetwork(n); setSwapSvc(null); scrollToStepEnd(); }}
             >
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-label-secondary">{i + 1}</span>
+                  </div>
+                  <div>
                   <div className="flex items-center gap-1.5">
-                    <NetworkIcon network={n} size={16} />
                     <p className="text-sm font-bold text-label-primary">{n}</p>
                   </div>
                   {(() => {
@@ -47,6 +49,7 @@ export function NetworkStep() {
                       </p>
                     );
                   })()}
+                  </div>
                 </div>
               </div>
             </OptionCard>
@@ -62,10 +65,12 @@ export function NetworkStep() {
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ ...SPRING_SLOW, delay: (networkOptions.length + i) * 0.06 }}>
               <div className="rounded-2xl ios-card px-4 py-3 opacity-50">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-label-secondary">{networkOptions.length + i + 1}</span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <NetworkIcon network={n} size={16} />
                       <p className="text-sm font-bold text-label-primary">{n}</p>
                       <span className="text-[10px] font-medium text-label-tertiary bg-fill-tertiary px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0">
                         <Warning className="w-3 h-3" weight="bold" />
