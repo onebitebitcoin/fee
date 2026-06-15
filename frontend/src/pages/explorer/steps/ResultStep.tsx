@@ -26,20 +26,18 @@ export function ResultStep() {
   return (
     <>
               {isDisabled && (
-                <div className="rounded-2xl overflow-hidden border border-label-quaternary/20">
-                  <div className="px-4 py-3 bg-fill-tertiary/70 flex items-start gap-3">
-                    <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[12px] font-bold text-label-primary mb-1">출금 일시 중단 안내</p>
-                      <p className="text-[11px] text-label-secondary leading-snug">
-                        {resultPath.disabled_reason && resultPath.disabled_reason !== 'disabled'
-                          ? resultPath.disabled_reason
-                          : '해당 경로의 출금이 현재 거래소에 의해 비활성화되어 있습니다.'}
-                      </p>
-                      <p className="text-[10px] text-label-tertiary mt-1.5">
-                        아래 수수료는 출금이 재개될 경우의 예상값입니다. 실제 이용 전 거래소 공지를 확인하세요.
-                      </p>
-                    </div>
+                <div className="ios-card rounded-2xl px-4 py-3 flex items-start gap-3">
+                  <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[12px] font-bold text-label-primary mb-1">출금 일시 중단 안내</p>
+                    <p className="text-[11px] text-label-secondary leading-snug">
+                      {resultPath.disabled_reason && resultPath.disabled_reason !== 'disabled'
+                        ? resultPath.disabled_reason
+                        : '해당 경로의 출금이 현재 거래소에 의해 비활성화되어 있습니다.'}
+                    </p>
+                    <p className="text-[10px] text-label-tertiary mt-1.5">
+                      아래 수수료는 출금이 재개될 경우의 예상값입니다. 실제 이용 전 거래소 공지를 확인하세요.
+                    </p>
                   </div>
                 </div>
               )}
@@ -115,7 +113,13 @@ export function ResultStep() {
                         )}
                       </div>
 
-                      {globalPnL != null && (
+                      {globalPnL != null && (() => {
+                        const isUsdtPath = resultPath.transfer_coin === 'USDT';
+                        // USDT 경로: globalPnL과 수수료 차이 = 테더/원달러 환율 차이 효과
+                        // globalPnL = btc_received × globalBtcKrw - amountKrw (음수 = 손실)
+                        // exchangeRateDiff < 0 → 국내 USDT 환율이 포렉스보다 비쌈 (추가 비용)
+                        const exchangeRateDiff = isUsdtPath ? (globalPnL + resultPath.total_fee_krw) : null;
+                        return (
                         <div className="ios-card rounded-2xl px-4 py-3 text-left">
                           <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
                             글로벌 시세 기준
@@ -131,8 +135,25 @@ export function ResultStep() {
                             {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
+                          {isUsdtPath && exchangeRateDiff != null && (
+                            <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-label-tertiary">거래소·출금 수수료</span>
+                                <span className="num text-acc-red">-₩{formatFeeKrw(resultPath.total_fee_krw)}</span>
+                              </div>
+                              {Math.abs(exchangeRateDiff) > 50 && (
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <span className="text-label-tertiary">테더·원달러 환율 차이</span>
+                                  <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                    {exchangeRateDiff < 0 ? '-' : '+'}₩{formatFeeKrw(Math.abs(exchangeRateDiff))}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })()}
