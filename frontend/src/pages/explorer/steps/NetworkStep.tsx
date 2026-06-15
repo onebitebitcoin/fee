@@ -96,8 +96,8 @@ export function NetworkStep() {
                         {formatReason(reason)}
                       </span>
                     </div>
-                    {(notice_title || formatSuspensionMessage(suspension_message)) && (
-                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{notice_title || formatSuspensionMessage(suspension_message)}</p>
+                    {notice_title && (
+                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{notice_title}</p>
                     )}
                   </div>
                   {linkUrl && (
