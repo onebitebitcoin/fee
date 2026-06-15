@@ -147,6 +147,12 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
     return list(db.scalars(stmt))
 
 
+def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
+    """run 무관하게 전체 DB의 공지를 거래소별 최신순으로 반환한다."""
+    stmt = select(ExchangeNotice).order_by(ExchangeNotice.exchange, desc(ExchangeNotice.noticed_at))
+    return list(db.scalars(stmt))
+
+
 def list_carf_exchanges(db: Session) -> list[CarfExchangeInfo]:
     stmt = select(CarfExchangeInfo).order_by(CarfExchangeInfo.type, CarfExchangeInfo.id)
     return list(db.scalars(stmt))

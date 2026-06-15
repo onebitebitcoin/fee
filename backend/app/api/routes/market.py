@@ -446,7 +446,7 @@ def get_cheapest_path_all(
     lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
     crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
     exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
-    notice_rows = repositories.list_notices_for_run(db, latest_run.id) if latest_run else []
+    notice_rows = repositories.get_all_notices_by_exchange(db)
     exchange_notices = _build_notice_lookup(notice_rows)
 
     legacy_rows = [
