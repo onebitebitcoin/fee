@@ -915,7 +915,7 @@ class TestFetchBithumbWithdrawal:
 
         btc = fee_checker.fetch_bithumb_withdrawal("BTC")
         usdt = fee_checker.fetch_bithumb_withdrawal("USDT")
-        assert btc == [{"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.001, "max": None, "enabled": True}]
+        assert btc == [{"label": "Bitcoin (On-chain)", "fee": 0.0002, "min": 0.001, "max": None, "enabled": True, "suspension_reason": None, "suspension_message": None}]
         assert usdt[0]["label"] == "TRC20"
         assert usdt[0]["fee"] == 0.0
         assert usdt[1]["label"] == "ERC20"

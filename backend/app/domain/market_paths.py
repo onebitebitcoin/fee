@@ -281,7 +281,16 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
 
             try:
                 for network in fut_withdrawals[(exchange, 'BTC')].result():
-                    if not network.get('enabled', True) or network.get('fee') is None:
+                    if not network.get('enabled', True):
+                        disabled_paths.append({
+                            'korean_exchange': exchange,
+                            'transfer_coin': 'BTC',
+                            'network': network['label'],
+                            'reason': network.get('suspension_reason') or 'disabled',
+                            'suspension_message': network.get('suspension_message'),
+                        })
+                        continue
+                    if network.get('fee') is None:
                         continue
                     suspension_reason = is_suspended(maintenance_status, exchange, 'BTC', network['label'])
                     if suspension_reason:
@@ -331,7 +340,16 @@ def find_cheapest_path(amount_krw: int = 1000000, global_exchange: str = 'binanc
 
             try:
                 for network in fut_withdrawals[(exchange, 'USDT')].result():
-                    if not network.get('enabled', True) or network.get('fee') is None:
+                    if not network.get('enabled', True):
+                        disabled_paths.append({
+                            'korean_exchange': exchange,
+                            'transfer_coin': 'USDT',
+                            'network': network['label'],
+                            'reason': network.get('suspension_reason') or 'disabled',
+                            'suspension_message': network.get('suspension_message'),
+                        })
+                        continue
+                    if network.get('fee') is None:
                         continue
                     suspension_reason = is_suspended(maintenance_status, exchange, 'USDT', network['label'])
                     if suspension_reason:

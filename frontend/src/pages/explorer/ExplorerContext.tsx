@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
 import type { LiveRegistry } from '../../lib/gatemanRegistry';
-import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../../types';
+import type { CheapestPathEntry, CheapestPathResponse, DisabledCheapestPathEntry, TickerRow } from '../../types';
 import type { Phase, CoinType, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
@@ -215,6 +215,17 @@ function useExplorerValue() {
       if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) map.set(p.network, p);
     }
     return [...map.entries()].map(([n, best]) => ({ network: n, best }));
+  }, [allData, domestic, coin, global]);
+
+  const disabledNetworkOptions = useMemo((): DisabledCheapestPathEntry[] => {
+    if (!allData || !domestic || !coin) return [];
+    const transferCoin = coin === 'USDT' ? 'USDT' : 'BTC';
+    const source = coin === 'USDT' || coin === 'BTC_GLOBAL'
+      ? (global ? allData.byGlobal[global] : null)
+      : Object.values(allData.byGlobal)[0];
+    return (source?.disabled_paths ?? []).filter(
+      p => p.korean_exchange === domestic && p.transfer_coin === transferCoin,
+    );
   }, [allData, domestic, coin, global]);
 
   // Lightning exit paths available for current global exchange selection (before network is chosen)
@@ -577,6 +588,7 @@ function useExplorerValue() {
     coinOptions,
     globalOptions,
     networkOptions,
+    disabledNetworkOptions,
     hasLightningPaths,
     globalSupportsLightning,
     swapServiceOptions,

@@ -132,6 +132,7 @@ export type DisabledCheapestPathEntry = {
   transfer_coin: string;
   network: string;
   reason?: string | null;
+  suspension_message?: string | null;
 };
 
 export type CheapestPathResponse = {

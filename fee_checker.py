@@ -461,6 +461,8 @@ def fetch_bithumb_withdrawal(coin: str) -> list:
                 "min": min_amount,
                 "max": max_amount,
                 "enabled": bool(network.get("isWithdrawAvailable", False)),
+                "suspension_reason": network.get("suspensionReason") or None,
+                "suspension_message": network.get("suspensionMessage") or None,
             })
         return result
     return []
