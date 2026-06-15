@@ -67,7 +67,7 @@ export function GlobalExitMethodStep() {
                   <div className="flex items-center gap-3">
                     <Bank weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-bold text-label-primary">글로벌 거래소에 보관</p>
+                      <p className="text-sm font-bold text-label-primary">개인지갑으로 출금하지 않음</p>
                       <p className="text-xs text-label-secondary mt-0.5">출금 없이 해외 거래소에 BTC 보유. 매수 비용만 비교.</p>
                     </div>
                   </div>

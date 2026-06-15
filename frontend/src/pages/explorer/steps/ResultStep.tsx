@@ -26,7 +26,7 @@ export function ResultStep() {
     <>
               {isHoldOnGlobal && (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-center gap-2">
-                  <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-2 py-0.5 rounded-full shrink-0">글로벌 거래소 보관</span>
+                  <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-2 py-0.5 rounded-full shrink-0">개인지갑으로 출금하지 않음</span>
                   <p className="text-[10px] text-label-secondary">출금 없이 해외 거래소에 BTC 보유하는 경우 기준. 출금 수수료 제외 시 실제 수수료는 더 낮습니다.</p>
                 </div>
               )}
