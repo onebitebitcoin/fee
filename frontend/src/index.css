@@ -131,3 +131,19 @@ body {
   background-image: radial-gradient(circle, rgba(200,130,60,0.04) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+/* ── Disabled / under-construction stripe overlay ── */
+@keyframes disabled-stripes {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 40px; }
+}
+.disabled-stripe-overlay {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(130, 130, 140, 0.09) 0px,
+    rgba(130, 130, 140, 0.09) 8px,
+    transparent 8px,
+    transparent 20px
+  );
+  animation: disabled-stripes 2s linear infinite;
+}

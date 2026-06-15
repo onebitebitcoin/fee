@@ -60,11 +60,16 @@ export function ResultStep() {
                   : { background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }
                 }
               >
-                <motion.div
-                  animate={{ opacity: [0.3, 0.7, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                  className={`absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full blur-2xl pointer-events-none ${isDisabled ? 'bg-fill-tertiary/30' : 'bg-acc-amber/10'}`}
-                />
+                {isDisabled
+                  ? <div className="disabled-stripe-overlay absolute inset-0 rounded-3xl pointer-events-none z-0" />
+                  : (
+                    <motion.div
+                      animate={{ opacity: [0.3, 0.7, 0.3] }}
+                      transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                      className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
+                    />
+                  )
+                }
                 {isDisabled ? (
                   <div className="w-8 h-8 rounded-full bg-fill-tertiary flex items-center justify-center mx-auto mb-4 relative z-10">
                     <Wallet weight="fill" className="w-4.5 h-4.5 text-label-quaternary" />
