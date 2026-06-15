@@ -140,10 +140,10 @@ body {
 .disabled-stripe-overlay {
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(130, 130, 140, 0.09) 0px,
-    rgba(130, 130, 140, 0.09) 8px,
-    transparent 8px,
-    transparent 20px
+    rgba(240, 180, 0, 0.18) 0px,
+    rgba(240, 180, 0, 0.18) 10px,
+    rgba(20, 10, 0, 0.12) 10px,
+    rgba(20, 10, 0, 0.12) 20px
   );
-  animation: disabled-stripes 2s linear infinite;
+  animation: disabled-stripes 1.6s linear infinite;
 }
