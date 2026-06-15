@@ -26,18 +26,21 @@ export function ResultStep() {
   return (
     <>
               {isDisabled && (
-                <div className="rounded-2xl px-4 py-3.5 flex items-start gap-3 border border-label-quaternary/30 bg-fill-tertiary/60">
-                  <div className="w-8 h-8 rounded-xl bg-label-quaternary/15 flex items-center justify-center flex-shrink-0">
-                    <Warning weight="fill" className="w-4 h-4 text-label-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-[12px] font-bold text-label-primary mb-0.5">비활성화된 경로</p>
-                    <p className="text-[11px] text-label-secondary leading-snug">
-                      {resultPath.disabled_reason
-                        ? `${resultPath.disabled_reason} — 현재 출금 불가`
-                        : '이 출금 경로는 현재 비활성화 상태입니다.'}
-                    </p>
-                    <p className="text-[10px] text-label-tertiary mt-1">수수료는 활성화 시 예상값입니다.</p>
+                <div className="rounded-2xl overflow-hidden border border-label-quaternary/20">
+                  <div className="caution-tape-band h-6 w-full" />
+                  <div className="px-4 py-3 bg-fill-tertiary/70 flex items-start gap-3">
+                    <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[12px] font-bold text-label-primary mb-1">출금 일시 중단 안내</p>
+                      <p className="text-[11px] text-label-secondary leading-snug">
+                        {resultPath.disabled_reason && resultPath.disabled_reason !== 'disabled'
+                          ? resultPath.disabled_reason
+                          : '해당 경로의 출금이 현재 거래소에 의해 비활성화되어 있습니다.'}
+                      </p>
+                      <p className="text-[10px] text-label-tertiary mt-1.5">
+                        아래 수수료는 출금이 재개될 경우의 예상값입니다. 실제 이용 전 거래소 공지를 확인하세요.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -54,22 +57,21 @@ export function ResultStep() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ ...SPRING_SLOW, delay: 0.1 }}
-                className="rounded-3xl p-6 text-center relative overflow-hidden"
+                className="rounded-3xl text-center relative overflow-hidden"
                 style={isDisabled
                   ? { background: 'linear-gradient(145deg, rgba(120,120,130,0.12) 0%, rgba(100,100,110,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(150,150,160,0.25)' }
                   : { background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }
                 }
               >
-                {isDisabled
-                  ? <div className="disabled-stripe-overlay absolute inset-0 rounded-3xl pointer-events-none z-0" />
-                  : (
-                    <motion.div
-                      animate={{ opacity: [0.3, 0.7, 0.3] }}
-                      transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                      className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
-                    />
-                  )
-                }
+                {isDisabled && <div className="caution-tape-band w-full h-9" />}
+                <div className="p-6">
+                {!isDisabled && (
+                  <motion.div
+                    animate={{ opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                    className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
+                  />
+                )}
                 {isDisabled ? (
                   <div className="w-8 h-8 rounded-full bg-fill-tertiary flex items-center justify-center mx-auto mb-4 relative z-10">
                     <Wallet weight="fill" className="w-4.5 h-4.5 text-label-quaternary" />
@@ -143,6 +145,7 @@ export function ResultStep() {
                     </div>
                   );
                 })()}
+                </div>
               </motion.div>
 
               {/* Route path visualization */}

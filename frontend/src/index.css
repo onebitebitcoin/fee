@@ -132,18 +132,18 @@ body {
   background-size: 24px 24px;
 }
 
-/* ── Disabled / under-construction stripe overlay ── */
-@keyframes disabled-stripes {
+/* ── Caution tape band (공사중) ── */
+@keyframes caution-tape {
   from { background-position: 0 0; }
-  to   { background-position: 40px 40px; }
+  to   { background-position: 48px 0; }
 }
-.disabled-stripe-overlay {
+.caution-tape-band {
   background-image: repeating-linear-gradient(
-    -45deg,
-    rgba(240, 180, 0, 0.18) 0px,
-    rgba(240, 180, 0, 0.18) 10px,
-    rgba(20, 10, 0, 0.12) 10px,
-    rgba(20, 10, 0, 0.12) 20px
+    -60deg,
+    #F5C800 0px,
+    #F5C800 16px,
+    #1A1200 16px,
+    #1A1200 24px
   );
-  animation: disabled-stripes 1.6s linear infinite;
+  animation: caution-tape 0.9s linear infinite;
 }
