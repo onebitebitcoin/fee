@@ -14,6 +14,7 @@ export function ResultStep() {
     globalExitMethod,
   } = useExplorer();
   const isHoldOnGlobal = globalExitMethod === 'none';
+  const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
   // 경로가 실제로 해외 거래소를 경유하는지 판별 (transient global state가 아닌 결과 데이터 기준).
   // - USDT 경로는 항상 글로벌 경유 (buy 모드에선 route_variant 미설정이라 transfer_coin으로 판별).
@@ -24,17 +25,19 @@ export function ResultStep() {
     (resultPath.route_variant?.endsWith('via_global') ?? false);
   return (
     <>
-              {resultPath.disabled && (
-                <div className="ios-card rounded-2xl px-4 py-3 flex items-start gap-2.5 border border-acc-red/20">
-                  <Warning weight="fill" className="w-4 h-4 text-acc-red flex-shrink-0 mt-0.5" />
+              {isDisabled && (
+                <div className="rounded-2xl px-4 py-3.5 flex items-start gap-3 border border-label-quaternary/30 bg-fill-tertiary/60">
+                  <div className="w-8 h-8 rounded-xl bg-label-quaternary/15 flex items-center justify-center flex-shrink-0">
+                    <Warning weight="fill" className="w-4 h-4 text-label-secondary" />
+                  </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-acc-red mb-0.5">현재 비활성화된 경로</p>
-                    <p className="text-[10px] text-label-secondary">
+                    <p className="text-[12px] font-bold text-label-primary mb-0.5">비활성화된 경로</p>
+                    <p className="text-[11px] text-label-secondary leading-snug">
                       {resultPath.disabled_reason
-                        ? `사유: ${resultPath.disabled_reason}`
-                        : '이 출금 경로는 일시적으로 비활성화되어 있습니다.'}
-                      {' '}수수료는 활성 시 예상값입니다.
+                        ? `${resultPath.disabled_reason} — 현재 출금 불가`
+                        : '이 출금 경로는 현재 비활성화 상태입니다.'}
                     </p>
+                    <p className="text-[10px] text-label-tertiary mt-1">수수료는 활성화 시 예상값입니다.</p>
                   </div>
                 </div>
               )}
@@ -52,19 +55,28 @@ export function ResultStep() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ ...SPRING_SLOW, delay: 0.1 }}
                 className="rounded-3xl p-6 text-center relative overflow-hidden"
-                style={{ background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }}
+                style={isDisabled
+                  ? { background: 'linear-gradient(145deg, rgba(120,120,130,0.12) 0%, rgba(100,100,110,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(150,150,160,0.25)' }
+                  : { background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }
+                }
               >
                 <motion.div
                   animate={{ opacity: [0.3, 0.7, 0.3] }}
                   transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                  className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
+                  className={`absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full blur-2xl pointer-events-none ${isDisabled ? 'bg-fill-tertiary/30' : 'bg-acc-amber/10'}`}
                 />
-                <Wallet weight="fill" className="w-8 h-8 text-acc-amber mx-auto mb-4 relative z-10" />
-                <p className="text-xs text-label-secondary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
-                <p className="text-5xl font-bold text-label-primary num leading-none relative z-10">
+                {isDisabled ? (
+                  <div className="w-8 h-8 rounded-full bg-fill-tertiary flex items-center justify-center mx-auto mb-4 relative z-10">
+                    <Wallet weight="fill" className="w-4.5 h-4.5 text-label-quaternary" />
+                  </div>
+                ) : (
+                  <Wallet weight="fill" className="w-8 h-8 text-acc-amber mx-auto mb-4 relative z-10" />
+                )}
+                <p className="text-xs text-label-tertiary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
+                <p className={`text-5xl font-bold num leading-none relative z-10 ${isDisabled ? 'text-label-tertiary' : 'text-label-primary'}`}>
                   {formatNumber(displaySats)}
                 </p>
-                <p className="text-sm text-label-secondary mt-1 num relative z-10">sats</p>
+                <p className="text-sm text-label-tertiary mt-1 num relative z-10">sats</p>
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
