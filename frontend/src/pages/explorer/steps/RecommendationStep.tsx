@@ -13,27 +13,29 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
   const isUsdt = p.transfer_coin === 'USDT';
   const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
   const isLightning = p.path_type === 'lightning_exit';
+  const isDirect = p.lightning_exit_provider === '__direct__';
+  const provider = p.lightning_exit_provider;
   const parts: string[] = [fmtEx(p.korean_exchange)];
 
   if (isUsdt) {
-    // 업비트 › USDT › TRC20 › OKX › (Boltz ›) 지갑
     parts.push('USDT');
     parts.push(p.network ?? '');
-    parts.push(fmtEx(p._g));
+    // __direct__: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
+    parts.push(isLightning && isDirect ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
   } else if (isViaGlobal) {
-    // 업비트 › BTC › Binance › (Bitcoin ›) (Boltz ›) 지갑
     parts.push('BTC');
-    parts.push(fmtEx(p._g));
+    parts.push(isLightning && isDirect ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
     if (!isLightning) parts.push(p.network ?? '');
   } else {
-    // 업비트 › BTC › Bitcoin › (Boltz ›) 지갑
     parts.push('BTC');
     if (!isLightning) parts.push(p.network ?? '');
   }
 
-  if (isLightning) {
-    const provider = p.lightning_exit_provider;
-    parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'Lightning');
+  if (isLightning && !isDirect) {
+    parts.push(provider ? fmtEx(provider) : 'Lightning');
+  } else if (isLightning && isDirect && !isViaGlobal && !isUsdt) {
+    // 국내 거래소 직접 LN 출금 (글로벌 미경유)
+    parts.push(fmtEx(p.korean_exchange) + ' LN');
   }
 
   parts.push('지갑');
