@@ -1,5 +1,6 @@
-import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Globe, Info, Warning } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, ArrowRight, Globe, Info, Warning, CaretDown } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { getDomesticGates } from '../../../lib/gatemanRegistry';
 import { DOMESTIC_INFO, SPRING_FAST, SPRING_SLOW } from '../constants';
@@ -7,6 +8,7 @@ import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 export function DomesticStep() {
+  const [showChecklist, setShowChecklist] = useState(false);
   const {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp,
     kimpFetchedAt, kimpInfoOpen, setKimpInfoOpen, btcPrice, withdrawalLimits, stepEndRef,
@@ -223,10 +225,33 @@ export function DomesticStep() {
                 );
               })()}
               {domestic && (
-                <GatemanPanel
-                  gates={getDomesticGates(domestic, liveRegistry?.domestic)}
-                  title={`${fmtEx(domestic)} 출금 체크리스트`}
-                />
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowChecklist(!showChecklist)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl ios-card border border-transparent hover:border-white/12 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-label-primary">{fmtEx(domestic)} 출금 체크리스트</span>
+                    <motion.div animate={{ rotate: showChecklist ? 180 : 0 }} transition={SPRING_FAST}>
+                      <CaretDown className="w-4 h-4 text-label-tertiary" weight="bold" />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence>
+                    {showChecklist && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={SPRING_FAST}
+                        className="overflow-hidden"
+                      >
+                        <GatemanPanel
+                          gates={getDomesticGates(domestic, liveRegistry?.domestic)}
+                          title={`${fmtEx(domestic)} 출금 체크리스트`}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
               {domestic && (
                 <motion.button

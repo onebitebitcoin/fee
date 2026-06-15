@@ -1,5 +1,6 @@
-import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Globe, Warning, WarningCircle } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, ArrowRight, Globe, Warning, WarningCircle, CaretDown } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { getGlobalGates } from '../../../lib/gatemanRegistry';
 import { GLOBAL_EXCHANGES, GLOBAL_INFO, RISK_LABEL, RISK_COLOR, SPRING_FAST, SPRING_SLOW } from '../constants';
@@ -8,6 +9,7 @@ import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 export function GlobalStep() {
+  const [showChecklist, setShowChecklist] = useState(false);
   const {
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
@@ -130,10 +132,33 @@ export function GlobalStep() {
                 );
               })()}
               {global && (
-                <GatemanPanel
-                  gates={getGlobalGates(global, liveRegistry?.global)}
-                  title={`${fmtEx(global)} 입출금 체크리스트`}
-                />
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowChecklist(!showChecklist)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl ios-card border border-transparent hover:border-white/12 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-label-primary">{fmtEx(global)} 입출금 체크리스트</span>
+                    <motion.div animate={{ rotate: showChecklist ? 180 : 0 }} transition={SPRING_FAST}>
+                      <CaretDown className="w-4 h-4 text-label-tertiary" weight="bold" />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence>
+                    {showChecklist && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={SPRING_FAST}
+                        className="overflow-hidden"
+                      >
+                        <GatemanPanel
+                          gates={getGlobalGates(global, liveRegistry?.global)}
+                          title={`${fmtEx(global)} 입출금 체크리스트`}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
               {global && (
                 <motion.button
