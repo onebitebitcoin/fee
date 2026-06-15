@@ -16,6 +16,7 @@ from backend.app.services.live_market import (
     find_cheapest_sell_path_from_snapshot_rows,
 )
 from backend.app.domain.market_core import (
+    GROUPS,
     KOREA_FETCHERS,
     get_withdrawal_source_url,
     fetch_binance_spot,
@@ -48,7 +49,7 @@ class _TtlCache:
 
 
 _status_cache = _TtlCache(ttl=60)
-_cheapest_path_cache = _TtlCache(ttl=30)
+_cheapest_path_cache = _TtlCache(ttl=60)
 
 # Upbit USDT/KRW 실시간 환율 캐시 (30초 TTL)
 _usd_krw_cache: dict = {'rate': None, 'ts': 0.0}
@@ -374,6 +375,126 @@ def get_cheapest_path(
     if payload.get('error'):
         raise HTTPException(status_code=503, detail=payload['error'])
     result = _enrich_path_payload_with_kyc(payload, global_exchange)
+    _cheapest_path_cache.set(_cache_key, result)
+    return result
+
+
+@router.get('/path-finder/cheapest-all')
+def get_cheapest_path_all(
+    background_tasks: BackgroundTasks,
+    amount_krw: int = Query(1000000, ge=10000),
+    amount_btc: float | None = Query(None, gt=0),
+    wallet_utxo_count: int = Query(1, ge=1, le=200),
+    mode: str = Query('buy'),
+    db: Session = Depends(get_db),
+) -> dict:
+    """모든 글로벌 거래소에 대해 최적 경로를 한 번에 계산해 반환한다.
+
+    DB 스냅샷 조회는 한 번만 수행하고, 거래소별로 경로 계산을 반복한다.
+    반환 형태: {"by_global": {<exchange>: <payload or error>}, "last_run": {...}, "latest_scraping_time": ...}
+    """
+    background_tasks.add_task(repositories.record_access, db)
+    latest_run = repositories.get_latest_successful_run(db)
+    _run_id = latest_run.id if latest_run else None
+    _cache_key = f"all:{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{_run_id}"
+    _cached = _cheapest_path_cache.get(_cache_key)
+    if _cached is not None:
+        return _cached
+
+    # DB 읽기 1회
+    ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
+    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
+    network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
+    lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
+    crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
+    exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
+
+    legacy_rows = [
+        row for row in withdrawal_rows
+        if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs'
+    ]
+
+    global_exchanges = list(GROUPS['global'])
+
+    by_global: dict[str, object] = {}
+    for gex in global_exchanges:
+        # 이 거래소에 해당하는 blocking errors 계산
+        blocking_errors: list[dict] = []
+        if latest_run:
+            blocking_errors = [
+                {
+                    'exchange': row.exchange,
+                    'coin': row.coin,
+                    'stage': row.stage,
+                    'error_message': row.error_message,
+                    'created_at': int(row.created_at.timestamp()) if row.created_at else None,
+                }
+                for row in crawl_errors
+                if row.stage in {'withdrawal', 'ticker'} and (
+                    row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', gex.lower()}
+                    or row.exchange is None
+                )
+            ]
+            if legacy_rows:
+                blocking_errors.extend([
+                    {
+                        'exchange': row.exchange,
+                        'coin': row.coin,
+                        'stage': 'withdrawal',
+                        'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
+                        'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                    }
+                    for row in legacy_rows
+                ])
+
+        if blocking_errors:
+            by_global[gex] = {
+                'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
+                'errors': blocking_errors,
+                'last_run': _serialize_run(latest_run),
+                'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
+            }
+            continue
+
+        try:
+            if mode == 'sell':
+                if amount_btc is None:
+                    by_global[gex] = {'error': 'sell 모드에는 amount_btc가 필요합니다.'}
+                    continue
+                payload = find_cheapest_sell_path_from_snapshot_rows(
+                    amount_btc=amount_btc,
+                    wallet_utxo_count=wallet_utxo_count,
+                    global_exchange=gex,
+                    latest_run=latest_run,
+                    ticker_rows=ticker_rows,
+                    withdrawal_rows=withdrawal_rows,
+                    network_rows=network_rows,
+                    lightning_swap_rows=lightning_swap_rows,
+                    exchange_capability_rows=exchange_capability_rows,
+                )
+            else:
+                payload = find_cheapest_path_from_snapshot_rows(
+                    amount_krw=amount_krw,
+                    global_exchange=gex,
+                    latest_run=latest_run,
+                    ticker_rows=ticker_rows,
+                    withdrawal_rows=withdrawal_rows,
+                    network_rows=network_rows,
+                    lightning_swap_rows=lightning_swap_rows,
+                )
+            if payload.get('error'):
+                by_global[gex] = payload
+            else:
+                by_global[gex] = _enrich_path_payload_with_kyc(payload, gex)
+        except Exception as exc:
+            logger.warning('cheapest-all: error for %s: %s', gex, exc)
+            by_global[gex] = {'error': str(exc)}
+
+    result = {
+        'by_global': by_global,
+        'last_run': _serialize_run(latest_run),
+        'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
+    }
     _cheapest_path_cache.set(_cache_key, result)
     return result
 

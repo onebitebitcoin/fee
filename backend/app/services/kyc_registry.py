@@ -11,7 +11,8 @@ KycStatus = Literal['kyc', 'non_kyc', 'mixed']
 
 PLAYGROUND_SERVICE_NODES_URL = 'https://playground.onebitebitcoin.com/api/service-nodes/admin?username=guest'
 _CACHE_TTL_SECONDS = 1800
-_REQUEST_TIMEOUT_SECONDS = 5
+_NEGATIVE_CACHE_TTL_SECONDS = 120
+_REQUEST_TIMEOUT_SECONDS = 2
 
 _logger = logging.getLogger(__name__)
 _cache_lock = Lock()
@@ -63,34 +64,52 @@ def _status_from_bool(value: bool) -> KycStatus:
 
 def get_kyc_registry(force_refresh: bool = False) -> dict[str, dict]:
     now = time.time()
+    # (a) 락 안에서: TTL이 유효하면 즉시 반환 (registry가 비어있어도 negative cache 적용)
     with _cache_lock:
-        if not force_refresh and _cache['registry'] and now < float(_cache['expires_at']):
-            return dict(_cache['registry'])
-        registry: dict[str, dict] = {}
-        try:
-            response = requests.get(
-                PLAYGROUND_SERVICE_NODES_URL,
-                headers={'Accept': 'application/json'},
-                timeout=_REQUEST_TIMEOUT_SECONDS,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            for node in payload.get('nodes', []):
-                service_key = _normalize_service(node.get('service') or node.get('display_name'))
-                if not service_key:
-                    continue
-                registry[service_key] = {
-                    'display_name': node.get('display_name'),
-                    'is_kyc': bool(node.get('is_kyc')),
-                    'is_custodial': bool(node.get('is_custodial')),
-                }
-        except Exception as exc:  # pragma: no cover - defensive network fallback
-            _logger.warning('Failed to load playground KYC registry: %s', exc)
+        if not force_refresh and now < float(_cache['expires_at']):
             if _cache['registry']:
                 return dict(_cache['registry'])
-            return {}  # API 불가 + 캐시 없음 → KYC 없이 진행
+            # negative cache 기간 — 빈 레지스트리 반환.
+            # 정적 fallback(_STATIC_KYC)은 resolve_* 단계에서 적용되므로 여기선 빈 dict.
+            # (_STATIC_KYC는 {service: status} 타입이라 registry({key: {is_kyc}}) 자리에 넣으면 안 됨)
+            return {}
+
+    # (b) 락 밖에서: 네트워크 호출 수행 (두 스레드가 동시에 여기 도달해도 각자 호출하되 직렬화는 없음)
+    fetch_exc: Exception | None = None
+    registry: dict[str, dict] = {}
+    try:
+        response = requests.get(
+            PLAYGROUND_SERVICE_NODES_URL,
+            headers={'Accept': 'application/json'},
+            timeout=_REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        for node in payload.get('nodes', []):
+            service_key = _normalize_service(node.get('service') or node.get('display_name'))
+            if not service_key:
+                continue
+            registry[service_key] = {
+                'display_name': node.get('display_name'),
+                'is_kyc': bool(node.get('is_kyc')),
+                'is_custodial': bool(node.get('is_custodial')),
+            }
+    except Exception as exc:
+        fetch_exc = exc
+
+    # (c) 락 안에서: 결과 저장
+    with _cache_lock:
+        if fetch_exc is not None:
+            _logger.warning('Failed to load playground KYC registry: %s', fetch_exc)
+            # 이전 캐시가 있으면 그대로 쓰되 TTL을 negative로 짧게 갱신
+            existing = dict(_cache['registry']) if _cache['registry'] else None
+            _cache['expires_at'] = time.time() + _NEGATIVE_CACHE_TTL_SECONDS
+            if existing:
+                return existing
+            # 캐시도 없음 → 빈 레지스트리 반환(short TTL). 정적 fallback은 resolve_* 단계에서 적용.
+            return {}
         _cache['registry'] = dict(registry)
-        _cache['expires_at'] = now + _CACHE_TTL_SECONDS
+        _cache['expires_at'] = time.time() + _CACHE_TTL_SECONDS
         return dict(_cache['registry'])
 
 

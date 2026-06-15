@@ -386,28 +386,9 @@ function useExplorerValue() {
     GLOBAL_EXCHANGES.forEach(g => { initProgress[g] = 'loading'; });
     setExchangeProgress(initProgress);
 
-    const TIMEOUT_MS = 15_000;
-    const MAX_RETRIES = 2;
+    const TIMEOUT_MS = 20_000;
     function withTimeout<T>(p: Promise<T>): Promise<T | null> {
       return Promise.race([p, new Promise<null>(res => setTimeout(() => res(null), TIMEOUT_MS))]);
-    }
-
-    async function fetchExchangeWithRetry(g: string): Promise<CheapestPathResponse | null> {
-      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        if (attempt > 0) {
-          setExchangeProgress(prev => ({ ...prev, [g]: 'retrying' }));
-          await new Promise(res => setTimeout(res, 3000));
-        }
-        try {
-          const r = await withTimeout(
-            api.getCheapestPath({ mode: 'buy', amountKrw, globalExchange: g }).catch(() => null),
-          );
-          if (r && !r.error) return r;
-        } catch {
-          // continue to next attempt
-        }
-      }
-      return null;
     }
 
     try {
@@ -425,20 +406,65 @@ function useExplorerValue() {
       });
       if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
 
+      // 단일 배치 호출로 7개 글로벌 거래소를 한 번에 조회
+      const allRes = await withTimeout(
+        api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch((err: unknown) => {
+          console.error('[cheapest-all] 네트워크 오류:', err);
+          return null;
+        }),
+      );
+
       const byGlobal: Record<string, CheapestPathResponse> = {};
       const failed: string[] = [];
-      await Promise.all(
-        GLOBAL_EXCHANGES.map(async g => {
-          const r = await fetchExchangeWithRetry(g);
-          if (r) {
-            byGlobal[g] = r;
+
+      if (allRes === null) {
+        // 클라이언트 타임아웃 또는 네트워크 실패 — 1회 재시도
+        console.warn('[cheapest-all] 타임아웃 또는 네트워크 실패, 재시도 중...');
+        GLOBAL_EXCHANGES.forEach(g => {
+          setExchangeProgress(prev => ({ ...prev, [g]: 'retrying' }));
+        });
+        await new Promise(res => setTimeout(res, 2000));
+        const retryRes = await withTimeout(
+          api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch((err: unknown) => {
+            console.error('[cheapest-all] 재시도 네트워크 오류:', err);
+            return null;
+          }),
+        );
+        if (retryRes !== null) {
+          for (const g of GLOBAL_EXCHANGES) {
+            const entry = retryRes.by_global[g];
+            if (entry && !entry.error) {
+              byGlobal[g] = entry;
+              setExchangeProgress(prev => ({ ...prev, [g]: 'done' }));
+            } else {
+              if (entry?.error) {
+                console.warn(`[cheapest-all] 서버 데이터 오류 (${g}):`, entry.error);
+              }
+              failed.push(g);
+              setExchangeProgress(prev => ({ ...prev, [g]: 'error' }));
+            }
+          }
+        } else {
+          GLOBAL_EXCHANGES.forEach(g => {
+            failed.push(g);
+            setExchangeProgress(prev => ({ ...prev, [g]: 'error' }));
+          });
+        }
+      } else {
+        for (const g of GLOBAL_EXCHANGES) {
+          const entry = allRes.by_global[g];
+          if (entry && !entry.error) {
+            byGlobal[g] = entry;
             setExchangeProgress(prev => ({ ...prev, [g]: 'done' }));
           } else {
+            if (entry?.error) {
+              console.warn(`[cheapest-all] 서버 데이터 오류 (${g}):`, entry.error);
+            }
             failed.push(g);
             setExchangeProgress(prev => ({ ...prev, [g]: 'error' }));
           }
-        }),
-      );
+        }
+      }
 
       setFailedGlobalExchanges(failed);
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');

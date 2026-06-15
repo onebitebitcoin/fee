@@ -6,6 +6,12 @@ import type {
   TickerRow,
 } from '../types';
 
+export interface CheapestPathAllResponse {
+  by_global: Record<string, CheapestPathResponse>;
+  last_run: CrawlRun | null;
+  latest_scraping_time: number | null;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -39,6 +45,22 @@ export const api = {
       qs.set('amount_krw', String(params.amountKrw ?? 1000000));
     }
     return request(`/api/v1/market/path-finder/cheapest?${qs.toString()}`);
+  },
+
+  getCheapestPathAll: (params: {
+    mode: 'buy' | 'sell';
+    amountKrw?: number;
+    amountBtc?: number;
+    walletUtxoCount?: number;
+  }): Promise<CheapestPathAllResponse> => {
+    const qs = new URLSearchParams({ mode: params.mode });
+    if (params.mode === 'sell') {
+      qs.set('amount_btc', String(params.amountBtc ?? 0.01));
+      qs.set('wallet_utxo_count', String(params.walletUtxoCount ?? 1));
+    } else {
+      qs.set('amount_krw', String(params.amountKrw ?? 1000000));
+    }
+    return request(`/api/v1/market/path-finder/cheapest-all?${qs.toString()}`);
   },
 
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
