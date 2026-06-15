@@ -11,7 +11,7 @@ export function ResultStep() {
   const {
     amountKrw, domestic, global, network, swapSvc, liveKimp, liveUsdtKrw, displaySats, showAltPaths,
     setShowAltPaths, snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
-    globalExitMethod,
+    globalExitMethod, allData,
   } = useExplorer();
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
@@ -168,7 +168,8 @@ export function ResultStep() {
                               </div>
                               {Math.abs(exchangeRateDiff) > 50 && (() => {
                                 const upbitUsdt = liveUsdtKrw;
-                                const forexRate = resultPath.usd_krw_rate;
+                                // usd_krw_rate는 개별 경로가 아닌 응답 최상위에 있음
+                                const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
                                 const usdtPremiumPct = upbitUsdt && forexRate
                                   ? ((upbitUsdt / forexRate) - 1) * 100 : null;
                                 return (
