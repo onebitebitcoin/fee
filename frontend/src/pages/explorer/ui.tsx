@@ -2,6 +2,99 @@
 // 단계 컴포넌트들이 공유하는 표시용 컴포넌트 모음.
 
 import { motion, AnimatePresence } from 'motion/react';
+
+// ── 네트워크 아이콘 ──────────────────────────────────────────────────────────────
+
+interface NetworkMeta { bg: string; text: string; label: string }
+
+const NETWORK_MAP: Record<string, NetworkMeta> = {
+  // Bitcoin
+  bitcoin:              { bg: '#F7931A22', text: '#F7931A', label: 'BTC' },
+  btc:                  { bg: '#F7931A22', text: '#F7931A', label: 'BTC' },
+  'btc (segwit)':       { bg: '#F7931A22', text: '#F7931A', label: 'SegWit' },
+  'bitcoin (on-chain)': { bg: '#F7931A22', text: '#F7931A', label: 'BTC' },
+  // Lightning
+  lightning:            { bg: '#A78BFA22', text: '#A78BFA', label: 'LN' },
+  'lightning network':  { bg: '#A78BFA22', text: '#A78BFA', label: 'LN' },
+  lightning_network:    { bg: '#A78BFA22', text: '#A78BFA', label: 'LN' },
+  // Ethereum / L2
+  erc20:                { bg: '#627EEA22', text: '#627EEA', label: 'ERC20' },
+  'ethereum (erc20)':   { bg: '#627EEA22', text: '#627EEA', label: 'ERC20' },
+  arbitrum:             { bg: '#28A0F022', text: '#28A0F0', label: 'ARB' },
+  'arbitrum one':       { bg: '#28A0F022', text: '#28A0F0', label: 'ARB' },
+  arbitrumone:          { bg: '#28A0F022', text: '#28A0F0', label: 'ARB' },
+  'arbitrum one (usdt0)': { bg: '#28A0F022', text: '#28A0F0', label: 'ARB' },
+  optimism:             { bg: '#FF042022', text: '#FF0420', label: 'OP' },
+  'optimism (usdt0)':   { bg: '#FF042022', text: '#FF0420', label: 'OP' },
+  scroll:               { bg: '#FFDBB522', text: '#C07B42', label: 'SCR' },
+  // TRON
+  trc20:                { bg: '#FF001322', text: '#FF0013', label: 'TRC20' },
+  tron:                 { bg: '#FF001322', text: '#FF0013', label: 'TRX' },
+  'tron (trc20)':       { bg: '#FF001322', text: '#FF0013', label: 'TRC20' },
+  'usdt (trc20)':       { bg: '#FF001322', text: '#FF0013', label: 'TRC20' },
+  plasma:               { bg: '#FF001322', text: '#FF0013', label: 'Plasma' },
+  'plasma (usdt0)':     { bg: '#FF001322', text: '#FF0013', label: 'Plasma' },
+  // BNB / BSC
+  bep20:                { bg: '#F0B90B22', text: '#F0B90B', label: 'BEP20' },
+  bsc:                  { bg: '#F0B90B22', text: '#F0B90B', label: 'BSC' },
+  'bnb smart chain (bep20)': { bg: '#F0B90B22', text: '#F0B90B', label: 'BEP20' },
+  opbnb:                { bg: '#F0B90B22', text: '#F0B90B', label: 'opBNB' },
+  // Solana
+  sol:                  { bg: '#9945FF22', text: '#9945FF', label: 'SOL' },
+  solana:               { bg: '#9945FF22', text: '#9945FF', label: 'SOL' },
+  // Polygon
+  polygon:              { bg: '#8247E522', text: '#8247E5', label: 'POL' },
+  'polygon pos':        { bg: '#8247E522', text: '#8247E5', label: 'POL' },
+  'polygon (usdt0)':    { bg: '#8247E522', text: '#8247E5', label: 'POL' },
+  // Avalanche
+  avaxc:                { bg: '#E8414222', text: '#E84142', label: 'AVAX' },
+  'avax c-chain':       { bg: '#E8414222', text: '#E84142', label: 'AVAX' },
+  'avaxc-chain':        { bg: '#E8414222', text: '#E84142', label: 'AVAX' },
+  'avalanche c-chain':  { bg: '#E8414222', text: '#E84142', label: 'AVAX' },
+  // TON
+  ton:                  { bg: '#0088CC22', text: '#0088CC', label: 'TON' },
+  'the open network (ton)': { bg: '#0088CC22', text: '#0088CC', label: 'TON' },
+  // Aptos
+  aptos:                { bg: '#00B4B422', text: '#00B4B4', label: 'APT' },
+  // Sui
+  sui:                  { bg: '#4CA3FF22', text: '#4CA3FF', label: 'SUI' },
+  // Others
+  near:                 { bg: '#00C08B22', text: '#00C08B', label: 'NEAR' },
+  'near protocol':      { bg: '#00C08B22', text: '#00C08B', label: 'NEAR' },
+  celo:                 { bg: '#FCFF5222', text: '#B8A900', label: 'CELO' },
+  kaia:                 { bg: '#FF675022', text: '#FF6750', label: 'KAIA' },
+  kavaevm:              { bg: '#FF433522', text: '#FF4335', label: 'KAVA' },
+  tezos:                { bg: '#2C7DF722', text: '#2C7DF7', label: 'XTZ' },
+  'asset hub polkadot': { bg: '#E6007A22', text: '#E6007A', label: 'DOT' },
+};
+
+function getNetworkMeta(n: string): NetworkMeta {
+  const key = n.toLowerCase().trim();
+  return NETWORK_MAP[key] ?? { bg: 'rgba(255,255,255,0.08)', text: '#8E8E93', label: n.slice(0, 4).toUpperCase() };
+}
+
+export function NetworkIcon({ network, size = 36 }: { network: string; size?: number }) {
+  const meta = getNetworkMeta(network);
+  return (
+    <div
+      style={{
+        width: size, height: size,
+        borderRadius: size * 0.28,
+        background: meta.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        fontSize: meta.label.length > 4 ? size * 0.21 : size * 0.25,
+        fontWeight: 700, color: meta.text, lineHeight: 1,
+        letterSpacing: '-0.02em',
+      }}>
+        {meta.label}
+      </span>
+    </div>
+  );
+}
 import { CheckCircle, Coin, ShieldCheck, CircleNotch, X } from '@phosphor-icons/react';
 import { getExchangeDomain, fmtEx } from '../../lib/exchangeNames';
 import type { GateItem } from '../../lib/gatemanRegistry';

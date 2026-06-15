@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, ArrowSquareOut, Warning } from '@phosphor-icons/react';
 import { SPRING_FAST, SPRING_SLOW, fmtAmountText } from '../constants';
-import { OptionCard } from '../ui';
+import { NetworkIcon, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 function formatReason(reason: string | null | undefined): string {
@@ -33,9 +33,7 @@ export function NetworkStep() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-xs font-bold text-label-secondary">{i + 1}</span>
-                  </div>
+                  <NetworkIcon network={n} size={36} />
                   <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-bold text-label-primary">{n}</p>
@@ -66,9 +64,7 @@ export function NetworkStep() {
               transition={{ ...SPRING_SLOW, delay: (networkOptions.length + i) * 0.06 }}>
               <div className="rounded-2xl ios-card px-4 py-3 opacity-50">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-xs font-bold text-label-secondary">{networkOptions.length + i + 1}</span>
-                  </div>
+                  <NetworkIcon network={n} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-bold text-label-primary">{n}</p>
