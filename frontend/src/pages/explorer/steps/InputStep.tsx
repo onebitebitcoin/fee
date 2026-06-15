@@ -1,32 +1,18 @@
 import { motion } from 'motion/react';
-import { Warning } from '@phosphor-icons/react';
+import { CircleNotch, Warning } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
-import { DOMESTIC_INFO } from '../constants';
-import { LoadingScreen } from '../ui';
 import { useExplorer } from '../ExplorerContext';
-
-const DOMESTIC_KEYS = Object.keys(DOMESTIC_INFO);
 
 export function InputStep() {
   const {
     amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, handleSearch,
-    isSearching, exchangeProgress, loadingDone,
+    isSearching,
   } = useExplorer();
 
   const kimp = btcPrice?.kimchiPremium;
   const kimpColor = kimp == null
     ? 'text-label-tertiary'
     : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green';
-
-  if (isSearching) {
-    return (
-      <LoadingScreen
-        progress={exchangeProgress}
-        domesticKeys={DOMESTIC_KEYS}
-        isReady={loadingDone}
-      />
-    );
-  }
 
   return (
     <>
@@ -68,9 +54,10 @@ export function InputStep() {
                     type="number"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
+                    disabled={isSearching}
                     className="flex-1 min-w-0 bg-transparent text-5xl font-bold text-label-primary outline-none
                       [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-                      tracking-tight"
+                      tracking-tight disabled:opacity-40"
                     placeholder="100"
                     min="1"
                   />
@@ -80,6 +67,7 @@ export function InputStep() {
                       <motion.button
                         key={u}
                         onClick={() => setUnit(u)}
+                        disabled={isSearching}
                         className={`relative px-4 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
                           unit === u ? 'text-label-primary' : 'text-label-secondary'
                         }`}
@@ -112,18 +100,27 @@ export function InputStep() {
               {/* CTA */}
               <motion.button
                 onClick={handleSearch}
-                disabled={!amountKrw || amountKrw < 10_000}
-                whileHover={amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
-                whileTap={amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                disabled={isSearching || !amountKrw || amountKrw < 10_000}
+                whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
+                whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
                 transition={SPRING_FAST}
                 className={[
-                  'w-full py-4 rounded-2xl font-bold text-base transition-all',
-                  amountKrw >= 10_000
-                    ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
-                    : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
+                  'w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2',
+                  isSearching
+                    ? 'bg-acc-amber/70 text-white cursor-not-allowed'
+                    : amountKrw >= 10_000
+                      ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
+                      : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                 ].join(' ')}
               >
-                경로 탐색
+                {isSearching ? (
+                  <>
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                      <CircleNotch className="w-4 h-4" />
+                    </motion.div>
+                    경로 계산 중
+                  </>
+                ) : '경로 탐색'}
               </motion.button>
 
               {allData?.latestRunAt && (
