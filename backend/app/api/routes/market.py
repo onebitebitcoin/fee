@@ -126,16 +126,18 @@ def _build_notice_lookup(notice_rows: list) -> dict[str, list[dict]]:
 
 def _find_notice(exchange: str, coin: str, network: str, notice_lookup: dict) -> dict | None:
     notices = notice_lookup.get(exchange, [])
-    keywords = {coin.lower(), network.lower()}
     n_lower = network.lower()
+    # coin 이름은 너무 광범위 — 네트워크 특화 키워드만 사용
     if 'trc20' in n_lower:
-        keywords |= {'tron'}
+        keywords = {'trc20', 'tron'}
     elif 'erc20' in n_lower:
-        keywords |= {'ethereum', 'eth'}
+        keywords = {'erc20', 'ethereum', 'eth'}
     elif 'bitcoin' in n_lower or coin.lower() == 'btc':
-        keywords |= {'btc', 'bitcoin'}
+        keywords = {'btc', 'bitcoin', '비트코인'}
     elif 'kaia' in n_lower:
-        keywords |= {'klay', 'klaytn'}
+        keywords = {'kaia', 'klay', 'klaytn'}
+    else:
+        keywords = {n_lower}
     for notice in notices:
         title = (notice.get('title') or '').lower()
         if any(kw in title for kw in keywords):
