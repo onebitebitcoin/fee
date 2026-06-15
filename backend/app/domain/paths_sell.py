@@ -8,6 +8,13 @@ import time
 import requests
 
 from backend.app.domain.market_core import GROUPS, TRADING_FEES, get_withdrawal_source_url
+from backend.app.domain.path_graph import (
+    Blocked,
+    global_sell_leg,
+    korea_sell_leg,
+    swap_leg,
+    withdraw_leg,
+)
 from backend.app.domain.path_helpers import _build_path_id, fee_component, is_suspended
 from backend.app.domain.paths_context import SnapshotContext, build_snapshot_context
 from backend.app.domain.paths_buy import _build_available_filters
@@ -171,6 +178,21 @@ def find_cheapest_sell_path_from_snapshot_rows(
 
     paths: list[dict] = []
     disabled_paths: list[dict] = []
+    # disabled_paths 중복 제거용 키 세트
+    _disabled_keys: set[tuple] = set()
+
+    def _add_disabled(*, korean_exchange: str, transfer_coin: str, network: str, reason: str) -> None:
+        # USDT 출금 등 글로벌 거래소 기반 disabled는 korean_exchange와 무관하게 동일 row이므로
+        # (coin, network, reason) 기준으로 중복 제거한다.
+        key = (transfer_coin, network, reason)
+        if key not in _disabled_keys:
+            _disabled_keys.add(key)
+            disabled_paths.append({
+                'korean_exchange': korean_exchange,
+                'transfer_coin': transfer_coin,
+                'network': network,
+                'reason': reason,
+            })
 
     for exchange in GROUPS['korea']:
         ticker_row = ctx.ticker_by_exchange.get(exchange)
@@ -180,12 +202,13 @@ def find_cheapest_sell_path_from_snapshot_rows(
         korean_btc_price_krw = float(ticker_row.price)
         korean_taker = (ticker_row.taker_fee_pct / 100) if ticker_row.taker_fee_pct is not None else TRADING_FEES[exchange]['taker']
 
+        # ----- 경로 1: BTC 직접 (개인지갑 BTC → 온체인 → 국내 BTC 매도) -----
         for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
             if not row.enabled or row.fee is None:
                 continue
             suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label)
             if suspension_reason:
-                disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'BTC', 'network': row.network_label, 'reason': suspension_reason})
+                _add_disabled(korean_exchange=exchange, transfer_coin='BTC', network=row.network_label, reason=suspension_reason)
                 continue
 
             label_lower = (row.network_label or '').lower()
@@ -196,9 +219,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
             if btc_after_network <= 0:
                 continue
 
-            gross_krw = btc_after_network * korean_btc_price_krw
-            korean_sell_fee_krw = round(gross_krw * korean_taker)
-            krw_received = round(gross_krw - korean_sell_fee_krw)
+            sell = korea_sell_leg(btc_after_network, korean_taker, korean_btc_price_krw, 'BTC', ctx.usd_krw_rate)
+            krw_received = sell.amount_out
+            korean_sell_fee_krw = sell.fee_krw
             total_fee_krw = wallet_network_fee_krw + korean_sell_fee_krw
             paths.append(build_entry(
                 route_variant='btc_direct',
@@ -216,32 +239,51 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 ],
             ))
 
-        # Bug #1 fix: USDT 전송은 글로벌 거래소에서 출금하는 것이므로 global_exchange 기준으로 조회
+        # ----- 경로 2: USDT via global (개인지갑 BTC → 글로벌 BTC 매도 → USDT 출금 → 국내 USDT→KRW) -----
         for row in ctx.withdrawals_by_key.get((global_exchange, 'USDT'), []):
-            if not row.enabled or row.fee is None:
-                continue
             suspension_reason = is_suspended(ctx.maintenance_status, global_exchange, 'USDT', row.network_label)
             if suspension_reason:
-                disabled_paths.append({'korean_exchange': exchange, 'transfer_coin': 'USDT', 'network': row.network_label, 'reason': suspension_reason})
+                _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=suspension_reason)
                 continue
 
             btc_at_global = amount_btc - wallet_network_fee_btc
             if btc_at_global <= 0:
                 continue
 
-            gross_usdt = btc_at_global * ctx.global_btc_price_usd
-            global_sell_fee_usdt = gross_usdt * ctx.global_taker
-            usdt_after_global_sell = gross_usdt - global_sell_fee_usdt
-            usdt_at_korean = usdt_after_global_sell - row.fee
+            # 글로벌 BTC 매도 → USDT
+            gsell = global_sell_leg(btc_at_global, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+            usdt_after_global_sell = gsell.amount_out
+            global_sell_fee_krw = gsell.fee_krw
+
+            # USDT 출금 (withdraw_leg로 min/max 검증 포함)
+            wd = withdraw_leg(
+                row,
+                usdt_after_global_sell,
+                coin='USDT',
+                price_krw=ctx.usd_krw_rate,
+                usd_krw=ctx.usd_krw_rate,
+                source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label),
+                maintenance_status=ctx.maintenance_status,
+                exchange=global_exchange,
+            )
+            if isinstance(wd, Blocked):
+                _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=wd.reason)
+                continue
+
+            usdt_at_korean = wd.amount_out
+            usdt_transfer_fee_krw = wd.fee_krw
             if usdt_at_korean <= 0:
                 continue
 
-            gross_krw = usdt_at_korean * ctx.usd_krw_rate
-            korean_sell_fee_krw = round(gross_krw * korean_taker)
-            krw_received = round(gross_krw - korean_sell_fee_krw)
-            global_sell_fee_krw = round(global_sell_fee_usdt * ctx.usd_krw_rate)
-            usdt_transfer_fee_krw = int(round(row.fee_krw)) if row.fee_krw is not None else round(row.fee * ctx.usd_krw_rate)
+            # 국내 USDT → KRW 전환
+            ksell = korea_sell_leg(usdt_at_korean, korean_taker, korean_btc_price_krw, 'USDT', ctx.usd_krw_rate)
+            krw_received = ksell.amount_out
+            korean_sell_fee_krw = ksell.fee_krw
+
             total_fee_krw = wallet_network_fee_krw + global_sell_fee_krw + usdt_transfer_fee_krw + korean_sell_fee_krw
+
+            # breakdown: 기존과 동일한 텍스트 유지
+            gross_usdt = btc_at_global * ctx.global_btc_price_usd
             paths.append(build_entry(
                 route_variant='usdt_via_global',
                 korean_exchange=exchange,
@@ -261,15 +303,12 @@ def find_cheapest_sell_path_from_snapshot_rows(
             ))
 
     if lightning_swap_rows:
-        # Bug #2 fix: sell 모드는 개인 온체인 지갑 → onchain_to_ln 스왑 → Lightning → 거래소 입금
+        # sell 모드: 개인 온체인 지갑 → onchain_to_ln 스왑 → Lightning → 거래소 입금
         active_swaps = [
             s for s in lightning_swap_rows
             if s.enabled and s.fee_pct is not None and getattr(s, 'direction', None) == 'onchain_to_ln'
         ]
         for swap in active_swaps:
-            fee_pct = swap.fee_pct / 100
-            fee_fixed_btc = (swap.fee_fixed_sat or 0) / 1e8
-
             for exchange in GROUPS['korea']:
                 ticker_row = ctx.ticker_by_exchange.get(exchange)
                 if ticker_row is None:
@@ -286,16 +325,24 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 if btc_after_network <= 0:
                     continue
 
-                swap_fee_btc = btc_after_network * fee_pct + fee_fixed_btc
-                btc_at_korean = btc_after_network - swap_fee_btc
+                # onchain_to_ln 스왑 엣지
+                sl = swap_leg(swap, btc_after_network, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+                if isinstance(sl, Blocked):
+                    continue
+
+                btc_at_korean = sl.amount_out
+                swap_fee_krw = sl.fee_krw
                 if btc_at_korean <= 0:
                     continue
 
-                gross_krw = btc_at_korean * korean_btc_price_krw
-                korean_sell_fee_krw = round(gross_krw * korean_taker)
-                krw_received = round(gross_krw - korean_sell_fee_krw)
-                swap_fee_krw = round(swap_fee_btc * korean_btc_price_krw)
+                # ----- 경로 3: lightning_direct (LN → 국내 BTC 매도) -----
+                sell = korea_sell_leg(btc_at_korean, korean_taker, korean_btc_price_krw, 'BTC', ctx.usd_krw_rate)
+                krw_received = sell.amount_out
+                korean_sell_fee_krw = sell.fee_krw
                 total_fee_krw = wallet_network_fee_krw + swap_fee_krw + korean_sell_fee_krw
+
+                # breakdown amount_text: 기존과 동일
+                swap_fee_btc = btc_after_network - btc_at_korean
                 paths.append(build_entry(
                     route_variant='lightning_direct',
                     korean_exchange=exchange,
@@ -313,37 +360,49 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     ],
                 ))
 
-                # Bug #1 fix: USDT 전송은 글로벌 거래소에서 출금하는 것이므로 global_exchange 기준
+                # ----- 경로 4: lightning_via_global (LN → 글로벌 BTC 매도 → USDT 출금 → 국내 KRW) -----
                 for row in ctx.withdrawals_by_key.get((global_exchange, 'USDT'), []):
-                    if not row.enabled or row.fee is None:
-                        continue
                     suspension_reason = is_suspended(ctx.maintenance_status, global_exchange, 'USDT', row.network_label)
                     if suspension_reason:
                         continue
 
-                    btc_after_network = amount_btc - wallet_network_fee_btc
-                    if btc_after_network <= 0:
-                        continue
-
-                    swap_fee_btc = btc_after_network * fee_pct + fee_fixed_btc
-                    btc_at_global = btc_after_network - swap_fee_btc
+                    btc_at_global = btc_at_korean  # 스왑 후 BTC → 글로벌로 전송
                     if btc_at_global <= 0:
                         continue
 
-                    gross_usdt = btc_at_global * ctx.global_btc_price_usd
-                    global_sell_fee_usdt = gross_usdt * ctx.global_taker
-                    usdt_after_global_sell = gross_usdt - global_sell_fee_usdt
-                    usdt_at_korean = usdt_after_global_sell - row.fee
+                    # 글로벌 BTC 매도 → USDT
+                    gsell = global_sell_leg(btc_at_global, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+                    usdt_after_global_sell = gsell.amount_out
+                    global_sell_fee_krw = gsell.fee_krw
+
+                    # USDT 출금 (withdraw_leg로 min/max 검증 포함)
+                    wd = withdraw_leg(
+                        row,
+                        usdt_after_global_sell,
+                        coin='USDT',
+                        price_krw=ctx.usd_krw_rate,
+                        usd_krw=ctx.usd_krw_rate,
+                        source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label),
+                        maintenance_status=ctx.maintenance_status,
+                        exchange=global_exchange,
+                    )
+                    if isinstance(wd, Blocked):
+                        _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=wd.reason)
+                        continue
+
+                    usdt_at_korean = wd.amount_out
+                    usdt_transfer_fee_krw = wd.fee_krw
                     if usdt_at_korean <= 0:
                         continue
 
-                    gross_krw = usdt_at_korean * ctx.usd_krw_rate
-                    korean_sell_fee_krw = round(gross_krw * korean_taker)
-                    krw_received = round(gross_krw - korean_sell_fee_krw)
-                    swap_fee_krw = round(swap_fee_btc * ctx.global_btc_price_usd * ctx.usd_krw_rate)
-                    global_sell_fee_krw = round(global_sell_fee_usdt * ctx.usd_krw_rate)
-                    usdt_transfer_fee_krw = int(round(row.fee_krw)) if row.fee_krw is not None else round(row.fee * ctx.usd_krw_rate)
-                    total_fee_krw = wallet_network_fee_krw + swap_fee_krw + global_sell_fee_krw + usdt_transfer_fee_krw + korean_sell_fee_krw
+                    # 국내 USDT → KRW 전환
+                    ksell = korea_sell_leg(usdt_at_korean, korean_taker, korean_btc_price_krw, 'USDT', ctx.usd_krw_rate)
+                    krw_received_ln = ksell.amount_out
+                    korean_sell_fee_krw_ln = ksell.fee_krw
+
+                    total_fee_krw_ln = wallet_network_fee_krw + swap_fee_krw + global_sell_fee_krw + usdt_transfer_fee_krw + korean_sell_fee_krw_ln
+
+                    gross_usdt = btc_at_global * ctx.global_btc_price_usd
                     paths.append(build_entry(
                         route_variant='lightning_via_global',
                         korean_exchange=exchange,
@@ -352,14 +411,14 @@ def find_cheapest_sell_path_from_snapshot_rows(
                         global_exit_mode='lightning',
                         global_exit_network='Lightning Network',
                         lightning_exit_provider=swap.service_name,
-                        krw_received=krw_received,
-                        total_fee_krw=total_fee_krw,
+                        krw_received=krw_received_ln,
+                        total_fee_krw=total_fee_krw_ln,
                         breakdown_components=[
                             fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                             fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(swap_fee_btc, 8)} BTC'),
                             fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=ctx.global_taker * 100, amount_text=f'{round(gross_usdt, 8)} USDT'),
                             fee_component('USDT 전송 수수료', usdt_transfer_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label)),
-                            fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(usdt_at_korean, 8)} USDT'),
+                            fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw_ln, rate_pct=korean_taker * 100, amount_text=f'{round(usdt_at_korean, 8)} USDT'),
                         ],
                     ))
 

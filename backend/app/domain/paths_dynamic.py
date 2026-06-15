@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from backend.app.domain.market_core import (
     GROUPS,
     GLOBAL_FETCHERS,
@@ -14,8 +15,16 @@ from backend.app.domain.market_core import (
 )
 from backend.app.domain.path_helpers import (
     fee_component,
-    is_suspended,
     is_bitcoin_native_network,
+)
+from backend.app.domain.path_graph import (
+    row_from_dict,
+    korea_buy_leg,
+    withdraw_leg,
+    global_buy_leg,
+    global_buy_maker_leg,
+    swap_leg,
+    Blocked,
 )
 from backend.app.domain.korea_exchange_registry import get_withdrawal_limits
 from backend.app.services.promo_scraper import NO_PROMO_NOTES, PromoContext, fetch_promo_context
@@ -99,61 +108,55 @@ def _build_usdt_onchain_paths(
 ) -> list[dict]:
     """USDT → 글로벌 → BTC 온체인 경로."""
     paths = []
+    # 국내 매수 수수료 (USDT): 인라인 계산 유지 (korean_usdt_price_krw 기준)
+    # korea_buy_leg USDT 브랜치는 usd_krw_rate로 나누어 실거래가와 다름 — 직접 계산
+    trading_fee_krw = round(amount_krw * korean_taker)
+    usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
+    buy_comp = fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw, is_fixed=False)
+
     for network in usdt_networks:
-        if not network.get('enabled', True) or network.get('fee') is None:
-            continue
-        if is_suspended(maintenance_status, exchange, 'USDT', network['label']):
+        # 국내 USDT 출금 엣지 (enabled/min/max/suspension 통일 검증)
+        row = row_from_dict(network)
+        wd = withdraw_leg(
+            row, usdt_bought,
+            coin='USDT', price_krw=korean_usdt_price_krw, usd_krw=usd_krw_rate,
+            maintenance_status=maintenance_status, exchange=exchange,
+        )
+        if isinstance(wd, Blocked):
             continue
 
-        withdrawal_fee_usdt = network['fee']
-        trading_fee_krw = round(amount_krw * korean_taker)
-        # 국내 USDT 실거래가로 실제 수령 USDT 계산
-        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
-        usdt_after = usdt_bought - withdrawal_fee_usdt
+        usdt_after = wd.amount_out
         if usdt_after <= 0:
             continue
 
-        global_fee_usdt = usdt_after * global_taker_usdt
-        usdt_for_btc = usdt_after - global_fee_usdt
-        btc_at_global = usdt_for_btc / global_btc_price_usd
-        # USDT 수수료는 국내 실거래가로, BTC 수수료는 포렉스 기준으로 환산
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
-        global_trading_fee_krw = round(global_fee_usdt * usd_krw_rate)
-
-        # 각 노드의 실제 통과 금액 (KRW 환산)
-        input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
-        input_krw_global_buy = round(usdt_after * usd_krw_rate)
-        input_krw_btc_wd = round(btc_at_global * global_btc_price_usd * usd_krw_rate)
+        # 글로벌 거래소 BTC 매수 엣지 (USDT/taker)
+        gbl = global_buy_leg(usdt_after, global_taker_usdt, global_btc_price_usd, usd_krw_rate)
+        btc_at_global = gbl.amount_out
 
         if global_onchain_wd_fee is not None:
-            btc_received = btc_at_global - global_onchain_wd_fee
-            total_fee_krw = (
-                trading_fee_krw + withdrawal_fee_krw
-                + global_trading_fee_krw + global_onchain_wd_fee_krw
+            # 글로벌 BTC 온체인 출금 엣지
+            global_wd_row = SimpleNamespace(
+                network_label='Bitcoin',
+                fee=global_onchain_wd_fee,
+                enabled=True,
+                fee_krw=global_onchain_wd_fee_krw,
+                min_withdrawal=None,
+                max_withdrawal=None,
             )
-            components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-                fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt:g} USDT', is_fixed=True),
-                fee_component('해외 BTC 매수 수수료 (USDT/taker)', global_trading_fee_krw,
-                              input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_fee_usdt, 8)} USDT', is_fixed=False),
-                fee_component(f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
-                              input_krw=input_krw_btc_wd,
-                              amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True),
-            ]
+            gwd = withdraw_leg(
+                global_wd_row, btc_at_global,
+                coin='BTC', price_krw=0.0, usd_krw=0.0,
+                label_override=f'해외 BTC 출금 ({global_exchange})',
+            )
+            if isinstance(gwd, Blocked):
+                continue
+            btc_received = gwd.amount_out
+            total_fee_krw = trading_fee_krw + wd.fee_krw + gbl.fee_krw + gwd.fee_krw
+            components = [buy_comp] + wd.components + gbl.components + gwd.components
         else:
             btc_received = btc_at_global
-            total_fee_krw = trading_fee_krw + withdrawal_fee_krw + global_trading_fee_krw
-            components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-                fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt:g} USDT', is_fixed=True),
-                fee_component('해외 BTC 매수 수수료 (USDT/taker)', global_trading_fee_krw,
-                              input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_fee_usdt, 8)} USDT', is_fixed=False),
-            ]
+            total_fee_krw = trading_fee_krw + wd.fee_krw + gbl.fee_krw
+            components = [buy_comp] + wd.components + gbl.components
 
         if btc_received <= 0:
             continue
@@ -191,74 +194,53 @@ def _build_fdusd_maker_paths(
 ) -> list[dict]:
     """USDT → Convert FDUSD → BTC/FDUSD 지정가(maker 0%) 경로."""
     paths = []
+    # 국내 매수 수수료 (USDT): 인라인 계산 유지 (korean_usdt_price_krw 기준)
+    trading_fee_krw = round(amount_krw * korean_taker)
+    usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
+    buy_comp = fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw, is_fixed=False)
+
     for network in usdt_networks:
-        if not network.get('enabled', True) or network.get('fee') is None:
-            continue
-        if is_suspended(maintenance_status, exchange, 'USDT', network['label']):
+        # 국내 USDT 출금 엣지 (enabled/min/max/suspension 통일 검증)
+        row = row_from_dict(network)
+        wd = withdraw_leg(
+            row, usdt_bought,
+            coin='USDT', price_krw=korean_usdt_price_krw, usd_krw=usd_krw_rate,
+            maintenance_status=maintenance_status, exchange=exchange,
+        )
+        if isinstance(wd, Blocked):
             continue
 
-        withdrawal_fee_usdt = network['fee']
-        trading_fee_krw = round(amount_krw * korean_taker)
-        # 국내 USDT 실거래가로 실제 수령 USDT 계산
-        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
-        usdt_after = usdt_bought - withdrawal_fee_usdt
+        usdt_after = wd.amount_out
         if usdt_after <= 0:
             continue
 
-        # USDT → FDUSD 전환 (스프레드 비용)
-        convert_fee_usdt = usdt_after * fdusd_convert_spread
-        fdusd_amount = usdt_after - convert_fee_usdt
-        convert_fee_krw = round(convert_fee_usdt * usd_krw_rate)
-
-        # BTC/FDUSD 지정가 매수 (maker)
-        global_maker_fee_fdusd = fdusd_amount * fdusd_maker_fee
-        fdusd_for_btc = fdusd_amount - global_maker_fee_fdusd
-        btc_at_global = fdusd_for_btc / global_btc_price_usd
-        global_trading_fee_krw = round(global_maker_fee_fdusd * usd_krw_rate)
-
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
-
-        # 각 노드의 실제 통과 금액 (KRW 환산)
-        input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
-        input_krw_convert = round(usdt_after * usd_krw_rate)
-        input_krw_global_buy = round(fdusd_amount * usd_krw_rate)
-        input_krw_btc_wd = round(btc_at_global * global_btc_price_usd * usd_krw_rate)
+        # USDT → FDUSD 전환 + maker 매수 엣지
+        gbl = global_buy_maker_leg(usdt_after, fdusd_maker_fee, fdusd_convert_spread, global_btc_price_usd, usd_krw_rate)
+        btc_at_global = gbl.amount_out
 
         if global_onchain_wd_fee is not None:
-            btc_received = btc_at_global - global_onchain_wd_fee
-            total_fee_krw = (
-                trading_fee_krw + withdrawal_fee_krw + convert_fee_krw
-                + global_trading_fee_krw + global_onchain_wd_fee_krw
+            global_wd_row = SimpleNamespace(
+                network_label='Bitcoin',
+                fee=global_onchain_wd_fee,
+                enabled=True,
+                fee_krw=global_onchain_wd_fee_krw,
+                min_withdrawal=None,
+                max_withdrawal=None,
             )
-            components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-                fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt:g} USDT', is_fixed=True),
-                fee_component('USDT→FDUSD 전환 스프레드', convert_fee_krw,
-                              input_krw=input_krw_convert,
-                              amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False),
-                fee_component(f'BTC/FDUSD 매수 수수료 (maker {fdusd_maker_fee * 100}%)',
-                              global_trading_fee_krw, input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD', is_fixed=False),
-                fee_component(f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
-                              input_krw=input_krw_btc_wd,
-                              amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True),
-            ]
+            gwd = withdraw_leg(
+                global_wd_row, btc_at_global,
+                coin='BTC', price_krw=0.0, usd_krw=0.0,
+                label_override=f'해외 BTC 출금 ({global_exchange})',
+            )
+            if isinstance(gwd, Blocked):
+                continue
+            btc_received = gwd.amount_out
+            total_fee_krw = trading_fee_krw + wd.fee_krw + gbl.fee_krw + gwd.fee_krw
+            components = [buy_comp] + wd.components + gbl.components + gwd.components
         else:
             btc_received = btc_at_global
-            total_fee_krw = trading_fee_krw + withdrawal_fee_krw + convert_fee_krw + global_trading_fee_krw
-            components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-                fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt:g} USDT', is_fixed=True),
-                fee_component('USDT→FDUSD 전환 스프레드', convert_fee_krw,
-                              input_krw=input_krw_convert,
-                              amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False),
-                fee_component(f'BTC/FDUSD 매수 수수료 (maker {fdusd_maker_fee * 100}%)',
-                              global_trading_fee_krw, input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_maker_fee_fdusd, 8)} FDUSD', is_fixed=False),
-            ]
+            total_fee_krw = trading_fee_krw + wd.fee_krw + gbl.fee_krw
+            components = [buy_comp] + wd.components + gbl.components
 
         if btc_received <= 0:
             continue
@@ -302,87 +284,85 @@ def _build_ln_exit_paths(
 ) -> list[dict]:
     """글로벌 거래소 Lightning 출금 → 스왑 서비스 → 개인 온체인 지갑 경로."""
     paths = []
-    strategies = [('usdt_taker', global_taker_usdt, 'USDT')]
+    strategies = [('usdt_taker', global_taker_usdt)]
     if include_fdusd and fdusd_promo_active and fdusd_maker_fee is not None:
-        strategies.append(('fdusd_maker', fdusd_maker_fee, 'FDUSD'))
+        strategies.append(('fdusd_maker', fdusd_maker_fee))
+
+    # 글로벌 LN 출금 row (fee_krw=None → price_krw로 환산)
+    ln_wd_row = SimpleNamespace(
+        network_label='Lightning Network',
+        fee=ln_wd_fee_btc,
+        enabled=True,
+        fee_krw=None,
+        min_withdrawal=None,   # LN min/max는 btc_after_ln_wd 기준으로 아래서 직접 검사
+        max_withdrawal=None,
+    )
+
+    # 국내 매수 수수료 (USDT): 인라인 계산 유지 (korean_usdt_price_krw 기준)
+    trading_fee_krw = round(amount_krw * korean_taker)
+    usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
+    buy_comp = fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw, is_fixed=False)
 
     for network in usdt_networks:
-        if not network.get('enabled', True) or network.get('fee') is None:
-            continue
-        if is_suspended(maintenance_status, exchange, 'USDT', network['label']):
+        # 국내 USDT 출금 엣지
+        row = row_from_dict(network)
+        wd = withdraw_leg(
+            row, usdt_bought,
+            coin='USDT', price_krw=korean_usdt_price_krw, usd_krw=usd_krw_rate,
+            maintenance_status=maintenance_status, exchange=exchange,
+        )
+        if isinstance(wd, Blocked):
             continue
 
-        withdrawal_fee_usdt = network['fee']
-        trading_fee_krw = round(amount_krw * korean_taker)
-        # 국내 USDT 실거래가로 실제 수령 USDT 계산
-        usdt_bought = (amount_krw - trading_fee_krw) / korean_usdt_price_krw
-        usdt_after = usdt_bought - withdrawal_fee_usdt
+        usdt_after = wd.amount_out
         if usdt_after <= 0:
             continue
 
-        withdrawal_fee_krw = round(withdrawal_fee_usdt * korean_usdt_price_krw)
-        input_krw_buy = amount_krw
-        input_krw_wd = round(usdt_bought * korean_usdt_price_krw)
-
-        for quote_strategy, buy_fee_rate, coin_label in strategies:
+        for quote_strategy, buy_fee_rate in strategies:
+            # 글로벌 거래소 BTC 매수 엣지
             if quote_strategy == 'fdusd_maker':
-                convert_fee_usdt = usdt_after * fdusd_convert_spread
-                buy_input = usdt_after - convert_fee_usdt
-                convert_fee_krw = round(convert_fee_usdt * usd_krw_rate)
-                input_krw_convert = round(usdt_after * usd_krw_rate)
-                input_krw_global_buy = round(buy_input * usd_krw_rate)
-                convert_comp = [fee_component(
-                    'USDT→FDUSD 전환 스프레드', convert_fee_krw,
-                    input_krw=input_krw_convert,
-                    amount_text=f'{round(convert_fee_usdt, 6)} USDT', is_fixed=False,
-                )]
-                buy_label = f'BTC/FDUSD 매수 수수료 (maker {buy_fee_rate * 100:.1f}%)'
+                gbl = global_buy_maker_leg(usdt_after, buy_fee_rate, fdusd_convert_spread, global_btc_price_usd, usd_krw_rate)
             else:
-                buy_input = usdt_after
-                convert_fee_krw = 0
-                input_krw_global_buy = round(usdt_after * usd_krw_rate)
-                convert_comp = []
-                buy_label = '해외 BTC 매수 수수료 (USDT/taker)'
+                gbl = global_buy_leg(usdt_after, buy_fee_rate, global_btc_price_usd, usd_krw_rate)
+            btc_at_global = gbl.amount_out
 
-            global_buy_fee = buy_input * buy_fee_rate
-            btc_at_global = (buy_input - global_buy_fee) / global_btc_price_usd
-            global_trading_fee_krw = round(global_buy_fee * usd_krw_rate)
-            input_krw_ln_wd = round(btc_at_global * global_btc_price_usd * usd_krw_rate)
+            # 글로벌 LN 출금 엣지
+            ln_wd = withdraw_leg(
+                ln_wd_row, btc_at_global,
+                coin='BTC', price_krw=global_btc_price_usd * usd_krw_rate, usd_krw=usd_krw_rate,
+                label_override=f'⚡ LN 출금 ({global_exchange})',
+            )
+            if isinstance(ln_wd, Blocked):
+                continue
+            btc_after_ln_wd = ln_wd.amount_out
 
-            # LN 출금 후 잔량 및 제약 검사
-            btc_after_ln_wd = btc_at_global - ln_wd_fee_btc
+            # LN 출금 후 min/max 검사 (btc_after_ln_wd 기준)
             if btc_after_ln_wd < ln_wd_min_btc:
                 continue
             if ln_wd_max_btc is not None and btc_after_ln_wd > ln_wd_max_btc:
                 continue
 
-            ln_wd_fee_krw = round(ln_wd_fee_btc * global_btc_price_usd * usd_krw_rate)
-            base_fee_krw = (trading_fee_krw + withdrawal_fee_krw + convert_fee_krw
-                           + global_trading_fee_krw + ln_wd_fee_krw)
-            ln_wd_sats = round(ln_wd_fee_btc * 1e8)
-
-            base_components = [
-                fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-                fee_component('USDT 출금 수수료', withdrawal_fee_krw,
-                              input_krw=input_krw_wd, amount_text=f'{withdrawal_fee_usdt:g} USDT', is_fixed=True),
-                *convert_comp,
-                fee_component(buy_label, global_trading_fee_krw,
-                              input_krw=input_krw_global_buy,
-                              amount_text=f'{round(global_buy_fee, 8)} {coin_label}', is_fixed=False),
-                fee_component(f'⚡ LN 출금 ({global_exchange})', ln_wd_fee_krw,
-                              input_krw=input_krw_ln_wd, amount_text=f'{ln_wd_sats} sats', is_fixed=True),
-            ]
+            base_fee_krw = trading_fee_krw + wd.fee_krw + gbl.fee_krw + ln_wd.fee_krw
+            base_components = [buy_comp] + wd.components + gbl.components + ln_wd.components
 
             # LN 출금 → 스왑 서비스 → 개인 온체인 지갑 (자기수탁)
-            input_krw_swap = round(btc_after_ln_wd * global_btc_price_usd * usd_krw_rate)
             for svc in LIGHTNING_SWAP_SERVICES:
-                swap_fee_btc = btc_after_ln_wd * svc['fee_pct'] + svc.get('fixed_fee_btc', 0.0)
-                btc_received = btc_after_ln_wd - swap_fee_btc
+                # swap_leg는 fee_pct를 퍼센트로 받으므로 svc['fee_pct'](소수) × 100 변환
+                swap_obj = SimpleNamespace(
+                    service_name=svc['display'],
+                    fee_pct=svc['fee_pct'] * 100,
+                    fee_fixed_sat=round(svc.get('fixed_fee_btc', 0.0) * 1e8),
+                    min_amount_sat=0,
+                    max_amount_sat=None,
+                )
+                swp = swap_leg(swap_obj, btc_after_ln_wd, global_btc_price_usd, usd_krw_rate)
+                if isinstance(swp, Blocked):
+                    continue
+                btc_received = swp.amount_out
                 if btc_received <= 0:
                     continue
-                swap_fee_krw = round(swap_fee_btc * global_btc_price_usd * usd_krw_rate)
-                total_fee_krw = base_fee_krw + swap_fee_krw
-                swap_sats = round(swap_fee_btc * 1e8)
+
+                total_fee_krw = base_fee_krw + swp.fee_krw
 
                 paths.append({
                     'korean_exchange': exchange,
@@ -400,14 +380,7 @@ def _build_ln_exit_paths(
                     'total_fee_krw': total_fee_krw,
                     'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
                     'breakdown': {
-                        'components': base_components + [
-                            fee_component(
-                                f'⚡ LN→온체인 스왑 ({svc["display"]} {svc["fee_pct"] * 100:.1f}%)',
-                                swap_fee_krw,
-                                input_krw=input_krw_swap,
-                                amount_text=f'{swap_sats} sats', is_fixed=False,
-                            )
-                        ],
+                        'components': base_components + swp.components,
                         'total_fee_krw': total_fee_krw,
                     },
                 })
@@ -438,54 +411,62 @@ def _build_btc_via_global_paths(
         return []
 
     paths = []
+    # 글로벌 BTC 출금 row 사전 생성 (fee_krw 확정으로 환산 생략)
+    global_wd_row = SimpleNamespace(
+        network_label='Bitcoin',
+        fee=global_onchain_wd_fee,
+        enabled=True,
+        fee_krw=global_onchain_wd_fee_krw,
+        min_withdrawal=None,
+        max_withdrawal=None,
+    )
+
     for network in btc_wd_networks:
-        if not network.get('enabled', True) or network.get('fee') is None:
-            continue
-        if is_suspended(maintenance_status, exchange, 'BTC', network['label']):
+        # 국내 BTC 출금 엣지 (enabled/min/max/suspension 통일 검증)
+        row = row_from_dict(network)
+        buy = korea_buy_leg(amount_krw, korean_taker, effective_btc_price_krw, 'BTC', 0.0)
+        btc_bought = buy.amount_out
+
+        wd = withdraw_leg(
+            row, btc_bought,
+            coin='BTC', price_krw=effective_btc_price_krw, usd_krw=0.0,
+            label_override='국내 비트코인 출금 수수료',
+            maintenance_status=maintenance_status, exchange=exchange,
+        )
+        if isinstance(wd, Blocked):
             continue
 
-        domestic_wd_fee_btc: float = network['fee']
-        trading_fee_krw = round(amount_krw * korean_taker)
-        btc_bought = (amount_krw - trading_fee_krw) / effective_btc_price_krw
-        btc_after_domestic_wd = btc_bought - domestic_wd_fee_btc
+        btc_after_domestic_wd = wd.amount_out
         if btc_after_domestic_wd <= 0:
             continue
-        btc_received = btc_after_domestic_wd - global_onchain_wd_fee
+
+        # 글로벌 BTC 출금 엣지 (fee_krw가 row에 확정돼 있으므로 price_krw 불필요, 0 전달)
+        gwd = withdraw_leg(
+            global_wd_row, btc_after_domestic_wd,
+            coin='BTC', price_krw=0.0, usd_krw=0.0,
+            label_override=f'해외 BTC 출금 ({global_exchange})',
+        )
+        if isinstance(gwd, Blocked):
+            continue
+        btc_received = gwd.amount_out
         if btc_received <= 0:
             continue
 
-        domestic_wd_fee_krw = round(domestic_wd_fee_btc * effective_btc_price_krw)
+        # 슬리피지 비용 별도 추가 (엣지에 없으므로 인라인)
         slippage_cost_krw = (
             round((effective_btc_price_krw - korean_btc_price_krw) * btc_bought)
             if slip_pct > 0 else 0
         )
-        total_fee_krw = trading_fee_krw + domestic_wd_fee_krw + global_onchain_wd_fee_krw + slippage_cost_krw
+        total_fee_krw = buy.fee_krw + wd.fee_krw + gwd.fee_krw + slippage_cost_krw
 
-        input_krw_buy = amount_krw
-        input_krw_domestic_wd = round(btc_bought * effective_btc_price_krw)
-        input_krw_global_wd = round(btc_after_domestic_wd * effective_btc_price_krw)
-
-        components = [
-            fee_component('국내 매수 수수료', trading_fee_krw, input_krw=input_krw_buy, is_fixed=False),
-        ]
+        components = list(buy.components)
         if slippage_cost_krw > 0:
             components.append(fee_component(
                 f'슬리피지 추정 ({slip_pct:.2f}%)', slippage_cost_krw,
-                input_krw=input_krw_buy,
+                input_krw=amount_krw,
                 amount_text='추정값, 실제 체결가 기준', is_fixed=False,
             ))
-        components += [
-            fee_component(
-                '국내 비트코인 출금 수수료', domestic_wd_fee_krw,
-                input_krw=input_krw_domestic_wd,
-                amount_text=f'{domestic_wd_fee_btc} BTC', is_fixed=True,
-            ),
-            fee_component(
-                f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
-                input_krw=input_krw_global_wd,
-                amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
-            ),
-        ]
+        components += wd.components + gwd.components
 
         paths.append({
             'korean_exchange': exchange,
@@ -638,50 +619,47 @@ def find_cheapest_path_dynamic(
                 btc_wd_networks = fut_withdrawals[(exchange, 'BTC')].result()
             except Exception:
                 btc_wd_networks = []
+
+            limits = get_withdrawal_limits(exchange)
+            krw_per_tx = limits.krw_per_tx_limit if limits else None
+            num_txs = -(-amount_krw // krw_per_tx) if (krw_per_tx and krw_per_tx > 0) else 1
+
             for network in btc_wd_networks:
-                if not network.get('enabled', True) or network.get('fee') is None:
-                    continue
-                if is_suspended(maintenance_status, exchange, 'BTC', network['label']):
-                    continue
-                wd_fee_btc = network['fee']
-                trading_fee_krw = round(amount_krw * korean_taker)
+                # BTC 매수 엣지 (슬리피지 반영 effective_btc_price_krw 사용)
+                buy = korea_buy_leg(amount_krw, korean_taker, effective_btc_price_krw, 'BTC', 0.0)
+                btc_bought = buy.amount_out
 
-                # 1회 KRW 출금 제한 — 초과 시 여러 트랜잭션 필요
-                limits = get_withdrawal_limits(exchange)
-                krw_per_tx = limits.krw_per_tx_limit if limits else None
-                num_txs = -(-amount_krw // krw_per_tx) if (krw_per_tx and krw_per_tx > 0) else 1
+                # BTC 출금 엣지 (enabled/min/max/suspension 통일 검증, num_txs 지원)
+                row = row_from_dict(network)
+                wd = withdraw_leg(
+                    row, btc_bought,
+                    coin='BTC', price_krw=effective_btc_price_krw, usd_krw=0.0,
+                    num_txs=num_txs,
+                    maintenance_status=maintenance_status, exchange=exchange,
+                )
+                if isinstance(wd, Blocked):
+                    continue
 
-                # 슬리피지 반영 가격으로 BTC 매수량 계산
-                btc_bought = (amount_krw - trading_fee_krw) / effective_btc_price_krw
-                total_wd_fee_btc = wd_fee_btc * num_txs
-                btc_received = btc_bought - total_wd_fee_btc
+                btc_received = wd.amount_out
                 if btc_received <= 0:
                     continue
-                single_wd_fee_krw = round(wd_fee_btc * effective_btc_price_krw)
-                wd_fee_krw = single_wd_fee_krw * num_txs
-                # 슬리피지 비용 = 실효가 - 표시가 차이
-                slippage_cost_krw = round((effective_btc_price_krw - korean_btc_price_krw) * btc_bought) if slip_pct > 0 else 0
-                total_fee_krw = trading_fee_krw + wd_fee_krw + slippage_cost_krw
-                input_krw_btc_wd = round(btc_bought * effective_btc_price_krw)
 
-                wd_label = (
-                    f'BTC 출금 수수료 ({num_txs}회 × {wd_fee_btc} BTC)'
-                    if num_txs > 1 else 'BTC 출금 수수료'
+                # 슬리피지 비용 = 실효가 - 표시가 차이 (엣지 밖 별도 처리)
+                slippage_cost_krw = (
+                    round((effective_btc_price_krw - korean_btc_price_krw) * btc_bought)
+                    if slip_pct > 0 else 0
                 )
-                wd_amount_text = (
-                    f'{round(total_wd_fee_btc, 8)} BTC ({num_txs}회)'
-                    if num_txs > 1 else f'{wd_fee_btc} BTC'
-                )
+                total_fee_krw = buy.fee_krw + wd.fee_krw + slippage_cost_krw
 
-                components = [
-                    fee_component('국내 매수 수수료', trading_fee_krw, input_krw=amount_krw, is_fixed=False),
-                ]
+                components = list(buy.components)
                 if slippage_cost_krw > 0:
                     components.append(fee_component(
                         f'슬리피지 추정 ({slip_pct:.2f}%)', slippage_cost_krw,
                         input_krw=amount_krw,
                         amount_text='추정값, 실제 체결가 기준', is_fixed=False,
                     ))
+                components += wd.components
+
                 all_paths.append({
                     'korean_exchange': exchange,
                     'transfer_coin': 'BTC',
@@ -698,10 +676,7 @@ def find_cheapest_path_dynamic(
                     'total_fee_krw': total_fee_krw,
                     'fee_pct': round(total_fee_krw / amount_krw * 100, 4),
                     'breakdown': {
-                        'components': components + [
-                            fee_component(wd_label, wd_fee_krw,
-                                          input_krw=input_krw_btc_wd, amount_text=wd_amount_text, is_fixed=True),
-                        ],
+                        'components': components,
                         'total_fee_krw': total_fee_krw,
                     },
                 })
