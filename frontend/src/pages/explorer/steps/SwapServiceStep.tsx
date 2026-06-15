@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, ArrowSquareOut, Globe, Lightning } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, ArrowSquareOut, Globe } from '@phosphor-icons/react';
 import { fmtEx, getExchangeDomain, getLightningServiceInfo } from '../../../lib/exchangeNames';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { ExFavicon, OptionCard } from '../ui';
@@ -43,8 +43,8 @@ export function SwapServiceStep() {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="flex items-center gap-2">
-                                <div className="w-5 h-5 rounded-md bg-acc-green/15 flex items-center justify-center">
-                                  <Lightning weight="fill" className="w-3 h-3 text-acc-green" />
+                                <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs font-bold text-label-secondary">{i + 1}</span>
                                 </div>
                                 <p className="text-sm font-bold text-label-primary">직접 출금 (스왑 없음)</p>
                               </div>
@@ -86,7 +86,10 @@ export function SwapServiceStep() {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <ExFavicon id={name} size={20} />
+                              <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs font-bold text-label-secondary">{i + 1}</span>
+                              </div>
+                              <ExFavicon id={name} size={18} />
                               <p className="text-sm font-bold text-label-primary">{fmtEx(name)}</p>
                               {websiteUrl && (
                                 <a

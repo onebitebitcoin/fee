@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowDown, ArrowLeft, ArrowRight, Lightning } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import { ONCHAIN_GATES } from '../../../lib/gatemanRegistry';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { OptionCard, GatemanPanel } from '../ui';
@@ -18,8 +18,10 @@ export function BtcMethodStep() {
               </div>
               <div className="space-y-2.5">
                 <OptionCard selected={btcMethod === 'onchain'} onClick={() => { setBtcMethod('onchain'); scrollToStepEnd(); }}>
-                  <div className="flex items-center gap-3">
-                    <ArrowDown weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-label-secondary">1</span>
+                    </div>
                     <div>
                       <p className="text-sm font-bold text-label-primary">온체인 출금</p>
                       <p className="text-xs text-label-secondary mt-0.5">Bitcoin 블록체인 네트워크로 직접 전송. 10분 내외 소요.</p>
@@ -27,8 +29,10 @@ export function BtcMethodStep() {
                   </div>
                 </OptionCard>
                 <OptionCard selected={btcMethod === 'lightning'} onClick={() => { setBtcMethod('lightning'); scrollToStepEnd(); }}>
-                  <div className="flex items-center gap-3">
-                    <Lightning weight="fill" className={`w-7 h-7 flex-shrink-0 ${btcMethod === 'lightning' ? 'text-acc-amber' : 'text-label-secondary'}`} />
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-label-secondary">2</span>
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-bold text-label-primary">라이트닝</p>
