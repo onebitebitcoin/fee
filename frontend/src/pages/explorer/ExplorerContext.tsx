@@ -626,9 +626,20 @@ function useExplorerValue() {
         setSwapSvc(p.lightning_exit_provider ?? null);
       } else {
         setGlobalExitMethod('onchain');
+        setSwapSvc(null);
       }
     } else {
-      setBtcMethod('onchain');
+      // BTC 직접 경로 (국내 거래소 직접 출금)
+      setGlobal(null);
+      if (p.path_type === 'lightning_exit') {
+        // 라이트닝 스왑 경유 — globalExitMethod로 resultPath 필터 적용
+        setGlobalExitMethod('lightning');
+        setSwapSvc(p.lightning_exit_provider ?? null);
+      } else {
+        setBtcMethod('onchain');
+        setGlobalExitMethod(null);
+        setSwapSvc(null);
+      }
     }
     setNetwork(p.network);
     fromRecommendation.current = true;
