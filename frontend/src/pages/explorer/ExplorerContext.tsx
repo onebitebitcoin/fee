@@ -3,7 +3,7 @@
 // 각 단계 컴포넌트는 useExplorer()로 필요한 값만 꺼내 쓴다.
 // 타입은 useExplorerValue 반환값에서 추론한다(수동 인터페이스 유지보수 불필요).
 
-import { createContext, useContext, useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
@@ -40,6 +40,7 @@ function useExplorerValue() {
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [failedGlobalExchanges, setFailedGlobalExchanges] = useState<string[]>([]);
 
   const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
@@ -386,7 +387,7 @@ function useExplorerValue() {
 
   async function handleSearch() {
     if (!amountKrw || amountKrw < 10_000) return;
-    setPhase('loading');
+    setIsSearching(true);
     setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
@@ -480,18 +481,18 @@ function useExplorerValue() {
 
       setFailedGlobalExchanges(failed);
       if (!Object.keys(byGlobal).length) throw new Error('모든 거래소 조회 실패');
-      // 최소 2초 표시 보장: 캐시 응답이 빠를 때도 완료 상태가 화면에 보이도록
-      const elapsed = Date.now() - loadingStartedAt;
-      await new Promise(res => setTimeout(res, Math.max(400, 2000 - elapsed)));
       setAllData({
         byGlobal,
         tickers: tickerRes.items,
         latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
       });
       setLoadingDone(true);
+      setIsSearching(false);
+      history.pushState({ phase: 'domestic' }, '');
+      setPhase('domestic');
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
-      setPhase('input');
+      setIsSearching(false);
     }
   }
 
@@ -538,13 +539,9 @@ function useExplorerValue() {
     setPhase(next);
   }
 
-  const handleLoadingNext = useCallback(() => {
-    history.pushState({ phase: 'domestic' }, '');
-    setPhase('domestic');
-  }, []);
-
   function reset() {
     setPhase('input'); setAllData(null); setError(null); setLoadingDone(false);
+    setIsSearching(false);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
     setFailedGlobalExchanges([]);
@@ -576,6 +573,7 @@ function useExplorerValue() {
     cautionMap,
     exchangeProgress,
     loadingDone,
+    isSearching,
     failedGlobalExchanges,
     amountKrw,
     stepEndRef,
@@ -601,7 +599,6 @@ function useExplorerValue() {
     handleSearch,
     handleBack,
     handleNext,
-    handleLoadingNext,
     reset,
   };
 }

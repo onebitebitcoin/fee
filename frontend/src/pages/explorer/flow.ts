@@ -4,14 +4,14 @@
 // 새 단계 추가: steps/XStep.tsx 작성 → registry.tsx 등록 → 여기 FLOW에 끼워넣기.
 
 export type Phase =
-  | 'input' | 'loading' | 'domestic' | 'coin' | 'btc_method'
+  | 'input' | 'domestic' | 'coin' | 'btc_method'
   | 'global' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
 
 export type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
 
 // 진행 방향(애니메이션) 판정용 선형 순서
 export const PHASES: Phase[] = [
-  'input', 'loading', 'domestic', 'coin', 'btc_method',
+  'input', 'domestic', 'coin', 'btc_method',
   'global', 'network', 'global_exit_method', 'swap_service', 'result',
 ];
 

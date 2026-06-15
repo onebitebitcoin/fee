@@ -4,7 +4,6 @@
 
 import type { FC } from 'react';
 import type { Phase } from './flow';
-import { LoadingStep } from './steps/LoadingStep';
 import { InputStep } from './steps/InputStep';
 import { DomesticStep } from './steps/DomesticStep';
 import { CoinStep } from './steps/CoinStep';
@@ -21,7 +20,6 @@ export interface StepEntry {
 }
 
 export const STEP_REGISTRY: Record<Phase, StepEntry> = {
-  loading:            { Component: LoadingStep },
   input:              { Component: InputStep,            className: 'space-y-6 pt-4' },
   domestic:           { Component: DomesticStep,         className: 'space-y-4 pt-2' },
   coin:               { Component: CoinStep,             className: 'space-y-4 pt-2' },

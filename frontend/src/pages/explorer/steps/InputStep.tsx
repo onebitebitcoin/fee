@@ -1,17 +1,32 @@
 import { motion } from 'motion/react';
 import { Warning } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
+import { DOMESTIC_INFO } from '../constants';
+import { LoadingScreen } from '../ui';
 import { useExplorer } from '../ExplorerContext';
+
+const DOMESTIC_KEYS = Object.keys(DOMESTIC_INFO);
 
 export function InputStep() {
   const {
     amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, handleSearch,
+    isSearching, exchangeProgress, loadingDone,
   } = useExplorer();
 
   const kimp = btcPrice?.kimchiPremium;
   const kimpColor = kimp == null
     ? 'text-label-tertiary'
     : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green';
+
+  if (isSearching) {
+    return (
+      <LoadingScreen
+        progress={exchangeProgress}
+        domesticKeys={DOMESTIC_KEYS}
+        isReady={loadingDone}
+      />
+    );
+  }
 
   return (
     <>
