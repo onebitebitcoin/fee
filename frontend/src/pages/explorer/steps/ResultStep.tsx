@@ -103,26 +103,18 @@ export function ResultStep() {
 
                   return (
                     <div className="space-y-2 relative z-10 w-full">
-                      {krwPnL != null ? (
-                        <div className="ios-card rounded-2xl px-4 py-3 text-left">
-                          <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">국내 원화 기준</p>
-                          <p className="text-xs text-label-secondary leading-relaxed">
-                            <span className="num font-semibold text-label-primary">₩{formatNumber(amountKrw)}</span> 구매하면 받은 비트코인 가치는 <span className="num font-semibold text-label-primary">₩{formatNumber(satsKrw!)}</span>
+                      <div className="ios-card rounded-2xl px-4 py-3 text-left">
+                        <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">수수료 합계</p>
+                        <p className="text-sm font-bold text-acc-red num">
+                          -{formatFeeKrw(resultPath.total_fee_krw)}
+                          <span className="text-[11px] font-normal ml-1.5 opacity-70">({formatPercent(resultPath.fee_pct)})</span>
+                        </p>
+                        {krwPnL != null && krwPnL !== -resultPath.total_fee_krw && (
+                          <p className={`text-[11px] num mt-1.5 ${krwPnL < 0 ? 'text-label-secondary' : 'text-acc-green'}`}>
+                            순손익(김치 프리미엄 포함) {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))}
                           </p>
-                          <p className={`text-sm font-bold num mt-1 ${krwPnL < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                            {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))} {krwPnL < 0 ? '지출' : '수익'}
-                            <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(krwPnL) / amountKrw * 100).toFixed(2)}%)</span>
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="ios-card rounded-2xl px-4 py-3 text-left">
-                          <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">수수료</p>
-                          <p className="text-sm font-bold text-acc-red num">
-                            -{formatFeeKrw(resultPath.total_fee_krw)}
-                            <span className="text-[11px] font-normal ml-1.5 opacity-70">({formatPercent(resultPath.fee_pct)})</span>
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {globalPnL != null && (
                         <div className="ios-card rounded-2xl px-4 py-3 text-left">
