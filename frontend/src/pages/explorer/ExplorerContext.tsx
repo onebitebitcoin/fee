@@ -29,6 +29,7 @@ function useExplorerValue() {
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
+  const [liveUsdtKrw, setLiveUsdtKrw] = useState<number | null>(null); // Upbit KRW-USDT 실거래가
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
@@ -94,13 +95,16 @@ function useExplorerValue() {
   useEffect(() => {
     const fetch = () =>
       api.getLiveKimp()
-        .then(res => setBtcPrice({
-          usd: Math.round(res.global_btc_price_krw / res.usd_krw_rate),
-          krw: Math.round(res.global_btc_price_krw),
-          upbitKrw: res.korean_btc_prices?.['upbit'] ? Math.round(res.korean_btc_prices['upbit']) : null,
-          kimchiPremium: res.kimp?.['upbit'] != null ? res.kimp['upbit'] : null,
-          fetchedAt: new Date(),
-        }))
+        .then(res => {
+          setBtcPrice({
+            usd: Math.round(res.global_btc_price_krw / res.usd_krw_rate),
+            krw: Math.round(res.global_btc_price_krw),
+            upbitKrw: res.korean_btc_prices?.['upbit'] ? Math.round(res.korean_btc_prices['upbit']) : null,
+            kimchiPremium: res.kimp?.['upbit'] != null ? res.kimp['upbit'] : null,
+            fetchedAt: new Date(),
+          });
+          if (res.usd_krw_rate) setLiveUsdtKrw(res.usd_krw_rate);
+        })
         .catch(() => { /* keep previous */ });
     fetch();
     const id = setInterval(fetch, 30_000);
@@ -687,6 +691,7 @@ function useExplorerValue() {
     network, setNetwork,
     swapSvc, setSwapSvc,
     liveKimp,
+    liveUsdtKrw,
     kimpFetchedAt,
     kimpInfoOpen, setKimpInfoOpen,
     btcPrice,

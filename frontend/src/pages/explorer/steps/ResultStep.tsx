@@ -9,7 +9,7 @@ import { useExplorer } from '../ExplorerContext';
 
 export function ResultStep() {
   const {
-    amountKrw, domestic, global, network, swapSvc, liveKimp, displaySats, showAltPaths,
+    amountKrw, domestic, global, network, swapSvc, liveKimp, liveUsdtKrw, displaySats, showAltPaths,
     setShowAltPaths, snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
     globalExitMethod,
   } = useExplorer();
@@ -25,22 +25,47 @@ export function ResultStep() {
     (resultPath.route_variant?.endsWith('via_global') ?? false);
   return (
     <>
-              {isDisabled && (
+              {isDisabled && (() => {
+                const reason = resultPath.disabled_reason && resultPath.disabled_reason !== 'disabled'
+                  ? resultPath.disabled_reason : null;
+                const msg = resultPath.suspension_message ?? null;
+                const noticeTitle = resultPath.notice_title ?? null;
+                const noticeUrl = resultPath.notice_url ?? null;
+                return (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-start gap-3">
                   <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[12px] font-bold text-label-primary mb-1">출금 일시 중단 안내</p>
-                    <p className="text-[11px] text-label-secondary leading-snug">
-                      {resultPath.disabled_reason && resultPath.disabled_reason !== 'disabled'
-                        ? resultPath.disabled_reason
-                        : '해당 경로의 출금이 현재 거래소에 의해 비활성화되어 있습니다.'}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-bold text-label-primary mb-1">
+                      출금 일시 중단
+                      {reason && <span className="ml-1.5 text-[10px] font-normal text-label-tertiary">({reason})</span>}
                     </p>
-                    <p className="text-[10px] text-label-tertiary mt-1.5">
-                      아래 수수료는 출금이 재개될 경우의 예상값입니다. 실제 이용 전 거래소 공지를 확인하세요.
-                    </p>
+                    {msg ? (
+                      <p className="text-[11px] text-label-secondary leading-snug break-words">{msg}</p>
+                    ) : (
+                      <p className="text-[11px] text-label-secondary leading-snug">
+                        해당 경로의 출금이 현재 거래소에 의해 비활성화되어 있습니다.
+                      </p>
+                    )}
+                    {noticeTitle && noticeUrl && (
+                      <a
+                        href={noticeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 flex items-start gap-1 group"
+                      >
+                        <span className="text-[9px] font-semibold bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full shrink-0 mt-0.5">공지</span>
+                        <span className="text-[10px] text-acc-blue group-hover:underline leading-snug break-words">{noticeTitle}</span>
+                      </a>
+                    )}
+                    {!noticeTitle && (
+                      <p className="text-[10px] text-label-tertiary mt-1.5">
+                        거래소 공지사항을 확인하세요.
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {isHoldOnGlobal && (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-center gap-2">
@@ -136,19 +161,49 @@ export function ResultStep() {
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
                           {isUsdtPath && exchangeRateDiff != null && (
-                            <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1">
+                            <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
                               <div className="flex justify-between items-center text-[10px]">
                                 <span className="text-label-tertiary">거래소·출금 수수료</span>
                                 <span className="num text-acc-red">-₩{formatFeeKrw(resultPath.total_fee_krw)}</span>
                               </div>
-                              {Math.abs(exchangeRateDiff) > 50 && (
-                                <div className="flex justify-between items-center text-[10px]">
-                                  <span className="text-label-tertiary">테더·원달러 환율 차이</span>
-                                  <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                                    {exchangeRateDiff < 0 ? '-' : '+'}₩{formatFeeKrw(Math.abs(exchangeRateDiff))}
-                                  </span>
-                                </div>
-                              )}
+                              {Math.abs(exchangeRateDiff) > 50 && (() => {
+                                // liveUsdtKrw = Upbit KRW-USDT 실거래가
+                                // resultPath.usd_krw_rate = Dunamu 포렉스 환율 (path 계산에 사용된 값)
+                                const upbitUsdt = liveUsdtKrw;
+                                const forexRate = resultPath.usd_krw_rate;
+                                const usdtPremiumPct = upbitUsdt && forexRate
+                                  ? ((upbitUsdt / forexRate) - 1) * 100 : null;
+                                return (
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between items-center text-[10px]">
+                                      <span className="text-label-tertiary">테더·원달러 환율 차이</span>
+                                      <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                        {exchangeRateDiff < 0 ? '-' : '+'}₩{formatFeeKrw(Math.abs(exchangeRateDiff))}
+                                      </span>
+                                    </div>
+                                    {upbitUsdt && forexRate && (
+                                      <div className="rounded-xl bg-fill-secondary px-3 py-2 space-y-1">
+                                        <div className="flex justify-between text-[9px]">
+                                          <span className="text-label-tertiary">업비트 USDT 현재가</span>
+                                          <span className="num text-label-secondary font-medium">₩{formatNumber(Math.round(upbitUsdt))}</span>
+                                        </div>
+                                        <div className="flex justify-between text-[9px]">
+                                          <span className="text-label-tertiary">달러 포렉스 기준</span>
+                                          <span className="num text-label-secondary font-medium">₩{formatNumber(Math.round(forexRate))}</span>
+                                        </div>
+                                        {usdtPremiumPct != null && (
+                                          <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
+                                            <span className="text-label-tertiary">테더 프리미엄</span>
+                                            <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                              {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>

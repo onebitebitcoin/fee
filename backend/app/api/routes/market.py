@@ -146,14 +146,23 @@ def _find_notice(exchange: str, coin: str, network: str, notice_lookup: dict) ->
 
 
 def _enrich_disabled_paths_with_notices(payload: dict, exchange_notices: dict) -> dict:
+    def _attach(entry: dict) -> None:
+        notice = _find_notice(
+            entry.get('korean_exchange', ''),
+            entry.get('transfer_coin', ''),
+            entry.get('network', ''),
+            exchange_notices,
+        )
+        entry['notice_url'] = notice.get('url') if notice else None
+        entry['notice_published_at'] = notice.get('published_at') if notice else None
+        entry['notice_title'] = notice.get('title') if notice else None
+
     for dp in payload.get('disabled_paths', []):
-        korean_ex = dp.get('korean_exchange', '')
-        coin = dp.get('transfer_coin', '')
-        network = dp.get('network', '')
-        notice = _find_notice(korean_ex, coin, network, exchange_notices)
-        dp['notice_url'] = notice.get('url') if notice else None
-        dp['notice_published_at'] = notice.get('published_at') if notice else None
-        dp['notice_title'] = notice.get('title') if notice else None
+        _attach(dp)
+    # all_paths의 disabled 항목에도 공지 첨부
+    for path in payload.get('all_paths', []):
+        if path.get('disabled'):
+            _attach(path)
     return payload
 
 
