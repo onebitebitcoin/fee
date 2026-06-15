@@ -97,8 +97,14 @@ export const SPRING_SLOW = { type: 'spring', stiffness: 300, damping: 28 } as co
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────────
 
-export function bestByBtc(paths: CheapestPathEntry[]): CheapestPathEntry | null {
-  return paths.length ? paths.reduce((a, b) => (a.btc_received ?? 0) > (b.btc_received ?? 0) ? a : b) : null;
+export function bestByFee(paths: CheapestPathEntry[]): CheapestPathEntry | null {
+  if (!paths.length) return null;
+  return paths.reduce((a, b) => {
+    const af = a.total_fee_krw ?? Infinity;
+    const bf = b.total_fee_krw ?? Infinity;
+    if (af !== bf) return af < bf ? a : b;
+    return (a.btc_received ?? 0) > (b.btc_received ?? 0) ? a : b;
+  });
 }
 
 export function fmtKst(ts: number | null): string {

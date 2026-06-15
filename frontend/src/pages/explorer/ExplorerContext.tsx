@@ -12,7 +12,7 @@ import type { CheapestPathEntry, CheapestPathResponse, DisabledCheapestPathEntry
 import type { Phase, CoinType, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
-import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByBtc } from './constants';
+import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByFee } from './constants';
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
@@ -133,7 +133,11 @@ function useExplorerValue() {
       if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
     }
     return [...best.values()]
-      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0))
+      .sort((a, b) => {
+        const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
+        if (diff !== 0) return diff;
+        return (b.btc_received ?? 0) - (a.btc_received ?? 0);
+      })
       .slice(0, 10);
   }, [allPaths]);
 
@@ -175,8 +179,9 @@ function useExplorerValue() {
     const map = new Map<string, number>();
     for (const data of Object.values(allData?.byGlobal ?? {}))
       for (const p of data.all_paths) {
-        const cur = map.get(p.korean_exchange) ?? 0;
-        if ((p.btc_received ?? 0) > cur) map.set(p.korean_exchange, p.btc_received ?? 0);
+        const cur = map.get(p.korean_exchange) ?? Infinity;
+        const fee = p.total_fee_krw ?? Infinity;
+        if (fee < cur) map.set(p.korean_exchange, fee);
       }
     return [...map.entries()]
       .map(([exchange, best]) => ({ exchange, best }))
@@ -188,9 +193,9 @@ function useExplorerValue() {
     const anyData = Object.values(allData.byGlobal)[0];
     const paths = (anyData?.all_paths ?? []).filter(p => p.korean_exchange === domestic);
     const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
-    const u  = bestByBtc(paths.filter(p => p.transfer_coin === 'USDT'));
-    const b  = bestByBtc(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'));
-    const bg = bestByBtc(paths.filter(p => p.route_variant === 'btc_via_global'));
+    const u  = bestByFee(paths.filter(p => p.transfer_coin === 'USDT'));
+    const b  = bestByFee(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'));
+    const bg = bestByFee(paths.filter(p => p.route_variant === 'btc_via_global'));
     if (u)  opts.push({ coin: 'USDT',       best: u });
     if (bg) opts.push({ coin: 'BTC_GLOBAL',  best: bg });
     if (b)  opts.push({ coin: 'BTC',         best: b });
@@ -209,12 +214,16 @@ function useExplorerValue() {
         } else if (coin === 'BTC_GLOBAL') {
           paths = paths.filter(p => p.route_variant === 'btc_via_global');
         }
-        const best = bestByBtc(paths);
+        const best = bestByFee(paths);
         if (!best) return null;
         return { exchange: g, best };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => (b.best.btc_received ?? 0) - (a.best.btc_received ?? 0));
+      .sort((a, b) => {
+        const diff = (a.best.total_fee_krw ?? 0) - (b.best.total_fee_krw ?? 0);
+        if (diff !== 0) return diff;
+        return (b.best.btc_received ?? 0) - (a.best.btc_received ?? 0);
+      });
   }, [allData, domestic, coin]);
 
   const networkOptions = useMemo(() => {
@@ -235,7 +244,11 @@ function useExplorerValue() {
     const map = new Map<string, CheapestPathEntry>();
     for (const p of paths) {
       const cur = map.get(p.network);
-      if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) map.set(p.network, p);
+      const pFee = p.total_fee_krw ?? Infinity;
+      const curFee = cur ? (cur.total_fee_krw ?? Infinity) : Infinity;
+      if (!cur || pFee < curFee || (pFee === curFee && (p.btc_received ?? 0) > (cur.btc_received ?? 0))) {
+        map.set(p.network, p);
+      }
     }
     return [...map.entries()].map(([n, best]) => ({ network: n, best }));
   }, [allData, domestic, coin, global]);
@@ -354,17 +367,21 @@ function useExplorerValue() {
     }
     if (swapSvc) {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
-      if (filtered.length > 0) return bestByBtc(filtered);
+      if (filtered.length > 0) return bestByFee(filtered);
     }
-    return bestByBtc(basePaths);
+    return bestByFee(basePaths);
   }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod]);
 
   const altPaths = useMemo(() => {
-    if (!resultPath?.btc_received || !allPaths.length) return [];
-    // btc_received 내림차순 정렬 후 국내 거래소 기준 최고 1개만 표시
+    if (resultPath == null || !allPaths.length) return [];
+    const resultFee = resultPath.total_fee_krw ?? Infinity;
     const sorted = [...allPaths]
-      .filter(p => (p.btc_received ?? 0) > (resultPath.btc_received ?? 0))
-      .sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0));
+      .filter(p => (p.total_fee_krw ?? Infinity) < resultFee)
+      .sort((a, b) => {
+        const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
+        if (diff !== 0) return diff;
+        return (b.btc_received ?? 0) - (a.btc_received ?? 0);
+      });
     const seen = new Set<string>();
     const result: typeof sorted = [];
     for (const p of sorted) {
