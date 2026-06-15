@@ -66,10 +66,11 @@ export function RecommendationStep() {
     topRecommendedPaths,
     handleSelectRecommendedPath,
     handleBack,
-    excludeExchanges, setExcludeExchanges,
-    excludeServices,  setExcludeServices,
-    excludeOnchain,   setExcludeOnchain,
-    excludeLightning, setExcludeLightning,
+    excludeExchanges,       setExcludeExchanges,
+    excludeGlobalExchanges, setExcludeGlobalExchanges,
+    excludeServices,        setExcludeServices,
+    excludeOnchain,         setExcludeOnchain,
+    excludeLightning,       setExcludeLightning,
   } = useExplorer();
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -83,6 +84,12 @@ export function RecommendationStep() {
     [...new Set(allRecommendedPaths.map(p => p.korean_exchange))].sort(),
     [allRecommendedPaths],
   );
+  const availableGlobalExchanges = useMemo(() =>
+    [...new Set(allRecommendedPaths
+      .filter(p => p.transfer_coin === 'USDT' || (p.route_variant?.endsWith('via_global') ?? false))
+      .map(p => p._g))].sort(),
+    [allRecommendedPaths],
+  );
   const availableServices = useMemo(() =>
     [...new Set(allRecommendedPaths
       .filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__')
@@ -93,11 +100,20 @@ export function RecommendationStep() {
   const hasOnchainPaths   = allRecommendedPaths.some(p => p.path_type !== 'lightning_exit');
 
   const activeFilterCount =
-    excludeExchanges.size + excludeServices.size +
+    excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size +
     (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0);
 
   function toggleExchange(id: string) {
     setExcludeExchanges(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  function toggleGlobalExchange(id: string) {
+    setExcludeGlobalExchanges(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -116,6 +132,7 @@ export function RecommendationStep() {
 
   function clearFilters() {
     setExcludeExchanges(new Set());
+    setExcludeGlobalExchanges(new Set());
     setExcludeServices(new Set());
     setExcludeOnchain(false);
     setExcludeLightning(false);
@@ -177,15 +194,27 @@ export function RecommendationStep() {
                 </div>
               )}
 
-              {/* 거래소 */}
+              {/* 국내 거래소 */}
               <div>
-                <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">거래소 제외</p>
+                <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">국내 거래소 제외</p>
                 <div className="flex flex-wrap gap-1.5">
                   {availableExchanges.map(id => (
                     <ToggleChip key={id} label={fmtEx(id)} active={excludeExchanges.has(id)} onClick={() => toggleExchange(id)} />
                   ))}
                 </div>
               </div>
+
+              {/* 해외 거래소 */}
+              {availableGlobalExchanges.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">해외 거래소 제외</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableGlobalExchanges.map(id => (
+                      <ToggleChip key={id} label={fmtEx(id)} active={excludeGlobalExchanges.has(id)} onClick={() => toggleGlobalExchange(id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 라이트닝 서비스 */}
               {availableServices.length > 0 && !excludeLightning && (

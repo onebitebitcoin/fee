@@ -39,10 +39,11 @@ function useExplorerValue() {
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
 
   // ── 추천 경로 필터 (제외 필터) ──────────────────────────────────────────────────
-  const [excludeExchanges, setExcludeExchanges] = useState<Set<string>>(new Set());
-  const [excludeServices,  setExcludeServices]  = useState<Set<string>>(new Set());
-  const [excludeOnchain,   setExcludeOnchain]   = useState(false);
-  const [excludeLightning, setExcludeLightning] = useState(false);
+  const [excludeExchanges,       setExcludeExchanges]       = useState<Set<string>>(new Set());
+  const [excludeGlobalExchanges, setExcludeGlobalExchanges] = useState<Set<string>>(new Set());
+  const [excludeServices,        setExcludeServices]        = useState<Set<string>>(new Set());
+  const [excludeOnchain,         setExcludeOnchain]         = useState(false);
+  const [excludeLightning,       setExcludeLightning]       = useState(false);
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
@@ -130,7 +131,7 @@ function useExplorerValue() {
       const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
       const coinPart = isUsdt ? 'USDT' : isViaGlobal ? 'BTC_GLOBAL' : 'BTC_DIRECT';
       const globalPart = (isUsdt || isViaGlobal) ? p._g : '';
-      return `${p.korean_exchange}|${coinPart}|${globalPart}|${p.network}|${p.global_exit_mode}`;
+      return `${p.korean_exchange}|${coinPart}|${globalPart}|${p.network}|${p.global_exit_mode}|${p.lightning_exit_provider ?? ''}`;
     };
     const best = new Map<string, CheapestPathEntry & { _g: string }>();
     for (const p of allPaths) {
@@ -149,6 +150,9 @@ function useExplorerValue() {
   const topRecommendedPaths = useMemo(() => {
     return allRecommendedPaths.filter(p => {
       if (excludeExchanges.has(p.korean_exchange)) return false;
+      const isUsdt = p.transfer_coin === 'USDT';
+      const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
+      if ((isUsdt || isViaGlobal) && excludeGlobalExchanges.has(p._g)) return false;
       if (p.path_type === 'lightning_exit') {
         if (excludeLightning) return false;
         const svc = p.lightning_exit_provider;
@@ -158,7 +162,7 @@ function useExplorerValue() {
       }
       return true;
     });
-  }, [allRecommendedPaths, excludeExchanges, excludeServices, excludeOnchain, excludeLightning]);
+  }, [allRecommendedPaths, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
@@ -652,7 +656,7 @@ function useExplorerValue() {
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
     setFailedGlobalExchanges([]);
-    setExcludeExchanges(new Set()); setExcludeServices(new Set());
+    setExcludeExchanges(new Set()); setExcludeGlobalExchanges(new Set()); setExcludeServices(new Set());
     setExcludeOnchain(false); setExcludeLightning(false);
   }
 
@@ -692,10 +696,11 @@ function useExplorerValue() {
     allRecommendedPaths,
     topRecommendedPaths,
     // ── 필터 ──
-    excludeExchanges, setExcludeExchanges,
-    excludeServices,  setExcludeServices,
-    excludeOnchain,   setExcludeOnchain,
-    excludeLightning, setExcludeLightning,
+    excludeExchanges,       setExcludeExchanges,
+    excludeGlobalExchanges, setExcludeGlobalExchanges,
+    excludeServices,        setExcludeServices,
+    excludeOnchain,         setExcludeOnchain,
+    excludeLightning,       setExcludeLightning,
     snapshotKimp,
     domesticBtcKrw,
     koreaVolumeMap,
