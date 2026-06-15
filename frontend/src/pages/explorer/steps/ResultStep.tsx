@@ -27,7 +27,6 @@ export function ResultStep() {
     <>
               {isDisabled && (
                 <div className="rounded-2xl overflow-hidden border border-label-quaternary/20">
-                  <div className="caution-tape-band h-6 w-full" />
                   <div className="px-4 py-3 bg-fill-tertiary/70 flex items-start gap-3">
                     <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
                     <div>
