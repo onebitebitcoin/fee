@@ -153,6 +153,8 @@ export type CheapestPathResponse = {
   global_exchange: string;
   global_btc_price_usd: number;
   usd_krw_rate: number;
+  /** USDT 매수에 실제 사용한 한국 USDT/KRW 환율 (USDT 경로 글로벌 시세 평가 기준) */
+  usdt_buy_krw_rate?: number | null;
   total_paths_evaluated: number;
   best_path: CheapestPathEntry | null;
   top5: CheapestPathEntry[];

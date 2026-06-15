@@ -115,9 +115,17 @@ export function ResultStep() {
                     : null;
                   const krwPnL = satsKrw != null ? satsKrw - amountKrw : null;
 
-                  const globalBtcKrw = domesticBtcKrw != null && kimchi != null
-                    ? domesticBtcKrw / (1 + kimchi / 100)
-                    : null;
+                  // USDT 경로는 backend가 매수에 쓴 동일 환율(usdt_buy_krw_rate)로 평가해야
+                  // "테더/원달러 환율 차이"가 정확히 0이 된다. BTC 경로는 김프 기반 유지.
+                  const isUsdtPath = resultPath.transfer_coin === 'USDT';
+                  const gd = global ? allData?.byGlobal?.[global] : null;
+                  const usdtBuyRate = gd && !('error' in gd) ? gd.usdt_buy_krw_rate ?? null : null;
+                  const globalBtcUsd = gd && !('error' in gd) ? gd.global_btc_price_usd ?? null : null;
+                  const globalBtcKrw = isUsdtPath && usdtBuyRate && globalBtcUsd
+                    ? globalBtcUsd * usdtBuyRate
+                    : (domesticBtcKrw != null && kimchi != null
+                        ? domesticBtcKrw / (1 + kimchi / 100)
+                        : null);
                   const satsGlobalKrw = globalBtcKrw != null && resultPath.btc_received != null
                     ? Math.round(resultPath.btc_received * globalBtcKrw)
                     : null;
@@ -139,7 +147,6 @@ export function ResultStep() {
                       </div>
 
                       {globalPnL != null && (() => {
-                        const isUsdtPath = resultPath.transfer_coin === 'USDT';
                         // USDT 경로: globalPnL과 수수료 차이 = 테더/원달러 환율 차이 효과
                         // globalPnL = btc_received × globalBtcKrw - amountKrw (음수 = 손실)
                         // exchangeRateDiff < 0 → 국내 USDT 환율이 포렉스보다 비쌈 (추가 비용)

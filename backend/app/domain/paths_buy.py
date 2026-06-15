@@ -855,6 +855,8 @@ def find_cheapest_path_from_snapshot_rows(
         'global_exchange': global_exchange,
         'global_btc_price_usd': ctx.global_btc_price_usd,
         'usd_krw_rate': round(float(ctx.usd_krw_rate)),
+        # USDT 매수에 실제 사용한 한국 USDT/KRW 환율 (프론트가 동일 환율로 평가해 잔차 0)
+        'usdt_buy_krw_rate': round(float(ctx.usdt_buy_krw_rate), 2),
         'total_paths_evaluated': len(paths),
         'best_path': paths[0] if paths else None,
         'top5': paths[:5],

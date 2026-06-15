@@ -166,6 +166,9 @@ def test_usdt_purchase_uses_injected_rate_not_forex():
         usdt_krw_rate=1300.0,
     )
     assert _usdt_path(cheaper_usdt)["btc_received"] > _usdt_path(base)["btc_received"]
+    # 응답에 매수 환율을 실어 프론트가 동일 환율로 평가(잔차 0)하도록 한다
+    assert cheaper_usdt["usdt_buy_krw_rate"] == 1300.0
+    assert base["usdt_buy_krw_rate"] == USD_KRW  # 미주입 시 포렉스 폴백
 
 
 def test_btc_direct_path_unaffected_by_usdt_rate():
