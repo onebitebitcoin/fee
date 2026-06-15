@@ -127,6 +127,11 @@ export type CheapestPathEntry = {
   wallet_kyc_status?: KycStatus;
   disabled?: boolean;
   disabled_reason?: string | null;
+  suspension_message?: string | null;
+  notice_url?: string | null;
+  notice_published_at?: string | number | null;
+  notice_title?: string | null;
+  usd_krw_rate?: number | null;
 };
 
 export type DisabledCheapestPathEntry = {
