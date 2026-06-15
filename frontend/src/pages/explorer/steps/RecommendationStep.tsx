@@ -1,14 +1,70 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, CaretDown, Lightning, Wallet } from '@phosphor-icons/react';
+import { ArrowRight, CaretDown } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
-import { ExFavicon } from '../ui';
 import { useExplorer } from '../ExplorerContext';
+import type { CheapestPathEntry } from '../../../types';
 
-const MEDALS = ['🥇', '🥈', '🥉'];
 const PAGE_SIZE = 10;
+
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) {
+    return (
+      <div className="w-6 h-6 rounded-full bg-acc-amber/20 flex items-center justify-center flex-shrink-0">
+        <span className="text-[11px] font-bold text-acc-amber">1</span>
+      </div>
+    );
+  }
+  if (rank === 2) {
+    return (
+      <div className="w-6 h-6 rounded-full bg-fill-tertiary flex items-center justify-center flex-shrink-0">
+        <span className="text-[11px] font-bold text-label-secondary">2</span>
+      </div>
+    );
+  }
+  if (rank === 3) {
+    return (
+      <div className="w-6 h-6 rounded-full bg-fill-tertiary flex items-center justify-center flex-shrink-0">
+        <span className="text-[11px] font-bold text-label-tertiary">3</span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+      <span className="text-[11px] text-label-quaternary">{rank}</span>
+    </div>
+  );
+}
+
+function RouteText({ p }: { p: CheapestPathEntry & { _g: string } }) {
+  const isUsdt = p.transfer_coin === 'USDT';
+  const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
+  const isLightning = p.path_type === 'lightning_exit';
+
+  const networkLabel = isLightning ? 'Lightning' : (p.network ?? '');
+
+  const sep = <span className="text-label-quaternary mx-0.5">›</span>;
+
+  return (
+    <p className="text-[12px] text-label-secondary leading-relaxed">
+      <span className="font-semibold text-label-primary">{fmtEx(p.korean_exchange)}</span>
+      {sep}
+      <span>{p.transfer_coin}</span>
+      {(isUsdt || isViaGlobal) && (
+        <>
+          {sep}
+          <span className="font-medium text-label-primary">{fmtEx(p._g)}</span>
+        </>
+      )}
+      {sep}
+      <span className={isLightning ? 'text-acc-amber font-medium' : ''}>{networkLabel}</span>
+      {sep}
+      <span className="text-label-tertiary">내 지갑</span>
+    </p>
+  );
+}
 
 export function RecommendationStep() {
   const {
@@ -31,86 +87,37 @@ export function RecommendationStep() {
       </div>
 
       <div className="space-y-2">
-        {visible.map((p, i) => {
-          const isUsdt = p.transfer_coin === 'USDT';
-          const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
-          const isLightning = p.path_type === 'lightning_exit';
-          const medal = MEDALS[i] ?? null;
+        {visible.map((p, i) => (
+          <motion.div
+            key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...SPRING_SLOW, delay: Math.min(i, 4) * 0.04 }}
+            className="ios-card rounded-2xl px-4 py-3.5"
+          >
+            <div className="flex items-start gap-3">
+              <RankBadge rank={i + 1} />
 
-          return (
-            <motion.div
-              key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...SPRING_SLOW, delay: Math.min(i, 4) * 0.04 }}
-              className="ios-card rounded-2xl px-4 py-3.5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                {/* Rank */}
-                <div className="flex-shrink-0 w-7 text-center">
-                  {medal
-                    ? <span className="text-lg leading-none">{medal}</span>
-                    : <span className="text-xs font-semibold text-label-tertiary">{i + 1}</span>
-                  }
-                </div>
-
-                {/* Route */}
-                <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-                  <ExFavicon id={p.korean_exchange} size={18} />
-                  <span className="text-xs font-semibold text-label-primary">{fmtEx(p.korean_exchange)}</span>
-
-                  <ArrowRight className="w-3 h-3 text-label-quaternary flex-shrink-0" />
-                  <span className="text-[11px] text-label-tertiary">{p.transfer_coin}</span>
-
-                  {(isUsdt || isViaGlobal) && (
-                    <>
-                      <ArrowRight className="w-3 h-3 text-label-quaternary flex-shrink-0" />
-                      <ExFavicon id={p._g} size={16} />
-                      <span className="text-[11px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
-                    </>
-                  )}
-
-                  <ArrowRight className="w-3 h-3 text-label-quaternary flex-shrink-0" />
-                  {isLightning ? (
-                    <span className="flex items-center gap-0.5 text-[11px] text-acc-amber font-medium">
-                      <Lightning className="w-3 h-3" weight="fill" /> LN
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-label-tertiary">{p.network}</span>
-                  )}
-
-                  <ArrowRight className="w-3 h-3 text-label-quaternary flex-shrink-0" />
-                  <div className="w-4 h-4 rounded-md bg-acc-green/15 flex items-center justify-center flex-shrink-0">
-                    <Wallet weight="fill" className="w-2.5 h-2.5 text-acc-green" />
-                  </div>
-                </div>
-
-                {/* Fee */}
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-bold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
-                  <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <RouteText p={p} />
               </div>
 
-              {/* Bottom row: tags + 자세히 보기 */}
-              <div className="flex items-center justify-between mt-2.5 ml-7">
-                <div className="flex items-center gap-1.5">
-                  {isLightning && (
-                    <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full">
-                      라이트닝 출금
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleSelectRecommendedPath(p)}
-                  className="text-[11px] font-semibold text-acc-amber flex items-center gap-0.5 hover:opacity-70 transition-opacity cursor-pointer"
-                >
-                  자세히 보기 <ArrowRight className="w-3 h-3" />
-                </button>
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs font-bold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
+                <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
               </div>
-            </motion.div>
-          );
-        })}
+            </div>
+
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => handleSelectRecommendedPath(p)}
+                className="text-[11px] font-semibold text-acc-amber flex items-center gap-0.5 hover:opacity-70 transition-opacity cursor-pointer"
+              >
+                자세히 보기 <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {topRecommendedPaths.length === 0 && (
