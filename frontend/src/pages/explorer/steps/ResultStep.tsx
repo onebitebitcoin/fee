@@ -172,12 +172,15 @@ export function ResultStep() {
                                 const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
                                 const usdtPremiumPct = upbitUsdt && forexRate
                                   ? ((upbitUsdt / forexRate) - 1) * 100 : null;
+                                // 업비트 USDT < 포렉스 → 테더 할인 → 사용자 이득(초록)
+                                // 업비트 USDT > 포렉스 → 테더 프리미엄 → 사용자 손실(빨강)
+                                const isUsdtDiscount = usdtPremiumPct != null ? usdtPremiumPct < 0 : exchangeRateDiff < 0;
                                 return (
                                   <div className="space-y-1">
                                     <div className="flex justify-between items-center text-[10px]">
                                       <span className="text-label-tertiary">테더/원달러 환율 차이</span>
-                                      <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                                        {exchangeRateDiff < 0 ? '-' : '+'}
+                                      <span className={`num ${isUsdtDiscount ? 'text-acc-green' : 'text-acc-red'}`}>
+                                        {isUsdtDiscount ? '+' : '-'}
                                         {formatFeeKrw(Math.abs(exchangeRateDiff))}
                                       </span>
                                     </div>
