@@ -13,11 +13,18 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
   const isUsdt = p.transfer_coin === 'USDT';
   const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
   const isLightning = p.path_type === 'lightning_exit';
-  const network = isLightning ? 'Lightning' : (p.network ?? '');
 
   const parts: string[] = [fmtEx(p.korean_exchange)];
   if (isUsdt || isViaGlobal) parts.push(fmtEx(p._g));
-  parts.push(network);
+
+  if (isLightning) {
+    const provider = p.lightning_exit_provider;
+    const svcName = provider && provider !== '__direct__' ? fmtEx(provider) : null;
+    parts.push(svcName ? `LN via ${svcName}` : 'Lightning');
+  } else {
+    parts.push(p.network ?? '');
+  }
+
   return parts.join(' › ');
 }
 
@@ -79,13 +86,10 @@ export function RecommendationStep() {
                   <p className="text-[12px] font-medium text-label-primary truncate">
                     {routeText(p)}
                   </p>
-                  {isLightning && (
-                    <span className="text-[10px] text-acc-blue">Lightning</span>
-                  )}
                 </div>
 
                 {/* Fee */}
-                <div className="text-right self-center">
+                <div className="text-right self-center flex-shrink-0">
                   <p className="text-[12px] font-bold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
                   <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
                 </div>
