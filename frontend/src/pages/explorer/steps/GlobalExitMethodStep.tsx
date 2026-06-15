@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowDown, ArrowLeft, ArrowRight, Lightning } from '@phosphor-icons/react';
+import { ArrowDown, ArrowLeft, ArrowRight, Bank, Lightning } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { SPRING_FAST } from '../constants';
 import { ExFavicon, OptionCard } from '../ui';
@@ -60,6 +60,18 @@ export function GlobalExitMethodStep() {
                     </OptionCard>
                   );
                 })()}
+                <OptionCard
+                  selected={globalExitMethod === 'none'}
+                  onClick={() => { setGlobalExitMethod('none'); scrollToStepEnd(); }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Bank weight="bold" className="w-7 h-7 text-acc-amber flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-label-primary">글로벌 거래소에 보관</p>
+                      <p className="text-xs text-label-secondary mt-0.5">출금 없이 해외 거래소에 BTC 보유. 매수 비용만 비교.</p>
+                    </div>
+                  </div>
+                </OptionCard>
               </div>
               {globalExitMethod === 'onchain' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">

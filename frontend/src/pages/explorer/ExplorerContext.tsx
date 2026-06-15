@@ -32,7 +32,7 @@ function useExplorerValue() {
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
-  const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | null>(null);
+  const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
@@ -309,7 +309,8 @@ function useExplorerValue() {
 
   const resultPath = useMemo((): CheapestPathEntry | null => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
-    if (!allData || !domestic || !coin || (!isBtcGlobalLightning && !network)) return null;
+    const isNone = globalExitMethod === 'none';
+    if (!allData || !domestic || !coin || (!isBtcGlobalLightning && !isNone && !network)) return null;
     let basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
@@ -317,11 +318,11 @@ function useExplorerValue() {
         ? global
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
               p.korean_exchange === domestic && p.route_variant === 'btc_via_global' &&
-              (isBtcGlobalLightning || p.network === network))
+              (isBtcGlobalLightning || isNone || p.network === network))
           : []
         : global
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
+              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && (isNone || p.network === network))
           : [];
     if (globalExitMethod === 'onchain') {
       basePaths = basePaths.filter(p => p.path_type !== 'lightning_exit');

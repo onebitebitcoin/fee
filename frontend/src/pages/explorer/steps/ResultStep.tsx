@@ -11,7 +11,9 @@ export function ResultStep() {
   const {
     amountKrw, domestic, global, network, swapSvc, liveKimp, displaySats, showAltPaths,
     setShowAltPaths, snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
+    globalExitMethod,
   } = useExplorer();
+  const isHoldOnGlobal = globalExitMethod === 'none';
   if (!resultPath) return null;
   // 경로가 실제로 해외 거래소를 경유하는지 판별 (transient global state가 아닌 결과 데이터 기준).
   // - USDT 경로는 항상 글로벌 경유 (buy 모드에선 route_variant 미설정이라 transfer_coin으로 판별).
@@ -22,6 +24,12 @@ export function ResultStep() {
     (resultPath.route_variant?.endsWith('via_global') ?? false);
   return (
     <>
+              {isHoldOnGlobal && (
+                <div className="ios-card rounded-2xl px-4 py-3 flex items-center gap-2">
+                  <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-2 py-0.5 rounded-full shrink-0">글로벌 거래소 보관</span>
+                  <p className="text-[10px] text-label-secondary">출금 없이 해외 거래소에 BTC 보유하는 경우 기준. 출금 수수료 제외 시 실제 수수료는 더 낮습니다.</p>
+                </div>
+              )}
 
               {/* Hero result card */}
               <motion.div

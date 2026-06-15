@@ -20,7 +20,7 @@ export const phaseIdx = (p: Phase) => PHASES.indexOf(p);
 // FLOW 분기에 필요한 최소 상태
 export type FlowState = {
   coin: CoinType | null;
-  globalExitMethod: 'onchain' | 'lightning' | null;
+  globalExitMethod: 'onchain' | 'lightning' | 'none' | null;
   swapSvc: string | null;
 };
 
@@ -30,7 +30,7 @@ export const FLOW: ReadonlyArray<{ id: Phase; next: (s: FlowState) => Phase }> =
   { id: 'btc_method',         next: (s) => s.coin === 'BTC' ? 'result' : 'global' },
   { id: 'global',             next: (s) => s.coin === 'USDT' ? 'network' : 'global_exit_method' },
   { id: 'network',            next: ()  => 'global_exit_method' },
-  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
+  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'none' ? 'result' : s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
   { id: 'swap_service',       next: ()  => 'result' },
   { id: 'result',             next: ()  => 'result' },
 ];
