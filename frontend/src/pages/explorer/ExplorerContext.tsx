@@ -539,17 +539,19 @@ function useExplorerValue() {
   useEffect(() => {
     const onPopstate = () => {
       if (skipPopstate.current) { skipPopstate.current = false; return; }
+      // fromRecommendation 먼저 체크 — flowPrev가 non-null을 반환해도 recommendation으로 돌아가야 함
+      if (phase === 'result' && fromRecommendation.current) {
+        fromRecommendation.current = false;
+        setDir(-1);
+        setPhase('recommendation');
+        return;
+      }
       const s: FlowState = { coin, globalExitMethod, swapSvc };
       const prev = flowPrev(phase, s);
       if (prev) {
         history.pushState({ phase: prev }, '');
         setDir(-1);
         setPhase(prev);
-      } else if (phase === 'result' && fromRecommendation.current) {
-        fromRecommendation.current = false;
-        history.pushState({ phase: 'recommendation' }, '');
-        setDir(-1);
-        setPhase('recommendation');
       } else if (phase === 'recommendation') {
         setDir(-1);
         setPhase('input');
@@ -564,10 +566,7 @@ function useExplorerValue() {
 
   function handleBack() {
     if (phase === 'result' && fromRecommendation.current) {
-      fromRecommendation.current = false;
-      history.pushState({ phase: 'recommendation' }, '');
-      setDir(-1);
-      setPhase('recommendation');
+      history.back();  // onPopstate가 fromRecommendation 감지 후 처리
       return;
     }
     const s: FlowState = { coin, globalExitMethod, swapSvc };
