@@ -19,6 +19,19 @@ function formatReason(reason: string | null | undefined): string {
   return reason;
 }
 
+const SUSPENSION_MESSAGE_KO: Record<string, string> = {
+  'In order to protect your assets, we have temporarily disabled withdrawals and deposits.':
+    '자산 보호를 위해 입출금이 일시 중단되었습니다.',
+  'Deposits and withdrawals are temporarily suspended.': '입출금이 일시 중단되었습니다.',
+  'Withdrawals are temporarily suspended.': '출금이 일시 중단되었습니다.',
+  'Deposits are temporarily suspended.': '입금이 일시 중단되었습니다.',
+};
+
+function formatSuspensionMessage(msg: string | null | undefined): string | null {
+  if (!msg) return null;
+  return SUSPENSION_MESSAGE_KO[msg] ?? msg;
+}
+
 export function NetworkStep() {
   const {
     network, setNetwork, setSwapSvc, stepEndRef, scrollToStepEnd, networkOptions,
@@ -83,8 +96,8 @@ export function NetworkStep() {
                         {formatReason(reason)}
                       </span>
                     </div>
-                    {suspension_message && (
-                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{suspension_message}</p>
+                    {formatSuspensionMessage(suspension_message) && (
+                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{formatSuspensionMessage(suspension_message)}</p>
                     )}
                   </div>
                   {linkUrl && (
