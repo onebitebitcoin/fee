@@ -135,15 +135,15 @@ body {
 /* ── Caution tape band (공사중) ── */
 @keyframes caution-tape {
   from { background-position: 0 0; }
-  to   { background-position: 48px 0; }
+  to   { background-position: 40px 40px; }
 }
 .caution-tape-band {
-  background-image: repeating-linear-gradient(
-    -60deg,
-    #F5C800 0px,
-    #F5C800 16px,
-    #1A1200 16px,
-    #1A1200 24px
+  background-image: linear-gradient(
+    -45deg,
+    #F5C800 25%, #1A1200 25%,
+    #1A1200 50%, #F5C800 50%,
+    #F5C800 75%, #1A1200 75%
   );
-  animation: caution-tape 0.9s linear infinite;
+  background-size: 40px 40px;
+  animation: caution-tape 2.4s linear infinite;
 }
