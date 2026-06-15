@@ -115,6 +115,21 @@ function useExplorerValue() {
     );
   }, [allData]);
 
+  const topRecommendedPaths = useMemo(() => {
+    if (!allPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
+    const seen = new Set<string>();
+    const result: (CheapestPathEntry & { _g: string })[] = [];
+    const sorted = [...allPaths].sort((a, b) => (b.btc_received ?? 0) - (a.btc_received ?? 0));
+    for (const p of sorted) {
+      const key = `${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(p);
+      if (result.length >= 8) break;
+    }
+    return result;
+  }, [allPaths]);
+
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
     if (!allData) return {} as Record<string, number>;
@@ -488,8 +503,8 @@ function useExplorerValue() {
       });
       setLoadingDone(true);
       setIsSearching(false);
-      history.pushState({ phase: 'domestic' }, '');
-      setPhase('domestic');
+      history.pushState({ phase: 'recommendation' }, '');
+      setPhase('recommendation');
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
       setIsSearching(false);
@@ -506,9 +521,12 @@ function useExplorerValue() {
         history.pushState({ phase: prev }, '');
         setDir(-1);
         setPhase(prev);
-      } else if (phase === 'domestic') {
+      } else if (phase === 'recommendation') {
         setDir(-1);
         setPhase('input');
+      } else if (phase === 'domestic') {
+        setDir(-1);
+        setPhase('recommendation');
       }
     };
     window.addEventListener('popstate', onPopstate);
@@ -520,9 +538,43 @@ function useExplorerValue() {
     const prev = flowPrev(phase, s);
     if (prev) {
       history.back();
-    } else if (phase === 'domestic') {
+    } else if (phase === 'recommendation') {
       reset();
+    } else if (phase === 'domestic') {
+      history.pushState({ phase: 'recommendation' }, '');
+      setDir(-1);
+      setPhase('recommendation');
     }
+  }
+
+  function handleGoToDomestic() {
+    history.pushState({ phase: 'domestic' }, '');
+    setPhase('domestic');
+  }
+
+  function handleSelectRecommendedPath(p: CheapestPathEntry & { _g: string }) {
+    setDomestic(p.korean_exchange);
+    const isUsdt = p.transfer_coin === 'USDT';
+    const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
+    let coinType: CoinType;
+    if (isUsdt) coinType = 'USDT';
+    else if (isViaGlobal) coinType = 'BTC_GLOBAL';
+    else coinType = 'BTC';
+    setCoin(coinType);
+    if (isUsdt || isViaGlobal) {
+      setGlobal(p._g as GlobalExchange);
+      if (p.path_type === 'lightning_exit') {
+        setGlobalExitMethod('lightning');
+        setSwapSvc(p.lightning_exit_provider ?? null);
+      } else {
+        setGlobalExitMethod('onchain');
+      }
+    } else {
+      setBtcMethod('onchain');
+    }
+    setNetwork(p.network);
+    history.pushState({ phase: 'result' }, '');
+    setPhase('result');
   }
 
   function handleNext(from: Phase) {
@@ -580,6 +632,7 @@ function useExplorerValue() {
     scrollToStepEnd,
     // ── 파생 데이터 ──
     allPaths,
+    topRecommendedPaths,
     snapshotKimp,
     domesticBtcKrw,
     koreaVolumeMap,
@@ -598,6 +651,8 @@ function useExplorerValue() {
     // ── 핸들러 ──
     handleSearch,
     handleBack,
+    handleGoToDomestic,
+    handleSelectRecommendedPath,
     handleNext,
     reset,
   };

@@ -5,6 +5,7 @@
 import type { FC } from 'react';
 import type { Phase } from './flow';
 import { InputStep } from './steps/InputStep';
+import { RecommendationStep } from './steps/RecommendationStep';
 import { DomesticStep } from './steps/DomesticStep';
 import { CoinStep } from './steps/CoinStep';
 import { BtcMethodStep } from './steps/BtcMethodStep';
@@ -21,6 +22,7 @@ export interface StepEntry {
 
 export const STEP_REGISTRY: Record<Phase, StepEntry> = {
   input:              { Component: InputStep,            className: 'space-y-6 pt-4' },
+  recommendation:     { Component: RecommendationStep,   className: 'space-y-4 pt-2' },
   domestic:           { Component: DomesticStep,         className: 'space-y-4 pt-2' },
   coin:               { Component: CoinStep,             className: 'space-y-4 pt-2' },
   btc_method:         { Component: BtcMethodStep,        className: 'space-y-4 pt-2' },
