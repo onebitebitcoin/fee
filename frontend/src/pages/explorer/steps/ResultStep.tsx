@@ -125,7 +125,11 @@ export function ResultStep() {
                     </div>
                     <div className="flex flex-col items-center px-1">
                       <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                      <p className="text-[9px] text-label-tertiary mt-1">{resultPath.transfer_coin === 'BTC' ? '비트코인' : resultPath.transfer_coin}</p>
+                      <p className="text-[9px] text-label-tertiary mt-1">
+                        {resultPath.transfer_coin === 'BTC'
+                          ? (!usesGlobal && swapSvc === '__direct__' ? 'BTC Lightning' : '비트코인')
+                          : resultPath.transfer_coin}
+                      </p>
                     </div>
                     {/* 해외 거래소 (글로벌 경유 경로만) */}
                     {usesGlobal && global && (
@@ -137,12 +141,14 @@ export function ResultStep() {
                         {!isHoldOnGlobal && (
                           <div className="flex flex-col items-center px-1">
                             <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                            <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
+                            <p className="text-[9px] text-label-tertiary mt-1">
+                              {swapSvc === '__direct__' ? 'BTC Lightning' : '비트코인'}
+                            </p>
                           </div>
                         )}
                       </>
                     )}
-                    {/* 스왑 서비스 (라이트닝) */}
+                    {/* 스왑 서비스 (라이트닝, 제3자 서비스) */}
                     {swapSvc && swapSvc !== '__direct__' && (
                       <>
                         <div className="flex flex-col items-center">
@@ -152,14 +158,6 @@ export function ResultStep() {
                         <div className="flex flex-col items-center px-1">
                           <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                           <p className="text-[9px] text-label-tertiary mt-1">LN</p>
-                        </div>
-                      </>
-                    )}
-                    {swapSvc === '__direct__' && (
-                      <>
-                        <div className="flex flex-col items-center px-1">
-                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                          <p className="text-[9px] text-acc-green mt-1">직접 LN</p>
                         </div>
                       </>
                     )}
@@ -175,7 +173,7 @@ export function ResultStep() {
                   </div>
                   <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
                     <span className="flex items-center gap-1">네트워크 <NetworkIcon network={resultPath.network} size={12} /><span className="text-label-secondary font-medium">{resultPath.network}</span></span>
-                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '⚡ 라이트닝' : '온체인'}</span></span>
+                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'}</span></span>
                   </div>
                 </div>
               </div>
