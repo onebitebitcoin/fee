@@ -88,6 +88,29 @@ GROUPS = {
 }
 ALL_EXCHANGES = GROUPS["korea"] + GROUPS["global"]
 
+# ─── 공개 API 미제공 출금 네트워크 정적 보강 레지스트리 ─────────────────
+# 거래소 공개 API가 특정 네트워크 정보를 내려주지 않아
+# 실시간 수집이 불가능한 경우 이 레지스트리에서 보강한다.
+# 구조: {거래소: {코인: [네트워크 메타 목록]}}
+# 패턴: _GATE_FEES(fetch_gate_withdrawal) 와 동일한 스타일로 통일.
+_STATIC_WITHDRAWAL_OVERRIDES: dict[str, dict[str, list[dict]]] = {
+    "okx": {
+        "BTC": [
+            {
+                "label": "Lightning Network",
+                "fee": 0.000015,        # ≈ 1500 sats (OKX LN 출금 수수료)
+                "min": 0.000001,
+                "max": 0.05,
+                "enabled": True,
+                "note": (
+                    "OKX 공개 API가 LN 미제공 → 정적 메타데이터. "
+                    "Invoice 방식 (인증 필요). 주기적 재확인 권장."
+                ),
+            },
+        ],
+    },
+}
+
 
 # ══════════════════════════════════════════════════════════════
 # 티커 fetch 함수
@@ -391,15 +414,9 @@ def fetch_okx_withdrawal(coin: str) -> list:
                 except (ValueError, TypeError):
                     max_amount = None
                 result.append({"label": name, "fee": float(fee), "min": float(amt), "max": max_amount, "enabled": True})
-            if coin == "BTC":
-                result.append({
-                    "label": "Lightning Network",
-                    "fee": 0.000015,  # ≈ 1500 sats (OKX LN 출금 수수료)
-                    "min": 0.000001,
-                    "max": 0.05,
-                    "enabled": True,
-                    "note": "Invoice 방식 (인증 필요)",
-                })
+            # 공개 API 미제공 네트워크를 레지스트리에서 보강
+            for override in _STATIC_WITHDRAWAL_OVERRIDES.get("okx", {}).get(coin.upper(), []):
+                result.append(override)
             return result
     return []
 

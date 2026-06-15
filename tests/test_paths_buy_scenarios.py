@@ -35,7 +35,8 @@ def _ticker(exchange, price, *, market_type="spot", currency="KRW", taker_fee_pc
     )
 
 
-def _wd(exchange, coin, network_label, fee, *, enabled=True, fee_krw=None):
+def _wd(exchange, coin, network_label, fee, *, enabled=True, fee_krw=None,
+        min_withdrawal=None, max_withdrawal=None):
     return SimpleNamespace(
         exchange=exchange,
         coin=coin,
@@ -44,6 +45,8 @@ def _wd(exchange, coin, network_label, fee, *, enabled=True, fee_krw=None):
         fee_krw=fee_krw,
         enabled=enabled,
         source="api",
+        min_withdrawal=min_withdrawal,
+        max_withdrawal=max_withdrawal,
     )
 
 
@@ -303,3 +306,133 @@ def test_direct_ln_absent_when_no_global_ln_withdrawal():
         if p.get("lightning_exit_provider") == "__direct__"
     ]
     assert direct_ln == [], "LN 출금 수수료 미수집 시 __direct__ 경로 미생성"
+
+
+# ── max_withdrawal 제약 회귀 시나리오 ────────────────────────────────────────
+
+def _withdrawals_with_ln_max(max_withdrawal_btc: float | None):
+    """글로벌 LN 출금 행에 max_withdrawal을 주입한 출금 행 목록."""
+    rows = [
+        _wd("bithumb", "BTC", "Bitcoin", 0.0002, fee_krw=28_000),
+        _wd("upbit", "BTC", "Bitcoin", 0.0009, fee_krw=126_000),
+        _wd("bithumb", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+        _wd("upbit", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+        _wd("binance", "BTC", "Bitcoin", 0.00002, fee_krw=2_800),
+        # 글로벌 LN 행 — max_withdrawal 주입
+        _wd("binance", "BTC", "Lightning Network", 0.000001, fee_krw=140,
+            max_withdrawal=max_withdrawal_btc),
+        _wd("binance", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+    ]
+    return rows
+
+
+def test_ln_path_present_for_small_amount_within_max():
+    """소액(100만원 ≈ 0.0071 BTC)은 LN max=0.01 BTC 내 → LN 경로 생성.
+
+    Arrange: 글로벌 LN 출금 max_withdrawal=0.01 BTC
+    Act: 100만원 계산
+    Assert: lightning_exit 경로 ≥ 1개
+    """
+    # Arrange
+    rows = _withdrawals_with_ln_max(max_withdrawal_btc=0.01)
+
+    # Act
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=1_000_000,
+        global_exchange="binance",
+        latest_run=_run(),
+        ticker_rows=_tickers(),
+        withdrawal_rows=rows,
+        network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+
+    # Assert
+    ln_paths = [p for p in result["all_paths"] if p.get("path_type") == "lightning_exit"]
+    assert ln_paths, "소액(100만원)은 LN max 한도 내 → LN 경로가 1개 이상 생성되어야 한다"
+
+
+def test_ln_path_blocked_for_large_amount_exceeding_max():
+    """거액(2억원 ≈ 1.43 BTC)은 LN max=0.01 BTC 초과 → LN 경로 0개 + disabled_paths 사유 기록.
+
+    Arrange: 글로벌 LN 출금 max_withdrawal=0.01 BTC
+    Act: 2억원 계산
+    Assert:
+        - lightning_exit 경로 = 0개
+        - disabled_paths에 '한도' 관련 사유(출금 1회 최대 한도 초과) ≥ 1개
+    """
+    # Arrange
+    rows = _withdrawals_with_ln_max(max_withdrawal_btc=0.01)
+
+    # Act
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=200_000_000,
+        global_exchange="binance",
+        latest_run=_run(),
+        ticker_rows=_tickers(),
+        withdrawal_rows=rows,
+        network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+
+    # Assert — LN 경로 없음
+    ln_paths = [p for p in result["all_paths"] if p.get("path_type") == "lightning_exit"]
+    assert ln_paths == [], f"2억원은 LN max 초과 → LN 경로 0개여야 한다. 실제: {len(ln_paths)}개"
+
+    # Assert — disabled_paths에 한도 초과 사유 ≥ 1개
+    ln_disabled = [
+        d for d in result["disabled_paths"]
+        if "한도" in d.get("reason", "")
+    ]
+    assert ln_disabled, (
+        "LN max 초과로 Blocked된 경로 사유가 disabled_paths에 기록되어야 한다. "
+        f"disabled_paths: {result['disabled_paths']}"
+    )
+
+
+def test_ln_path_blocked_for_below_min_withdrawal():
+    """극소액이 LN min_withdrawal 미달 시 LN 경로 미생성 + disabled_paths 사유 기록.
+
+    Arrange: 글로벌 LN 출금 min_withdrawal=0.5 BTC (매우 높게 설정)
+    Act: 1000만원 계산 (≈ 0.071 BTC — min 미달)
+    Assert:
+        - lightning_exit 경로 = 0개
+        - disabled_paths에 '최소 한도' 관련 사유 ≥ 1개
+    """
+    # Arrange — min_withdrawal을 0.5 BTC로 설정해 모든 금액이 미달
+    rows = [
+        _wd("bithumb", "BTC", "Bitcoin", 0.0002, fee_krw=28_000),
+        _wd("upbit", "BTC", "Bitcoin", 0.0009, fee_krw=126_000),
+        _wd("bithumb", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+        _wd("upbit", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+        _wd("binance", "BTC", "Bitcoin", 0.00002, fee_krw=2_800),
+        # 글로벌 LN 행 — min_withdrawal=0.5 BTC (실질적으로 모든 금액이 미달)
+        _wd("binance", "BTC", "Lightning Network", 0.000001, fee_krw=140,
+            min_withdrawal=0.5),
+        _wd("binance", "USDT", "Tron (TRC20)", 1.0, fee_krw=1_400),
+    ]
+
+    # Act
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000,
+        global_exchange="binance",
+        latest_run=_run(),
+        ticker_rows=_tickers(),
+        withdrawal_rows=rows,
+        network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+
+    # Assert — LN 경로 없음
+    ln_paths = [p for p in result["all_paths"] if p.get("path_type") == "lightning_exit"]
+    assert ln_paths == [], f"min_withdrawal 미달 → LN 경로 0개여야 한다. 실제: {len(ln_paths)}개"
+
+    # Assert — disabled_paths에 최소 한도 사유 ≥ 1개
+    ln_min_disabled = [
+        d for d in result["disabled_paths"]
+        if "최소 한도" in d.get("reason", "")
+    ]
+    assert ln_min_disabled, (
+        "LN min_withdrawal 미달로 Blocked된 사유가 disabled_paths에 기록되어야 한다. "
+        f"disabled_paths: {result['disabled_paths']}"
+    )

@@ -448,9 +448,16 @@ def _build_lightning_paths(
     global_ln_fee_krw_val: int,
     lightning_swap_rows: list,
     global_usdt_nets: set[str],
-) -> list[dict]:
-    """Lightning exit 경로 생성 (ln_to_onchain 스왑 포함 / 직접출금 __)."""
+) -> tuple[list[dict], list[dict]]:
+    """Lightning exit 경로 생성 (ln_to_onchain 스왑 포함 / 직접출금 __).
+
+    Returns:
+        (paths, disabled_paths) — 글로벌 LN 출금 Blocked 사유를 중복 제거해 disabled_paths에 기록.
+    """
     paths: list[dict] = []
+    disabled_paths: list[dict] = []
+    # (korean_exchange, transfer_coin, network, reason) 기준 중복 제거
+    _seen_disabled: set[tuple] = set()
     global_ln_wd_fee = global_ln_wd_row.fee
     ln_network_label = global_ln_wd_row.network_label
 
@@ -503,6 +510,15 @@ def _build_lightning_paths(
                     label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
                 )
                 if isinstance(global_ln_wd, Blocked):
+                    _key = (exchange, 'USDT', ln_network_label, global_ln_wd.reason)
+                    if _key not in _seen_disabled:
+                        _seen_disabled.add(_key)
+                        disabled_paths.append({
+                            'korean_exchange': exchange,
+                            'transfer_coin': 'USDT',
+                            'network': ln_network_label,
+                            'reason': global_ln_wd.reason,
+                        })
                     continue
                 if global_ln_wd.amount_out <= 0:
                     continue
@@ -611,6 +627,15 @@ def _build_lightning_paths(
                     label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
                 )
                 if isinstance(global_ln_wd, Blocked):
+                    _key = (exchange, 'BTC', ln_network_label, global_ln_wd.reason)
+                    if _key not in _seen_disabled:
+                        _seen_disabled.add(_key)
+                        disabled_paths.append({
+                            'korean_exchange': exchange,
+                            'transfer_coin': 'BTC',
+                            'network': ln_network_label,
+                            'reason': global_ln_wd.reason,
+                        })
                     continue
                 if global_ln_wd.amount_out <= 0:
                     continue
@@ -691,7 +716,7 @@ def _build_lightning_paths(
                     },
                 })
 
-    return paths
+    return paths, disabled_paths
 
 
 def find_cheapest_path_from_snapshot_rows(
@@ -747,12 +772,13 @@ def find_cheapest_path_from_snapshot_rows(
     if lightning_swap_rows:
         global_ln_wd_row = _resolve_global_ln_row(ctx, global_exchange)
         if global_ln_wd_row is not None:
-            ln_paths = _build_lightning_paths(
+            ln_paths, ln_disabled = _build_lightning_paths(
                 ctx, amount_krw, global_exchange,
                 global_ln_wd_row, _global_ln_fee_krw(global_ln_wd_row, ctx),
                 lightning_swap_rows, global_usdt_nets,
             )
             paths.extend(ln_paths)
+            disabled_paths.extend(ln_disabled)
 
     paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
     lightning_services = sorted({
