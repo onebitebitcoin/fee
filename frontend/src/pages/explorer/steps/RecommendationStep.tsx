@@ -1,17 +1,24 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Lightning, Wallet } from '@phosphor-icons/react';
+import { ArrowRight, CaretDown, Lightning, Wallet } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
-import { SPRING_SLOW } from '../constants';
+import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { ExFavicon } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
+const PAGE_SIZE = 10;
 
 export function RecommendationStep() {
   const {
     amountKrw, topRecommendedPaths, handleSelectRecommendedPath, handleBack,
   } = useExplorer();
+
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const visible = topRecommendedPaths.slice(0, visibleCount);
+  const hasMore = topRecommendedPaths.length > visibleCount;
 
   return (
     <>
@@ -24,20 +31,19 @@ export function RecommendationStep() {
       </div>
 
       <div className="space-y-2">
-        {topRecommendedPaths.map((p, i) => {
+        {visible.map((p, i) => {
           const isUsdt = p.transfer_coin === 'USDT';
           const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
           const isLightning = p.path_type === 'lightning_exit';
           const medal = MEDALS[i] ?? null;
 
           return (
-            <motion.button
+            <motion.div
               key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ ...SPRING_SLOW, delay: i * 0.04 }}
-              onClick={() => handleSelectRecommendedPath(p)}
-              className="w-full text-left ios-card rounded-2xl px-4 py-3.5 hover:border-acc-amber/30 border border-transparent transition-colors active:scale-[0.99]"
+              transition={{ ...SPRING_SLOW, delay: Math.min(i, 4) * 0.04 }}
+              className="ios-card rounded-2xl px-4 py-3.5"
             >
               <div className="flex items-center justify-between gap-3">
                 {/* Rank */}
@@ -86,20 +92,44 @@ export function RecommendationStep() {
                 </div>
               </div>
 
-              {isLightning && (
-                <div className="mt-2 ml-9">
-                  <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full">라이트닝 출금</span>
+              {/* Bottom row: tags + 자세히 보기 */}
+              <div className="flex items-center justify-between mt-2.5 ml-7">
+                <div className="flex items-center gap-1.5">
+                  {isLightning && (
+                    <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full">
+                      라이트닝 출금
+                    </span>
+                  )}
                 </div>
-              )}
-            </motion.button>
+                <button
+                  onClick={() => handleSelectRecommendedPath(p)}
+                  className="text-[11px] font-semibold text-acc-amber flex items-center gap-0.5 hover:opacity-70 transition-opacity cursor-pointer"
+                >
+                  자세히 보기 <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </motion.div>
           );
         })}
       </div>
 
       {topRecommendedPaths.length === 0 && (
-        <div className="ios-card rounded-2xl p-6 text-center space-y-2">
+        <div className="ios-card rounded-2xl p-6 text-center">
           <p className="text-sm text-label-secondary">추천 경로를 불러오지 못했어요</p>
         </div>
+      )}
+
+      {hasMore && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={SPRING_FAST}
+          onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+          className="w-full py-3 rounded-2xl text-sm font-semibold text-label-secondary bg-fill-secondary border border-white/8 flex items-center justify-center gap-1.5 hover:bg-fill-primary transition-colors cursor-pointer"
+        >
+          더보기 <CaretDown className="w-3.5 h-3.5" />
+          <span className="text-label-tertiary text-xs">({topRecommendedPaths.length - visibleCount}개 남음)</span>
+        </motion.button>
       )}
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">

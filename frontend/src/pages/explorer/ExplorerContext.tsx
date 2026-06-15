@@ -52,10 +52,11 @@ function useExplorerValue() {
     scraped_at: number | null;
   }>>({});
 
-  const prevPhase      = useRef<Phase>('input');
-  const satRafRef      = useRef<number | null>(null);
-  const stepEndRef     = useRef<HTMLDivElement>(null);
-  const skipPopstate   = useRef(false);
+  const prevPhase            = useRef<Phase>('input');
+  const satRafRef            = useRef<number | null>(null);
+  const stepEndRef           = useRef<HTMLDivElement>(null);
+  const skipPopstate         = useRef(false);
+  const fromRecommendation   = useRef(false);
 
   function scrollToStepEnd() {
     requestAnimationFrame(() =>
@@ -137,8 +138,7 @@ function useExplorerValue() {
         const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
         if (diff !== 0) return diff;
         return (b.btc_received ?? 0) - (a.btc_received ?? 0);
-      })
-      .slice(0, 10);
+      });
   }, [allPaths]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
@@ -545,6 +545,11 @@ function useExplorerValue() {
         history.pushState({ phase: prev }, '');
         setDir(-1);
         setPhase(prev);
+      } else if (phase === 'result' && fromRecommendation.current) {
+        fromRecommendation.current = false;
+        history.pushState({ phase: 'recommendation' }, '');
+        setDir(-1);
+        setPhase('recommendation');
       } else if (phase === 'recommendation') {
         setDir(-1);
         setPhase('input');
@@ -558,6 +563,13 @@ function useExplorerValue() {
   }, [phase, coin, globalExitMethod, swapSvc]);
 
   function handleBack() {
+    if (phase === 'result' && fromRecommendation.current) {
+      fromRecommendation.current = false;
+      history.pushState({ phase: 'recommendation' }, '');
+      setDir(-1);
+      setPhase('recommendation');
+      return;
+    }
     const s: FlowState = { coin, globalExitMethod, swapSvc };
     const prev = flowPrev(phase, s);
     if (prev) {
@@ -597,6 +609,7 @@ function useExplorerValue() {
       setBtcMethod('onchain');
     }
     setNetwork(p.network);
+    fromRecommendation.current = true;
     history.pushState({ phase: 'result' }, '');
     setPhase('result');
   }
