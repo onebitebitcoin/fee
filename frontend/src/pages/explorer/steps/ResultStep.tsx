@@ -134,10 +134,12 @@ export function ResultStep() {
                           <ExFavicon id={global} size={24} />
                           <p className="text-[10px] text-label-secondary mt-1">{fmtEx(global)}</p>
                         </div>
-                        <div className="flex flex-col items-center px-1">
-                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                          <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
-                        </div>
+                        {!isHoldOnGlobal && (
+                          <div className="flex flex-col items-center px-1">
+                            <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                            <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
+                          </div>
+                        )}
                       </>
                     )}
                     {/* 스왑 서비스 (라이트닝) */}
@@ -161,13 +163,15 @@ export function ResultStep() {
                         </div>
                       </>
                     )}
-                    {/* 개인 지갑 */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-6 h-6 rounded-md bg-acc-green/15 flex items-center justify-center">
-                        <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />
+                    {/* 개인 지갑 (출금하지 않음 선택 시 숨김) */}
+                    {!isHoldOnGlobal && (
+                      <div className="flex flex-col items-center">
+                        <div className="w-6 h-6 rounded-md bg-acc-green/15 flex items-center justify-center">
+                          <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />
+                        </div>
+                        <p className="text-[10px] text-label-secondary mt-1">내 지갑</p>
                       </div>
-                      <p className="text-[10px] text-label-secondary mt-1">내 지갑</p>
-                    </div>
+                    )}
                   </div>
                   <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
                     <span className="flex items-center gap-1">네트워크 <NetworkIcon network={resultPath.network} size={12} /><span className="text-label-secondary font-medium">{resultPath.network}</span></span>
