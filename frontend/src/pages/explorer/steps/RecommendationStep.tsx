@@ -13,16 +13,30 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
   const isUsdt = p.transfer_coin === 'USDT';
   const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
   const isLightning = p.path_type === 'lightning_exit';
-
   const parts: string[] = [fmtEx(p.korean_exchange)];
-  if (isUsdt || isViaGlobal) parts.push(fmtEx(p._g));
+
+  if (isUsdt) {
+    // 업비트 › USDT › TRC20 › OKX › (Boltz ›) 지갑
+    parts.push('USDT');
+    parts.push(p.network ?? '');
+    parts.push(fmtEx(p._g));
+  } else if (isViaGlobal) {
+    // 업비트 › BTC › Binance › (Bitcoin ›) (Boltz ›) 지갑
+    parts.push('BTC');
+    parts.push(fmtEx(p._g));
+    if (!isLightning) parts.push(p.network ?? '');
+  } else {
+    // 업비트 › BTC › Bitcoin › (Boltz ›) 지갑
+    parts.push('BTC');
+    if (!isLightning) parts.push(p.network ?? '');
+  }
 
   if (isLightning) {
     const provider = p.lightning_exit_provider;
     parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'Lightning');
-  } else {
-    parts.push(p.network ?? '');
   }
+
+  parts.push('지갑');
   return parts.join(' › ');
 }
 
