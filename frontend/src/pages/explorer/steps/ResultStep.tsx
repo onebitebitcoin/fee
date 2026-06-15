@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, TrendDown, Wallet } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, TrendDown, Wallet, Warning } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -24,6 +24,21 @@ export function ResultStep() {
     (resultPath.route_variant?.endsWith('via_global') ?? false);
   return (
     <>
+              {resultPath.disabled && (
+                <div className="ios-card rounded-2xl px-4 py-3 flex items-start gap-2.5 border border-acc-red/20">
+                  <Warning weight="fill" className="w-4 h-4 text-acc-red flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-semibold text-acc-red mb-0.5">현재 비활성화된 경로</p>
+                    <p className="text-[10px] text-label-secondary">
+                      {resultPath.disabled_reason
+                        ? `사유: ${resultPath.disabled_reason}`
+                        : '이 출금 경로는 일시적으로 비활성화되어 있습니다.'}
+                      {' '}수수료는 활성 시 예상값입니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {isHoldOnGlobal && (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-center gap-2">
                   <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-2 py-0.5 rounded-full shrink-0">개인지갑으로 출금하지 않음</span>

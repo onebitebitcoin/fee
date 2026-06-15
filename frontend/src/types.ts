@@ -125,6 +125,8 @@ export type CheapestPathEntry = {
   global_kyc_status?: KycStatus;
   exit_service_kyc_status?: KycStatus;
   wallet_kyc_status?: KycStatus;
+  disabled?: boolean;
+  disabled_reason?: string | null;
 };
 
 export type DisabledCheapestPathEntry = {

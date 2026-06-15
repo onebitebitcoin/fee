@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from types import SimpleNamespace
 
 from backend.app.domain.market_core import GROUPS, TRADING_FEES, get_withdrawal_source_url
 from backend.app.domain.path_helpers import (
@@ -21,6 +22,30 @@ from backend.app.domain.paths_context import SnapshotContext, build_snapshot_con
 from backend.app.domain.korea_exchange_registry import get_withdrawal_limits
 
 logger = logging.getLogger(__name__)
+
+
+def _force_calc_withdraw(row, amount_coin, *, coin, price_krw, usd_krw,
+                         num_txs=1, source_url=None, label_override=None):
+    """enabled=False / 점검 정지 경로의 수수료를 강제 계산 (제약 우회).
+
+    enabled·min·max를 무시하고 fee가 존재하면 수수료를 산출해 반환한다.
+    fee=None이면 None 반환.
+    """
+    if row.fee is None:
+        return None
+    fake = SimpleNamespace(
+        network_label=getattr(row, 'network_label', ''),
+        fee=row.fee,
+        fee_krw=getattr(row, 'fee_krw', None),
+        enabled=True,
+        min_withdrawal=None,
+        max_withdrawal=None,
+    )
+    return withdraw_leg(
+        fake, amount_coin,
+        coin=coin, price_krw=price_krw, usd_krw=usd_krw,
+        num_txs=num_txs, source_url=source_url, label_override=label_override,
+    )
 
 
 def _build_available_filters(paths: list[dict]) -> dict:
@@ -92,41 +117,51 @@ def _build_btc_paths(
     buy = korea_buy_leg(amount_krw, korean_taker, korean_btc_price_krw, 'BTC', ctx.usd_krw_rate)
 
     for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
-        # enabled=False 이면 disabled_paths에 기록 후 다음
+        # 비활성화 여부 판단 (enabled=False 또는 점검 정지)
+        is_disabled = False
+        row_disabled_reason = None
+
         if not row.enabled:
+            row_disabled_reason = getattr(row, 'suspension_reason', None) or 'disabled'
+            is_disabled = True
+        elif row.fee is None:
+            continue
+        else:
+            susp = is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label)
+            if susp:
+                row_disabled_reason = susp
+                is_disabled = True
+
+        if is_disabled and row.fee is None:
             disabled_paths.append({
                 'korean_exchange': exchange,
                 'transfer_coin': 'BTC',
                 'network': row.network_label,
-                'reason': getattr(row, 'suspension_reason', None) or 'disabled',
+                'reason': row_disabled_reason,
                 'suspension_message': getattr(row, 'suspension_message', None),
             })
             continue
-        if row.fee is None:
-            continue
-        suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label)
-        if suspension_reason:
-            disabled_paths.append({
-                'korean_exchange': exchange,
-                'transfer_coin': 'BTC',
-                'network': row.network_label,
-                'reason': suspension_reason,
-            })
-            continue
 
-        # 출금 엣지 (num_txs 포함)
+        # 출금 엣지 (비활성화 경로는 강제 계산)
         source_url = get_withdrawal_source_url(exchange, 'BTC', row.network_label)
-        wd = withdraw_leg(
-            row, buy.amount_out,
-            coin='BTC', price_krw=korean_btc_price_krw, usd_krw=ctx.usd_krw_rate,
-            num_txs=num_txs, source_url=source_url,
-        )
-        if isinstance(wd, Blocked):
+        if is_disabled:
+            wd = _force_calc_withdraw(
+                row, buy.amount_out,
+                coin='BTC', price_krw=korean_btc_price_krw, usd_krw=ctx.usd_krw_rate,
+                num_txs=num_txs, source_url=source_url,
+            )
+        else:
+            wd = withdraw_leg(
+                row, buy.amount_out,
+                coin='BTC', price_krw=korean_btc_price_krw, usd_krw=ctx.usd_krw_rate,
+                num_txs=num_txs, source_url=source_url,
+            )
+        if wd is None or isinstance(wd, Blocked):
             disabled_paths.append({
                 'korean_exchange': exchange,
                 'transfer_coin': 'BTC',
                 'network': row.network_label,
-                'reason': wd.reason,
+                'reason': wd.reason if isinstance(wd, Blocked) else (row_disabled_reason or 'disabled'),
             })
             continue
 
@@ -137,7 +172,7 @@ def _build_btc_paths(
         total_fee_krw = buy.fee_krw + wd.fee_krw
         components = list(buy.components) + list(wd.components)
 
-        paths.append({
+        entry: dict = {
             'korean_exchange': exchange,
             'transfer_coin': 'BTC',
             'route_variant': 'btc_direct',
@@ -165,7 +200,11 @@ def _build_btc_paths(
                 'components': components,
                 'total_fee_krw': total_fee_krw,
             },
-        })
+        }
+        if is_disabled:
+            entry['disabled'] = True
+            entry['disabled_reason'] = row_disabled_reason
+        paths.append(entry)
 
     return paths, disabled_paths
 
@@ -290,18 +329,17 @@ def _build_usdt_paths(
     buy = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usd_krw_rate)
 
     for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
+        # 비활성화 여부 판단 (enabled=False 또는 점검 정지)
+        is_disabled = False
+        row_disabled_reason = None
+
         if not row.enabled:
-            disabled_paths.append({
-                'korean_exchange': exchange,
-                'transfer_coin': 'USDT',
-                'network': row.network_label,
-                'reason': getattr(row, 'suspension_reason', None) or 'disabled',
-                'suspension_message': getattr(row, 'suspension_message', None),
-            })
+            row_disabled_reason = getattr(row, 'suspension_reason', None) or 'disabled'
+            is_disabled = True
+        elif row.fee is None:
             continue
-        if row.fee is None:
-            continue
-        if global_usdt_nets and normalize_usdt_network(row.network_label) not in global_usdt_nets:
+        elif global_usdt_nets and normalize_usdt_network(row.network_label) not in global_usdt_nets:
+            # 글로벌 거래소 미지원 네트워크는 구조적 불가 — 수수료 계산 없이 기록만
             disabled_paths.append({
                 'korean_exchange': exchange,
                 'transfer_coin': 'USDT',
@@ -309,30 +347,43 @@ def _build_usdt_paths(
                 'reason': f'{global_exchange} USDT 입금 불가 네트워크',
             })
             continue
-        suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'USDT', row.network_label)
-        if suspension_reason:
+        else:
+            susp = is_suspended(ctx.maintenance_status, exchange, 'USDT', row.network_label)
+            if susp:
+                row_disabled_reason = susp
+                is_disabled = True
+
+        if is_disabled and row.fee is None:
             disabled_paths.append({
                 'korean_exchange': exchange,
                 'transfer_coin': 'USDT',
                 'network': row.network_label,
-                'reason': suspension_reason,
+                'reason': row_disabled_reason,
+                'suspension_message': getattr(row, 'suspension_message', None),
             })
             continue
 
-        # USDT 출금 엣지
+        # USDT 출금 엣지 (비활성화 경로는 강제 계산)
         source_url = get_withdrawal_source_url(exchange, 'USDT', row.network_label)
-        usdt_wd = withdraw_leg(
-            row, buy.amount_out,
-            coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
-            source_url=source_url,
-            label_override='USDT 출금 수수료',
-        )
-        if isinstance(usdt_wd, Blocked):
+        if is_disabled:
+            usdt_wd = _force_calc_withdraw(
+                row, buy.amount_out,
+                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
+                source_url=source_url, label_override='USDT 출금 수수료',
+            )
+        else:
+            usdt_wd = withdraw_leg(
+                row, buy.amount_out,
+                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
+                source_url=source_url,
+                label_override='USDT 출금 수수료',
+            )
+        if usdt_wd is None or isinstance(usdt_wd, Blocked):
             disabled_paths.append({
                 'korean_exchange': exchange,
                 'transfer_coin': 'USDT',
                 'network': row.network_label,
-                'reason': usdt_wd.reason,
+                'reason': usdt_wd.reason if isinstance(usdt_wd, Blocked) else (row_disabled_reason or 'disabled'),
             })
             continue
         if usdt_wd.amount_out <= 0:
@@ -372,7 +423,7 @@ def _build_usdt_paths(
         if btc_received <= 0:
             continue
 
-        paths.append({
+        entry: dict = {
             'korean_exchange': exchange,
             'transfer_coin': 'USDT',
             'network': row.network_label,
@@ -397,7 +448,11 @@ def _build_usdt_paths(
                 'components': wd_components,
                 'total_fee_krw': total_fee_krw,
             },
-        })
+        }
+        if is_disabled:
+            entry['disabled'] = True
+            entry['disabled_reason'] = row_disabled_reason
+        paths.append(entry)
 
     return paths, disabled_paths
 

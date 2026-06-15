@@ -140,6 +140,10 @@ function useExplorerValue() {
       if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
     }
     return [...best.values()].sort((a, b) => {
+      // 비활성화 경로는 항상 활성 경로 뒤로
+      const aD = a.disabled ? 1 : 0;
+      const bD = b.disabled ? 1 : 0;
+      if (aD !== bD) return aD - bD;
       const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
       if (diff !== 0) return diff;
       return (b.btc_received ?? 0) - (a.btc_received ?? 0);

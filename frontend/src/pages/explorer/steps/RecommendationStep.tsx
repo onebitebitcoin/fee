@@ -268,13 +268,26 @@ export function RecommendationStep() {
               </span>
 
               <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
-                <p className="text-[12px] font-medium text-label-primary whitespace-nowrap">
-                  {routeText(p)}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className={[
+                    'text-[12px] font-medium whitespace-nowrap',
+                    p.disabled ? 'text-label-tertiary' : 'text-label-primary',
+                  ].join(' ')}>
+                    {routeText(p)}
+                  </p>
+                  {p.disabled && (
+                    <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-fill-tertiary text-label-quaternary border border-white/8">
+                      비활성화
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="text-right self-center flex-shrink-0">
-                <p className="text-[12px] font-bold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
+                <p className={[
+                  'text-[12px] font-bold num',
+                  p.disabled ? 'text-label-quaternary' : 'text-acc-red',
+                ].join(' ')}>-{formatFeeKrw(p.total_fee_krw)}</p>
                 <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
               </div>
             </motion.button>
