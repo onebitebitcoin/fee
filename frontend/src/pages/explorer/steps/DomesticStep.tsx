@@ -72,7 +72,7 @@ export function DomesticStep() {
                     >
                       <OptionCard
                         selected={domestic === exchange}
-                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); scrollToStepEnd(); }}
+                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); setShowChecklist(false); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center gap-2.5 mb-2.5">
                           <ExFavicon id={exchange} size={22} />

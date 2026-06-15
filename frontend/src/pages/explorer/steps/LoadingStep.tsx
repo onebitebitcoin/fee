@@ -14,7 +14,7 @@ export function LoadingStep() {
     if (loadingDone && !hasFailures) {
       handleLoadingNext();
     }
-  }, [loadingDone, hasFailures]);
+  }, [loadingDone, hasFailures, handleLoadingNext]);
 
   return (
     <div className="flex flex-col items-center gap-6">

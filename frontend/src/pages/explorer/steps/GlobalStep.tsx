@@ -44,7 +44,7 @@ export function GlobalStep() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
                       <OptionCard
                         selected={global === exchange}
-                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setGlobalExitMethod(null); scrollToStepEnd(); }}
+                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setGlobalExitMethod(null); setShowChecklist(false); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">

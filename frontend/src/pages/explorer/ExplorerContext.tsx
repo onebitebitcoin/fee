@@ -3,7 +3,7 @@
 // 각 단계 컴포넌트는 useExplorer()로 필요한 값만 꺼내 쓴다.
 // 타입은 useExplorerValue 반환값에서 추론한다(수동 인터페이스 유지보수 불필요).
 
-import { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
@@ -526,10 +526,10 @@ function useExplorerValue() {
     setPhase(next);
   }
 
-  function handleLoadingNext() {
+  const handleLoadingNext = useCallback(() => {
     history.pushState({ phase: 'domestic' }, '');
     setPhase('domestic');
-  }
+  }, []);
 
   function reset() {
     setPhase('input'); setAllData(null); setError(null); setLoadingDone(false);
