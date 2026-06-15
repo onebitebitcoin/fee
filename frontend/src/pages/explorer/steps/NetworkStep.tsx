@@ -63,8 +63,11 @@ export function NetworkStep() {
           </motion.div>
         ))}
 
-        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url }, i) => {
+        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url, notice_published_at }, i) => {
           const linkUrl = notice_url ?? noticeUrl;
+          const dateStr = notice_published_at
+            ? new Date(notice_published_at * 1000).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
+            : null;
           return (
             <motion.div key={`disabled-${n}`}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -89,10 +92,13 @@ export function NetworkStep() {
                       href={linkUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-0.5 text-[10px] text-acc-blue shrink-0 ml-2"
+                      className="flex flex-col items-end gap-0.5 shrink-0 ml-2"
                       onClick={e => e.stopPropagation()}
                     >
-                      {notice_url ? '공지' : '공지 목록'} <ArrowSquareOut className="w-3 h-3" />
+                      <span className="flex items-center gap-0.5 text-[10px] text-acc-blue">
+                        {notice_url ? '공지' : '공지 목록'} <ArrowSquareOut className="w-3 h-3" />
+                      </span>
+                      {dateStr && <span className="text-[9px] text-label-tertiary">{dateStr}</span>}
                     </a>
                   )}
                 </div>

@@ -119,11 +119,12 @@ def _build_notice_lookup(notice_rows: list) -> dict[str, list[dict]]:
         lookup.setdefault(row.exchange, []).append({
             'title': row.title,
             'url': row.url,
+            'published_at': row.published_at,
         })
     return lookup
 
 
-def _find_notice_url(exchange: str, coin: str, network: str, notice_lookup: dict) -> str | None:
+def _find_notice(exchange: str, coin: str, network: str, notice_lookup: dict) -> dict | None:
     notices = notice_lookup.get(exchange, [])
     keywords = {coin.lower(), network.lower()}
     n_lower = network.lower()
@@ -138,7 +139,7 @@ def _find_notice_url(exchange: str, coin: str, network: str, notice_lookup: dict
     for notice in notices:
         title = (notice.get('title') or '').lower()
         if any(kw in title for kw in keywords):
-            return notice.get('url')
+            return notice
     return None
 
 
@@ -147,7 +148,9 @@ def _enrich_disabled_paths_with_notices(payload: dict, exchange_notices: dict) -
         korean_ex = dp.get('korean_exchange', '')
         coin = dp.get('transfer_coin', '')
         network = dp.get('network', '')
-        dp['notice_url'] = _find_notice_url(korean_ex, coin, network, exchange_notices)
+        notice = _find_notice(korean_ex, coin, network, exchange_notices)
+        dp['notice_url'] = notice.get('url') if notice else None
+        dp['notice_published_at'] = notice.get('published_at') if notice else None
     return payload
 
 
