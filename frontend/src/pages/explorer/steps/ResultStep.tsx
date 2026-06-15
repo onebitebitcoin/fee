@@ -194,7 +194,6 @@ export function ResultStep() {
                                         </span>
                                       </div>
                                       {usdtPremiumPct != null && (
-                                      {usdtPremiumPct != null && (
                                         <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
                                           <span className="text-label-tertiary">테더 프리미엄</span>
                                           <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
