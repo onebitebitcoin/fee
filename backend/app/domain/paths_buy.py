@@ -325,8 +325,9 @@ def _build_usdt_paths(
 
     korean_taker = _get_korean_taker(ticker_row, exchange)
 
-    # 매수 엣지 (USDT)
-    buy = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usd_krw_rate)
+    # 매수 엣지 (USDT) — 한국 거래소 USDT/KRW 실거래가(usdt_buy_krw_rate)로 매수.
+    # 김프 평가와 동일 환율을 써야 "테더/원달러 환율 차이" 아티팩트가 사라진다.
+    buy = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usdt_buy_krw_rate)
 
     for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
         # 비활성화 여부 판단 (enabled=False 또는 점검 정지)
@@ -368,13 +369,13 @@ def _build_usdt_paths(
         if is_disabled:
             usdt_wd = _force_calc_withdraw(
                 row, buy.amount_out,
-                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
+                coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
                 source_url=source_url, label_override='USDT 출금 수수료',
             )
         else:
             usdt_wd = withdraw_leg(
                 row, buy.amount_out,
-                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
+                coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
                 source_url=source_url,
                 label_override='USDT 출금 수수료',
             )
@@ -393,18 +394,20 @@ def _build_usdt_paths(
         usdt_comp = usdt_wd.components[0].copy()
         usdt_comp['amount_text'] = f'{row.fee:g} USDT'
 
-        # 글로벌 매수 엣지
-        gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+        # 글로벌 매수 엣지 — USDT 경로의 모든 USD→KRW 환산은 usdt_buy_krw_rate 통일
+        gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
 
         from backend.app.domain.path_helpers import fee_component
 
         if global_onchain_wd_fee is not None:
             btc_received = gbuy.amount_out - global_onchain_wd_fee
+            # 글로벌 BTC 출금 수수료(BTC)→KRW도 usdt rate로 환산해 평가 기준과 일치시킨다.
+            onchain_wd_fee_krw = round(global_onchain_wd_fee * ctx.global_btc_price_usd * ctx.usdt_buy_krw_rate)
             global_wd_comp = fee_component(
-                f'해외 BTC 출금 수수료 ({global_exchange})', global_onchain_wd_fee_krw,
+                f'해외 BTC 출금 수수료 ({global_exchange})', onchain_wd_fee_krw,
                 amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
             )
-            total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw + global_onchain_wd_fee_krw
+            total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw + onchain_wd_fee_krw
             wd_components = (
                 list(buy.components)
                 + [usdt_comp]
@@ -533,7 +536,8 @@ def _build_lightning_paths(
             korean_taker = _get_korean_taker(ticker_row, exchange)
 
             # ── USDT → 글로벌 → LN 경로 ─────────────────────────────────────
-            buy_usdt = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usd_krw_rate)
+            # USDT 경로의 USD→KRW 환산은 usdt_buy_krw_rate로 통일 (환율 차이 아티팩트 제거)
+            buy_usdt = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usdt_buy_krw_rate)
 
             for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
                 if not row.enabled or row.fee is None:
@@ -547,7 +551,7 @@ def _build_lightning_paths(
                 source_url = get_withdrawal_source_url(exchange, 'USDT', row.network_label)
                 usdt_wd = withdraw_leg(
                     row, buy_usdt.amount_out,
-                    coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
+                    coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
                     source_url=source_url, label_override='USDT 출금 수수료',
                 )
                 if isinstance(usdt_wd, Blocked):
@@ -555,13 +559,13 @@ def _build_lightning_paths(
                 if usdt_wd.amount_out <= 0:
                     continue
 
-                gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+                gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
 
                 # 글로벌 LN 출금 엣지 — max_withdrawal 포함 모든 제약 검증
                 global_ln_wd = withdraw_leg(
                     global_ln_wd_row, gbuy.amount_out,
-                    coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
-                    usd_krw=ctx.usd_krw_rate,
+                    coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usdt_buy_krw_rate,
+                    usd_krw=ctx.usdt_buy_krw_rate,
                     label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
                 )
                 if isinstance(global_ln_wd, Blocked):
@@ -578,9 +582,9 @@ def _build_lightning_paths(
                 if global_ln_wd.amount_out <= 0:
                     continue
 
-                # 스왑 또는 직접 출금
+                # 스왑 또는 직접 출금 — USDT 경로이므로 swap 수수료 KRW 환산도 usdt rate
                 if swap is not None:
-                    sl = swap_leg(swap, global_ln_wd.amount_out, ctx.global_btc_price_usd, ctx.usd_krw_rate)
+                    sl = swap_leg(swap, global_ln_wd.amount_out, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
                     if isinstance(sl, Blocked):
                         continue
                     btc_received = sl.amount_out
@@ -782,12 +786,16 @@ def find_cheapest_path_from_snapshot_rows(
     withdrawal_rows: list,
     network_rows: list,
     lightning_swap_rows: list | None = None,
+    usdt_krw_rate: float | None = None,
 ) -> dict:
     global_exchange = global_exchange.lower()
     if global_exchange not in GROUPS['global']:
         return {'error': f"지원하지 않는 글로벌 거래소: {global_exchange}. {GROUPS['global']} 중 선택"}
 
-    ctx_or_err = build_snapshot_context(global_exchange, latest_run, ticker_rows, withdrawal_rows, network_rows)
+    ctx_or_err = build_snapshot_context(
+        global_exchange, latest_run, ticker_rows, withdrawal_rows, network_rows,
+        usdt_krw_rate=usdt_krw_rate,
+    )
     if isinstance(ctx_or_err, dict):
         return ctx_or_err
     ctx: SnapshotContext = ctx_or_err

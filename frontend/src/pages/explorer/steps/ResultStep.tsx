@@ -160,57 +160,55 @@ export function ResultStep() {
                             {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
-                          {isUsdtPath && exchangeRateDiff != null && (
+                          {isUsdtPath && exchangeRateDiff != null && (() => {
+                            const upbitUsdt = liveUsdtKrw;
+                            // usd_krw_rate는 개별 경로가 아닌 응답 최상위에 있음
+                            const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
+                            const usdtPremiumPct = upbitUsdt && forexRate
+                              ? ((upbitUsdt / forexRate) - 1) * 100 : null;
+                            // 환율 차이 행은 잔여 오차(>₩50)일 때만 — 매수 환율을 평가와 일치시켜
+                            // 통상 0에 수렴하므로, 의미 있을 때만 노출한다.
+                            const showRateDiff = Math.abs(exchangeRateDiff) > 50;
+                            return (
                             <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
                               <div className="flex justify-between items-center text-[10px]">
                                 <span className="text-label-tertiary">거래소·출금 수수료</span>
                                 <span className="num text-acc-red">-{formatFeeKrw(resultPath.total_fee_krw)}</span>
                               </div>
-                              {Math.abs(exchangeRateDiff) > 50 && (() => {
-                                const upbitUsdt = liveUsdtKrw;
-                                // usd_krw_rate는 개별 경로가 아닌 응답 최상위에 있음
-                                const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
-                                const usdtPremiumPct = upbitUsdt && forexRate
-                                  ? ((upbitUsdt / forexRate) - 1) * 100 : null;
-                                // 업비트 USDT < 포렉스 → 테더 할인 → 사용자 이득(초록)
-                                // 업비트 USDT > 포렉스 → 테더 프리미엄 → 사용자 손실(빨강)
-                                const isUsdtDiscount = usdtPremiumPct != null ? usdtPremiumPct < 0 : exchangeRateDiff < 0;
-                                return (
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between items-center text-[10px]">
-                                      <span className="text-label-tertiary">테더/원달러 환율 차이</span>
-                                      <span className={`num ${isUsdtDiscount ? 'text-acc-green' : 'text-acc-red'}`}>
-                                        {isUsdtDiscount ? '+' : '-'}
-                                        {formatFeeKrw(Math.abs(exchangeRateDiff))}
-                                      </span>
-                                    </div>
-                                    <div className="rounded-xl bg-fill-secondary px-3 py-2 space-y-1">
-                                      <div className="flex justify-between text-[9px]">
-                                        <span className="text-label-tertiary">업비트 USDT <span className="opacity-60">(upbit)</span></span>
-                                        <span className="num text-label-secondary font-medium">
-                                          {upbitUsdt ? `₩${formatNumber(Math.round(upbitUsdt))}` : '-'}
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between text-[9px]">
-                                        <span className="text-label-tertiary">달러 포렉스 <span className="opacity-60">(dunamu)</span></span>
-                                        <span className="num text-label-secondary font-medium">
-                                          {forexRate ? `₩${formatNumber(Math.round(forexRate))}` : '-'}
-                                        </span>
-                                      </div>
-                                      {usdtPremiumPct != null && (
-                                        <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
-                                          <span className="text-label-tertiary">테더 프리미엄</span>
-                                          <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                                            {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
+                              {showRateDiff && (
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <span className="text-label-tertiary">테더/원달러 환율 차이</span>
+                                  <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                    {exchangeRateDiff < 0 ? '-' : '+'}
+                                    {formatFeeKrw(Math.abs(exchangeRateDiff))}
+                                  </span>
+                                </div>
+                              )}
+                              {usdtPremiumPct != null && (
+                                <div className="rounded-xl bg-fill-secondary px-3 py-2 space-y-1">
+                                  <div className="flex justify-between text-[9px]">
+                                    <span className="text-label-tertiary">업비트 USDT <span className="opacity-60">(upbit)</span></span>
+                                    <span className="num text-label-secondary font-medium">
+                                      {upbitUsdt ? `₩${formatNumber(Math.round(upbitUsdt))}` : '-'}
+                                    </span>
                                   </div>
-                                );
-                              })()}
+                                  <div className="flex justify-between text-[9px]">
+                                    <span className="text-label-tertiary">달러 포렉스 <span className="opacity-60">(dunamu)</span></span>
+                                    <span className="num text-label-secondary font-medium">
+                                      {forexRate ? `₩${formatNumber(Math.round(forexRate))}` : '-'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
+                                    <span className="text-label-tertiary">테더 프리미엄</span>
+                                    <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                      {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          )}
+                            );
+                          })()}
                         </div>
                         );
                       })()}

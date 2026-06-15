@@ -142,6 +142,56 @@ def test_paths_sorted_by_total_fee():
     assert fees == sorted(fees), "경로는 total_fee_krw 오름차순 정렬되어야 한다"
 
 
+# ── USDT 매수 환율 주입 (테더/원달러 환율 차이 아티팩트 제거) ──────────────────
+
+def _usdt_path(result):
+    return next(p for p in result["all_paths"] if p["transfer_coin"] == "USDT")
+
+
+def test_usdt_purchase_uses_injected_rate_not_forex():
+    """usdt_krw_rate < 포렉스이면 USDT를 더 싸게 사 btc_received가 증가한다.
+
+    backend가 포렉스(1400) 대신 주입된 한국 USDT/KRW(1300)로 매수 계산하므로
+    같은 KRW로 더 많은 USDT→BTC를 받는다.
+    """
+    base = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=_withdrawals(),
+        network_rows=[], lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    cheaper_usdt = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=_withdrawals(),
+        network_rows=[], lightning_swap_rows=[_swap("BitFreezer")],
+        usdt_krw_rate=1300.0,
+    )
+    assert _usdt_path(cheaper_usdt)["btc_received"] > _usdt_path(base)["btc_received"]
+
+
+def test_btc_direct_path_unaffected_by_usdt_rate():
+    """BTC 직접 경로(USDT 미사용)는 usdt_krw_rate 주입에 영향받지 않는다."""
+    base = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=_withdrawals(),
+        network_rows=[], lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    injected = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=_withdrawals(),
+        network_rows=[], lightning_swap_rows=[_swap("BitFreezer")],
+        usdt_krw_rate=1300.0,
+    )
+
+    def _btc_direct(result):
+        return next(
+            p for p in result["all_paths"]
+            if p["transfer_coin"] == "BTC" and p.get("route_variant") == "btc_direct"
+            and p["korean_exchange"] == "bithumb"
+        )
+
+    assert _btc_direct(injected)["btc_received"] == _btc_direct(base)["btc_received"]
+
+
 # ── 트래블룰 분할 경계 (개인지갑 직접출금만 분할) ───────────────────────────────
 
 @pytest.mark.parametrize("amount,expected_txs", [

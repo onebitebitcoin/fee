@@ -83,6 +83,21 @@ def _fetch_usd_krw_realtime() -> float:
 _kimp_latest: dict | None = None
 
 
+def _current_usdt_krw_rate() -> float | None:
+    """USDT 매수 leg에 쓸 한국 USDT/KRW 환율(업비트 USDT 체결가).
+
+    김프 평가와 동일한 환율을 경로 계산에 주입해 "테더/원달러 환율 차이"
+    아티팩트를 제거한다. 폴링값 우선, 없으면 실시간 조회. 실패 시 None
+    (이 경우 컨텍스트가 포렉스 환율로 폴백).
+    """
+    if _kimp_latest and _kimp_latest.get('usd_krw_rate'):
+        return float(_kimp_latest['usd_krw_rate'])
+    try:
+        return float(_fetch_usd_krw_realtime())
+    except Exception:
+        return None
+
+
 def _get_status_cache() -> dict | None:
     return _status_cache.get('status')
 
@@ -424,6 +439,7 @@ def get_cheapest_path(
             withdrawal_rows=withdrawal_rows,
             network_rows=network_rows,
             lightning_swap_rows=lightning_swap_rows,
+            usdt_krw_rate=_current_usdt_krw_rate(),
         )
     if payload.get('error'):
         raise HTTPException(status_code=503, detail=payload['error'])
@@ -470,6 +486,8 @@ def get_cheapest_path_all(
     ]
 
     global_exchanges = list(GROUPS['global'])
+    # USDT 매수 leg를 김프 평가와 동일한 한국 USDT/KRW 환율로 계산 (환율 차이 아티팩트 제거)
+    usdt_krw_rate = _current_usdt_krw_rate()
 
     by_global: dict[str, object] = {}
     for gex in global_exchanges:
@@ -536,6 +554,7 @@ def get_cheapest_path_all(
                     withdrawal_rows=withdrawal_rows,
                     network_rows=network_rows,
                     lightning_swap_rows=lightning_swap_rows,
+                    usdt_krw_rate=usdt_krw_rate,
                 )
             if payload.get('error'):
                 by_global[gex] = payload

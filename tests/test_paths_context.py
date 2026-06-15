@@ -4,12 +4,31 @@ from backend.app.domain.paths_context import SnapshotContext, build_snapshot_con
 
 def test_snapshot_context_has_required_fields():
     required = {
-        'usd_krw_rate', 'global_btc_price_usd', 'global_taker',
+        'usd_krw_rate', 'usdt_buy_krw_rate', 'global_btc_price_usd', 'global_taker',
         'ticker_by_exchange', 'withdrawals_by_key',
         'maintenance_status', 'maintenance_checked_at', 'last_run',
     }
     actual = {f.name for f in fields(SnapshotContext)}
     assert actual == required
+
+
+def test_usdt_buy_krw_rate_defaults_to_forex_when_not_given():
+    """usdt_krw_rate 미지정 시 usd_krw_rate(포렉스)로 폴백."""
+    run = _make_run(usd_krw_rate=1400.0)
+    ticker_rows = [_make_ticker_row('binance', 'spot', 'USD', 90000.0, 0.1)]
+    result = build_snapshot_context('binance', run, ticker_rows, [], [])
+    assert isinstance(result, SnapshotContext)
+    assert result.usdt_buy_krw_rate == 1400.0
+
+
+def test_usdt_buy_krw_rate_uses_injected_rate():
+    """usdt_krw_rate 지정 시 USDT 매수 환율로 사용 (usd_krw_rate는 포렉스 유지)."""
+    run = _make_run(usd_krw_rate=1517.0)
+    ticker_rows = [_make_ticker_row('binance', 'spot', 'USD', 90000.0, 0.1)]
+    result = build_snapshot_context('binance', run, ticker_rows, [], [], usdt_krw_rate=1502.0)
+    assert isinstance(result, SnapshotContext)
+    assert result.usd_krw_rate == 1517.0
+    assert result.usdt_buy_krw_rate == 1502.0
 
 
 def _make_ticker_row(exchange, market_type, currency, price, taker_fee_pct):

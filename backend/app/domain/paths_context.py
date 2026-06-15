@@ -16,6 +16,7 @@ class SnapshotContext:
     """buy/sell 공통 스냅샷 컨텍스트."""
 
     usd_krw_rate: float
+    usdt_buy_krw_rate: float
     global_btc_price_usd: float
     global_taker: float
     ticker_by_exchange: dict
@@ -31,8 +32,15 @@ def build_snapshot_context(
     ticker_rows: list,
     withdrawal_rows: list,
     network_rows: list,
+    usdt_krw_rate: float | None = None,
 ) -> SnapshotContext | dict:
-    """공통 스냅샷 컨텍스트 빌드. 실패 시 {'error': ...} dict 반환."""
+    """공통 스냅샷 컨텍스트 빌드. 실패 시 {'error': ...} dict 반환.
+
+    usd_krw_rate: 두나무 포렉스 환율 (표시/USD 환산 기준).
+    usdt_krw_rate: 한국 거래소 USDT/KRW 실거래가 (USDT 매수 leg 기준).
+        미지정 시 usd_krw_rate로 폴백. 김프 평가와 동일한 환율을 쓰면
+        "테더/원달러 환율 차이" 아티팩트가 제거된다.
+    """
     if latest_run is None:
         return {'error': '최신 수집 결과가 없습니다. 먼저 수동 크롤링을 실행하세요.'}
 
@@ -42,6 +50,8 @@ def build_snapshot_context(
     )
     if usd_krw_rate is None:
         return {'error': '최신 수집 결과에 환율 정보가 없습니다.'}
+
+    usdt_buy_krw_rate = float(usdt_krw_rate) if usdt_krw_rate else float(usd_krw_rate)
 
     global_row = next(
         (row for row in ticker_rows if row.exchange == global_exchange and row.market_type == 'spot'),
@@ -62,6 +72,7 @@ def build_snapshot_context(
     completed_ts = int(latest_run.completed_at.timestamp()) if latest_run.completed_at else None
     return SnapshotContext(
         usd_krw_rate=float(usd_krw_rate),
+        usdt_buy_krw_rate=usdt_buy_krw_rate,
         global_btc_price_usd=global_btc_price_usd,
         global_taker=global_taker,
         ticker_by_exchange=build_ticker_by_exchange(ticker_rows, GROUPS['korea']),
