@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { CircleNotch, Warning } from '@phosphor-icons/react';
+import { ArrowRight, CircleNotch, MagnifyingGlass, Warning } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { useExplorer } from '../ExplorerContext';
 
@@ -97,31 +97,56 @@ export function InputStep() {
                 </motion.div>
               )}
 
-              {/* CTA */}
-              <motion.button
-                onClick={handleSearch}
-                disabled={isSearching || !amountKrw || amountKrw < 10_000}
-                whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
-                whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
-                transition={SPRING_FAST}
-                className={[
-                  'w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2',
-                  isSearching
-                    ? 'bg-acc-amber/70 text-white cursor-not-allowed'
-                    : amountKrw >= 10_000
-                      ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
-                      : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
-                ].join(' ')}
-              >
-                {isSearching ? (
-                  <>
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                      <CircleNotch className="w-4 h-4" />
-                    </motion.div>
-                    경로 계산 중
-                  </>
-                ) : '경로 탐색'}
-              </motion.button>
+              {/* CTA — 두 버튼 나란히 */}
+              <div className="flex gap-2">
+                <motion.button
+                  onClick={() => handleSearch('recommendation')}
+                  disabled={isSearching || !amountKrw || amountKrw < 10_000}
+                  whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
+                  whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                  transition={SPRING_FAST}
+                  className={[
+                    'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
+                    isSearching
+                      ? 'bg-acc-amber/70 text-white cursor-not-allowed'
+                      : amountKrw >= 10_000
+                        ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
+                        : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
+                  ].join(' ')}
+                >
+                  {isSearching ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                        <CircleNotch className="w-4 h-4" />
+                      </motion.div>
+                      계산 중
+                    </>
+                  ) : (
+                    <>
+                      <MagnifyingGlass className="w-4 h-4" />
+                      추천 경로
+                    </>
+                  )}
+                </motion.button>
+
+                <motion.button
+                  onClick={() => handleSearch('domestic')}
+                  disabled={isSearching || !amountKrw || amountKrw < 10_000}
+                  whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
+                  whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                  transition={SPRING_FAST}
+                  className={[
+                    'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
+                    isSearching
+                      ? 'bg-fill-secondary text-label-disabled cursor-not-allowed'
+                      : amountKrw >= 10_000
+                        ? 'bg-fill-secondary text-label-primary border border-white/10 cursor-pointer hover:bg-fill-primary'
+                        : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
+                  ].join(' ')}
+                >
+                  내 경로 찾기 <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
 
               {allData?.latestRunAt && (
                 <p className="text-center text-[11px] text-label-tertiary">

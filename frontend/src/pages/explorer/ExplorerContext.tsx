@@ -424,7 +424,7 @@ function useExplorerValue() {
 
   // ── API ──────────────────────────────────────────────────────────────────────
 
-  async function handleSearch() {
+  async function handleSearch(dest: 'recommendation' | 'domestic' = 'recommendation') {
     if (!amountKrw || amountKrw < 10_000) return;
     setIsSearching(true);
     setLoadingDone(false);
@@ -527,8 +527,8 @@ function useExplorerValue() {
       });
       setLoadingDone(true);
       setIsSearching(false);
-      history.pushState({ phase: 'recommendation' }, '');
-      setPhase('recommendation');
+      history.pushState({ phase: dest }, '');
+      setPhase(dest);
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
       setIsSearching(false);

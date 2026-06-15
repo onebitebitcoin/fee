@@ -2,13 +2,15 @@ import { motion } from 'motion/react';
 import { ArrowRight, Lightning, Wallet } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
-import { SPRING_FAST, SPRING_SLOW } from '../constants';
+import { SPRING_SLOW } from '../constants';
 import { ExFavicon } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 
+const MEDALS = ['🥇', '🥈', '🥉'];
+
 export function RecommendationStep() {
   const {
-    amountKrw, topRecommendedPaths, handleSelectRecommendedPath, handleGoToDomestic, handleBack,
+    amountKrw, topRecommendedPaths, handleSelectRecommendedPath, handleBack,
   } = useExplorer();
 
   return (
@@ -26,6 +28,7 @@ export function RecommendationStep() {
           const isUsdt = p.transfer_coin === 'USDT';
           const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
           const isLightning = p.path_type === 'lightning_exit';
+          const medal = MEDALS[i] ?? null;
 
           return (
             <motion.button
@@ -37,6 +40,14 @@ export function RecommendationStep() {
               className="w-full text-left ios-card rounded-2xl px-4 py-3.5 hover:border-acc-amber/30 border border-transparent transition-colors active:scale-[0.99]"
             >
               <div className="flex items-center justify-between gap-3">
+                {/* Rank */}
+                <div className="flex-shrink-0 w-7 text-center">
+                  {medal
+                    ? <span className="text-lg leading-none">{medal}</span>
+                    : <span className="text-xs font-semibold text-label-tertiary">{i + 1}</span>
+                  }
+                </div>
+
                 {/* Route */}
                 <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
                   <ExFavicon id={p.korean_exchange} size={18} />
@@ -75,17 +86,11 @@ export function RecommendationStep() {
                 </div>
               </div>
 
-              {/* Rank badge */}
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  i === 0 ? 'bg-acc-amber/15 text-acc-amber' : 'bg-fill-secondary text-label-tertiary'
-                }`}>
-                  {i === 0 ? '최저 수수료' : `${i + 1}위`}
-                </span>
-                {isLightning && (
+              {isLightning && (
+                <div className="mt-2 ml-9">
                   <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full">라이트닝 출금</span>
-                )}
-              </div>
+                </div>
+              )}
             </motion.button>
           );
         })}
@@ -96,16 +101,6 @@ export function RecommendationStep() {
           <p className="text-sm text-label-secondary">추천 경로를 불러오지 못했어요</p>
         </div>
       )}
-
-      <motion.button
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...SPRING_FAST, delay: 0.2 }}
-        onClick={handleGoToDomestic}
-        className="w-full py-3.5 rounded-2xl font-bold text-sm bg-fill-secondary text-label-primary border border-white/8 flex items-center justify-center gap-2 hover:bg-fill-primary transition-colors cursor-pointer"
-      >
-        내 경로 직접 찾기 <ArrowRight className="w-4 h-4" />
-      </motion.button>
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">
         처음으로
