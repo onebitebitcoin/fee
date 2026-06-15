@@ -133,6 +133,7 @@ export type DisabledCheapestPathEntry = {
   network: string;
   reason?: string | null;
   suspension_message?: string | null;
+  notice_url?: string | null;
 };
 
 export type CheapestPathResponse = {

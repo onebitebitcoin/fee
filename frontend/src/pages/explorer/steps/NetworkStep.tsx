@@ -63,40 +63,43 @@ export function NetworkStep() {
           </motion.div>
         ))}
 
-        {disabledNetworkOptions.map(({ network: n, reason, suspension_message }, i) => (
-          <motion.div key={`disabled-${n}`}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ ...SPRING_SLOW, delay: (networkOptions.length + i) * 0.06 }}>
-            <div className="rounded-2xl ios-card px-4 py-3 opacity-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <NetworkIcon network={n} size={16} />
-                    <p className="text-sm font-bold text-label-primary">{n}</p>
-                    <span className="text-[10px] font-medium text-label-tertiary bg-fill-tertiary px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                      <Warning className="w-3 h-3" weight="bold" />
-                      {formatReason(reason)}
-                    </span>
+        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url }, i) => {
+          const linkUrl = notice_url ?? noticeUrl;
+          return (
+            <motion.div key={`disabled-${n}`}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ ...SPRING_SLOW, delay: (networkOptions.length + i) * 0.06 }}>
+              <div className="rounded-2xl ios-card px-4 py-3 opacity-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <NetworkIcon network={n} size={16} />
+                      <p className="text-sm font-bold text-label-primary">{n}</p>
+                      <span className="text-[10px] font-medium text-label-tertiary bg-fill-tertiary px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Warning className="w-3 h-3" weight="bold" />
+                        {formatReason(reason)}
+                      </span>
+                    </div>
+                    {suspension_message && (
+                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{suspension_message}</p>
+                    )}
                   </div>
-                  {suspension_message && (
-                    <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{suspension_message}</p>
+                  {linkUrl && (
+                    <a
+                      href={linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-0.5 text-[10px] text-acc-blue shrink-0 ml-2"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {notice_url ? '공지' : '공지 목록'} <ArrowSquareOut className="w-3 h-3" />
+                    </a>
                   )}
                 </div>
-                {noticeUrl && (
-                  <a
-                    href={noticeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-0.5 text-[10px] text-acc-blue shrink-0 ml-2"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    공지 <ArrowSquareOut className="w-3 h-3" />
-                  </a>
-                )}
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
       <p className="text-[10px] text-label-tertiary text-center px-2">Bitcoin 채굴 수수료(네트워크 수수료)와 별개로 거래소가 부과하는 고정 출금 수수료입니다</p>
       {network && (

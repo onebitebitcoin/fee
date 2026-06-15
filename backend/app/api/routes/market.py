@@ -113,6 +113,44 @@ def _serialize_run(run) -> dict | None:
     }
 
 
+def _build_notice_lookup(notice_rows: list) -> dict[str, list[dict]]:
+    lookup: dict[str, list[dict]] = {}
+    for row in notice_rows:
+        lookup.setdefault(row.exchange, []).append({
+            'title': row.title,
+            'url': row.url,
+        })
+    return lookup
+
+
+def _find_notice_url(exchange: str, coin: str, network: str, notice_lookup: dict) -> str | None:
+    notices = notice_lookup.get(exchange, [])
+    keywords = {coin.lower(), network.lower()}
+    n_lower = network.lower()
+    if 'trc20' in n_lower:
+        keywords |= {'tron'}
+    elif 'erc20' in n_lower:
+        keywords |= {'ethereum', 'eth'}
+    elif 'bitcoin' in n_lower or coin.lower() == 'btc':
+        keywords |= {'btc', 'bitcoin'}
+    elif 'kaia' in n_lower:
+        keywords |= {'klay', 'klaytn'}
+    for notice in notices:
+        title = (notice.get('title') or '').lower()
+        if any(kw in title for kw in keywords):
+            return notice.get('url')
+    return None
+
+
+def _enrich_disabled_paths_with_notices(payload: dict, exchange_notices: dict) -> dict:
+    for dp in payload.get('disabled_paths', []):
+        korean_ex = dp.get('korean_exchange', '')
+        coin = dp.get('transfer_coin', '')
+        network = dp.get('network', '')
+        dp['notice_url'] = _find_notice_url(korean_ex, coin, network, exchange_notices)
+    return payload
+
+
 def _enrich_path_payload_with_kyc(payload: dict, global_exchange: str) -> dict:
     registry = kyc_registry.get_kyc_registry()
     for path in payload.get('all_paths', []):
@@ -408,6 +446,8 @@ def get_cheapest_path_all(
     lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
     crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
     exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
+    notice_rows = repositories.list_notices_for_run(db, latest_run.id) if latest_run else []
+    exchange_notices = _build_notice_lookup(notice_rows)
 
     legacy_rows = [
         row for row in withdrawal_rows
@@ -485,7 +525,8 @@ def get_cheapest_path_all(
             if payload.get('error'):
                 by_global[gex] = payload
             else:
-                by_global[gex] = _enrich_path_payload_with_kyc(payload, gex)
+                enriched = _enrich_path_payload_with_kyc(payload, gex)
+                by_global[gex] = _enrich_disabled_paths_with_notices(enriched, exchange_notices)
         except Exception as exc:
             logger.warning('cheapest-all: error for %s: %s', gex, exc)
             by_global[gex] = {'error': str(exc)}
