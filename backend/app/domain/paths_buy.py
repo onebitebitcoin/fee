@@ -71,7 +71,16 @@ def _build_btc_paths(
     )
 
     for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
-        if not row.enabled or row.fee is None:
+        if not row.enabled:
+            disabled_paths.append({
+                'korean_exchange': exchange,
+                'transfer_coin': 'BTC',
+                'network': row.network_label,
+                'reason': getattr(row, 'suspension_reason', None) or 'disabled',
+                'suspension_message': getattr(row, 'suspension_message', None),
+            })
+            continue
+        if row.fee is None:
             continue
         suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label)
         if suspension_reason:
@@ -277,7 +286,16 @@ def _build_usdt_paths(
     )
 
     for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
-        if not row.enabled or row.fee is None:
+        if not row.enabled:
+            disabled_paths.append({
+                'korean_exchange': exchange,
+                'transfer_coin': 'USDT',
+                'network': row.network_label,
+                'reason': getattr(row, 'suspension_reason', None) or 'disabled',
+                'suspension_message': getattr(row, 'suspension_message', None),
+            })
+            continue
+        if row.fee is None:
             continue
         # 글로벌 거래소가 해당 네트워크 USDT 입금을 지원하는지 확인
         if global_usdt_nets and normalize_usdt_network(row.network_label) not in global_usdt_nets:

@@ -171,6 +171,8 @@ class CrawlService:
                         max_withdrawal=network.get('max'),
                         enabled=enabled,
                         note=network.get('note'),
+                        suspension_reason=network.get('suspension_reason'),
+                        suspension_message=network.get('suspension_message'),
                     ))
                     withdrawal_count += 1
                     if coin == 'BTC' and enabled and fee is not None and 'lightning' in label.lower():

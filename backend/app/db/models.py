@@ -72,6 +72,8 @@ class WithdrawalFeeSnapshot(Base):
     max_withdrawal: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    suspension_reason: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    suspension_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='withdrawal_fee_snapshots')
