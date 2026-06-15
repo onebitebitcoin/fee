@@ -103,7 +103,7 @@ export function RecommendationStep() {
 
   const activeFilterCount =
     excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size +
-    (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0) + (!excludeDisabled ? 1 : 0);
+    (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0) + (excludeDisabled ? 1 : 0);
 
   function toggleExchange(id: string) {
     setExcludeExchanges(prev => {
@@ -138,7 +138,7 @@ export function RecommendationStep() {
     setExcludeServices(new Set());
     setExcludeOnchain(false);
     setExcludeLightning(false);
-    setExcludeDisabled(true);
+    setExcludeDisabled(false);
     setVisibleCount(PAGE_SIZE);
   }
 
@@ -187,7 +187,7 @@ export function RecommendationStep() {
                 <div>
                   <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">비활성화 경로</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <ToggleChip label="비활성화 포함" active={!excludeDisabled} onClick={() => { setExcludeDisabled((o: boolean) => !o); setVisibleCount(PAGE_SIZE); }} />
+                    <ToggleChip label="비활성화 제외" active={excludeDisabled} onClick={() => { setExcludeDisabled((o: boolean) => !o); setVisibleCount(PAGE_SIZE); }} />
                   </div>
                 </div>
               )}
