@@ -135,6 +135,7 @@ export type DisabledCheapestPathEntry = {
   suspension_message?: string | null;
   notice_url?: string | null;
   notice_published_at?: string | number | null;
+  notice_title?: string | null;
 };
 
 export type CheapestPathResponse = {

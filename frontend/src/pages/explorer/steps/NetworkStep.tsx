@@ -76,7 +76,7 @@ export function NetworkStep() {
           </motion.div>
         ))}
 
-        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url, notice_published_at }, i) => {
+        {disabledNetworkOptions.map(({ network: n, reason, suspension_message, notice_url, notice_published_at, notice_title }, i) => {
           const linkUrl = notice_url ?? noticeUrl;
           const dateStr = notice_published_at
             ? new Date(typeof notice_published_at === 'number' ? notice_published_at * 1000 : notice_published_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
@@ -96,8 +96,8 @@ export function NetworkStep() {
                         {formatReason(reason)}
                       </span>
                     </div>
-                    {formatSuspensionMessage(suspension_message) && (
-                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{formatSuspensionMessage(suspension_message)}</p>
+                    {(notice_title || formatSuspensionMessage(suspension_message)) && (
+                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-tight max-w-[240px]">{notice_title || formatSuspensionMessage(suspension_message)}</p>
                     )}
                   </div>
                   {linkUrl && (

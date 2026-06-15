@@ -153,6 +153,7 @@ def _enrich_disabled_paths_with_notices(payload: dict, exchange_notices: dict) -
         notice = _find_notice(korean_ex, coin, network, exchange_notices)
         dp['notice_url'] = notice.get('url') if notice else None
         dp['notice_published_at'] = notice.get('published_at') if notice else None
+        dp['notice_title'] = notice.get('title') if notice else None
     return payload
 
 
