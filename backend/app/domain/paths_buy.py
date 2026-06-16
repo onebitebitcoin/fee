@@ -20,6 +20,7 @@ from backend.app.domain.path_graph import (
 )
 from backend.app.domain.paths_context import SnapshotContext, build_snapshot_context
 from backend.app.domain.korea_exchange_registry import get_withdrawal_limits
+from backend.app.domain.min_order_registry import calc_discarded_krw
 
 logger = logging.getLogger(__name__)
 
@@ -846,6 +847,10 @@ def find_cheapest_path_from_snapshot_rows(
             )
             paths.extend(ln_paths)
             disabled_paths.extend(ln_disabled)
+
+    # 최소 주문 단위로 인해 못 쓰고 남는 잔돈(표시용 근사). btc_received는 건드리지 않는다.
+    for p in paths:
+        p['discarded_krw'] = calc_discarded_krw(amount_krw, p['korean_exchange'])
 
     paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
     lightning_services = sorted({

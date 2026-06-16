@@ -161,6 +161,17 @@ def test_components_expose_move_amount_for_all_paths():
             assert c["move_amount_krw"] and c["move_amount_krw"] > 0, f"{tag}: move_amount_krw 누락"
 
 
+def test_paths_expose_discarded_krw():
+    """각 경로에 최소주문 잔돈(discarded_krw)이 노출되고, 업비트는 5,000원 단위 나머지와 일치한다."""
+    result = _calc(10_000_001)  # 5,000으로 나눠떨어지지 않음
+    for p in result["all_paths"]:
+        assert "discarded_krw" in p, "discarded_krw 필드 누락"
+        assert p["discarded_krw"] >= 0
+    upbit_paths = [p for p in result["all_paths"] if p["korean_exchange"] == "upbit"]
+    for p in upbit_paths:
+        assert p["discarded_krw"] == 10_000_001 % 5000  # == 1
+
+
 def test_usdt_purchase_uses_injected_rate_not_forex():
     """usdt_krw_rate < 포렉스이면 USDT를 더 싸게 사 btc_received가 증가한다.
 
