@@ -11,7 +11,7 @@ export function DomesticStep() {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const {
-    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp,
+    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, usdtPremium,
     kimpFetchedAt, kimpInfoOpen, setKimpInfoOpen, btcPrice, withdrawalLimits, stepEndRef,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap,
@@ -33,6 +33,15 @@ export function DomesticStep() {
                 {kimpFetchedAt != null && (
                   <p className="text-[11px] text-label-tertiary num mt-0.5">
                     김프 {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
+                  </p>
+                )}
+                {usdtPremium != null && (
+                  <p className="text-[11px] num mt-0.5">
+                    <span className="text-label-tertiary">원달러 프리미엄 </span>
+                    <span className={usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}>
+                      {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
+                    </span>
+                    <span className="text-[9px] text-label-tertiary"> · 업비트 USDT vs 포렉스</span>
                   </p>
                 )}
                 {/* 김프 설명 패널 */}
@@ -160,6 +169,12 @@ export function DomesticStep() {
                                 <div>
                                   <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(원달러 기준)</span></span>
                                   <p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
+                                </div>
+                              )}
+                              {usdtPremium != null && (
+                                <div>
+                                  <span className="text-label-tertiary">원달러 프리미엄 <span className="text-[9px]">(테더)</span></span>
+                                  <p className={`font-medium mt-0.5 num ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>{usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%</p>
                                 </div>
                               )}
                             </div>

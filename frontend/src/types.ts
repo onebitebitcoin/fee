@@ -190,6 +190,10 @@ export type LiveKimpResponse = {
   korean_btc_prices: Record<string, number>;
   global_btc_price_krw: number;
   usd_krw_rate: number;
+  /** 두나무 원달러 포렉스 환율 (원달러 프리미엄 계산 기준) */
+  forex_usd_krw_rate?: number | null;
+  /** 원달러(테더) 프리미엄 % = 업비트 USDT ÷ 두나무 포렉스 − 1 */
+  usdt_premium?: number | null;
   fetched_at: number;
 };
 

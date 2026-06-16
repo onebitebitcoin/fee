@@ -760,13 +760,17 @@ def _fetch_kimp_data() -> dict | None:
             btc_price = None
         return exchange, btc_price
 
-    def _fetch_global() -> tuple[float | None, float | None]:
+    def _fetch_global() -> tuple[float | None, float | None, float | None]:
         try:
             btc_usd = float(fetch_binance_spot()['price'])
-            usd_krw = _fetch_usd_krw_realtime()
-            return btc_usd, usd_krw
+            usd_krw = _fetch_usd_krw_realtime()  # 업비트 USDT/KRW (김프 환율 기준)
+            try:
+                forex = float(fetch_usd_krw_rate())  # 두나무 원달러 포렉스
+            except Exception:
+                forex = None
+            return btc_usd, usd_krw, forex
         except Exception:
-            return None, None
+            return None, None, None
 
     with ThreadPoolExecutor(max_workers=6) as executor:
         korea_futures = {executor.submit(_fetch_korea, ex): ex for ex in KOREA_FETCHERS}
@@ -778,7 +782,7 @@ def _fetch_kimp_data() -> dict | None:
             if btc_price is not None:
                 korea_btc_prices[ex] = btc_price
 
-        btc_usd, usd_krw = global_future.result()
+        btc_usd, usd_krw, forex = global_future.result()
 
     if btc_usd is None or usd_krw is None or not korea_btc_prices:
         return None
@@ -788,11 +792,15 @@ def _fetch_kimp_data() -> dict | None:
         ex: round((price / global_btc_price_krw - 1) * 100, 4)
         for ex, price in korea_btc_prices.items()
     }
+    # 원달러 프리미엄 = 업비트 USDT/KRW ÷ 두나무 포렉스 − 1 (테더 프리미엄, 단일 시장값)
+    usdt_premium = round((usd_krw / forex - 1) * 100, 4) if forex else None
     return {
         'kimp': kimp,
         'korean_btc_prices': korea_btc_prices,
         'global_btc_price_krw': round(global_btc_price_krw),
         'usd_krw_rate': round(usd_krw, 2),
+        'forex_usd_krw_rate': round(forex, 2) if forex else None,
+        'usdt_premium': usdt_premium,
         'fetched_at': int(time.time()),
     }
 

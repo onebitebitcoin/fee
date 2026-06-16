@@ -30,6 +30,7 @@ function useExplorerValue() {
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
   const [liveUsdtKrw, setLiveUsdtKrw] = useState<number | null>(null); // Upbit KRW-USDT 실거래가
+  const [usdtPremium, setUsdtPremium] = useState<number | null>(null); // 원달러(테더) 프리미엄 %
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
@@ -104,6 +105,7 @@ function useExplorerValue() {
             fetchedAt: new Date(),
           });
           if (res.usd_krw_rate) setLiveUsdtKrw(res.usd_krw_rate);
+          setUsdtPremium(res.usdt_premium ?? null);
         })
         .catch(() => { /* keep previous */ });
     fetch();
@@ -485,7 +487,7 @@ function useExplorerValue() {
         DOMESTIC_EXCHANGES.forEach(d => { next[d] = domesticStatus; });
         return next;
       });
-      if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); }
+      if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); setUsdtPremium(kimpRes.usdt_premium ?? null); }
 
       // 단일 배치 호출로 7개 글로벌 거래소를 한 번에 조회
       const allRes = await withTimeout(
@@ -692,6 +694,7 @@ function useExplorerValue() {
     swapSvc, setSwapSvc,
     liveKimp,
     liveUsdtKrw,
+    usdtPremium,
     kimpFetchedAt,
     kimpInfoOpen, setKimpInfoOpen,
     btcPrice,
