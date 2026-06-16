@@ -284,7 +284,7 @@ export function RecommendationStep() {
                   : i === 0 ? 'text-acc-amber' : i === 1 ? 'text-label-secondary' : i === 2 ? 'text-label-tertiary' : 'text-label-quaternary',
               ].join(' ')}>
                 {p.disabled
-                  ? <Wrench weight="fill" className="w-3.5 h-3.5 text-label-quaternary" />
+                  ? <Wrench weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
                   : i + 1}
               </span>
 
