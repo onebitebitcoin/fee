@@ -73,11 +73,15 @@ def korea_buy_leg(
     else:  # USDT
         amount_out = after_fee_krw / usd_krw_rate
 
+    move_krw = round(amount_out * (korean_price if target_asset == 'BTC' else usd_krw_rate))
     comp = fee_component(
         '국내 매수 수수료',
         trading_fee_krw,
         rate_pct=korean_taker * 100,
         is_fixed=False,
+        move_amount=amount_out,
+        move_coin=target_asset,
+        move_amount_krw=move_krw,
     )
     return Leg(amount_out=amount_out, fee_krw=trading_fee_krw, components=[comp])
 
@@ -158,6 +162,9 @@ def withdraw_leg(
         amount_text=wd_amount_text,
         source_url=source_url,
         is_fixed=True,
+        move_amount=amount_out,
+        move_coin=coin,
+        move_amount_krw=round(amount_out * price_krw),
     )
     return Leg(amount_out=amount_out, fee_krw=total_fee_krw, components=[comp])
 
@@ -180,6 +187,9 @@ def global_buy_leg(
         rate_pct=global_taker * 100,
         amount_text=f'{round(global_trading_fee_usdt, 8)} USDT',
         is_fixed=False,
+        move_amount=btc_out,
+        move_coin='BTC',
+        move_amount_krw=round(btc_out * btc_usd * usd_krw),
     )
     return Leg(amount_out=btc_out, fee_krw=fee_krw, components=[comp])
 
@@ -311,5 +321,8 @@ def swap_leg(
         rate_pct=swap.fee_pct,
         amount_text=f'{round(ln_swap_fee_btc, 8)} BTC',
         is_fixed=False,
+        move_amount=btc_out,
+        move_coin='BTC',
+        move_amount_krw=round(btc_out * btc_usd * usd_krw),
     )
     return Leg(amount_out=btc_out, fee_krw=fee_krw, components=[comp])

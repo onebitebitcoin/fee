@@ -261,6 +261,8 @@ def _build_btc_via_global_paths(
         global_wd_comp = fee_component(
             f'해외 BTC 출금 ({global_exchange})', global_onchain_wd_fee_krw,
             amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
+            move_amount=btc_received, move_coin='BTC',
+            move_amount_krw=round(btc_received * ctx.global_btc_price_usd * ctx.usd_krw_rate),
         )
 
         # domestic_wd.components에서 label을 확인해 amount_text 동기화
@@ -406,6 +408,8 @@ def _build_usdt_paths(
             global_wd_comp = fee_component(
                 f'해외 BTC 출금 수수료 ({global_exchange})', onchain_wd_fee_krw,
                 amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
+                move_amount=btc_received, move_coin='BTC',
+                move_amount_krw=round(btc_received * ctx.global_btc_price_usd * ctx.usd_krw_rate),
             )
             total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw + onchain_wd_fee_krw
             wd_components = (

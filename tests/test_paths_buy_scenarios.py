@@ -148,6 +148,19 @@ def _usdt_path(result):
     return next(p for p in result["all_paths"] if p["transfer_coin"] == "USDT")
 
 
+def test_components_expose_move_amount_for_all_paths():
+    """각 경로 component에 이동 수량(move_amount)+코인+원화 환산이 채워진다 (결과 페이지 표시용)."""
+    result = _calc(10_000_000)
+    for p in result["all_paths"]:
+        tag = f"{p['korean_exchange']}/{_classify(p)}"
+        moved = [c for c in p["breakdown"]["components"] if c.get("move_amount")]
+        assert moved, f"{tag}: 이동 수량 노출 component가 없음"
+        for c in moved:
+            assert c["move_coin"] in ("USDT", "BTC"), f"{tag}: move_coin={c['move_coin']}"
+            assert c["move_amount"] > 0, f"{tag}: move_amount<=0"
+            assert c["move_amount_krw"] and c["move_amount_krw"] > 0, f"{tag}: move_amount_krw 누락"
+
+
 def test_usdt_purchase_uses_injected_rate_not_forex():
     """usdt_krw_rate < 포렉스이면 USDT를 더 싸게 사 btc_received가 증가한다.
 
