@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, TrendDown, Wallet, Warning } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, TrendDown, Wallet, Warning, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -32,10 +32,12 @@ export function ResultStep() {
                 const noticeTitle = resultPath.notice_title ?? null;
                 const noticeUrl = resultPath.notice_url ?? null;
                 return (
-                <div className="ios-card rounded-2xl px-4 py-3 flex items-start gap-3">
-                  <Warning weight="fill" className="w-4 h-4 text-label-secondary flex-shrink-0 mt-0.5" />
+                <div className="rounded-2xl px-4 py-3 flex items-start gap-3 bg-fill-secondary border border-fill-tertiary/40">
+                  <div className="w-7 h-7 rounded-full bg-fill-tertiary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Wrench weight="fill" className="w-3.5 h-3.5 text-label-tertiary" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-bold text-label-primary mb-1">
+                    <p className="text-[12px] font-bold text-label-secondary mb-1">
                       출금 일시 중단
                       {reason && <span className="ml-1.5 text-[10px] font-normal text-label-tertiary">({reason})</span>}
                     </p>
@@ -95,8 +97,8 @@ export function ResultStep() {
                   />
                 )}
                 {isDisabled ? (
-                  <div className="w-8 h-8 rounded-full bg-fill-tertiary flex items-center justify-center mx-auto mb-4 relative z-10">
-                    <Wallet weight="fill" className="w-4.5 h-4.5 text-label-quaternary" />
+                  <div className="w-10 h-10 rounded-full bg-fill-secondary border border-fill-tertiary/50 flex items-center justify-center mx-auto mb-4 relative z-10">
+                    <Wrench weight="fill" className="w-5 h-5 text-label-tertiary" />
                   </div>
                 ) : (
                   <Wallet weight="fill" className="w-8 h-8 text-acc-amber mx-auto mb-4 relative z-10" />

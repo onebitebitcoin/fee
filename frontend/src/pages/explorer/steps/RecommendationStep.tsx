@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CaretDown, Funnel, X } from '@phosphor-icons/react';
+import { CaretDown, Funnel, Wrench, X } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
@@ -271,30 +271,31 @@ export function RecommendationStep() {
               onClick={() => handleSelectRecommendedPath(p)}
               className={[
                 'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
-                'hover:bg-white/4 active:bg-white/6',
+                p.disabled
+                  ? 'bg-fill-secondary/60 opacity-60'
+                  : 'hover:bg-white/4 active:bg-white/6',
                 i < visible.length - 1 ? 'border-b border-white/4' : '',
               ].join(' ')}
             >
               <span className={[
                 'text-xs font-bold self-center',
-                i === 0 ? 'text-acc-amber' : i === 1 ? 'text-label-secondary' : i === 2 ? 'text-label-tertiary' : 'text-label-quaternary',
+                p.disabled
+                  ? 'text-label-quaternary'
+                  : i === 0 ? 'text-acc-amber' : i === 1 ? 'text-label-secondary' : i === 2 ? 'text-label-tertiary' : 'text-label-quaternary',
               ].join(' ')}>
-                {i + 1}
+                {p.disabled
+                  ? <Wrench weight="fill" className="w-3.5 h-3.5 text-label-quaternary" />
+                  : i + 1}
               </span>
 
               <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
                 <div className="flex items-center gap-1.5">
                   <p className={[
                     'text-[12px] font-medium whitespace-nowrap',
-                    p.disabled ? 'text-label-tertiary' : 'text-label-primary',
+                    p.disabled ? 'text-label-quaternary' : 'text-label-primary',
                   ].join(' ')}>
                     {routeText(p)}
                   </p>
-                  {p.disabled && (
-                    <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-fill-tertiary text-label-quaternary border border-white/8">
-                      비활성화
-                    </span>
-                  )}
                 </div>
               </div>
 
