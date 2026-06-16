@@ -290,14 +290,12 @@ export function RecommendationStep() {
             <motion.button
               key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}|${p.lightning_exit_provider ?? ''}`}
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              animate={{ opacity: p.disabled ? 0.3 : 1 }}
               transition={{ ...SPRING_SLOW, delay: Math.min(i, 6) * 0.03 }}
               onClick={() => handleSelectRecommendedPath(p)}
               className={[
                 'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
-                p.disabled
-                  ? 'opacity-40'
-                  : 'hover:bg-white/4 active:bg-white/6',
+                p.disabled ? '' : 'hover:bg-white/4 active:bg-white/6',
                 i < visible.length - 1 ? 'border-b border-white/4' : '',
               ].join(' ')}
             >
