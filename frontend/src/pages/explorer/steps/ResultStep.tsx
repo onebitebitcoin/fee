@@ -140,7 +140,9 @@ export function ResultStep() {
                   return (
                     <div className="space-y-2 relative z-10 w-full">
                       <div className="ios-card rounded-2xl px-4 py-3 text-left">
-                        <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">수수료 합계</p>
+                        <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
+                          수수료 합계{isUsdtPath && <span className="normal-case font-normal ml-1.5 text-[9px] opacity-80">· 원달러 환산</span>}
+                        </p>
                         <p className="text-sm font-bold text-acc-red num">
                           -{formatFeeKrw(resultPath.total_fee_krw)}
                           <span className="text-[11px] font-normal ml-1.5 opacity-70">({formatPercent(resultPath.fee_pct)})</span>
@@ -184,7 +186,7 @@ export function ResultStep() {
                             return (
                             <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
                               <div className="flex justify-between items-center text-[10px]">
-                                <span className="text-label-tertiary">거래소·출금 수수료</span>
+                                <span className="text-label-tertiary">거래소·출금 수수료 <span className="text-[9px] opacity-70">(원달러 환산)</span></span>
                                 <span className="num text-acc-red">-{formatFeeKrw(resultPath.total_fee_krw)}</span>
                               </div>
                               {showRateDiff && (

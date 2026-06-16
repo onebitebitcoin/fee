@@ -326,7 +326,7 @@ def _build_usdt_paths(
     korean_taker = _get_korean_taker(ticker_row, exchange)
 
     # 매수 엣지 (USDT) — 한국 거래소 USDT/KRW 실거래가(usdt_buy_krw_rate)로 매수.
-    # 김프 평가와 동일 환율을 써야 "테더/원달러 환율 차이" 아티팩트가 사라진다.
+    # 이 단계에서만 원달러 프리미엄(업비트 USDT vs 포렉스)이 발생한다. 수수료 환산은 포렉스.
     buy = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usdt_buy_krw_rate)
 
     for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
@@ -369,13 +369,13 @@ def _build_usdt_paths(
         if is_disabled:
             usdt_wd = _force_calc_withdraw(
                 row, buy.amount_out,
-                coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
+                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
                 source_url=source_url, label_override='USDT 출금 수수료',
             )
         else:
             usdt_wd = withdraw_leg(
                 row, buy.amount_out,
-                coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
+                coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
                 source_url=source_url,
                 label_override='USDT 출금 수수료',
             )
@@ -394,15 +394,15 @@ def _build_usdt_paths(
         usdt_comp = usdt_wd.components[0].copy()
         usdt_comp['amount_text'] = f'{row.fee:g} USDT'
 
-        # 글로벌 매수 엣지 — USDT 경로의 모든 USD→KRW 환산은 usdt_buy_krw_rate 통일
-        gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
+        # 글로벌 매수 엣지 — 수수료 원화 환산은 포렉스(usd_krw_rate). 매수 수량만 업비트 USDT.
+        gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
 
         from backend.app.domain.path_helpers import fee_component
 
         if global_onchain_wd_fee is not None:
             btc_received = gbuy.amount_out - global_onchain_wd_fee
-            # 글로벌 BTC 출금 수수료(BTC)→KRW도 usdt rate로 환산해 평가 기준과 일치시킨다.
-            onchain_wd_fee_krw = round(global_onchain_wd_fee * ctx.global_btc_price_usd * ctx.usdt_buy_krw_rate)
+            # 글로벌 BTC 출금 수수료(BTC)→KRW도 포렉스(usd_krw_rate)로 환산.
+            onchain_wd_fee_krw = round(global_onchain_wd_fee * ctx.global_btc_price_usd * ctx.usd_krw_rate)
             global_wd_comp = fee_component(
                 f'해외 BTC 출금 수수료 ({global_exchange})', onchain_wd_fee_krw,
                 amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
@@ -536,7 +536,7 @@ def _build_lightning_paths(
             korean_taker = _get_korean_taker(ticker_row, exchange)
 
             # ── USDT → 글로벌 → LN 경로 ─────────────────────────────────────
-            # USDT 경로의 USD→KRW 환산은 usdt_buy_krw_rate로 통일 (환율 차이 아티팩트 제거)
+            # USDT 매수 수량만 업비트 USDT(원달러 프리미엄 발생). 수수료 환산은 포렉스(usd_krw_rate).
             buy_usdt = korea_buy_leg(amount_krw, korean_taker, 0.0, 'USDT', ctx.usdt_buy_krw_rate)
 
             for row in ctx.withdrawals_by_key.get((exchange, 'USDT'), []):
@@ -551,7 +551,7 @@ def _build_lightning_paths(
                 source_url = get_withdrawal_source_url(exchange, 'USDT', row.network_label)
                 usdt_wd = withdraw_leg(
                     row, buy_usdt.amount_out,
-                    coin='USDT', price_krw=ctx.usdt_buy_krw_rate, usd_krw=ctx.usdt_buy_krw_rate,
+                    coin='USDT', price_krw=ctx.usd_krw_rate, usd_krw=ctx.usd_krw_rate,
                     source_url=source_url, label_override='USDT 출금 수수료',
                 )
                 if isinstance(usdt_wd, Blocked):
@@ -559,13 +559,13 @@ def _build_lightning_paths(
                 if usdt_wd.amount_out <= 0:
                     continue
 
-                gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
+                gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
 
                 # 글로벌 LN 출금 엣지 — max_withdrawal 포함 모든 제약 검증
                 global_ln_wd = withdraw_leg(
                     global_ln_wd_row, gbuy.amount_out,
-                    coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usdt_buy_krw_rate,
-                    usd_krw=ctx.usdt_buy_krw_rate,
+                    coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
+                    usd_krw=ctx.usd_krw_rate,
                     label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
                 )
                 if isinstance(global_ln_wd, Blocked):
@@ -582,9 +582,9 @@ def _build_lightning_paths(
                 if global_ln_wd.amount_out <= 0:
                     continue
 
-                # 스왑 또는 직접 출금 — USDT 경로이므로 swap 수수료 KRW 환산도 usdt rate
+                # 스왑 또는 직접 출금 — swap 수수료 KRW 환산도 포렉스(usd_krw_rate)
                 if swap is not None:
-                    sl = swap_leg(swap, global_ln_wd.amount_out, ctx.global_btc_price_usd, ctx.usdt_buy_krw_rate)
+                    sl = swap_leg(swap, global_ln_wd.amount_out, ctx.global_btc_price_usd, ctx.usd_krw_rate)
                     if isinstance(sl, Blocked):
                         continue
                     btc_received = sl.amount_out
