@@ -115,14 +115,20 @@ export function ResultStep() {
                     : null;
                   const krwPnL = satsKrw != null ? satsKrw - amountKrw : null;
 
-                  // USDT 경로는 backend가 매수에 쓴 동일 환율(usdt_buy_krw_rate)로 평가해야
-                  // "테더/원달러 환율 차이"가 정확히 0이 된다. BTC 경로는 김프 기반 유지.
+                  // USDT 경로: 글로벌 BTC를 '진짜 원달러(두나무 포렉스)' 환율로 환산해
+                  // 테더 프리미엄(업비트 USDT vs 포렉스)이 globalPnL에 실제 금액으로 드러나게 한다.
+                  // 매수 계산은 backend가 업비트 USDT 환율로 일관 처리 → 부호는 테더 프리미엄 방향으로 안정.
+                  // BTC 경로는 김프 기반 평가 유지.
                   const isUsdtPath = resultPath.transfer_coin === 'USDT';
                   const gd = global ? allData?.byGlobal?.[global] : null;
-                  const usdtBuyRate = gd && !('error' in gd) ? gd.usdt_buy_krw_rate ?? null : null;
                   const globalBtcUsd = gd && !('error' in gd) ? gd.global_btc_price_usd ?? null : null;
-                  const globalBtcKrw = isUsdtPath && usdtBuyRate && globalBtcUsd
-                    ? globalBtcUsd * usdtBuyRate
+                  const upbitUsdt = liveUsdtKrw;
+                  // usd_krw_rate(두나무 포렉스)는 개별 경로가 아닌 응답 최상위에 있음
+                  const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
+                  const usdtPremiumPct = upbitUsdt && forexRate
+                    ? ((upbitUsdt / forexRate) - 1) * 100 : null;
+                  const globalBtcKrw = isUsdtPath && forexRate && globalBtcUsd
+                    ? globalBtcUsd * forexRate
                     : (domesticBtcKrw != null && kimchi != null
                         ? domesticBtcKrw / (1 + kimchi / 100)
                         : null);
@@ -156,25 +162,24 @@ export function ResultStep() {
                           <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
                             글로벌 시세 기준
                             <span className="ml-1.5 normal-case font-normal">
-                              (김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span>
-                              <span className="text-[9px] text-label-tertiary"> / 원달러 기준</span>)
+                              ({isUsdtPath && usdtPremiumPct != null ? (
+                                <>원달러 프리미엄 <span className={usdtPremiumPct >= 0 ? 'text-acc-red' : 'text-acc-green'}>{usdtPremiumPct >= 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%</span></>
+                              ) : (
+                                <>김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span></>
+                              )}
+                              <span className="text-[9px] text-label-tertiary"> / 원달러 환산</span>)
                             </span>
                           </p>
                           <p className="text-xs text-label-secondary leading-relaxed">
-                            같은 비트코인을 글로벌 시세로 환산하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
+                            같은 비트코인을 글로벌 시세(원달러 환산)로 평가하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
                           </p>
                           <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
                             {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
                             <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
                           </p>
                           {isUsdtPath && exchangeRateDiff != null && (() => {
-                            const upbitUsdt = liveUsdtKrw;
-                            // usd_krw_rate는 개별 경로가 아닌 응답 최상위에 있음
-                            const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
-                            const usdtPremiumPct = upbitUsdt && forexRate
-                              ? ((upbitUsdt / forexRate) - 1) * 100 : null;
-                            // 환율 차이 행은 잔여 오차(>₩50)일 때만 — 매수 환율을 평가와 일치시켜
-                            // 통상 0에 수렴하므로, 의미 있을 때만 노출한다.
+                            // upbitUsdt/forexRate/usdtPremiumPct는 상단에서 계산됨.
+                            // 환율 차이 = 테더 프리미엄이 거래금액에 적용된 실제 손익. >₩50일 때 노출.
                             const showRateDiff = Math.abs(exchangeRateDiff) > 50;
                             return (
                             <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
@@ -184,7 +189,7 @@ export function ResultStep() {
                               </div>
                               {showRateDiff && (
                                 <div className="flex justify-between items-center text-[10px]">
-                                  <span className="text-label-tertiary">테더/원달러 환율 차이</span>
+                                  <span className="text-label-tertiary">원달러 프리미엄 차이</span>
                                   <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                                     {exchangeRateDiff < 0 ? '-' : '+'}
                                     {formatFeeKrw(Math.abs(exchangeRateDiff))}
@@ -206,7 +211,7 @@ export function ResultStep() {
                                     </span>
                                   </div>
                                   <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
-                                    <span className="text-label-tertiary">테더 프리미엄</span>
+                                    <span className="text-label-tertiary">원달러 프리미엄</span>
                                     <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                                       {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
                                     </span>
