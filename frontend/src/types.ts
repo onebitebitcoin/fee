@@ -114,6 +114,8 @@ export type CheapestPathEntry = {
   global_exit_network: string;
   lightning_exit_provider?: string | null;
   path_type?: 'lightning_exit' | null;
+  // 종착지: 개인 온체인 지갑(personal) / 라이트닝 지갑(lightning_wallet, LN 직접출금 종착)
+  destination?: 'personal' | 'lightning_wallet';
   swap_service?: string | null;
   btc_received?: number;
   btc_received_usd?: number | null;

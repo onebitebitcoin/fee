@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, TrendDown, Wallet, Warning, Wrench } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Lightning, TrendDown, Wallet, Warning, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -16,6 +16,8 @@ export function ResultStep() {
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
+  // 라이트닝 지갑 종착: LN 출금까지만(스왑·온체인 없음) → 종착 노드 라벨/아이콘이 달라진다.
+  const isLnWallet = resultPath.destination === 'lightning_wallet';
   // 경로가 실제로 해외 거래소를 경유하는지 판별 (transient global state가 아닌 결과 데이터 기준).
   // - USDT 경로는 항상 글로벌 경유 (buy 모드에선 route_variant 미설정이라 transfer_coin으로 판별).
   // - btc_via_global은 transfer_coin='BTC'이지만 글로벌 경유 → route_variant로 판별.
@@ -248,7 +250,7 @@ export function ResultStep() {
                       <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                       <p className="text-[9px] text-label-tertiary mt-1">
                         {resultPath.transfer_coin === 'BTC'
-                          ? (!usesGlobal && swapSvc === '__direct__' ? 'BTC Lightning' : '비트코인')
+                          ? (!usesGlobal && isLnWallet ? 'BTC Lightning' : '비트코인')
                           : resultPath.transfer_coin}
                       </p>
                     </div>
@@ -263,14 +265,14 @@ export function ResultStep() {
                           <div className="flex flex-col items-center px-1">
                             <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                             <p className="text-[9px] text-label-tertiary mt-1">
-                              {swapSvc === '__direct__' ? 'BTC Lightning' : '비트코인'}
+                              {isLnWallet ? 'BTC Lightning' : '비트코인'}
                             </p>
                           </div>
                         )}
                       </>
                     )}
-                    {/* 스왑 서비스 (라이트닝, 제3자 서비스) */}
-                    {swapSvc && swapSvc !== '__direct__' && (
+                    {/* 스왑 서비스 (개인지갑 종착, 제3자 LN→온체인 스왑) */}
+                    {swapSvc && !isLnWallet && (
                       <>
                         <div className="flex flex-col items-center">
                           <ExFavicon id={swapSvc} size={24} />
@@ -282,13 +284,15 @@ export function ResultStep() {
                         </div>
                       </>
                     )}
-                    {/* 개인 지갑 (출금하지 않음 선택 시 숨김) */}
+                    {/* 종착지: 라이트닝 지갑 / 개인 지갑 (출금하지 않음 선택 시 숨김) */}
                     {!isHoldOnGlobal && (
                       <div className="flex flex-col items-center">
-                        <div className="w-6 h-6 rounded-md bg-acc-green/15 flex items-center justify-center">
-                          <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${isLnWallet ? 'bg-acc-amber/15' : 'bg-acc-green/15'}`}>
+                          {isLnWallet
+                            ? <Lightning weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
+                            : <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
                         </div>
-                        <p className="text-[10px] text-label-secondary mt-1">내 지갑</p>
+                        <p className="text-[10px] text-label-secondary mt-1">{isLnWallet ? '라이트닝 지갑' : '내 지갑'}</p>
                       </div>
                     )}
                   </div>

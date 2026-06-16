@@ -9,7 +9,7 @@ import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
 import type { LiveRegistry } from '../../lib/gatemanRegistry';
 import type { CheapestPathEntry, CheapestPathResponse, DisabledCheapestPathEntry, TickerRow } from '../../types';
-import type { Phase, CoinType, FlowState } from './flow';
+import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByFee } from './constants';
@@ -26,6 +26,7 @@ function useExplorerValue() {
   const [coin, setCoin]           = useState<CoinType | null>(null);
   const [global, setGlobal]       = useState<GlobalExchange | null>(null);
   const [network, setNetwork]     = useState<string | null>(null);
+  const [destination, setDestination] = useState<Destination | null>(null);  // 마법사 종착지 선택
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
@@ -47,6 +48,8 @@ function useExplorerValue() {
   const [excludeOnchain,         setExcludeOnchain]         = useState(false);
   const [excludeLightning,       setExcludeLightning]       = useState(false);
   const [excludeDisabled,        setExcludeDisabled]        = useState(false);
+  // 종착지 필터 (추천 리스트): 개인 온체인 지갑(기본) / 라이트닝 지갑
+  const [destinationFilter,      setDestinationFilter]      = useState<Destination>('personal');
 
   const [exchangeProgress, setExchangeProgress] = useState<Record<string, 'loading' | 'done' | 'error' | 'retrying'>>({});
   const [loadingDone, setLoadingDone] = useState(false);
@@ -156,6 +159,8 @@ function useExplorerValue() {
   // 필터 적용 결과 (화면 표시용)
   const topRecommendedPaths = useMemo(() => {
     return allRecommendedPaths.filter(p => {
+      // 종착지 필터: 개인지갑 모드엔 personal 경로만, 라이트닝 지갑 모드엔 lightning_wallet 경로만.
+      if ((p.destination ?? 'personal') !== destinationFilter) return false;
       if (excludeExchanges.has(p.korean_exchange)) return false;
       const isUsdt = p.transfer_coin === 'USDT';
       const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
@@ -163,14 +168,14 @@ function useExplorerValue() {
       if (p.path_type === 'lightning_exit') {
         if (excludeLightning) return false;
         const svc = p.lightning_exit_provider;
-        if (svc && svc !== '__direct__' && excludeServices.has(svc)) return false;
+        if (svc && excludeServices.has(svc)) return false;
       } else {
         if (excludeOnchain) return false;
       }
       if (excludeDisabled && p.disabled) return false;
       return true;
     });
-  }, [allRecommendedPaths, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
+  }, [allRecommendedPaths, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {
@@ -321,10 +326,10 @@ function useExplorerValue() {
   const globalSupportsLightning = (g: string | null): boolean =>
     !!g && (allData?.byGlobal[g]?.all_paths ?? []).some(p => p.path_type === 'lightning_exit');
 
-  // Available lightning swap services for current selection (network step → swap_service step)
-  const swapServiceOptions = useMemo(() => {
+  // 현재 선택(국내/코인/글로벌/네트워크) 기준의 lightning_exit 경로 집합 — 종착지 단계·스왑 단계가 공유
+  const currentLightningPaths = useMemo(() => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
-    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as { name: string; fee_pct: number; kyc: boolean; btc_received: number; source_url: string | null }[];
+    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as CheapestPathEntry[];
     const basePaths = coin === 'BTC'
       ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
           p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
@@ -337,42 +342,36 @@ function useExplorerValue() {
           ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
               p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
           : [];
-    const lnPaths = basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
+    return basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
+  }, [allData, domestic, coin, global, network, globalExitMethod]);
+
+  // 종착지 단계 가용성: 라이트닝 지갑(직접출금) / 개인지갑(스왑 경유) 경로 존재 여부
+  const lightningExitInfo = useMemo(() => ({
+    hasLightningWallet: currentLightningPaths.some(p => p.destination === 'lightning_wallet'),
+    hasPersonal:        currentLightningPaths.some(p => (p.destination ?? 'personal') === 'personal'),
+  }), [currentLightningPaths]);
+
+  // Available lightning swap services (개인지갑 종착, network/destination step → swap_service step)
+  const swapServiceOptions = useMemo(() => {
     const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number; source_url: string | null }>();
-    for (const p of lnPaths) {
+    // 스왑 경유(personal)만 — 라이트닝 지갑 직접출금(__direct__)은 종착지 단계에서 분리됨
+    for (const p of currentLightningPaths.filter(p => p.destination !== 'lightning_wallet')) {
       const name = p.lightning_exit_provider!;
       const existing = svcMap.get(name);
       if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
-        if (name === '__direct__') {
-          svcMap.set(name, {
-            name,
-            fee_pct: 0,
-            kyc: false,
-            btc_received: p.btc_received ?? 0,
-            source_url: null,
-          });
-        } else {
-          const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
-          const fee_pct = swapComp?.rate_pct ?? 0;
-          svcMap.set(name, {
-            name,
-            fee_pct,
-            kyc: p.exit_service_kyc_status === 'kyc',
-            btc_received: p.btc_received ?? 0,
-            source_url: swapComp?.source_url ?? null,
-          });
-        }
+        const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
+        const fee_pct = swapComp?.rate_pct ?? 0;
+        svcMap.set(name, {
+          name,
+          fee_pct,
+          kyc: p.exit_service_kyc_status === 'kyc',
+          btc_received: p.btc_received ?? 0,
+          source_url: swapComp?.source_url ?? null,
+        });
       }
     }
-    // __direct__ 먼저, 나머지는 btc_received 내림차순
-    const sorted = [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
-    const directIdx = sorted.findIndex(s => s.name === '__direct__');
-    if (directIdx > 0) {
-      const [direct] = sorted.splice(directIdx, 1);
-      sorted.unshift(direct);
-    }
-    return sorted;
-  }, [allData, domestic, coin, global, network, globalExitMethod]);
+    return [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
+  }, [currentLightningPaths]);
 
   const resultPath = useMemo((): CheapestPathEntry | null => {
     const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
@@ -395,13 +394,19 @@ function useExplorerValue() {
       basePaths = basePaths.filter(p => p.path_type !== 'lightning_exit');
     } else if (globalExitMethod === 'lightning') {
       basePaths = basePaths.filter(p => p.path_type === 'lightning_exit');
+      // 종착지 분기: 라이트닝 지갑 → 직접출금 경로만, 개인지갑 → 스왑 경유 경로만
+      if (destination === 'lightning_wallet') {
+        basePaths = basePaths.filter(p => p.destination === 'lightning_wallet');
+      } else if (destination === 'personal') {
+        basePaths = basePaths.filter(p => (p.destination ?? 'personal') === 'personal');
+      }
     }
     if (swapSvc) {
       const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
       if (filtered.length > 0) return bestByFee(filtered);
     }
     return bestByFee(basePaths);
-  }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod]);
+  }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
 
   const altPaths = useMemo(() => {
     if (resultPath == null || !allPaths.length) return [];
@@ -447,8 +452,8 @@ function useExplorerValue() {
   // ── Step sequence for progress dots ─────────────────────────────────────────
 
   const steps = useMemo(
-    () => flowSteps({ coin, globalExitMethod, swapSvc }),
-    [coin, globalExitMethod, swapSvc],
+    () => flowSteps({ coin, globalExitMethod, destination, swapSvc }),
+    [coin, globalExitMethod, destination, swapSvc],
   );
 
   const stepIdx = steps.indexOf(phase);
@@ -460,7 +465,7 @@ function useExplorerValue() {
     setIsSearching(true);
     setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
     setFailedGlobalExchanges([]);
 
     const DOMESTIC_EXCHANGES = Object.keys(DOMESTIC_INFO);
@@ -577,7 +582,7 @@ function useExplorerValue() {
         setPhase('recommendation');
         return;
       }
-      const s: FlowState = { coin, globalExitMethod, swapSvc };
+      const s: FlowState = { coin, globalExitMethod, destination, swapSvc };
       const prev = flowPrev(phase, s);
       if (prev) {
         history.pushState({ phase: prev }, '');
@@ -593,14 +598,14 @@ function useExplorerValue() {
     };
     window.addEventListener('popstate', onPopstate);
     return () => window.removeEventListener('popstate', onPopstate);
-  }, [phase, coin, globalExitMethod, swapSvc]);
+  }, [phase, coin, globalExitMethod, destination, swapSvc]);
 
   function handleBack() {
     if (phase === 'result' && fromRecommendation.current) {
       history.back();  // onPopstate가 fromRecommendation 감지 후 처리
       return;
     }
-    const s: FlowState = { coin, globalExitMethod, swapSvc };
+    const s: FlowState = { coin, globalExitMethod, destination, swapSvc };
     const prev = flowPrev(phase, s);
     if (prev) {
       history.back();
@@ -627,26 +632,27 @@ function useExplorerValue() {
     else if (isViaGlobal) coinType = 'BTC_GLOBAL';
     else coinType = 'BTC';
     setCoin(coinType);
-    if (isUsdt || isViaGlobal) {
-      setGlobal(p._g as GlobalExchange);
-      if (p.path_type === 'lightning_exit') {
-        setGlobalExitMethod('lightning');
-        setSwapSvc(p.lightning_exit_provider ?? null);
-      } else {
-        setGlobalExitMethod('onchain');
+    setGlobal(isUsdt || isViaGlobal ? (p._g as GlobalExchange) : null);
+    if (p.path_type === 'lightning_exit') {
+      setGlobalExitMethod('lightning');
+      if (p.destination === 'lightning_wallet') {
+        // 라이트닝 지갑 직접출금 — 스왑 없음
+        setDestination('lightning_wallet');
         setSwapSvc(null);
+      } else {
+        // 라이트닝 스왑 경유 → 개인지갑
+        setDestination('personal');
+        setSwapSvc(p.lightning_exit_provider ?? null);
       }
     } else {
-      // BTC 직접 경로 (국내 거래소 직접 출금)
-      setGlobal(null);
-      if (p.path_type === 'lightning_exit') {
-        // 라이트닝 스왑 경유 — globalExitMethod로 resultPath 필터 적용
-        setGlobalExitMethod('lightning');
-        setSwapSvc(p.lightning_exit_provider ?? null);
+      setDestination('personal');
+      setSwapSvc(null);
+      if (isUsdt || isViaGlobal) {
+        setGlobalExitMethod('onchain');
       } else {
+        // BTC 직접 경로 (국내 거래소 직접 출금)
         setBtcMethod('onchain');
         setGlobalExitMethod(null);
-        setSwapSvc(null);
       }
     }
     setNetwork(p.network);
@@ -656,7 +662,7 @@ function useExplorerValue() {
   }
 
   function handleNext(from: Phase) {
-    const s: FlowState = { coin, globalExitMethod, swapSvc };
+    const s: FlowState = { coin, globalExitMethod, destination, swapSvc };
     // side effects before transition
     if (from === 'btc_method' && coin === 'BTC') {
       setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
@@ -672,11 +678,11 @@ function useExplorerValue() {
   function reset() {
     setPhase('input'); setAllData(null); setError(null); setLoadingDone(false);
     setIsSearching(false);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setDestination(null);
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
     setFailedGlobalExchanges([]);
     setExcludeExchanges(new Set()); setExcludeGlobalExchanges(new Set()); setExcludeServices(new Set());
-    setExcludeOnchain(false); setExcludeLightning(false);
+    setExcludeOnchain(false); setExcludeLightning(false); setDestinationFilter('personal');
   }
 
   return {
@@ -691,6 +697,7 @@ function useExplorerValue() {
     coin, setCoin,
     global, setGlobal,
     network, setNetwork,
+    destination, setDestination,
     swapSvc, setSwapSvc,
     liveKimp,
     liveUsdtKrw,
@@ -723,6 +730,7 @@ function useExplorerValue() {
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
     excludeDisabled,        setExcludeDisabled,
+    destinationFilter,      setDestinationFilter,
     snapshotKimp,
     domesticBtcKrw,
     koreaVolumeMap,
@@ -734,6 +742,7 @@ function useExplorerValue() {
     hasLightningPaths,
     globalSupportsLightning,
     swapServiceOptions,
+    lightningExitInfo,
     resultPath,
     altPaths,
     steps,

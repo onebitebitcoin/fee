@@ -5,14 +5,17 @@
 
 export type Phase =
   | 'input' | 'recommendation' | 'domestic' | 'coin' | 'btc_method'
-  | 'global' | 'global_exit_method' | 'network' | 'swap_service' | 'result';
+  | 'global' | 'global_exit_method' | 'network' | 'destination' | 'swap_service' | 'result';
 
 export type CoinType = 'USDT' | 'BTC' | 'BTC_GLOBAL';
+
+// 종착지: 개인 온체인 지갑 / 라이트닝 지갑(LN 직접출금 종착)
+export type Destination = 'personal' | 'lightning_wallet';
 
 // 진행 방향(애니메이션) 판정용 선형 순서
 export const PHASES: Phase[] = [
   'input', 'recommendation', 'domestic', 'coin', 'btc_method',
-  'global', 'network', 'global_exit_method', 'swap_service', 'result',
+  'global', 'network', 'global_exit_method', 'destination', 'swap_service', 'result',
 ];
 
 export const phaseIdx = (p: Phase) => PHASES.indexOf(p);
@@ -21,6 +24,7 @@ export const phaseIdx = (p: Phase) => PHASES.indexOf(p);
 export type FlowState = {
   coin: CoinType | null;
   globalExitMethod: 'onchain' | 'lightning' | 'none' | null;
+  destination: Destination | null;
   swapSvc: string | null;
 };
 
@@ -30,7 +34,8 @@ export const FLOW: ReadonlyArray<{ id: Phase; next: (s: FlowState) => Phase }> =
   { id: 'btc_method',         next: (s) => s.coin === 'BTC' ? 'result' : 'global' },
   { id: 'global',             next: (s) => s.coin === 'USDT' ? 'network' : 'global_exit_method' },
   { id: 'network',            next: ()  => 'global_exit_method' },
-  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'none' ? 'result' : s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
+  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'lightning' ? 'destination' : 'result' },
+  { id: 'destination',        next: (s) => s.destination === 'lightning_wallet' ? 'result' : 'swap_service' },
   { id: 'swap_service',       next: ()  => 'result' },
   { id: 'result',             next: ()  => 'result' },
 ];

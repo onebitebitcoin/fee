@@ -13,32 +13,30 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
   const isUsdt = p.transfer_coin === 'USDT';
   const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
   const isLightning = p.path_type === 'lightning_exit';
-  const isDirect = p.lightning_exit_provider === '__direct__';
+  const isLnWallet = p.destination === 'lightning_wallet';  // LN 출금까지만(직접 수신)
   const provider = p.lightning_exit_provider;
   const parts: string[] = [fmtEx(p.korean_exchange)];
 
   if (isUsdt) {
     parts.push('USDT');
     parts.push(p.network ?? '');
-    // __direct__: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
-    parts.push(isLightning && isDirect ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
+    // 라이트닝 지갑 종착: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
+    parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
   } else if (isViaGlobal) {
     parts.push('BTC');
-    parts.push(isLightning && isDirect ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
+    parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
     if (!isLightning) parts.push(p.network ?? '');
   } else {
     parts.push('BTC');
     if (!isLightning) parts.push(p.network ?? '');
   }
 
-  if (isLightning && !isDirect) {
+  // 개인지갑 종착(스왑 경유): 스왑 서비스 노드 표시
+  if (isLightning && !isLnWallet) {
     parts.push(provider ? fmtEx(provider) : 'Lightning');
-  } else if (isLightning && isDirect && !isViaGlobal && !isUsdt) {
-    // 국내 거래소 직접 LN 출금 (글로벌 미경유)
-    parts.push(fmtEx(p.korean_exchange) + ' LN');
   }
 
-  parts.push('지갑');
+  parts.push(isLnWallet ? '라이트닝 지갑' : '지갑');
   return parts.join(' › ');
 }
 
@@ -74,6 +72,7 @@ export function RecommendationStep() {
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
     excludeDisabled,        setExcludeDisabled,
+    destinationFilter,      setDestinationFilter,
   } = useExplorer();
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -102,6 +101,8 @@ export function RecommendationStep() {
   const hasLightningPaths = allRecommendedPaths.some(p => p.path_type === 'lightning_exit');
   const hasOnchainPaths   = allRecommendedPaths.some(p => p.path_type !== 'lightning_exit');
   const hasDisabledPaths  = allRecommendedPaths.some(p => p.disabled);
+  // 종착지 토글: 라이트닝 지갑 종착 경로가 존재할 때만 노출
+  const hasLightningWalletPaths = allRecommendedPaths.some(p => p.destination === 'lightning_wallet');
 
   const activeFilterCount =
     excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size +
@@ -184,6 +185,29 @@ export function RecommendationStep() {
             className="overflow-hidden"
           >
             <div className="ios-card rounded-2xl p-4 space-y-4">
+              {/* 종착지 (라이트닝 지갑 경로가 있을 때만) */}
+              {hasLightningWalletPaths && (
+                <div>
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">종착지</p>
+                  <div className="flex gap-1.5">
+                    {(['personal', 'lightning_wallet'] as const).map(d => (
+                      <button
+                        key={d}
+                        onClick={() => { setDestinationFilter(d); setVisibleCount(PAGE_SIZE); }}
+                        className={[
+                          'flex-1 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer',
+                          destinationFilter === d
+                            ? 'bg-acc-amber/15 text-acc-amber'
+                            : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
+                        ].join(' ')}
+                      >
+                        {d === 'personal' ? '개인지갑' : '라이트닝 지갑'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 비활성화 경로 */}
               {hasDisabledPaths && (
                 <div>

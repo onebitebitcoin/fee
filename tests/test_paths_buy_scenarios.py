@@ -307,7 +307,7 @@ def test_available_filters_include_lightning_exit():
     assert "onchain" in modes
 
 
-# ── 직접 LN 출금 경로 (__direct__) ──────────────────────────────────────────
+# ── 직접 LN 출금 경로 (__direct__ = 라이트닝 지갑 종착) ──────────────────────
 
 def test_direct_ln_paths_present_when_global_ln_withdrawal_available():
     """글로벌 거래소 LN 출금 수수료가 있으면 __direct__ 경로가 생성된다."""
@@ -318,6 +318,24 @@ def test_direct_ln_paths_present_when_global_ln_withdrawal_available():
         and p.get("lightning_exit_provider") == "__direct__"
     ]
     assert direct_ln, "__direct__ 라이트닝 경로가 1개 이상 생성되어야 한다"
+
+
+def test_direct_ln_destination_is_lightning_wallet():
+    """__direct__(LN 직접출금) 경로의 종착지는 lightning_wallet이다."""
+    result = _calc(10_000_000)
+    for p in result["all_paths"]:
+        if p.get("lightning_exit_provider") == "__direct__":
+            assert p.get("destination") == "lightning_wallet", \
+                f"__direct__ 경로 destination이 lightning_wallet이어야 함: {p.get('destination')}"
+
+
+def test_non_direct_paths_are_personal_destination():
+    """__direct__가 아닌 모든 경로(온체인/스왑 경유)의 종착지는 personal이다."""
+    result = _calc(10_000_000)
+    for p in result["all_paths"]:
+        if p.get("lightning_exit_provider") != "__direct__":
+            assert p.get("destination") == "personal", \
+                f"{p.get('path_id')}: 비-__direct__ 경로는 personal이어야 함: {p.get('destination')}"
 
 
 def test_direct_ln_has_zero_swap_fee():

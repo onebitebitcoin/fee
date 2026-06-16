@@ -12,6 +12,7 @@ import { BtcMethodStep } from './steps/BtcMethodStep';
 import { GlobalStep } from './steps/GlobalStep';
 import { GlobalExitMethodStep } from './steps/GlobalExitMethodStep';
 import { NetworkStep } from './steps/NetworkStep';
+import { DestinationStep } from './steps/DestinationStep';
 import { SwapServiceStep } from './steps/SwapServiceStep';
 import { ResultStep } from './steps/ResultStep';
 
@@ -29,6 +30,7 @@ export const STEP_REGISTRY: Record<Phase, StepEntry> = {
   global:             { Component: GlobalStep,           className: 'space-y-4 pt-2' },
   network:            { Component: NetworkStep,          className: 'space-y-4 pt-2' },
   global_exit_method: { Component: GlobalExitMethodStep, className: 'space-y-4 pt-2' },
+  destination:        { Component: DestinationStep,      className: 'space-y-4 pt-2' },
   swap_service:       { Component: SwapServiceStep,      className: 'space-y-4 pt-2' },
   result:             { Component: ResultStep,           className: 'space-y-5 pt-2' },
 };

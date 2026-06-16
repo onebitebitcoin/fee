@@ -57,7 +57,7 @@ export function GlobalExitMethodStep() {
                             )}
                           </div>
                           <p className={`text-xs mt-0.5 ${lnAvailable ? 'text-label-secondary' : 'text-label-disabled'}`}>
-                            라이트닝 네트워크로 출금 후 스왑 서비스를 통해 온체인 BTC로 수령. 주소 노출 최소화.
+                            라이트닝 네트워크로 출금. 다음 단계에서 종착지(개인지갑/라이트닝 지갑)를 선택합니다.
                           </p>
                         </div>
                       </div>
@@ -88,8 +88,8 @@ export function GlobalExitMethodStep() {
               {globalExitMethod === 'lightning' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                   <p className="font-semibold text-label-primary">라이트닝 출금 흐름</p>
-                  <p className="text-label-secondary">해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → 스왑 서비스 → <span className="text-label-primary font-medium">온체인 BTC 수령</span></p>
-                  <p className="text-label-tertiary">스왑 서비스 수수료가 별도 발생합니다.</p>
+                  <p className="text-label-secondary">개인지갑 종착: 해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → 스왑 서비스 → <span className="text-label-primary font-medium">온체인 BTC 수령</span></p>
+                  <p className="text-label-secondary">라이트닝 지갑 종착: 해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → <span className="text-label-primary font-medium">라이트닝 지갑 수령</span> (스왑 없음)</p>
                 </div>
               )}
               {globalExitMethod && (
