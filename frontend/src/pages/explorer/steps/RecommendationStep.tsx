@@ -296,7 +296,7 @@ export function RecommendationStep() {
               className={[
                 'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
                 p.disabled
-                  ? 'bg-fill-secondary/60 opacity-60'
+                  ? 'opacity-40'
                   : 'hover:bg-white/4 active:bg-white/6',
                 i < visible.length - 1 ? 'border-b border-white/4' : '',
               ].join(' ')}
@@ -308,7 +308,7 @@ export function RecommendationStep() {
                   : i === 0 ? 'text-acc-amber' : i === 1 ? 'text-label-secondary' : i === 2 ? 'text-label-tertiary' : 'text-label-quaternary',
               ].join(' ')}>
                 {p.disabled
-                  ? <Wrench weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
+                  ? <Wrench weight="regular" className="w-3 h-3 text-label-quaternary" />
                   : i + 1}
               </span>
 
