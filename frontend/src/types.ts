@@ -74,6 +74,10 @@ export type CheapestPathFeeComponent = {
   amount_text?: string | null;
   source_url?: string | null;
   is_fixed?: boolean | null;
+  // 이 단계에서 옮긴 본체 수량 + 원화 환산 (결과 페이지 단계별 표시용)
+  move_amount?: number | null;
+  move_coin?: string | null;
+  move_amount_krw?: number | null;
 };
 
 export type CheapestPathBreakdown = {
@@ -114,6 +118,7 @@ export type CheapestPathEntry = {
   btc_received?: number;
   btc_received_usd?: number | null;
   krw_received?: number;
+  discarded_krw?: number | null;  // 최소주문 단위로 못 쓰고 남는 잔돈(원, 근사)
   total_fee_krw: number;
   fee_pct: number;
   lightning_swap_fee_krw?: number | null;

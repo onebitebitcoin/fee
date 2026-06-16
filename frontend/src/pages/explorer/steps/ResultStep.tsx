@@ -317,8 +317,16 @@ export function ResultStep() {
                               </span>
                             )}
                           </div>
+                          {c.move_amount != null && c.move_coin && (
+                            <p className="text-[10px] text-label-secondary num mt-0.5">
+                              이동 {c.move_coin === 'BTC' ? c.move_amount.toFixed(8) : c.move_amount.toFixed(2)} {c.move_coin}
+                              {c.move_amount_krw != null && (
+                                <span className="text-label-tertiary"> ≈ ₩{formatNumber(c.move_amount_krw)}</span>
+                              )}
+                            </p>
+                          )}
                           {fmtAmountText(c.amount_text) && (
-                            <p className="text-[10px] text-label-tertiary num mt-0.5">{fmtAmountText(c.amount_text)}</p>
+                            <p className="text-[10px] text-label-tertiary num mt-0.5">수수료 {fmtAmountText(c.amount_text)}</p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
@@ -331,6 +339,14 @@ export function ResultStep() {
                         </div>
                       </div>
                     ))}
+                    {resultPath.discarded_krw != null && resultPath.discarded_krw > 0 && (
+                      <div className="flex items-center justify-between px-4 py-3 gap-3">
+                        <p className="text-xs text-label-secondary leading-snug">
+                          최소주문 잔돈 <span className="text-[9px] text-label-tertiary">(못 쓰고 남음 · 근사)</span>
+                        </p>
+                        <p className="text-xs font-semibold text-label-tertiary num shrink-0">≈ ₩{formatNumber(resultPath.discarded_krw)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
