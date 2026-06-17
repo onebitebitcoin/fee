@@ -27,7 +27,7 @@ export function SwapServiceStep() {
                       출금 방식 다시 선택
                     </button>
                   </div>
-                ) : swapServiceOptions.map(({ name, fee_pct, kyc, btc_received, source_url }, i) => {
+                ) : swapServiceOptions.map(({ name, fee_pct, fee_fixed_sat, kyc, btc_received, source_url }, i) => {
                   const isSelected = swapSvc === name;
                   const svcInfo = getLightningServiceInfo(name);
                   const domain = getExchangeDomain(name);
@@ -62,6 +62,9 @@ export function SwapServiceStep() {
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
+                              {fee_fixed_sat > 0 && (
+                                <span className="text-[10px] text-acc-blue font-semibold">+ {fee_fixed_sat.toLocaleString()} sats 고정</span>
+                              )}
                               {kyc
                                 ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">인증 필요</span>
                                 : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>

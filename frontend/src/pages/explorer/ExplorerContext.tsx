@@ -353,17 +353,22 @@ function useExplorerValue() {
 
   // Available lightning swap services (개인지갑 종착, network/destination step → swap_service step)
   const swapServiceOptions = useMemo(() => {
-    const svcMap = new Map<string, { name: string; fee_pct: number; kyc: boolean; btc_received: number; source_url: string | null }>();
+    const svcMap = new Map<string, { name: string; fee_pct: number; fee_fixed_sat: number; kyc: boolean; btc_received: number; source_url: string | null }>();
     // 스왑 경유(personal)만 — 라이트닝 지갑 직접출금(__direct__)은 종착지 단계에서 분리됨
     for (const p of currentLightningPaths.filter(p => p.destination !== 'lightning_wallet')) {
       const name = p.lightning_exit_provider!;
       const existing = svcMap.get(name);
       if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
         const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
+        const minerComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('miner fee'));
         const fee_pct = swapComp?.rate_pct ?? 0;
+        const fee_fixed_sat = minerComp?.amount_text
+          ? parseInt(minerComp.amount_text.replace(/,/g, '').replace(' sats', ''), 10) || 0
+          : 0;
         svcMap.set(name, {
           name,
           fee_pct,
+          fee_fixed_sat,
           kyc: p.exit_service_kyc_status === 'kyc',
           btc_received: p.btc_received ?? 0,
           source_url: swapComp?.source_url ?? null,
