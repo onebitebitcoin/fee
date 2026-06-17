@@ -11,11 +11,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r backend/requirements.txt && \
-    playwright install --with-deps chromium && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends fonts-noto-cjk && \
-    rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir -r backend/requirements.txt
 COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 EXPOSE 8000
