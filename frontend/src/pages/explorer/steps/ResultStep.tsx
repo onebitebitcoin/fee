@@ -110,6 +110,7 @@ export function ResultStep() {
                   {formatNumber(displaySats)}
                 </p>
                 <p className="text-sm text-label-tertiary mt-1 num relative z-10">sats</p>
+                <p className="text-[10px] text-label-quaternary mt-1 relative z-10">1 BTC = 100,000,000 sats</p>
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
@@ -265,7 +266,8 @@ export function ResultStep() {
                           <div className="flex flex-col items-center px-1">
                             <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                             <p className="text-[9px] text-label-tertiary mt-1">
-                              {isLnWallet ? 'BTC Lightning' : '비트코인'}
+                              {/* 글로벌 출금 레그 = global_exit_mode 기준 (라이트닝이면 스왑 서비스로도 LN 진입) */}
+                              {resultPath.global_exit_mode === 'lightning' ? 'BTC Lightning' : '비트코인'}
                             </p>
                           </div>
                         )}
@@ -280,7 +282,8 @@ export function ResultStep() {
                         </div>
                         <div className="flex flex-col items-center px-1">
                           <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                          <p className="text-[9px] text-label-tertiary mt-1">LN</p>
+                          {/* 스왑 출력 = 온체인 BTC (LN→온체인 변환 후 개인지갑 수신) */}
+                          <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
                         </div>
                       </>
                     )}
@@ -289,15 +292,23 @@ export function ResultStep() {
                       <div className="flex flex-col items-center">
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center ${isLnWallet ? 'bg-acc-amber/15' : 'bg-acc-green/15'}`}>
                           {isLnWallet
-                            ? <Lightning weight="fill" className="w-3.5 h-3.5 text-acc-amber" />
-                            : <Wallet weight="fill" className="w-3.5 h-3.5 text-acc-green" />}
+                            ? <Lightning weight="fill" className="w-5 h-5 text-acc-amber" />
+                            : <Wallet weight="fill" className="w-5 h-5 text-acc-green" />}
                         </div>
                         <p className="text-[10px] text-label-secondary mt-1">{isLnWallet ? '라이트닝 지갑' : '내 지갑'}</p>
                       </div>
                     )}
                   </div>
                   <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
-                    <span className="flex items-center gap-1">네트워크 <NetworkIcon network={resultPath.network} size={12} /><span className="text-label-secondary font-medium">{resultPath.network}</span></span>
+                    {/* 출금 네트워크 = 최종 출금 레그 기준 (출금 방식과 동일 레그). 라이트닝이면 Lightning. */}
+                    {(() => {
+                      const exitNet = resultPath.global_exit_mode === 'lightning'
+                        ? 'Lightning'
+                        : (resultPath.global_exit_network || resultPath.network);
+                      return (
+                        <span className="flex items-center gap-1">출금 네트워크 <NetworkIcon network={resultPath.global_exit_mode === 'lightning' ? 'lightning' : exitNet} size={12} /><span className="text-label-secondary font-medium">{exitNet}</span></span>
+                      );
+                    })()}
                     <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'}</span></span>
                   </div>
                 </div>
@@ -307,6 +318,10 @@ export function ResultStep() {
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
                 <div>
                   <SectionLabel>수수료 내역</SectionLabel>
+                  <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
+                    <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정</span>이동 금액과 무관한 정액</span>
+                    <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">변동</span>이동 금액의 비율(%)</span>
+                  </p>
                   <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
                     {resultPath.breakdown.components.map((c, i) => (
                       <div key={i} className="flex items-start justify-between px-4 py-3 gap-3">
@@ -314,11 +329,13 @@ export function ResultStep() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
                             {c.is_fixed != null && (
-                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
-                                c.is_fixed
-                                  ? 'bg-acc-blue/10 text-acc-blue'
-                                  : 'bg-acc-amber/10 text-acc-amber'
-                              }`}>
+                              <span
+                                title={c.is_fixed ? '이동 금액에 관계없이 항상 동일한 고정 금액' : '이동 금액에 비례하는 비율(%) 수수료 — 금액이 커질수록 수수료도 증가'}
+                                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-help ${
+                                  c.is_fixed
+                                    ? 'bg-acc-blue/10 text-acc-blue'
+                                    : 'bg-acc-amber/10 text-acc-amber'
+                                }`}>
                                 {c.is_fixed ? '고정' : '변동'}
                               </span>
                             )}
@@ -421,11 +438,10 @@ export function ResultStep() {
                                     </>
                                   )}
                                   <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <NetworkIcon network={p.network} size={12} />
-                                  <span className="text-[10px] text-label-tertiary">{p.network}</span>
-                                  {p.global_exit_mode === 'lightning' && (
-                                    <span className="text-[9px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full font-medium">라이트닝</span>
-                                  )}
+                                  <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
+                                  <span className="text-[10px] text-label-tertiary">
+                                    {p.global_exit_mode === 'lightning' ? 'Lightning' : (p.global_exit_network || p.network)}
+                                  </span>
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-bold text-acc-green num">+₩{formatNumber(altSavingsKrw)}</p>

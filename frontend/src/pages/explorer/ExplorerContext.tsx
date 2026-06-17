@@ -360,7 +360,7 @@ function useExplorerValue() {
       const existing = svcMap.get(name);
       if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
         const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
-        const minerComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('miner fee'));
+        const minerComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('네트워크 수수료') || c.label.toLowerCase().includes('miner fee'));
         const fee_pct = swapComp?.rate_pct ?? 0;
         const fee_fixed_sat = minerComp?.amount_text
           ? parseInt(minerComp.amount_text.replace(/,/g, '').replace(' sats', ''), 10) || 0

@@ -417,9 +417,10 @@ def get_all_lightning_swap_fees() -> list[dict]:
                     'error': str(exc),
                 })
 
-    # 모든 활성 서비스에 mempool 기반 miner fee 통일 적용
+    # Strike는 자체 네트워크 수수료가 없으므로 제외하고, 나머지 활성 서비스에만 mempool 기반 네트워크 수수료 통일 적용
+    _NO_NETWORK_FEE_SERVICES = {'Strike'}
     for r in results:
-        if r.get('enabled'):
+        if r.get('enabled') and r.get('service_name') not in _NO_NETWORK_FEE_SERVICES:
             r['fee_fixed_sat'] = miner_fee_sat
 
     # 서비스 이름 순 정렬

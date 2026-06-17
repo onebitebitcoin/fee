@@ -334,7 +334,7 @@ def swap_leg(
         ))
     if fee_fixed_sat > 0:
         components.append(fee_component(
-            f'라이트닝 스왑 miner fee ({swap.service_name})',
+            f'라이트닝 스왑 네트워크 수수료 ({swap.service_name})',
             fixed_fee_krw,
             rate_pct=None,
             amount_text=f'{fee_fixed_sat:,} sats',
