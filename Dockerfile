@@ -14,8 +14,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends fonts-noto-cjk && \
     rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r backend/requirements.txt && \
-    playwright install --with-deps chromium
+    pip install --no-cache-dir -r backend/requirements.txt
+RUN playwright install --with-deps chromium
 COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 EXPOSE 8000
