@@ -28,11 +28,13 @@ def _warm_withdrawal_cache() -> None:
 
 
 async def _auto_crawl_loop() -> None:
-    """매 1시간마다 자동 크롤링을 실행한다."""
+    """서버 시작 직후 즉시 크롤링 후, 설정된 주기(crawl_interval_minutes)마다 반복한다."""
     from backend.app.db.session import SessionLocal
     from backend.app.services.crawl_service import CrawlService
 
-    await asyncio.sleep(3600)  # 첫 실행은 1시간 후
+    settings = get_settings()
+    interval_seconds = settings.crawl_interval_minutes * 60
+
     while True:
         try:
             with SessionLocal() as db:
@@ -40,7 +42,7 @@ async def _auto_crawl_loop() -> None:
                 logger.info('Scheduled crawl completed: id=%s status=%s', result.id, result.status)
         except Exception as exc:
             logger.warning('Scheduled crawl failed: %s', exc)
-        await asyncio.sleep(3600)
+        await asyncio.sleep(interval_seconds)
 
 
 @asynccontextmanager
