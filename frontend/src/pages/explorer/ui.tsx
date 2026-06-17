@@ -96,16 +96,16 @@ export function NetworkIcon({ network, size = 36 }: { network: string; size?: nu
   );
 }
 import { CheckCircle, Coin, ShieldCheck, CircleNotch, X } from '@phosphor-icons/react';
-import { getExchangeDomain, fmtEx } from '../../lib/exchangeNames';
+import { getFaviconUrl, fmtEx } from '../../lib/exchangeNames';
 import type { GateItem } from '../../lib/gatemanRegistry';
 import { SPRING_FAST } from './constants';
 
 export function ExFavicon({ id, size = 18 }: { id: string; size?: number }) {
-  const domain = getExchangeDomain(id);
-  if (!domain) return null;
+  const src = getFaviconUrl(id, size);
+  if (!src) return null;
   return (
     <img
-      src={`https://www.google.com/s2/favicons?sz=32&domain=${domain}`}
+      src={src}
       alt="" width={size} height={size}
       className="rounded-md flex-shrink-0"
       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}

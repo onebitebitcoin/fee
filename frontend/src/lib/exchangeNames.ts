@@ -39,8 +39,22 @@ const EXCHANGE_DOMAINS: Record<string, string> = {
   bitflower: 'bitflower.com',
   walletofsatoshi: 'walletofsatoshi.com',
   strike: 'strike.me',
-  oksusu: 'oksu.su',
+  oksusu: 'team.oksu.su',
 };
+
+// Google favicon API가 인식 못하는 사이트는 직접 URL 지정
+const FAVICON_URL_OVERRIDES: Record<string, string> = {
+  oksusu: 'https://team.oksu.su/corn-logo.png',
+};
+
+export function getFaviconUrl(id: string, size: number): string | null {
+  const key = id.toLowerCase();
+  const override = FAVICON_URL_OVERRIDES[key];
+  if (override) return override;
+  const domain = EXCHANGE_DOMAINS[key];
+  if (!domain) return null;
+  return `https://www.google.com/s2/favicons?sz=${size * 2}&domain=${domain}`;
+}
 
 export interface LightningServiceInfo {
   description: string;
