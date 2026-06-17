@@ -159,8 +159,8 @@ def fetch_wos_fees() -> dict:
         return {
             'service_name': service_name,
             'fee_pct': fee_pct,
-            'fee_fixed_sat': 0,
-            'min_amount_sat': 1,
+            'fee_fixed_sat': 7_000,
+            'min_amount_sat': 3_000,
             'max_amount_sat': 5_000_000,
             'enabled': True,
             'source_url': disclosure_url,
@@ -234,13 +234,33 @@ def fetch_strike_onchain_to_ln_fees() -> dict:
     }
 
 
+_MEMPOOL_FEES_URL = 'https://mempool.space/api/v1/fees/recommended'
+_ONCHAIN_TX_VBYTES = 141  # P2WPKH 1-input 2-output 표준 트랜잭션 크기
+
+
+def _fetch_mempool_fastest_fee_sat() -> int:
+    """mempool.space에서 fastestFee(sat/vbyte)를 조회해 141 vbyte 기준 고정 수수료를 반환한다.
+    실패 시 2_000 sats를 기본값으로 반환한다.
+    """
+    try:
+        resp = requests.get(_MEMPOOL_FEES_URL, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        fastest = resp.json().get('fastestFee', 0)
+        return max(1, int(fastest) * _ONCHAIN_TX_VBYTES)
+    except Exception as exc:
+        logger.warning('mempool.space 수수료 조회 실패, 기본값 2000 sats 사용: %s', exc)
+        return 2_000
+
+
 def fetch_oksusu_fees() -> dict:
     """
     Oksusu / Corn Wallet Lightning → on-chain 출금 수수료 조회.
     공식 사이트(team.oksu.su/ko)의 공개 안내 문구를 스크래핑한다.
+    fixed fee: mempool.space fastestFee × 141 vbytes (온체인 miner fee 추정).
     """
     service_name = 'Oksusu'
     source_url = 'https://team.oksu.su/ko'
+    fee_fixed_sat = _fetch_mempool_fastest_fee_sat()
     try:
         resp = requests.get(source_url, headers={**_HEADERS, 'Accept': 'text/html'}, timeout=_TIMEOUT)
         resp.raise_for_status()
@@ -253,7 +273,7 @@ def fetch_oksusu_fees() -> dict:
         return {
             'service_name': service_name,
             'fee_pct': float(match.group(1)),
-            'fee_fixed_sat': 0,
+            'fee_fixed_sat': fee_fixed_sat,
             'min_amount_sat': 1_000,
             'max_amount_sat': 100_000_000,
             'enabled': True,
