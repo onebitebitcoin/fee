@@ -311,18 +311,47 @@ def swap_leg(
     if btc_in > max_btc:
         return Blocked(reason=f'스왑 최대 금액 초과 ({swap.service_name})')
 
-    ln_swap_fee_btc = btc_in * fee_pct + fee_fixed_btc
+    pct_fee_btc = btc_in * fee_pct
+    ln_swap_fee_btc = pct_fee_btc + fee_fixed_btc
     btc_out = btc_in - ln_swap_fee_btc
     fee_krw = round(ln_swap_fee_btc * btc_usd * usd_krw)
 
-    comp = fee_component(
-        f'라이트닝 스왑 수수료 ({swap.service_name})',
-        fee_krw,
-        rate_pct=swap.fee_pct,
-        amount_text=f'{round(ln_swap_fee_btc, 8)} BTC',
-        is_fixed=False,
-        move_amount=btc_out,
-        move_coin='BTC',
-        move_amount_krw=round(btc_out * btc_usd * usd_krw),
-    )
-    return Leg(amount_out=btc_out, fee_krw=fee_krw, components=[comp])
+    pct_fee_krw = round(pct_fee_btc * btc_usd * usd_krw)
+    fixed_fee_krw = round(fee_fixed_btc * btc_usd * usd_krw)
+    fee_fixed_sat = getattr(swap, 'fee_fixed_sat', 0) or 0
+
+    components = []
+    if fee_pct > 0:
+        components.append(fee_component(
+            f'라이트닝 스왑 수수료 ({swap.service_name})',
+            pct_fee_krw,
+            rate_pct=swap.fee_pct,
+            amount_text=f'{round(pct_fee_btc, 8)} BTC',
+            is_fixed=False,
+            move_amount=btc_out,
+            move_coin='BTC',
+            move_amount_krw=round(btc_out * btc_usd * usd_krw),
+        ))
+    if fee_fixed_sat > 0:
+        components.append(fee_component(
+            f'라이트닝 스왑 miner fee ({swap.service_name})',
+            fixed_fee_krw,
+            rate_pct=None,
+            amount_text=f'{fee_fixed_sat:,} sats',
+            is_fixed=True,
+            move_amount=btc_out,
+            move_coin='BTC',
+            move_amount_krw=round(btc_out * btc_usd * usd_krw),
+        ))
+    if not components:
+        components.append(fee_component(
+            f'라이트닝 스왑 수수료 ({swap.service_name})',
+            0,
+            rate_pct=0,
+            amount_text='0 BTC',
+            is_fixed=False,
+            move_amount=btc_out,
+            move_coin='BTC',
+            move_amount_krw=round(btc_out * btc_usd * usd_krw),
+        ))
+    return Leg(amount_out=btc_out, fee_krw=fee_krw, components=components)

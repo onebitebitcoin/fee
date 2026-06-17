@@ -487,7 +487,7 @@ def _build_ln_global_exit_components(
     gbuy_components: list[dict] | None,
     domestic_btc_comp: dict | None,
     global_ln_comp: dict,
-    swap_comp: dict | None,
+    swap_comp: list[dict] | dict | None,
 ) -> list[dict]:
     """LN exit 경로의 components 목록 구성."""
     result = list(buy_components)
@@ -499,7 +499,10 @@ def _build_ln_global_exit_components(
         result.append(domestic_btc_comp)
     result.append(global_ln_comp)
     if swap_comp:
-        result.append(swap_comp)
+        if isinstance(swap_comp, list):
+            result.extend(swap_comp)
+        else:
+            result.append(swap_comp)
     return result
 
 
@@ -594,7 +597,7 @@ def _build_lightning_paths(
                         continue
                     btc_received = sl.amount_out
                     ln_swap_fee_krw = sl.fee_krw
-                    swap_comp = sl.components[0]
+                    swap_comp = sl.components
                     lightning_exit_provider = swap.service_name
                     swap_service = swap.service_name
                     path_type = 'lightning_exit'
@@ -711,7 +714,7 @@ def _build_lightning_paths(
                         continue
                     btc_received = sl.amount_out
                     ln_swap_fee_krw = sl.fee_krw
-                    swap_comp = sl.components[0]
+                    swap_comp = sl.components
                     lightning_exit_provider = swap.service_name
                     swap_service = swap.service_name
                     path_type = 'lightning_exit'
