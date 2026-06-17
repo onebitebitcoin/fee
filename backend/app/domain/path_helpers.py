@@ -78,10 +78,7 @@ def resolve_global_onchain_wd_fee(
     """글로벌 거래소 BTC 온체인 출금 수수료를 (fee_btc, fee_krw, network_label) 형태로 반환.
 
     찾지 못하면 (None, 0, None) 반환.
-    OKX/Coinbase: 변동/추정 수수료라 비교 불가 — 항상 (None, 0, None) 반환.
     """
-    if global_exchange in ('okx', 'coinbase'):
-        return None, 0, None
     for wd in withdrawals_by_key.get((global_exchange, 'BTC'), []):
         label_lower = (wd.network_label or '').lower()
         if wd.enabled and wd.fee is not None and is_bitcoin_native_network(label_lower):

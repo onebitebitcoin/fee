@@ -279,8 +279,8 @@ def test_lightning_disabled_when_global_has_no_lightning_fee():
     assert any(p.get("path_type") != "lightning_exit" for p in result["all_paths"])
 
 
-def test_okx_has_no_btc_via_global_onchain():
-    """okx/coinbase 는 변동 수수료라 온체인 경유 수수료가 None → btc_via_global 온체인 미생성."""
+def test_okx_btc_via_global_onchain_includes_withdrawal_fee():
+    """okx 온체인 출금 수수료가 경로 비용에 포함된다."""
     result = find_cheapest_path_from_snapshot_rows(
         amount_krw=10_000_000, global_exchange="okx", latest_run=_run(),
         ticker_rows=[_ticker("bithumb", KRW_PER_BTC), _ticker("okx", BTC_USD, currency="USD", taker_fee_pct=0.1)],
@@ -291,7 +291,10 @@ def test_okx_has_no_btc_via_global_onchain():
         p for p in result["all_paths"]
         if p.get("route_variant") == "btc_via_global" and p.get("path_type") != "lightning_exit"
     ]
-    assert via_onchain == []
+    assert len(via_onchain) > 0, "OKX 온체인 경로가 생성되어야 한다"
+    for p in via_onchain:
+        labels = [c["label"] for c in p["breakdown"]["components"]]
+        assert any("출금" in label for label in labels), "OKX BTC 출금 수수료가 breakdown에 포함되어야 한다"
 
 
 def test_lightning_swap_services_listed():
