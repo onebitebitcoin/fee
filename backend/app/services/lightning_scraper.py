@@ -377,10 +377,14 @@ def fetch_bitfreezer_fees() -> dict:
 def get_all_lightning_swap_fees() -> list[dict]:
     """
     모든 Lightning 스왑 서비스 수수료를 병렬로 조회.
+    모든 서비스의 fee_fixed_sat은 mempool.space fastestFee 기반으로 통일한다.
 
     Returns:
         list[dict]: 각 서비스의 수수료 정보 목록
     """
+    # mempool fee를 한 번만 가져와 모든 서비스에 공유
+    miner_fee_sat = _fetch_mempool_fastest_fee_sat()
+
     fetchers = [
         fetch_boltz_fees,
         fetch_boltz_reverse_fees,
@@ -412,6 +416,11 @@ def get_all_lightning_swap_fees() -> list[dict]:
                     'source_url': None,
                     'error': str(exc),
                 })
+
+    # 모든 활성 서비스에 mempool 기반 miner fee 통일 적용
+    for r in results:
+        if r.get('enabled'):
+            r['fee_fixed_sat'] = miner_fee_sat
 
     # 서비스 이름 순 정렬
     results.sort(key=lambda x: x.get('service_name', ''))
