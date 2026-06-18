@@ -78,6 +78,8 @@ export type CheapestPathFeeComponent = {
   move_amount?: number | null;
   move_coin?: string | null;
   move_amount_krw?: number | null;
+  // 출금 컴포넌트의 출금 네트워크 (예: TRC20, Bitcoin, Lightning)
+  network?: string | null;
 };
 
 export type CheapestPathBreakdown = {

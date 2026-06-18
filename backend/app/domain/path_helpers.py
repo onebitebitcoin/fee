@@ -150,6 +150,7 @@ def fee_component(
     move_amount: float | None = None,
     move_coin: str | None = None,
     move_amount_krw: int | None = None,
+    network: str | None = None,
 ) -> dict:
     """수수료 구성요소 딕셔너리 생성.
 
@@ -173,4 +174,5 @@ def fee_component(
         'move_amount': round(move_amount, 8) if move_amount is not None else None,
         'move_coin': move_coin,
         'move_amount_krw': move_amount_krw,
+        'network': network,
     }

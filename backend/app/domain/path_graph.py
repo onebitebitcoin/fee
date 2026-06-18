@@ -165,6 +165,7 @@ def withdraw_leg(
         move_amount=amount_out,
         move_coin=coin,
         move_amount_krw=round(amount_out * price_krw),
+        network=getattr(row, 'network_label', None),
     )
     return Leg(amount_out=amount_out, fee_krw=total_fee_krw, components=[comp])
 

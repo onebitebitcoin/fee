@@ -290,26 +290,16 @@ export function ResultStep() {
                     {/* 종착지: 라이트닝 지갑 / 개인 지갑 (출금하지 않음 선택 시 숨김) */}
                     {!isHoldOnGlobal && (
                       <div className="flex flex-col items-center">
-                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${isLnWallet ? 'bg-acc-amber/15' : 'bg-acc-green/15'}`}>
-                          {isLnWallet
-                            ? <Lightning weight="fill" className="w-5 h-5 text-acc-amber" />
-                            : <Wallet weight="fill" className="w-5 h-5 text-acc-green" />}
-                        </div>
+                        {isLnWallet
+                          ? (
+                            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-acc-amber/15">
+                              <Lightning weight="fill" className="w-5 h-5 text-acc-amber" />
+                            </div>
+                          )
+                          : <NetworkIcon network="bitcoin" size={24} />}
                         <p className="text-[10px] text-label-secondary mt-1">{isLnWallet ? '라이트닝 지갑' : '내 지갑'}</p>
                       </div>
                     )}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.08)] flex gap-3 text-[10px] text-label-tertiary flex-wrap">
-                    {/* 출금 네트워크 = 최종 출금 레그 기준 (출금 방식과 동일 레그). 라이트닝이면 Lightning. */}
-                    {(() => {
-                      const exitNet = resultPath.global_exit_mode === 'lightning'
-                        ? 'Lightning'
-                        : (resultPath.global_exit_network || resultPath.network);
-                      return (
-                        <span className="flex items-center gap-1">출금 네트워크 <NetworkIcon network={resultPath.global_exit_mode === 'lightning' ? 'lightning' : exitNet} size={12} /><span className="text-label-secondary font-medium">{exitNet}</span></span>
-                      );
-                    })()}
-                    <span>출금 방식 <span className="text-label-secondary font-medium">{resultPath.global_exit_mode === 'lightning' ? '라이트닝' : '온체인'}</span></span>
                   </div>
                 </div>
               </div>
@@ -319,7 +309,7 @@ export function ResultStep() {
                 <div>
                   <SectionLabel>수수료 내역</SectionLabel>
                   <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
-                    <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정</span>이동 금액과 무관한 정액</span>
+                    <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정</span>이동 금액과 무관한 고정된 금액</span>
                     <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">변동</span>이동 금액의 비율(%)</span>
                   </p>
                   <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
@@ -346,6 +336,12 @@ export function ResultStep() {
                               {c.move_amount_krw != null && (
                                 <span className="text-label-tertiary"> ≈ ₩{formatNumber(c.move_amount_krw)}</span>
                               )}
+                            </p>
+                          )}
+                          {c.network && (
+                            <p className="text-[10px] text-label-tertiary mt-0.5 flex items-center gap-1">
+                              출금 네트워크 <NetworkIcon network={c.network} size={11} />
+                              <span className="text-label-secondary font-medium">{c.network}</span>
                             </p>
                           )}
                           {fmtAmountText(c.amount_text) && (
