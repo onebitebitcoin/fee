@@ -9,27 +9,10 @@
   <!-- Full amber background -->
   <rect width="1200" height="630" fill="url(#bg)"/>
 
-  <!-- Logo icon (centered upper half) -->
-  <g transform="translate(520, 150)">
-    <rect width="160" height="160" rx="36" fill="rgba(255,255,255,0.18)"/>
-    <!-- Route: start dot → down → rounded corner → right → arrowhead -->
-    <circle cx="52" cy="46" r="13" fill="white"/>
-    <path d="M 52 46 V 88 Q 52 108 72 108 H 96"
-          stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <path d="M 92 90 L 120 108 L 92 126 Z" fill="white"/>
-  </g>
-
-  <!-- Service name -->
-  <text x="600" y="415"
-        font-size="72" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
-        font-weight="700" fill="white" text-anchor="middle" letter-spacing="-1.5">
-    수수료는 얼마 들까
-  </text>
-
-  <!-- Subtle tagline -->
-  <text x="600" y="480"
-        font-size="26" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
-        font-weight="400" fill="rgba(255,255,255,0.65)" text-anchor="middle" letter-spacing="0.5">
-    한국 거래소 → 개인 지갑 최저 수수료 경로
+  <!-- Service name (centered) -->
+  <text x="600" y="315"
+        font-size="96" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+        font-weight="700" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="-2">
+    수수료는 얼마나 들까?
   </text>
 </svg>
