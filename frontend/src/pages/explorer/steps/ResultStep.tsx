@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, Lightning, TrendDown, Wallet, Warning, Wrench } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Lightning, TrendDown, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -98,12 +98,10 @@ export function ResultStep() {
                     className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
                   />
                 )}
-                {isDisabled ? (
+                {isDisabled && (
                   <div className="w-10 h-10 rounded-full bg-fill-secondary border border-fill-tertiary/50 flex items-center justify-center mx-auto mb-4 relative z-10">
                     <Wrench weight="fill" className="w-5 h-5 text-label-tertiary" />
                   </div>
-                ) : (
-                  <Wallet weight="fill" className="w-8 h-8 text-acc-amber mx-auto mb-4 relative z-10" />
                 )}
                 <p className="text-xs text-label-tertiary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
                 <p className={`text-5xl font-bold num leading-none relative z-10 ${isDisabled ? 'text-label-tertiary' : 'text-label-primary'}`}>

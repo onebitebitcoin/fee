@@ -8,14 +8,9 @@
 
   <rect width="64" height="64" rx="15" fill="url(#bg)"/>
 
-  <!-- Route path -->
-  <path d="M 19 15 L 19 39 Q 19 48 28 48 L 46 48"
+  <!-- Route: start dot → down → rounded corner → right → arrowhead -->
+  <circle cx="21" cy="18" r="5.2" fill="white"/>
+  <path d="M 21 18 V 35 Q 21 43 29 43 H 39"
         stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-
-  <!-- Start dot -->
-  <circle cx="19" cy="15" r="6" fill="white"/>
-
-  <!-- End destination ring + dot -->
-  <circle cx="46" cy="48" r="8" stroke="white" stroke-width="5" fill="none"/>
-  <circle cx="46" cy="48" r="3.2" fill="white"/>
+  <path d="M 37 36 L 48 43 L 37 50 Z" fill="white"/>
 </svg>

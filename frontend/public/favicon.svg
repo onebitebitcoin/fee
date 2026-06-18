@@ -9,14 +9,9 @@
   <!-- Background -->
   <rect width="32" height="32" rx="7.5" fill="url(#bg)"/>
 
-  <!-- Route path: straight down → rounded corner → straight right -->
-  <path d="M 9.5 8 L 9.5 19.5 Q 9.5 24 14 24 L 23 24"
+  <!-- Route: start dot → down → rounded corner → right → arrowhead -->
+  <circle cx="10.5" cy="9" r="2.6" fill="white"/>
+  <path d="M 10.5 9 V 17.5 Q 10.5 21.5 14.5 21.5 H 19.5"
         stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-
-  <!-- Start dot (departure) -->
-  <circle cx="9.5" cy="8" r="3" fill="white"/>
-
-  <!-- End destination: ring + inner dot -->
-  <circle cx="23" cy="24" r="4" stroke="white" stroke-width="2.5" fill="none"/>
-  <circle cx="23" cy="24" r="1.6" fill="white"/>
+  <path d="M 18.5 18 L 24 21.5 L 18.5 25 Z" fill="white"/>
 </svg>

@@ -10,16 +10,13 @@
   <rect width="1200" height="630" fill="url(#bg)"/>
 
   <!-- Logo icon (centered upper half) -->
-  <g transform="translate(520, 160)">
+  <g transform="translate(520, 150)">
     <rect width="160" height="160" rx="36" fill="rgba(255,255,255,0.18)"/>
-    <!-- Route path -->
-    <path d="M 40 35 L 40 95 Q 40 120 65 120 L 118 120"
-          stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <!-- Start dot -->
-    <circle cx="40" cy="35" r="11" fill="white"/>
-    <!-- End ring + dot -->
-    <circle cx="118" cy="120" r="17" stroke="white" stroke-width="10" fill="none"/>
-    <circle cx="118" cy="120" r="6" fill="white"/>
+    <!-- Route: start dot → down → rounded corner → right → arrowhead -->
+    <circle cx="52" cy="46" r="13" fill="white"/>
+    <path d="M 52 46 V 88 Q 52 108 72 108 H 96"
+          stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 92 90 L 120 108 L 92 126 Z" fill="white"/>
   </g>
 
   <!-- Service name -->
