@@ -36,7 +36,8 @@ echo "[2/5] 이미지 빌드..."
 $COMPOSE build app
 
 echo "[3/5] 컨테이너 시작..."
-$COMPOSE up -d db app nginx
+# --remove-orphans: 이전 배포가 남긴 떠도는 컨테이너 정리 (포트 80 충돌 방지)
+$COMPOSE up -d --remove-orphans db app nginx
 
 echo "[4/5] 헬스체크 대기..."
 for i in $(seq 1 60); do
