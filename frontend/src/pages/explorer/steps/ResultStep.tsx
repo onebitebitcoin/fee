@@ -445,7 +445,11 @@ export function ResultStep() {
                                   <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
                                   <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
                                   <span className="text-[10px] text-label-tertiary">
-                                    {p.global_exit_mode === 'lightning' ? 'Lightning' : (p.global_exit_network || p.network)}
+                                    {p.global_exit_mode === 'lightning'
+                                      ? (p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__'
+                                          ? fmtEx(p.lightning_exit_provider)
+                                          : 'LN 스왑')
+                                      : (p.global_exit_network || p.network)}
                                   </span>
                                 </div>
                               </div>
