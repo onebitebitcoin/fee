@@ -40,6 +40,8 @@ function useExplorerValue() {
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
+  // CARF 첫 정보교환 연도 (DB 권위 소스, id→연도). 미수신 시 정적 constants(info.carf) fallback.
+  const [carfMap, setCarfMap] = useState<Record<string, number>>({});
 
   // ── 추천 경로 필터 (제외 필터) ──────────────────────────────────────────────────
   const [excludeExchanges,       setExcludeExchanges]       = useState<Set<string>>(new Set());
@@ -93,6 +95,17 @@ function useExplorerValue() {
 
   useEffect(() => {
     api.getCaution().then(setCautionMap).catch(() => { /* keep empty */ });
+  }, []);
+
+  useEffect(() => {
+    api.getCarfExchanges().then(res => {
+      const m: Record<string, number> = {};
+      for (const e of res.exchanges) {
+        const year = e.carfFirstExchange ? parseInt(e.carfFirstExchange, 10) : NaN;
+        if (!Number.isNaN(year)) m[e.id] = year;
+      }
+      setCarfMap(m);
+    }).catch(() => { /* keep static constants fallback */ });
   }, []);
 
   // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
@@ -706,6 +719,7 @@ function useExplorerValue() {
     showAltPaths, setShowAltPaths,
     withdrawalLimits,
     cautionMap,
+    carfMap,
     exchangeProgress,
     loadingDone,
     isSearching,

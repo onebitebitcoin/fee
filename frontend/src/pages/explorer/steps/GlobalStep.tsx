@@ -14,7 +14,7 @@ export function GlobalStep() {
   const {
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
-    cautionMap, failedGlobalExchanges,
+    cautionMap, carfMap, failedGlobalExchanges,
   } = useExplorer();
 
   // 조회 성공한 거래소 목록
@@ -119,7 +119,7 @@ export function GlobalStep() {
                           <div className="ios-card rounded-2xl p-4 space-y-3">
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info.country}</p></div>
-                              <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{info.carf}년</p></div>
+                              <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{carfMap[global] ?? info.carf}년</p></div>
                               <div><span className="text-label-tertiary">위험도</span>
                                 <p className={`inline-flex items-center mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${RISK_COLOR[info.risk]}`}>
                                   {RISK_LABEL[info.risk]}

@@ -150,6 +150,10 @@ export const api = {
   getCaution: (): Promise<Record<string, { caution: boolean; reason: string | null }>> =>
     request('/api/v1/exchanges/caution'),
 
+  getCarfExchanges: (): Promise<{
+    exchanges: Array<{ id: string; carfFirstExchange: string | null; registeredCountry: string | null }>;
+  }> => request('/api/v1/market/carf-exchanges'),
+
   updateCaution: (
     exchangeId: string,
     group: string,
