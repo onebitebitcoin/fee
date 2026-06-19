@@ -19,24 +19,31 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
 
   if (isUsdt) {
     parts.push('USDT');
-    parts.push(p.network ?? '');
+    if (p.network) parts.push(p.network);
     // 라이트닝 지갑 종착: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
     parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
   } else if (isViaGlobal) {
     parts.push('BTC');
     parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
-    if (!isLightning) parts.push(p.network ?? '');
+    if (!isLightning && p.network) parts.push(p.network);
   } else {
     parts.push('BTC');
-    if (!isLightning) parts.push(p.network ?? '');
+    if (!isLightning && p.network) parts.push(p.network);
   }
 
-  // 개인지갑 종착(스왑 경유): 스왑 서비스 노드 표시
+  // 개인지갑 종착(LN 스왑 경유): 서비스명 표시, 없으면 "LN 스왑"으로 명시
   if (isLightning && !isLnWallet) {
-    parts.push(provider ? fmtEx(provider) : 'Lightning');
+    parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'LN 스왑');
   }
 
-  parts.push(isLnWallet ? '라이트닝 지갑' : '지갑');
+  // 종착지: 온체인 지갑 vs 라이트닝 지갑을 명확히 구분
+  if (isLnWallet) {
+    parts.push('라이트닝 지갑');
+  } else if (isLightning) {
+    parts.push('온체인 지갑');
+  } else {
+    parts.push('지갑');
+  }
   return parts.join(' › ');
 }
 
