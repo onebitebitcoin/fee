@@ -45,7 +45,6 @@ TEST_PASS=0
 $COMPOSE run --rm --no-deps \
     -e DATABASE_URL="sqlite://" \
     -e ENVIRONMENT="test" \
-    -e ADMIN_API_KEY="test-key" \
     -e CRAWL_INTERVAL_MINUTES="999" \
     -e MANUAL_CRAWL_ENABLED="false" \
     -e CORS_ORIGINS="*" \
