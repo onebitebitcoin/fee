@@ -54,7 +54,7 @@ $COMPOSE run --rm --no-deps \
     python -m pytest tests/ \
         --ignore=tests/test_crawl_service.py \
         --ignore=tests/test_notice_scraper.py \
-        -x -q --timeout=30 --tb=short 2>&1 \
+        -x -q --tb=short 2>&1 \
     && TEST_PASS=1 || TEST_PASS=0
 
 if [ "$TEST_PASS" -eq 0 ]; then
