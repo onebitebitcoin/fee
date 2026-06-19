@@ -47,7 +47,7 @@ $COMPOSE run --rm --no-deps \
     -e ENVIRONMENT="test" \
     -e ADMIN_API_KEY="0000" \
     -e CRAWL_INTERVAL_MINUTES="999" \
-    -e MANUAL_CRAWL_ENABLED="false" \
+    -e MANUAL_CRAWL_ENABLED="true" \
     -e CORS_ORIGINS="*" \
     -e POSTGRES_PASSWORD="unused" \
     app \
