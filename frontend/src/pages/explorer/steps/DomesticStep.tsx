@@ -30,19 +30,33 @@ export function DomesticStep() {
                     <Info size={15} weight={kimpInfoOpen ? 'fill' : 'regular'} />
                   </button>
                 </div>
-                {kimpFetchedAt != null && (
-                  <p className="text-[11px] text-label-tertiary num mt-0.5">
-                    김프 {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
-                  </p>
-                )}
-                {usdtPremium != null && (
-                  <p className="text-[11px] num mt-0.5">
-                    <span className="text-label-tertiary">원달러 프리미엄 </span>
-                    <span className={usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}>
-                      {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
-                    </span>
-                    <span className="text-[9px] text-label-tertiary"> · 업비트 USDT vs 포렉스</span>
-                  </p>
+                {(kimpFetchedAt != null || usdtPremium != null) && (
+                  <div className="ios-card rounded-2xl px-4 py-3 mt-2 grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">김치 프리미엄</p>
+                      {kimpFetchedAt != null ? (
+                        <p className="text-[11px] text-label-secondary num">
+                          {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
+                        </p>
+                      ) : (
+                        <p className="text-xs text-label-tertiary">–</p>
+                      )}
+                      <p className="text-[9px] text-label-tertiary mt-0.5">거래소별 아래 표시</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">원달러 프리미엄</p>
+                      {usdtPremium != null ? (
+                        <>
+                          <p className={`text-sm font-bold num ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                            {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
+                          </p>
+                          <p className="text-[9px] text-label-tertiary mt-0.5">업비트 USDT vs 포렉스</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-label-tertiary">–</p>
+                      )}
+                    </div>
+                  </div>
                 )}
                 {/* 김프 설명 패널 */}
                 {kimpInfoOpen && (

@@ -414,26 +414,12 @@ function useExplorerValue() {
   }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
 
   const altPaths = useMemo(() => {
-    if (resultPath == null || !allPaths.length) return [];
-    const resultFee = resultPath.total_fee_krw ?? Infinity;
-    const sorted = [...allPaths]
-      .filter(p => (p.total_fee_krw ?? Infinity) < resultFee)
-      .sort((a, b) => {
-        const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
-        if (diff !== 0) return diff;
-        return (b.btc_received ?? 0) - (a.btc_received ?? 0);
-      });
-    const seen = new Set<string>();
-    const result: typeof sorted = [];
-    for (const p of sorted) {
-      const key = p.korean_exchange ?? '';
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      result.push(p);
-      if (result.length >= 8) break;
-    }
-    return result;
-  }, [allPaths, resultPath]);
+    if (!allRecommendedPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
+    const destFilter = (resultPath?.destination ?? 'personal') as Destination;
+    return allRecommendedPaths
+      .filter(p => (p.destination ?? 'personal') === destFilter)
+      .slice(0, 3);
+  }, [allRecommendedPaths, resultPath]);
 
   useEffect(() => {
     if (phase !== 'result') return;
