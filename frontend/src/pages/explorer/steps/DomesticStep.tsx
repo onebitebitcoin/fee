@@ -33,7 +33,7 @@ export function DomesticStep() {
                 {(kimpFetchedAt != null || usdtPremium != null) && (
                   <div className="ios-card rounded-2xl px-4 py-3 mt-2 grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">김치 프리미엄</p>
+                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">비트코인 김치 프리미엄</p>
                       {kimpFetchedAt != null ? (
                         <p className="text-[11px] text-label-secondary num">
                           {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
@@ -44,7 +44,7 @@ export function DomesticStep() {
                       <p className="text-[9px] text-label-tertiary mt-0.5">거래소별 아래 표시</p>
                     </div>
                     <div>
-                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">원달러 프리미엄</p>
+                      <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">원달러 김치 프리미엄</p>
                       {usdtPremium != null ? (
                         <>
                           <p className={`text-sm font-bold num ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
