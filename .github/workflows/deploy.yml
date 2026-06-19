@@ -19,6 +19,12 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
+      - name: "git 업데이트"
+        run: |
+          cd /home/measly/fee
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: "Deploy"
         id: deploy
         run: bash /home/measly/fee/scripts/deploy.sh
