@@ -36,7 +36,7 @@ jobs:
           SHORT_HASH="${COMMIT_HASH:0:7}"
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           VERSION=$(cat /home/measly/fee/VERSION 2>/dev/null || echo "unknown")
-          MESSAGE="✅ fee 배포 완료%0A%0A📦 v${VERSION}%0A🔖 ${SHORT_HASH}%0A📝 ${COMMIT_MSG}%0A🌐 https://nav.onebitebitcoin.com"
+          MESSAGE="✅ fee 배포 완료%0A%0A📦 v${VERSION}%0A🔖 ${SHORT_HASH}%0A📝 ${COMMIT_MSG}%0A🌐 https://fee.onebitebitcoin.com"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
             -d "text=${MESSAGE}" \

@@ -14,7 +14,7 @@ echo "║  fee 무중단 배포                         ║"
 echo "╠══════════════════════════════════════════╣"
 echo "║  경로: $ROOT_DIR"
 echo "║  앱포트: $APP_PORT"
-echo "║  도메인: nav.onebitebitcoin.com"
+echo "║  도메인: fee.onebitebitcoin.com"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -80,9 +80,9 @@ done
 
 # ============================================================
 # [5/6] App 무중단 교체
-#   핵심: nginx는 건드리지 않음 → 포트 80 충돌 없음
-#   app만 교체 → nginx가 proxy_next_upstream으로 30초 재시도
-#   → 사용자는 502 대신 잠깐 느린 응답을 경험 (또는 영향 없음)
+#   인그레스는 호스트 시스템 nginx(/etc/nginx)가 담당하며 127.0.0.1:18080 으로 프록시한다.
+#   app 컨테이너만 교체 → 시스템 nginx 의 proxy_next_upstream 재시도로 무중단.
+#   (이 레포에는 더 이상 docker nginx 서비스가 없다)
 # ============================================================
 echo "[5/6] App 무중단 교체..."
 $COMPOSE up -d --no-deps app
@@ -105,21 +105,13 @@ if [ "$APP_OK" -eq 0 ]; then
     exit 1
 fi
 
-# nginx 처리:
-#   실행 중 → reload (포트 재바인딩 없음 = 완전 무중단)
-#   미실행  → 시작 (포트 80 점유 시 먼저 정리)
-echo "nginx 처리..."
-if $COMPOSE exec -T nginx nginx -s reload > /dev/null 2>&1; then
-    echo "✅ nginx reload 완료 (포트 80 유지, 무중단)"
+# 호스트 시스템 nginx reload (설정 변경 없이 업스트림 재확인용, 무중단)
+#   설정 자체는 변하지 않으므로 reload 실패해도 배포는 계속한다.
+echo "시스템 nginx reload..."
+if sudo /usr/sbin/nginx -s reload > /dev/null 2>&1; then
+    echo "✅ 시스템 nginx reload 완료 (무중단)"
 else
-    echo "nginx 미실행 → 새로 시작..."
-    # 포트 80을 점유 중인 외부 프로세스 정리
-    if command -v ss > /dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':80 '; then
-        echo "포트 80 점유 중 → 정리 시도"
-        sudo fuser -k 80/tcp 2>/dev/null || true
-        sleep 2
-    fi
-    $COMPOSE up -d --no-deps nginx
+    echo "⚠️  시스템 nginx reload 생략/실패 (인그레스 설정 불변 → 영향 없음)"
 fi
 
 # ============================================================
@@ -129,10 +121,14 @@ echo "[6/6] 최종 검증..."
 sleep 3
 $COMPOSE ps
 
-if curl -sf --max-time 5 "http://127.0.0.1:80/api/v1/health" > /tmp/fee-nav-health.json 2>/dev/null; then
-    echo "✅ nginx 프록시 정상: $(cat /tmp/fee-nav-health.json)"
+# 공개 도메인(시스템 nginx → 127.0.0.1:18080) 경유 헬스체크
+if curl -sf --max-time 8 "https://fee.onebitebitcoin.com/api/v1/health" > /tmp/fee-health-public.json 2>/dev/null; then
+    echo "✅ 공개 도메인 정상: $(cat /tmp/fee-health-public.json)"
 else
-    echo "⚠️  nginx 직접 헬스체크 실패 (외부 프록시 경유 시 정상일 수 있음)"
+    echo "⚠️  공개 도메인 헬스체크 실패 — app 직접 확인:"
+    curl -sf --max-time 5 "http://127.0.0.1:${APP_PORT}/api/v1/health" \
+        && echo " (app 자체는 정상 → nginx/도메인 설정 확인 필요)" \
+        || echo " (app 응답 없음)"
 fi
 
 echo ""
