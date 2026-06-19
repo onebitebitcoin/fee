@@ -33,41 +33,49 @@ function ExchangeMarquee() {
 
 export function InputStep() {
   const {
-    amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, handleSearch,
-    isSearching,
+    amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, usdtPremium,
+    handleSearch, isSearching,
   } = useExplorer();
 
   const kimp = btcPrice?.kimchiPremium;
   const kimpColor = kimp == null
     ? 'text-label-tertiary'
     : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green';
+  const usdtColor = usdtPremium == null
+    ? 'text-label-tertiary'
+    : usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green';
 
   return (
     <>
               {/* 지원 거래소 마퀴 */}
               <ExchangeMarquee />
 
-              {/* BTC 시세 상단 패널 */}
+              {/* BTC 시세 + 프리미엄 패널 */}
               {btcPrice && (
-                <div className="ios-card rounded-2xl px-4 py-3 flex items-center">
-                  <div className="flex-1 text-center">
+                <div className="ios-card rounded-2xl px-4 py-3 grid grid-cols-2 gap-x-2 gap-y-2.5">
+                  <div className="text-center">
                     <p className="text-[10px] text-label-tertiary mb-0.5">Binance</p>
                     <p className="text-[13px] font-bold text-label-primary num">
                       ${btcPrice.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
                   </div>
-                  <div className="w-px self-stretch bg-separator mx-1" />
-                  <div className="flex-1 text-center">
+                  <div className="text-center">
                     <p className="text-[10px] text-label-tertiary mb-0.5">Upbit</p>
                     <p className="text-[13px] font-bold text-label-primary num">
                       ₩{(btcPrice.upbitKrw ?? btcPrice.krw).toLocaleString('ko-KR')}
                     </p>
                   </div>
-                  <div className="w-px self-stretch bg-separator mx-1" />
-                  <div className="flex-1 text-center">
-                    <p className="text-[10px] text-label-tertiary mb-0.5">김치 프리미엄</p>
+                  <div className="col-span-2 h-px bg-separator" />
+                  <div className="text-center">
+                    <p className="text-[10px] text-label-tertiary mb-0.5">비트코인 김치 프리미엄</p>
                     <p className={`text-[13px] font-bold num ${kimpColor}`}>
                       {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-label-tertiary mb-0.5">원달러 김치 프리미엄</p>
+                    <p className={`text-[13px] font-bold num ${usdtColor}`}>
+                      {usdtPremium != null ? `${usdtPremium >= 0 ? '+' : ''}${usdtPremium.toFixed(2)}%` : '—'}
                     </p>
                   </div>
                 </div>
