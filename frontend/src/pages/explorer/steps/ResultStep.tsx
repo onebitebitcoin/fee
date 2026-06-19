@@ -375,70 +375,102 @@ export function ResultStep() {
                 {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">라이트닝 출금</Chip>}
               </div>
 
-              {/* Top 3 경로 순위 */}
-              {altPaths.length > 0 && (
-                <div>
-                  <SectionLabel>경로 순위</SectionLabel>
-                  <div className="space-y-2">
-                    {altPaths.map((p, i) => {
-                      const isCurrent = resultPath != null && (
-                        (p.path_id && resultPath.path_id)
-                          ? p.path_id === resultPath.path_id
-                          : p.korean_exchange === resultPath.korean_exchange &&
-                            p.network === resultPath.network &&
-                            p.transfer_coin === resultPath.transfer_coin &&
-                            p.path_type === resultPath.path_type &&
-                            (p.lightning_exit_provider ?? null) === (resultPath.lightning_exit_provider ?? null)
-                      );
-                      const rankColors = [
-                        'bg-acc-amber text-white',
-                        'bg-fill-tertiary text-label-secondary',
-                        'bg-fill-secondary text-label-tertiary',
-                      ];
-                      return (
-                        <div
-                          key={p.path_id ?? i}
-                          className={`ios-card rounded-2xl px-4 py-3 ${isCurrent ? 'ring-1 ring-acc-amber/40' : ''}`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${rankColors[i] ?? rankColors[2]}`}>
-                                {i + 1}
-                              </span>
-                              <div className="flex items-center gap-1 flex-wrap min-w-0">
-                                <ExFavicon id={p.korean_exchange} size={16} />
-                                <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
-                                <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
-                                {(p.transfer_coin === 'USDT' || p.route_variant?.endsWith('via_global')) && p._g && (
-                                  <>
-                                    <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                    <ExFavicon id={p._g} size={16} />
-                                    <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
-                                  </>
-                                )}
-                                <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
-                                <span className="text-[10px] text-label-tertiary">
-                                  {p.global_exit_mode === 'lightning' ? 'Lightning' : (p.global_exit_network || p.network)}
+              {/* Top 3 추천 경로 */}
+              {altPaths.length > 0 && (() => {
+                const isCurrentPath = (p: typeof altPaths[0]) => resultPath != null && (
+                  (p.path_id && resultPath.path_id)
+                    ? p.path_id === resultPath.path_id
+                    : p.korean_exchange === resultPath.korean_exchange &&
+                      p.network === resultPath.network &&
+                      p.transfer_coin === resultPath.transfer_coin &&
+                      p.path_type === resultPath.path_type &&
+                      (p.lightning_exit_provider ?? null) === (resultPath.lightning_exit_provider ?? null)
+                );
+                const cheapest = altPaths[0];
+                const cheapestIsCurrent = isCurrentPath(cheapest);
+                const savingsKrw = !cheapestIsCurrent
+                  ? Math.round(resultPath.total_fee_krw - cheapest.total_fee_krw)
+                  : 0;
+                const rankColors = [
+                  'bg-acc-amber text-white',
+                  'bg-fill-tertiary text-label-secondary',
+                  'bg-fill-secondary text-label-tertiary',
+                ];
+                return (
+                  <div>
+                    <SectionLabel>추천 경로</SectionLabel>
+                    {savingsKrw > 100 && (
+                      <div className="mb-2 rounded-2xl px-4 py-3 flex items-center gap-2.5" style={{ background: 'linear-gradient(135deg, rgba(52,199,89,0.10) 0%, rgba(52,199,89,0.04) 100%)', border: '0.5px solid rgba(52,199,89,0.20)' }}>
+                        <div className="w-6 h-6 rounded-full bg-acc-green/15 flex items-center justify-center shrink-0">
+                          <span className="text-acc-green text-[11px] font-bold">↓</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-acc-green">
+                            현재보다 <span className="num">{formatFeeKrw(savingsKrw)}</span> 더 절약 가능한 경로가 있어요
+                          </p>
+                          <p className="text-[10px] text-label-tertiary mt-0.5">
+                            1위 경로 선택 시 수수료를 줄일 수 있어요
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {altPaths.map((p, i) => {
+                        const isCurrent = isCurrentPath(p);
+                        const pathSavings = i > 0 || !isCurrent
+                          ? Math.round(resultPath.total_fee_krw - p.total_fee_krw)
+                          : 0;
+                        return (
+                          <div
+                            key={p.path_id ?? i}
+                            className={`ios-card rounded-2xl px-4 py-3 ${isCurrent ? 'ring-1 ring-acc-amber/40' : ''}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${rankColors[i] ?? rankColors[2]}`}>
+                                  {i + 1}
                                 </span>
+                                <div className="flex items-center gap-1 flex-wrap min-w-0">
+                                  <ExFavicon id={p.korean_exchange} size={16} />
+                                  <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
+                                  {(p.transfer_coin === 'USDT' || p.route_variant?.endsWith('via_global')) && p._g && (
+                                    <>
+                                      <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                      <ExFavicon id={p._g} size={16} />
+                                      <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
+                                    </>
+                                  )}
+                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                  <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
+                                  <span className="text-[10px] text-label-tertiary">
+                                    {p.global_exit_mode === 'lightning' ? 'Lightning' : (p.global_exit_network || p.network)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-xs font-semibold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
+                                <p className="text-[10px] text-label-tertiary num mt-0.5">{formatPercent(p.fee_pct)}</p>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-xs font-semibold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
-                              <p className="text-[10px] text-label-tertiary num mt-0.5">{formatPercent(p.fee_pct)}</p>
+                            <div className="mt-1.5 flex items-center gap-3 text-[10px]">
+                              {isCurrent && <span className="text-acc-amber font-semibold">현재 선택</span>}
+                              {!isCurrent && pathSavings > 100 && (
+                                <span className="text-acc-green font-semibold num">{formatFeeKrw(pathSavings)} 절약</span>
+                              )}
+                              {!isCurrent && pathSavings < -100 && (
+                                <span className="text-acc-red font-semibold num">{formatFeeKrw(Math.abs(pathSavings))} 추가</span>
+                              )}
+                              <span className="text-label-tertiary">수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
                             </div>
                           </div>
-                          <div className="mt-1.5 flex items-center gap-3 text-[10px]">
-                            {isCurrent && <span className="text-acc-amber font-semibold">현재 선택</span>}
-                            <span className="text-label-tertiary">수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Retry */}
               <button
