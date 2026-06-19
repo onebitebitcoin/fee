@@ -307,7 +307,7 @@ export function ResultStep() {
                   <SectionLabel>수수료 내역</SectionLabel>
                   <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
                     <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정 수수료</span>이동 금액과 무관</span>
-                    <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>이동 금액 × 비율</span>
+                    <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>거래·이동 금액 × 비율</span>
                   </p>
                   <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
                     {resultPath.breakdown.components.map((c, i) => (
@@ -317,7 +317,7 @@ export function ResultStep() {
                             <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
                             {c.is_fixed != null && (
                               <span
-                                title={c.is_fixed ? '이동 금액에 관계없이 항상 동일한 고정 수수료' : '이동 금액에 비례하는 비율(%) 수수료'}
+                                title={c.is_fixed ? '이동 금액에 관계없이 항상 동일한 고정 수수료' : '거래 금액(매수·매도) 또는 이동 금액에 비례하는 비율(%) 수수료'}
                                 className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-help ${
                                   c.is_fixed
                                     ? 'bg-acc-blue/10 text-acc-blue'
