@@ -141,7 +141,10 @@ function useExplorerValue() {
       const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
       const coinPart = isUsdt ? 'USDT' : isViaGlobal ? 'BTC_GLOBAL' : 'BTC_DIRECT';
       const globalPart = (isUsdt || isViaGlobal) ? p._g : '';
-      return `${p.korean_exchange}|${coinPart}|${globalPart}|${p.network}|${p.global_exit_mode}|${p.lightning_exit_provider ?? ''}`;
+      // USDT 경로는 네트워크(TRC20/BEP20 등)를 키에서 제외:
+      // 같은 (국내→글로벌→출금방식) 조합에서 가장 싼 네트워크 하나만 추천에 표시
+      const networkPart = isUsdt ? '' : p.network;
+      return `${p.korean_exchange}|${coinPart}|${globalPart}|${networkPart}|${p.global_exit_mode}|${p.lightning_exit_provider ?? ''}`;
     };
     const best = new Map<string, CheapestPathEntry & { _g: string }>();
     for (const p of allPaths) {
