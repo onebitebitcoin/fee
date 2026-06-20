@@ -22,7 +22,7 @@ export interface StepEntry {
 }
 
 export const STEP_REGISTRY: Record<Phase, StepEntry> = {
-  input:              { Component: InputStep,            className: 'space-y-6 pt-4' },
+  input:              { Component: InputStep,            className: 'space-y-3 pt-1' },
   recommendation:     { Component: RecommendationStep,   className: 'space-y-4 pt-2' },
   domestic:           { Component: DomesticStep,         className: 'space-y-4 pt-2' },
   coin:               { Component: CoinStep,             className: 'space-y-4 pt-2' },
