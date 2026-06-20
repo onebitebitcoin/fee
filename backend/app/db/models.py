@@ -181,6 +181,8 @@ class AccessLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True, index=True)
+    request_type: Mapped[str] = mapped_column(String(16), server_default='visit')
 
 
 class ExchangeNotice(Base):

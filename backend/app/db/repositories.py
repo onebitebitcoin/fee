@@ -100,9 +100,29 @@ def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
     return dict(grouped)
 
 
-def record_access(db: Session) -> None:
-    log = AccessLog()
-    db.add(log)
+def record_visit(db: Session, ip: str | None) -> None:
+    """IP 기준 하루 1회 방문자 카운트 (중복 제거)."""
+    if not ip:
+        return
+    kst = ZoneInfo('Asia/Seoul')
+    now_kst = dt.datetime.now(kst)
+    today_start = dt.datetime(now_kst.year, now_kst.month, now_kst.day, tzinfo=kst)
+    existing = db.scalar(
+        select(AccessLog.id)
+        .where(AccessLog.ip_address == ip)
+        .where(AccessLog.request_type == 'visit')
+        .where(AccessLog.accessed_at >= today_start)
+        .limit(1)
+    )
+    if existing:
+        return
+    db.add(AccessLog(ip_address=ip, request_type='visit'))
+    db.commit()
+
+
+def record_route_request(db: Session) -> None:
+    """경로 탐색 요청 카운트 (중복 허용)."""
+    db.add(AccessLog(request_type='route'))
     db.commit()
 
 
@@ -111,10 +131,17 @@ def get_access_count(db: Session) -> dict:
     now_kst = dt.datetime.now(kst)
     today_start = dt.datetime(now_kst.year, now_kst.month, now_kst.day, tzinfo=kst)
 
-    total = db.scalar(select(sqlfunc.count(AccessLog.id))) or 0
-    today = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.accessed_at >= today_start)) or 0
+    v_total = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.request_type == 'visit')) or 0
+    v_today = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.request_type == 'visit').where(AccessLog.accessed_at >= today_start)) or 0
+    r_total = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.request_type == 'route')) or 0
+    r_today = db.scalar(select(sqlfunc.count(AccessLog.id)).where(AccessLog.request_type == 'route').where(AccessLog.accessed_at >= today_start)) or 0
 
-    return {'total': total, 'today': today}
+    return {
+        'visitors_total': v_total,
+        'visitors_today': v_today,
+        'routes_total': r_total,
+        'routes_today': r_today,
+    }
 
 
 def list_notices_for_run(db: Session, crawl_run_id: int) -> list[ExchangeNotice]:
@@ -173,17 +200,20 @@ def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
 _NOTICE_STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
 
 
-def _to_suspended_set(rows: list[NetworkStatusSnapshot]) -> set[tuple[str, str, str]]:
-    return {
-        (r.exchange, r.coin or '', r.network or '')
-        for r in rows
-        if r.status != 'ok'
-    }
+def _wd_disabled_set(rows: list[WithdrawalFeeSnapshot]) -> set[tuple[str, str, str]]:
+    """출금 스냅샷에서 비활성(enabled=False) 행의 (exchange, coin, network_label) 집합 반환."""
+    return {(r.exchange, r.coin, r.network_label) for r in rows if not r.enabled}
+
+
+def _wd_all_keys(rows: list[WithdrawalFeeSnapshot]) -> set[tuple[str, str, str]]:
+    """출금 스냅샷의 모든 (exchange, coin, network_label) 집합 반환."""
+    return {(r.exchange, r.coin, r.network_label) for r in rows}
 
 
 def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
-    """최근 N시간 내 연속 크롤 실행 쌍에서 네트워크 상태 변경 목록 반환.
+    """최근 N시간 내 연속 크롤 실행 쌍에서 출금 활성화 상태 변경 목록 반환.
 
+    WithdrawalFeeSnapshot.enabled 필드를 기준으로 비교한다.
     반환 항목 필드: exchange, coin, network, change_type ('suspended'|'resumed'),
     detected_at (unix timestamp), related_notices (list of {title, url, published_at})
     """
@@ -197,8 +227,8 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
     if len(runs) < 2:
         return []
 
-    run_status: dict[int, list[NetworkStatusSnapshot]] = {
-        r.id: list_network_status_for_run(db, r.id) for r in runs
+    run_wd: dict[int, list[WithdrawalFeeSnapshot]] = {
+        r.id: list_withdrawal_snapshots_for_run(db, r.id) for r in runs
     }
 
     seen_keys: set[tuple] = set()
@@ -206,12 +236,23 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
 
     for i in range(len(runs) - 1, 0, -1):  # 최신 쌍부터
         curr_run = runs[i]
-        prev_susp = _to_suspended_set(run_status[runs[i - 1].id])
-        curr_susp = _to_suspended_set(run_status[curr_run.id])
+        prev_rows = run_wd[runs[i - 1].id]
+        curr_rows = run_wd[curr_run.id]
+
+        prev_disabled = _wd_disabled_set(prev_rows)
+        curr_disabled = _wd_disabled_set(curr_rows)
+        prev_keys = _wd_all_keys(prev_rows)
+        curr_keys = _wd_all_keys(curr_rows)
+
         detected_at = int(curr_run.completed_at.timestamp()) if curr_run.completed_at else None
 
-        for key, change_type in [*[(k, 'suspended') for k in curr_susp - prev_susp],
-                                  *[(k, 'resumed') for k in prev_susp - curr_susp]]:
+        # 이전에 있던 코인/네트워크가 비활성으로 바뀐 경우 (suspended)
+        newly_suspended = (curr_disabled - prev_disabled) & prev_keys
+        # 이전에 비활성이었던 코인/네트워크가 활성으로 바뀐 경우 (resumed)
+        newly_resumed = (prev_disabled - curr_disabled) & curr_keys
+
+        for key, change_type in [*[(k, 'suspended') for k in newly_suspended],
+                                  *[(k, 'resumed') for k in newly_resumed]]:
             if key not in seen_keys:
                 seen_keys.add(key)
                 changes.append({

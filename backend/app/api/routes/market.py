@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests as _requests
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
@@ -389,6 +389,7 @@ def get_latest_exchange_capabilities(db: Session = Depends(get_db)) -> dict:
 
 @router.get('/path-finder/cheapest')
 def get_cheapest_path(
+    request: Request,
     background_tasks: BackgroundTasks,
     amount_krw: int = Query(1000000, ge=10000),
     amount_btc: float | None = Query(None, gt=0),
@@ -397,7 +398,11 @@ def get_cheapest_path(
     global_exchange: str = Query('binance'),
     db: Session = Depends(get_db),
 ) -> dict:
-    background_tasks.add_task(repositories.record_access, db)
+    _ip = request.headers.get('x-forwarded-for', request.client.host if request.client else None)
+    if _ip:
+        _ip = _ip.split(',')[0].strip()
+    background_tasks.add_task(repositories.record_route_request, db)
+    background_tasks.add_task(repositories.record_visit, db, _ip)
     latest_run = repositories.get_latest_successful_run(db)
     _run_id = latest_run.id if latest_run else None
     _cache_key = f"{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{global_exchange}:{_run_id}"
@@ -627,6 +632,7 @@ def warm_cheapest_path_cache(db: Session) -> int:
 
 @router.get('/path-finder/cheapest-all')
 def get_cheapest_path_all(
+    request: Request,
     background_tasks: BackgroundTasks,
     amount_krw: int = Query(1000000, ge=10000),
     amount_btc: float | None = Query(None, gt=0),
@@ -639,7 +645,11 @@ def get_cheapest_path_all(
     캐시 히트면 즉시 반환, 미스면 single-flight로 동시 요청을 1회 계산으로 병합한다.
     반환 형태: {"by_global": {<exchange>: <payload or error>}, "last_run": {...}, "latest_scraping_time": ...}
     """
-    background_tasks.add_task(repositories.record_access, db)
+    _ip = request.headers.get('x-forwarded-for', request.client.host if request.client else None)
+    if _ip:
+        _ip = _ip.split(',')[0].strip()
+    background_tasks.add_task(repositories.record_route_request, db)
+    background_tasks.add_task(repositories.record_visit, db, _ip)
     latest_run = repositories.get_latest_successful_run(db)
     _run_id = latest_run.id if latest_run else None
     _cache_key = f"all:{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{_run_id}"

@@ -184,8 +184,10 @@ export type CheapestPathResponse = {
 };
 
 export type AccessStats = {
-  total: number;
-  today: number;
+  visitors_total: number;
+  visitors_today: number;
+  routes_total: number;
+  routes_today: number;
 };
 
 export type NetworkChangeNotice = {

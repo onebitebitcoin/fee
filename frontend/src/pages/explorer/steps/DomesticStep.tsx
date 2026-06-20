@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, Globe, Info, Warning, CaretDown } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Globe, Warning, CaretDown } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { getDomesticGates } from '../../../lib/gatemanRegistry';
 import { DOMESTIC_INFO, SPRING_FAST, SPRING_SLOW } from '../constants';
@@ -12,7 +12,7 @@ export function DomesticStep() {
   const [showInfo, setShowInfo] = useState(false);
   const {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, usdtPremium,
-    kimpFetchedAt, kimpInfoOpen, setKimpInfoOpen, btcPrice, withdrawalLimits, stepEndRef,
+    kimpFetchedAt, btcPrice, withdrawalLimits, stepEndRef,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
   } = useExplorer();
@@ -22,18 +22,12 @@ export function DomesticStep() {
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-sm text-label-secondary">출발 거래소를 선택해요</p>
-                  <button
-                    onClick={() => setKimpInfoOpen(o => !o)}
-                    className="text-label-tertiary hover:text-label-secondary transition-colors"
-                    aria-label="김프 계산 방식 설명"
-                  >
-                    <Info size={15} weight={kimpInfoOpen ? 'fill' : 'regular'} />
-                  </button>
                 </div>
                 <div className="ios-card rounded-2xl px-4 py-4 mt-2">
                   <div className="flex items-end justify-between">
                     <div>
-                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">원달러 프리미엄</p>
+                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">원달러 김치 프리미엄</p>
+                      <p className="text-[9px] text-label-tertiary mt-0.5">원화로 달러(USDT)를 살 때 붙는 프리미엄이에요.</p>
                       {usdtPremium != null ? (
                         <p className={`text-3xl font-bold num mt-1 ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                           {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
@@ -43,7 +37,8 @@ export function DomesticStep() {
                       )}
                     </div>
                     <div className="text-right pb-0.5">
-                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">BTC 김프</p>
+                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">비트코인 김치 프리미엄</p>
+                      <p className="text-[9px] text-label-tertiary mt-0.5">한국 BTC가 해외 대비 얼마나 비싼지예요.</p>
                       <p className="text-xs text-label-secondary mt-1">거래소별 표시</p>
                       {kimpFetchedAt != null && (
                         <p className="text-[9px] text-label-tertiary num mt-0.5">
@@ -53,27 +48,6 @@ export function DomesticStep() {
                     </div>
                   </div>
                 </div>
-                {/* 김프 설명 패널 */}
-                {kimpInfoOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-2 rounded-xl bg-fill-secondary p-3 space-y-2 overflow-hidden"
-                  >
-                    <div className="rounded-lg p-2.5 space-y-2.5 bg-fill-tertiary">
-                      <div>
-                        <p className="text-[11px] font-semibold text-label-primary">BTC 김프</p>
-                        <p className="text-[10px] text-label-secondary mt-0.5">국내 BTC 가격이 해외(바이낸스) 대비 얼마나 비싼지 나타내요.</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-label-primary">원달러 프리미엄</p>
-                        <p className="text-[10px] text-label-secondary mt-0.5">국내 USDT(업비트)가 공식 달러 환율보다 얼마나 비싼지 나타내요.</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
