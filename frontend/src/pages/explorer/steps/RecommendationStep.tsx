@@ -276,27 +276,6 @@ export function RecommendationStep() {
         </button>
       </div>
 
-      {/* 자주 쓰는 필터 프리셋 */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-0.5">
-        {PRESETS.map(({ key, label }) => {
-          const active = isPresetActive(key);
-          return (
-            <button
-              key={key}
-              onClick={() => applyPreset(key)}
-              className={[
-                'flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap',
-                active
-                  ? 'bg-acc-amber/15 text-acc-amber'
-                  : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Filter panel */}
       <AnimatePresence>
         {filterOpen && (
@@ -308,6 +287,29 @@ export function RecommendationStep() {
             className="overflow-hidden"
           >
             <div className="ios-card rounded-2xl p-4 space-y-4">
+              {/* 빠른 필터 */}
+              <div>
+                <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">빠른 필터</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESETS.map(({ key, label }) => {
+                    const active = isPresetActive(key);
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => applyPreset(key)}
+                        className={[
+                          'px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap',
+                          active
+                            ? 'bg-acc-amber/15 text-acc-amber'
+                            : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {/* 종착지 (라이트닝 지갑 경로가 있을 때만) */}
               {hasLightningWalletPaths && (
                 <div>
