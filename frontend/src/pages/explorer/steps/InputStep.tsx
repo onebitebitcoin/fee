@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, Info } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
+import { api } from '../../../lib/api';
+import type { AccessStats } from '../../../types';
 
 const EXCHANGES = [
   'upbit', 'bithumb', 'coinone', 'korbit', 'gopax',
@@ -34,6 +36,12 @@ function ExchangeMarquee() {
 
 export function InputStep() {
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
+  const [stats, setStats] = useState<AccessStats | null>(null);
+
+  useEffect(() => {
+    api.getAccessCount().then(setStats).catch(() => {});
+  }, []);
+
   const {
     amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, usdtPremium,
     handleSearch, isSearching,
@@ -49,6 +57,19 @@ export function InputStep() {
 
   return (
     <>
+              {/* 방문자 수 */}
+              {stats && (
+                <div className="flex items-center justify-center gap-3 py-0.5">
+                  <span className="text-[11px] text-label-tertiary">
+                    오늘 <span className="font-semibold text-label-secondary num">{stats.today.toLocaleString('ko-KR')}</span>명
+                  </span>
+                  <span className="text-label-quaternary text-[10px]">·</span>
+                  <span className="text-[11px] text-label-tertiary">
+                    누적 <span className="font-semibold text-label-secondary num">{stats.total.toLocaleString('ko-KR')}</span>명
+                  </span>
+                </div>
+              )}
+
               {/* 지원 거래소 마퀴 */}
               <ExchangeMarquee />
 
