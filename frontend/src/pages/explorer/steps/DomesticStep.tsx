@@ -12,7 +12,7 @@ export function DomesticStep() {
   const [showInfo, setShowInfo] = useState(false);
   const {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, usdtPremium,
-    kimpFetchedAt, btcPrice, withdrawalLimits, stepEndRef,
+    btcPrice, withdrawalLimits, stepEndRef, forexUsdKrw,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
   } = useExplorer();
@@ -20,34 +20,7 @@ export function DomesticStep() {
     <>
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-sm text-label-secondary">출발 거래소를 선택해요</p>
-                </div>
-                <div className="ios-card rounded-2xl px-4 py-4 mt-2">
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">원달러 김치 프리미엄</p>
-                      <p className="text-[9px] text-label-tertiary mt-0.5">원화로 달러(USDT)를 살 때 붙는 프리미엄이에요.</p>
-                      {usdtPremium != null ? (
-                        <p className={`text-3xl font-bold num mt-1 ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                          {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
-                        </p>
-                      ) : (
-                        <p className="text-3xl font-bold text-label-tertiary mt-1">–</p>
-                      )}
-                    </div>
-                    <div className="text-right pb-0.5">
-                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">비트코인 김치 프리미엄</p>
-                      <p className="text-[9px] text-label-tertiary mt-0.5">한국 BTC가 해외 대비 얼마나 비싼지예요.</p>
-                      <p className="text-xs text-label-secondary mt-1">거래소별 표시</p>
-                      {kimpFetchedAt != null && (
-                        <p className="text-[9px] text-label-tertiary num mt-0.5">
-                          {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <p className="text-sm text-label-secondary mt-1">출발 거래소를 선택해요</p>
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
@@ -55,6 +28,12 @@ export function DomesticStep() {
                   const takerFee = allData?.tickers.find(t =>
                     t.exchange === exchange && t.currency === 'KRW' && t.pair?.includes('BTC')
                   )?.taker_fee_pct ?? null;
+                  const usdtTicker = allData?.tickers.find(t =>
+                    t.exchange === exchange && t.currency === 'KRW' && t.pair?.toLowerCase().includes('usdt')
+                  );
+                  const exchangeUsdtPremium = (usdtTicker && forexUsdKrw)
+                    ? Math.round((usdtTicker.price / forexUsdKrw - 1) * 10000) / 100
+                    : null;
                   return (
                     <motion.div
                       key={exchange}
@@ -76,7 +55,7 @@ export function DomesticStep() {
                         {cautionMap[exchange]?.caution && cautionMap[exchange].reason && (
                           <p className="text-[11px] text-acc-red mb-2 leading-relaxed">{cautionMap[exchange].reason}</p>
                         )}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-2">
                           <div>
                             <p className="text-[9px] text-label-tertiary uppercase tracking-wide">24시간 거래량</p>
                             <p className="text-xs font-medium text-label-primary num mt-0.5">
@@ -92,9 +71,15 @@ export function DomesticStep() {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">BTC 김프</p>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">비트코인 김치 프리미엄</p>
                             <p className={`text-sm font-bold num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
                               {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '–'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">원달러 환율 프리미엄</p>
+                            <p className={`text-sm font-bold num mt-0.5 ${exchangeUsdtPremium == null ? 'text-label-tertiary' : exchangeUsdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                              {exchangeUsdtPremium != null ? `${exchangeUsdtPremium >= 0 ? '+' : ''}${exchangeUsdtPremium.toFixed(2)}%` : '–'}
                             </p>
                           </div>
                         </div>
