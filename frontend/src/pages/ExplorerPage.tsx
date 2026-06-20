@@ -51,7 +51,7 @@ function ExplorerShell() {
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="w-5 h-5" />
             <span className="text-sm font-semibold text-label-primary tracking-tight">
-              수수료는 얼마 들까
+              수수료는 얼마나 들까
             </span>
           </div>
 
