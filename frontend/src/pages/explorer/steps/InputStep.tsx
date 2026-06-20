@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, Info, ArrowDown, ArrowUp } from '@phosphor-icons/react';
+import { motion } from 'motion/react';
+import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
@@ -35,7 +35,6 @@ function ExchangeMarquee() {
 }
 
 export function InputStep() {
-  const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [stats, setStats] = useState<AccessStats | null>(null);
   const [networkChanges, setNetworkChanges] = useState<NetworkChange[]>([]);
 
@@ -101,43 +100,12 @@ export function InputStep() {
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 mb-0.5">
                         <p className="text-[10px] text-label-tertiary">원달러 김치 프리미엄</p>
-                        <button
-                          onClick={() => setKimpInfoOpen(o => !o)}
-                          className="text-label-quaternary hover:text-label-tertiary transition-colors"
-                          aria-label="계산 방식 설명"
-                        >
-                          <Info size={11} weight={kimpInfoOpen ? 'fill' : 'regular'} />
-                        </button>
                       </div>
                       <p className={`text-[13px] font-bold num ${usdtColor}`}>
                         {usdtPremium != null ? `${usdtPremium >= 0 ? '+' : ''}${usdtPremium.toFixed(2)}%` : '—'}
                       </p>
                     </div>
                   </div>
-
-                  {/* 계산 방식 설명 패널 */}
-                  <AnimatePresence>
-                    {kimpInfoOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="rounded-2xl bg-fill-secondary p-3.5 space-y-2">
-                          <div className="rounded-xl p-2.5 bg-fill-tertiary space-y-0.5">
-                            <p className="text-[11px] font-semibold text-acc-amber">비트코인 김치 프리미엄</p>
-                            <p className="text-[10px] text-label-secondary">한국 BTC가 해외 대비 얼마나 비싼지예요.</p>
-                          </div>
-                          <div className="rounded-xl p-2.5 bg-fill-tertiary space-y-0.5">
-                            <p className="text-[11px] font-semibold text-acc-blue">원달러 김치 프리미엄</p>
-                            <p className="text-[10px] text-label-secondary">원화로 달러(USDT)를 살 때 붙는 프리미엄이에요.</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </>
               )}
 
