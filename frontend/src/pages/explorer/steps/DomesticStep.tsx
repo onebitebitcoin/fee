@@ -30,30 +30,27 @@ export function DomesticStep() {
                     <Info size={15} weight={kimpInfoOpen ? 'fill' : 'regular'} />
                   </button>
                 </div>
-                <div className="ios-card rounded-2xl px-4 py-3 mt-2 grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">비트코인 김치 프리미엄</p>
-                    {kimpFetchedAt != null ? (
-                      <p className="text-[11px] text-label-secondary num">
-                        {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
-                      </p>
-                    ) : (
-                      <p className="text-xs text-label-tertiary">–</p>
-                    )}
-                    <p className="text-[9px] text-label-tertiary mt-0.5">거래소별 아래 표시</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] text-label-tertiary uppercase tracking-wide mb-1">원달러 김치 프리미엄</p>
-                    {usdtPremium != null ? (
-                      <>
-                        <p className={`text-sm font-bold num ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                <div className="ios-card rounded-2xl px-4 py-4 mt-2">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">원달러 프리미엄</p>
+                      {usdtPremium != null ? (
+                        <p className={`text-3xl font-bold num mt-1 ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                           {usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%
                         </p>
-                        <p className="text-[9px] text-label-tertiary mt-0.5">업비트 USDT vs 포렉스</p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-label-tertiary">–</p>
-                    )}
+                      ) : (
+                        <p className="text-3xl font-bold text-label-tertiary mt-1">–</p>
+                      )}
+                    </div>
+                    <div className="text-right pb-0.5">
+                      <p className="text-[10px] text-label-tertiary uppercase tracking-wide">BTC 김프</p>
+                      <p className="text-xs text-label-secondary mt-1">거래소별 표시</p>
+                      {kimpFetchedAt != null && (
+                        <p className="text-[9px] text-label-tertiary num mt-0.5">
+                          {new Date(kimpFetchedAt * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' })} 기준
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {/* 김프 설명 패널 */}
@@ -65,21 +62,14 @@ export function DomesticStep() {
                     transition={{ duration: 0.2 }}
                     className="mt-2 rounded-xl bg-fill-secondary p-3 space-y-2 overflow-hidden"
                   >
-                    <p className="text-[11px] font-semibold text-label-secondary uppercase tracking-wide">김치 프리미엄 안내</p>
                     <div className="rounded-lg p-2.5 space-y-2.5 bg-fill-tertiary">
                       <div>
-                        <p className="text-[11px] font-semibold text-label-primary mb-0.5">BTC 김치 프리미엄</p>
-                        <p className="text-[10px] text-label-secondary leading-relaxed">
-                          USDT 기준으로 국내 BTC 가격이 해외(바이낸스)보다 얼마나 비싼지를 나타내요.<br />
-                          차이가 클수록 국내외 BTC 수급 불균형이 크다는 신호예요.
-                        </p>
+                        <p className="text-[11px] font-semibold text-label-primary">BTC 김프</p>
+                        <p className="text-[10px] text-label-secondary mt-0.5">국내 BTC 가격이 해외(바이낸스) 대비 얼마나 비싼지 나타내요.</p>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold text-label-primary mb-0.5">원달러 김치 프리미엄</p>
-                        <p className="text-[10px] text-label-secondary leading-relaxed">
-                          공식 원달러 환율과 국내 USDT(업비트) 가격의 차이를 나타내요.<br />
-                          차이가 클수록 달러 현물 시장과 국내 USDT 수급 간 괴리가 크다는 신호예요.
-                        </p>
+                        <p className="text-[11px] font-semibold text-label-primary">원달러 프리미엄</p>
+                        <p className="text-[10px] text-label-secondary mt-0.5">국내 USDT(업비트)가 공식 달러 환율보다 얼마나 비싼지 나타내요.</p>
                       </div>
                     </div>
                   </motion.div>
@@ -128,8 +118,8 @@ export function DomesticStep() {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">김프</p>
-                            <p className={`text-xs font-medium num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">BTC 김프</p>
+                            <p className={`text-sm font-bold num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
                               {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '–'}
                             </p>
                           </div>
