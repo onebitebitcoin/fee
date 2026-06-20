@@ -104,11 +104,11 @@ export function InputStep() {
                       >
                         <div className="rounded-2xl bg-fill-secondary p-3.5 space-y-2">
                           <div className="rounded-xl p-2.5 bg-fill-tertiary space-y-0.5">
-                            <p className="text-[11px] font-semibold text-label-primary">BTC 김프</p>
+                            <p className="text-[11px] font-semibold text-acc-amber">비트코인 김치 프리미엄</p>
                             <p className="text-[10px] text-label-secondary">한국 BTC가 해외 대비 얼마나 비싼지예요.</p>
                           </div>
                           <div className="rounded-xl p-2.5 bg-fill-tertiary space-y-0.5">
-                            <p className="text-[11px] font-semibold text-label-primary">원달러 프리미엄</p>
+                            <p className="text-[11px] font-semibold text-acc-blue">원달러 김치 프리미엄</p>
                             <p className="text-[10px] text-label-secondary">원화로 달러(USDT)를 살 때 붙는 프리미엄이에요.</p>
                           </div>
                         </div>
