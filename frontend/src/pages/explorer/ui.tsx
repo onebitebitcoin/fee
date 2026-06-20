@@ -312,8 +312,17 @@ export function LoadingScreen({
       )}
 
       {!isReady && (
-        <div className="w-48 h-1 bg-fill-secondary rounded-full overflow-hidden relative">
-          <div className="scan-line h-full rounded-full" />
+        <div className="w-48 h-1.5 bg-fill-secondary rounded-full overflow-hidden">
+          {total > 0 ? (
+            <motion.div
+              className="h-full bg-acc-amber rounded-full"
+              initial={{ width: '4%' }}
+              animate={{ width: `${Math.max(4, Math.round((doneCount / total) * 100))}%` }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+            />
+          ) : (
+            <div className="scan-line h-full rounded-full" />
+          )}
         </div>
       )}
     </motion.div>

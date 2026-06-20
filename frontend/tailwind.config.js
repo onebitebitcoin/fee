@@ -3,8 +3,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
-        mono: ['"SF Mono"', '"JetBrains Mono"', 'Menlo', 'monospace'],
+        sans: ['"Noto Sans KR"', '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'Menlo', 'monospace'],
       },
       colors: {
         // Her OS — warm luminous palette
@@ -19,7 +19,8 @@ export default {
           primary:    '#1A0A02',              // near-black warm brown — strong contrast
           secondary:  'rgba(26,10,2,0.68)',   // warm muted — was 0.56
           tertiary:   'rgba(26,10,2,0.50)',   // warm dim — was 0.38
-          disabled:   'rgba(26,10,2,0.28)',   // warm disabled
+          quaternary: 'rgba(26,10,2,0.35)',   // warm very dim — section labels, low-priority items
+          disabled:   'rgba(26,10,2,0.22)',   // warm disabled
         },
         acc: {
           amber:  '#E8855A',   // Samantha coral-amber — the Her signature

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ArrowRight, CaretDown, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
@@ -16,6 +16,23 @@ export function ResultStep() {
   } = useExplorer();
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [animatedSats, setAnimatedSats] = useState(0);
+
+  useEffect(() => {
+    if (!displaySats) return;
+    const target = displaySats;
+    const duration = 700;
+    const startTime = performance.now();
+    let handle: number;
+    const tick = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setAnimatedSats(Math.round(target * eased));
+      if (t < 1) handle = requestAnimationFrame(tick);
+    };
+    handle = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(handle);
+  }, [displaySats]);
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
@@ -108,7 +125,7 @@ export function ResultStep() {
                 )}
                 <p className="text-xs text-label-tertiary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
                 <p className={`text-5xl font-bold num leading-none relative z-10 ${isDisabled ? 'text-label-tertiary' : 'text-label-primary'}`}>
-                  {formatNumber(displaySats)}
+                  {formatNumber(isDisabled ? displaySats : animatedSats)}
                 </p>
                 <p className="text-sm text-label-tertiary mt-1 num relative z-10">sats</p>
                 <p className="text-[10px] text-label-quaternary mt-1 relative z-10">1 비트코인 = 100,000,000 sats</p>

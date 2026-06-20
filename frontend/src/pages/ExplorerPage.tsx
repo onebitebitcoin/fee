@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { House } from '@phosphor-icons/react';
 import type { Phase } from './explorer/flow';
@@ -41,6 +42,10 @@ function StepFrame({ phase, dir }: { phase: Phase; dir: 1 | -1 }) {
 
 function ExplorerShell() {
   const { phase, dir, allData, steps, stepIdx, reset } = useExplorer();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [phase]);
 
   return (
     <div className="min-h-[100dvh] bg-sys-bg flex flex-col">

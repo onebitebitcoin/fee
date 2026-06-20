@@ -410,50 +410,62 @@ export function RecommendationStep() {
         </div>
 
         <div>
-          {visible.map((p, i) => (
-            <motion.button
-              key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}|${p.lightning_exit_provider ?? ''}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: p.disabled ? 0.3 : 1 }}
-              transition={{ ...SPRING_SLOW, delay: Math.min(i, 6) * 0.03 }}
-              onClick={() => handleSelectRecommendedPath(p)}
-              className={[
-                'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
-                p.disabled ? '' : 'hover:bg-white/4 active:bg-white/6',
-                i < visible.length - 1 ? 'border-b border-white/4' : '',
-              ].join(' ')}
-            >
-              <span className={[
-                'text-xs font-bold self-center',
-                p.disabled
-                  ? 'text-label-quaternary'
-                  : i === 0 ? 'text-acc-amber' : i === 1 ? 'text-label-secondary' : i === 2 ? 'text-label-tertiary' : 'text-label-quaternary',
-              ].join(' ')}>
-                {p.disabled
-                  ? <Wrench weight="regular" className="w-3 h-3 text-label-quaternary" />
-                  : i + 1}
-              </span>
+          {(() => {
+            const firstEnabledIdx = visible.findIndex(p => !p.disabled);
+            const cheapestFee = firstEnabledIdx >= 0 ? visible[firstEnabledIdx].total_fee_krw : null;
+            return visible.map((p, i) => (
+              <motion.button
+                key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}|${p.lightning_exit_provider ?? ''}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: p.disabled ? 0.3 : 1 }}
+                transition={{ ...SPRING_SLOW, delay: Math.min(i, 6) * 0.03 }}
+                onClick={() => handleSelectRecommendedPath(p)}
+                className={[
+                  'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
+                  p.disabled ? '' : 'hover:bg-white/4 active:bg-white/6',
+                  i < visible.length - 1 ? 'border-b border-white/4' : '',
+                ].join(' ')}
+              >
+                <span className={[
+                  'text-xs font-bold self-center',
+                  p.disabled
+                    ? 'text-label-quaternary'
+                    : i === firstEnabledIdx ? 'text-acc-amber' : i === firstEnabledIdx + 1 ? 'text-label-secondary' : i === firstEnabledIdx + 2 ? 'text-label-tertiary' : 'text-label-quaternary',
+                ].join(' ')}>
+                  {p.disabled
+                    ? <Wrench weight="regular" className="w-3 h-3 text-label-quaternary" />
+                    : i + 1}
+                </span>
 
-              <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
-                <div className="flex items-center gap-1.5">
-                  <p className={[
-                    'text-[12px] font-medium whitespace-nowrap',
-                    p.disabled ? 'text-label-quaternary' : 'text-label-primary',
-                  ].join(' ')}>
-                    {routeText(p)}
-                  </p>
+                <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
+                  <div className="flex items-center gap-1.5">
+                    <p className={[
+                      'text-[12px] font-medium whitespace-nowrap',
+                      p.disabled ? 'text-label-quaternary' : 'text-label-primary',
+                    ].join(' ')}>
+                      {routeText(p)}
+                    </p>
+                    {i === firstEnabledIdx && (
+                      <span className="text-[9px] font-bold bg-acc-green/15 text-acc-green px-1.5 py-0.5 rounded-full flex-shrink-0">최저</span>
+                    )}
+                    {!p.disabled && i > firstEnabledIdx && cheapestFee != null && (
+                      <span className="text-[9px] text-label-quaternary num flex-shrink-0">
+                        +{formatFeeKrw(p.total_fee_krw - cheapestFee)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="text-right self-center flex-shrink-0">
-                <p className={[
-                  'text-[12px] font-bold num',
-                  p.disabled ? 'text-label-quaternary' : 'text-acc-red',
-                ].join(' ')}>-{formatFeeKrw(p.total_fee_krw)}</p>
-                <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
-              </div>
-            </motion.button>
-          ))}
+                <div className="text-right self-center flex-shrink-0">
+                  <p className={[
+                    'text-[12px] font-bold num',
+                    p.disabled ? 'text-label-quaternary' : 'text-acc-red',
+                  ].join(' ')}>-{formatFeeKrw(p.total_fee_krw)}</p>
+                  <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
+                </div>
+              </motion.button>
+            ));
+          })()}
 
           {topRecommendedPaths.length === 0 && (
             <div className="px-4 py-6 text-center">
