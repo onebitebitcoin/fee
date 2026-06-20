@@ -14,7 +14,6 @@ type PresetKey = 'no_disabled' | 'no_kyc_lightning' | 'no_lightning' |
   'bithumb_binance' | 'bithumb_okx' | 'upbit_binance' | 'upbit_okx';
 
 const PRESETS: { key: PresetKey; label: string }[] = [
-  { key: 'no_disabled',     label: '비활성화 제외' },
   { key: 'no_kyc_lightning', label: 'KYC 라이트닝 제외' },
   { key: 'no_lightning',    label: '라이트닝 제외' },
   { key: 'bithumb_binance', label: '빗썸 → 바이낸스' },
