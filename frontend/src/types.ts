@@ -188,6 +188,25 @@ export type AccessStats = {
   today: number;
 };
 
+export type NetworkChangeNotice = {
+  title: string;
+  url: string | null;
+  published_at: number | null;
+};
+
+export type NetworkChange = {
+  exchange: string;
+  coin: string | null;
+  network: string | null;
+  change_type: 'suspended' | 'resumed';
+  detected_at: number | null;
+  related_notices: NetworkChangeNotice[];
+};
+
+export type NetworkChangesResponse = {
+  items: NetworkChange[];
+};
+
 export type LiveKimpResponse = {
   /** Yahoo Finance USD/KRW 실시간 포렉스 기준 김치 프리미엄 (kimpga 등 주요 사이트와 동일 방식) */
   kimp: Record<string, number>;

@@ -170,6 +170,107 @@ def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
     return list(db.scalars(stmt))
 
 
+def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
+    """최근 N시간 내 연속 크롤 실행 쌍에서 네트워크 상태 변경 목록 반환.
+
+    각 항목:
+      exchange, coin, network, change_type ('suspended'|'resumed'),
+      detected_at (unix timestamp), related_notices (list of {title, url, published_at})
+    """
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours)
+
+    # 최근 N시간 내 성공한 크롤 실행 목록 (오래된 순)
+    runs = list(db.scalars(
+        select(CrawlRun)
+        .where(CrawlRun.status.in_(['success', 'partial_success']))
+        .where(CrawlRun.completed_at >= cutoff)
+        .order_by(CrawlRun.id)
+    ))
+
+    if len(runs) < 2:
+        return []
+
+    # 각 run의 network status를 미리 로드
+    run_status: dict[int, list[NetworkStatusSnapshot]] = {
+        r.id: list_network_status_for_run(db, r.id) for r in runs
+    }
+
+    # 연속 쌍(prev, curr)에서 변경 감지
+    seen_keys: set[tuple] = set()
+    changes: list[dict] = []
+
+    for i in range(len(runs) - 1, 0, -1):  # 최신 쌍부터
+        curr_run = runs[i]
+        prev_run = runs[i - 1]
+        prev_rows = run_status[prev_run.id]
+        curr_rows = run_status[curr_run.id]
+
+        def _suspended_set(rows: list) -> set[tuple]:
+            return {
+                (r.exchange, r.coin or '', r.network or '')
+                for r in rows
+                if r.status != 'ok'
+            }
+
+        prev_susp = _suspended_set(prev_rows)
+        curr_susp = _suspended_set(curr_rows)
+
+        detected_at = int(curr_run.completed_at.timestamp()) if curr_run.completed_at else None
+
+        for key in curr_susp - prev_susp:
+            if key not in seen_keys:
+                seen_keys.add(key)
+                changes.append({
+                    'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None,
+                    'change_type': 'suspended', 'detected_at': detected_at,
+                })
+        for key in prev_susp - curr_susp:
+            if key not in seen_keys:
+                seen_keys.add(key)
+                changes.append({
+                    'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None,
+                    'change_type': 'resumed', 'detected_at': detected_at,
+                })
+
+    if not changes:
+        return []
+
+    # 각 변경에 관련 공지 첨부
+    _STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
+    from sqlalchemy import or_  # noqa: PLC0415
+    for change in changes:
+        keywords: list[str] = []
+        if change['coin']:
+            keywords.append(change['coin'])
+        if change['network']:
+            for word in change['network'].split():
+                if word.lower() not in _STOPWORDS and len(word) >= 3:
+                    keywords.append(word)
+
+        if not keywords:
+            change['related_notices'] = []
+            continue
+
+        conds = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in keywords]
+        notice_rows = list(db.scalars(
+            select(ExchangeNotice)
+            .where(ExchangeNotice.exchange == change['exchange'])
+            .where(or_(*conds))
+            .order_by(desc(ExchangeNotice.noticed_at))
+            .limit(3)
+        ))
+        change['related_notices'] = [
+            {
+                'title': n.title,
+                'url': n.url,
+                'published_at': int(n.published_at.timestamp()) if n.published_at else None,
+            }
+            for n in notice_rows
+        ]
+
+    return changes
+
+
 def list_carf_exchanges(db: Session) -> list[CarfExchangeInfo]:
     stmt = select(CarfExchangeInfo).order_by(CarfExchangeInfo.type, CarfExchangeInfo.id)
     return list(db.scalars(stmt))

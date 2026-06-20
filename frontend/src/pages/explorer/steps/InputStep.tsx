@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, Info } from '@phosphor-icons/react';
+import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, Info, ArrowDown, ArrowUp } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
 import { api } from '../../../lib/api';
-import type { AccessStats } from '../../../types';
+import type { AccessStats, NetworkChange } from '../../../types';
 
 const EXCHANGES = [
   'upbit', 'bithumb', 'coinone', 'korbit', 'gopax',
@@ -37,9 +37,11 @@ function ExchangeMarquee() {
 export function InputStep() {
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [stats, setStats] = useState<AccessStats | null>(null);
+  const [networkChanges, setNetworkChanges] = useState<NetworkChange[]>([]);
 
   useEffect(() => {
     api.getAccessCount().then(setStats).catch(() => {});
+    api.getNetworkChanges().then(r => setNetworkChanges(r.items)).catch(() => {});
   }, []);
 
   const {
@@ -67,6 +69,52 @@ export function InputStep() {
                   <span className="text-[11px] text-label-tertiary">
                     누적 <span className="font-semibold text-label-secondary num">{stats.total.toLocaleString('ko-KR')}</span>명
                   </span>
+                </div>
+              )}
+
+              {/* 출금 상태 변경 알림 */}
+              {networkChanges.length > 0 && (
+                <div className="space-y-1.5">
+                  {networkChanges.map((item, i) => (
+                    <div key={i} className="ios-card rounded-xl px-3 py-2.5 flex items-start gap-2.5">
+                      <div className={`mt-0.5 flex-shrink-0 ${item.change_type === 'suspended' ? 'text-acc-red' : 'text-acc-green'}`}>
+                        {item.change_type === 'suspended'
+                          ? <ArrowDown size={14} weight="bold" />
+                          : <ArrowUp size={14} weight="bold" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <ExFavicon id={item.exchange} size={14} />
+                          <span className="text-[12px] font-semibold text-label-primary">{fmtEx(item.exchange)}</span>
+                          {item.coin && <span className="text-[11px] text-label-secondary font-medium">{item.coin}</span>}
+                          {item.network && <span className="text-[10px] text-label-tertiary">{item.network}</span>}
+                          <span className={`text-[11px] font-semibold ${item.change_type === 'suspended' ? 'text-acc-red' : 'text-acc-green'}`}>
+                            {item.change_type === 'suspended' ? '출금 중단' : '출금 재개'}
+                          </span>
+                        </div>
+                        {item.related_notices.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {item.related_notices.slice(0, 2).map((n, j) => (
+                              <a
+                                key={j}
+                                href={n.url ?? '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-[10px] text-acc-blue truncate hover:underline"
+                              >
+                                {n.title}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        {item.detected_at && (
+                          <p className="text-[10px] text-label-quaternary mt-0.5">
+                            {fmtKst(item.detected_at)} 감지
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 

@@ -3,6 +3,7 @@ import type {
   CheapestPathResponse,
   CrawlRun,
   LiveKimpResponse,
+  NetworkChangesResponse,
   TickerRow,
 } from '../types';
 
@@ -64,6 +65,9 @@ export const api = {
   },
 
   getAccessCount: (): Promise<AccessStats> => request('/api/v1/stats/access-count'),
+
+  getNetworkChanges: (): Promise<NetworkChangesResponse> =>
+    request('/api/v1/market/network-changes/recent'),
 
   getLiveKimp: (): Promise<LiveKimpResponse> =>
     request('/api/v1/market/kimp/live'),

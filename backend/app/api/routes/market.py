@@ -822,6 +822,13 @@ def get_latest_notices(limit: int = Query(5, ge=1, le=20), db: Session = Depends
     }
 
 
+@router.get('/network-changes/recent')
+def get_recent_network_changes(hours: int = Query(24, ge=1, le=72), db: Session = Depends(get_db)) -> dict:
+    """최근 N시간 내 네트워크 상태 변경(출금 정지/재개) 목록 + 관련 공지 반환"""
+    items = repositories.get_recent_network_changes(db, hours=hours)
+    return {'items': items}
+
+
 def _fetch_kimp_data() -> dict | None:
     """한국 거래소 + Binance 실시간 호출로 kimp 계산. 실패 시 None 반환.
 
