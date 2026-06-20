@@ -101,22 +101,8 @@ def group_network_status(rows: list[NetworkStatusSnapshot]) -> dict[str, dict]:
 
 
 def record_visit(db: Session, ip: str | None) -> None:
-    """IP 기준 하루 1회 방문자 카운트 (중복 제거)."""
-    if not ip:
-        return
-    kst = ZoneInfo('Asia/Seoul')
-    now_kst = dt.datetime.now(kst)
-    today_start = dt.datetime(now_kst.year, now_kst.month, now_kst.day, tzinfo=kst)
-    existing = db.scalar(
-        select(AccessLog.id)
-        .where(AccessLog.ip_address == ip)
-        .where(AccessLog.request_type == 'visit')
-        .where(AccessLog.accessed_at >= today_start)
-        .limit(1)
-    )
-    if existing:
-        return
-    db.add(AccessLog(ip_address=ip, request_type='visit'))
+    """방문 횟수 카운트 (중복 허용)."""
+    db.add(AccessLog(ip_address=ip or None, request_type='visit'))
     db.commit()
 
 

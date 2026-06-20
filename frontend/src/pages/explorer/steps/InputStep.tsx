@@ -62,11 +62,11 @@ export function InputStep() {
               {stats && (
                 <div className="flex items-center justify-center gap-3 py-0.5">
                   <span className="text-[11px] text-label-tertiary">
-                    오늘 방문 <span className="font-semibold text-label-secondary num">{stats.visitors_today.toLocaleString('ko-KR')}</span>명
+                    오늘 <span className="font-semibold text-label-secondary num">{stats.visitors_today.toLocaleString('ko-KR')}</span>회
                   </span>
                   <span className="text-label-quaternary text-[10px]">·</span>
                   <span className="text-[11px] text-label-tertiary">
-                    누적 <span className="font-semibold text-label-secondary num">{stats.visitors_total.toLocaleString('ko-KR')}</span>명
+                    누적 <span className="font-semibold text-label-secondary num">{stats.visitors_total.toLocaleString('ko-KR')}</span>회
                   </span>
                 </div>
               )}
