@@ -10,7 +10,7 @@ import logging
 from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, KoreaWithdrawalLimitSnapshot, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.services import live_market
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
-from backend.app.services.notice_scraper import get_all_notices
+from backend.app.services.notice_scraper import get_all_notices, fetch_notices_for_exchange
 from backend.app.services.volume_service import fetch_exchange_volumes
 from backend.app.db import repositories
 
@@ -52,12 +52,19 @@ class CrawlService:
             notice_raw    = f_notices.result()
 
             # Phase 2: 순차 DB 저장 (SQLAlchemy Session 단일 스레드 보장)
+            # 네트워크 상태 변경 감지를 위해 이전 크롤 상태를 먼저 조회
+            prev_network_rows = repositories.get_prev_run_network_status(self.db, crawl_run.id)
+
             ticker_count, withdrawal_count, error_count, _ln_btc_exchanges = \
                 self._save_exchange_data(crawl_run, exchange_raw)
             network_count   = self._save_network_status(crawl_run, network_raw)
             lightning_count = self._save_lightning_fees(crawl_run, lightning_raw)
             capability_count = self._crawl_capabilities(crawl_run, _ln_btc_exchanges)
             self._save_notices(crawl_run, notice_raw)
+
+            # 네트워크 상태 변경 감지 → 관련 공지 추가 탐색
+            new_network_rows = repositories.list_network_status_for_run(self.db, crawl_run.id)
+            self._fetch_and_save_targeted_notices(crawl_run, prev_network_rows, new_network_rows)
 
             volume_count = self._crawl_exchange_volumes(crawl_run)
             limit_count  = self._crawl_korea_withdrawal_limits(crawl_run)
@@ -241,6 +248,32 @@ class CrawlService:
             capability_count += 1
         return capability_count
 
+    @staticmethod
+    def _detect_network_changes(
+        prev_rows: list,
+        new_rows: list,
+    ) -> list[dict]:
+        """이전/현재 NetworkStatusSnapshot 목록을 비교하여 상태가 변경된 항목 반환.
+
+        반환: list of {exchange, coin, network, change_type: 'suspended'|'resumed'}
+        """
+        def _suspended_set(rows: list) -> set[tuple]:
+            return {
+                (r.exchange, r.coin or '', r.network or '')
+                for r in rows
+                if r.status != 'ok'
+            }
+
+        prev_suspended = _suspended_set(prev_rows)
+        new_suspended = _suspended_set(new_rows)
+
+        changes: list[dict] = []
+        for key in new_suspended - prev_suspended:
+            changes.append({'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None, 'change_type': 'suspended'})
+        for key in prev_suspended - new_suspended:
+            changes.append({'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None, 'change_type': 'resumed'})
+        return changes
+
     def _save_notices(self, crawl_run: CrawlRun, notices_data: list) -> None:
         """notices_data를 DB에 저장한다. 오류가 나도 전체 크롤링 성공에 영향 없음.
 
@@ -267,6 +300,48 @@ class CrawlService:
                 ))
         except Exception as exc:
             logger.warning('Notice saving failed: %s', exc)
+
+    def _fetch_and_save_targeted_notices(
+        self,
+        crawl_run: CrawlRun,
+        prev_rows: list,
+        new_rows: list,
+    ) -> None:
+        """네트워크 상태 변경이 감지된 거래소에 대해 관련 공지를 추가 탐색·저장.
+
+        변경이 없으면 아무것도 하지 않는다.
+        """
+        changes = self._detect_network_changes(prev_rows, new_rows)
+        if not changes:
+            return
+
+        # exchange별로 변경된 coin/network 키워드 묶기
+        exchange_keywords: dict[str, set[str]] = {}
+        for change in changes:
+            ex = change['exchange']
+            if ex not in exchange_keywords:
+                exchange_keywords[ex] = set()
+            if change.get('coin'):
+                exchange_keywords[ex].add(change['coin'])
+            if change.get('network'):
+                # 네트워크명에서 주요 단어만 추출 (예: "Aptos" from "Aptos Network")
+                # 일반적 단어(Network, Chain, Token 등)는 노이즈가 되므로 제외
+                _NETWORK_STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
+                for word in change['network'].split():
+                    if len(word) >= 3 and word.lower() not in _NETWORK_STOPWORDS:
+                        exchange_keywords[ex].add(word)
+
+        logger.info(
+            'Network status changes detected: %d change(s) across exchanges: %s',
+            len(changes),
+            list(exchange_keywords.keys()),
+        )
+
+        for exchange, keywords in exchange_keywords.items():
+            targeted = fetch_notices_for_exchange(exchange, list(keywords))
+            if targeted:
+                logger.info('Targeted notices found for %s (%d): %s', exchange, len(targeted), [n['title'] for n in targeted])
+                self._save_notices(crawl_run, targeted)
 
     def _crawl_exchange_volumes(self, crawl_run: CrawlRun) -> int:
         """CoinGecko에서 거래소 24H 거래량을 가져와 저장한다. 하루 1회만 실제 API 호출.

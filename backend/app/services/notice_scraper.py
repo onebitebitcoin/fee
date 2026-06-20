@@ -364,6 +364,38 @@ def fetch_korbit_notices() -> list[dict]:
     return []
 
 
+def fetch_notices_for_exchange(exchange: str, extra_keywords: list[str]) -> list[dict]:
+    """특정 거래소의 공지를 extra_keywords 기준으로 탐색.
+
+    extra_keywords: 변경된 코인명/네트워크명 (예: ['USDT', 'Aptos'])
+    기존 키워드 + extra_keywords 모두 포함된 공지를 반환.
+    """
+    extra_lower = [kw.lower() for kw in extra_keywords if kw]
+
+    def _is_targeted(title: str) -> bool:
+        lower = title.lower()
+        return any(kw in lower for kw in extra_lower)
+
+    fetcher_map: dict[str, object] = {
+        'upbit': fetch_upbit_notices,
+        'bithumb': fetch_bithumb_notices,
+        'coinone': fetch_coinone_notices,
+        'binance': fetch_binance_notices,
+        'korbit': fetch_korbit_notices,
+    }
+    fn = fetcher_map.get(exchange)
+    if fn is None:
+        logger.debug('No notice fetcher for exchange: %s', exchange)
+        return []
+
+    try:
+        all_notices = fn()  # type: ignore[operator]
+        return [n for n in all_notices if _is_targeted(n.get('title', ''))]
+    except Exception as e:
+        logger.warning('Targeted notice fetch failed for %s: %s', exchange, e)
+        return []
+
+
 def get_all_notices() -> list[dict]:
     """모든 거래소 공지사항을 병렬로 스크래핑
 
