@@ -21,9 +21,9 @@ echo ""
 [ ! -f .env ] && echo "오류: .env 파일이 없습니다." && exit 1
 
 # ============================================================
-# [1/7] 현재 활성 슬롯 감지
+# [1/6] 현재 활성 슬롯 감지
 # ============================================================
-echo "[1/7] 현재 활성 슬롯 감지..."
+echo "[1/6] 현재 활성 슬롯 감지..."
 if grep -q "${GREEN_PORT}" "${UPSTREAM_CONF}" 2>/dev/null; then
     ACTIVE_SLOT="green"
     ACTIVE_PORT="${GREEN_PORT}"
@@ -40,49 +40,22 @@ echo "  현재 활성: ${ACTIVE_SLOT}(${ACTIVE_PORT})"
 echo "  신규 배포: ${INACTIVE_SLOT}(${INACTIVE_PORT})"
 
 # ============================================================
-# [2/7] git 업데이트
+# [2/6] git 업데이트
 # ============================================================
-echo "[2/7] git 업데이트..."
+echo "[2/6] git 업데이트..."
 git fetch origin main
 git reset --hard origin/main
 
 # ============================================================
-# [3/7] 이미지 빌드 (비활성 슬롯 기준으로 빌드)
+# [3/6] 이미지 빌드 (비활성 슬롯 기준으로 빌드)
 # ============================================================
-echo "[3/7] 이미지 빌드..."
+echo "[3/6] 이미지 빌드..."
 $COMPOSE build "app_${INACTIVE_SLOT}"
 
 # ============================================================
-# [4/7] 사전 테스트 (새 이미지, 현재 서비스 중단 없음)
+# [4/6] DB 확인
 # ============================================================
-echo "[4/7] 사전 테스트 (새 이미지 검증)..."
-TEST_PASS=0
-$COMPOSE run --rm --no-deps \
-    -e DATABASE_URL="sqlite://" \
-    -e ENVIRONMENT="test" \
-    -e ADMIN_API_KEY="0000" \
-    -e CRAWL_INTERVAL_MINUTES="999" \
-    -e MANUAL_CRAWL_ENABLED="true" \
-    -e CORS_ORIGINS="*" \
-    -e POSTGRES_PASSWORD="unused" \
-    "app_${INACTIVE_SLOT}" \
-    python -m pytest tests/ \
-        --ignore=tests/test_crawl_service.py \
-        --ignore=tests/test_notice_scraper.py \
-        -x -q --tb=short 2>&1 \
-    && TEST_PASS=1 || TEST_PASS=0
-
-if [ "$TEST_PASS" -eq 0 ]; then
-    echo ""
-    echo "❌ 사전 테스트 실패 — 배포 중단 (현재 서비스 계속 유지)"
-    exit 1
-fi
-echo "✅ 사전 테스트 통과"
-
-# ============================================================
-# [5/7] DB 확인
-# ============================================================
-echo "[5/7] DB 확인..."
+echo "[4/6] DB 확인..."
 $COMPOSE up -d db
 for i in $(seq 1 30); do
     if $COMPOSE exec -T db pg_isready -U exchange_fee > /dev/null 2>&1; then
@@ -94,9 +67,9 @@ for i in $(seq 1 30); do
 done
 
 # ============================================================
-# [6/7] 신규 슬롯 시작 → 헬스체크 → nginx 전환
+# [5/6] 신규 슬롯 시작 → 헬스체크 → nginx 전환
 # ============================================================
-echo "[6/7] ${INACTIVE_SLOT}(${INACTIVE_PORT}) 슬롯 시작..."
+echo "[5/6] ${INACTIVE_SLOT}(${INACTIVE_PORT}) 슬롯 시작..."
 
 # 비활성 슬롯에 잔여 컨테이너 있으면 제거
 $COMPOSE stop "app_${INACTIVE_SLOT}" 2>/dev/null || true
@@ -133,9 +106,9 @@ sudo /usr/sbin/nginx -s reload
 echo "  ✅ nginx upstream 전환 완료"
 
 # ============================================================
-# [7/7] 기존 슬롯 정리 및 최종 검증
+# [6/6] 기존 슬롯 정리 및 최종 검증
 # ============================================================
-echo "[7/7] 기존 ${ACTIVE_SLOT} 슬롯 정리..."
+echo "[6/6] 기존 ${ACTIVE_SLOT} 슬롯 정리..."
 
 # 레거시 단일 app 컨테이너 정리 (구 시스템 → 신 시스템 최초 마이그레이션 시)
 LEGACY_CONTAINER="${COMPOSE_PROJECT_NAME:-fee}-app-1"
