@@ -1,3 +1,25 @@
+x-app-common: &app-common
+  build: .
+  image: fee-app
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    DATABASE_URL: postgresql+psycopg2://exchange_fee:${POSTGRES_PASSWORD}@db:5432/exchange_fee
+    ENVIRONMENT: production
+    PORT: 8000
+    CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    CRAWL_INTERVAL_MINUTES: ${CRAWL_INTERVAL_MINUTES:-60}
+    MANUAL_CRAWL_ENABLED: ${MANUAL_CRAWL_ENABLED:-true}
+    ADMIN_API_KEY: ${ADMIN_API_KEY}
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5)"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+
 services:
   db:
     image: postgres:15-alpine
@@ -14,28 +36,15 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
-    build: .
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+psycopg2://exchange_fee:${POSTGRES_PASSWORD}@db:5432/exchange_fee
-      ENVIRONMENT: production
-      PORT: 8000
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
-      CRAWL_INTERVAL_MINUTES: ${CRAWL_INTERVAL_MINUTES:-60}
-      MANUAL_CRAWL_ENABLED: ${MANUAL_CRAWL_ENABLED:-true}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
+  app_blue:
+    <<: *app-common
     ports:
-      - "${APP_PORT:-8000}:8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      - "18080:8000"
+
+  app_green:
+    <<: *app-common
+    ports:
+      - "18081:8000"
 
 volumes:
   postgres_data:
