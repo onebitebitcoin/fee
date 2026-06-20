@@ -94,7 +94,7 @@ DEFAULT_REGISTRY: dict = {
     },
     'onchain': [
         {'label': '주소 오입력 시 복구 불가', 'desc': 'Bitcoin 블록체인 트랜잭션은 한번 전송되면 취소하거나 되돌릴 수 없습니다. 반드시 주소를 확인하세요.', 'level': 'required', 'condition': None},
-        {'label': '채굴 수수료(Mining Fee) 발생', 'desc': '네트워크 혼잡도에 따라 채굴 수수료가 변동됩니다. 혼잡 시 수수료가 높아질 수 있습니다.', 'level': 'info', 'condition': None},
+        {'label': '네트워크 수수료(Network Fee) 발생', 'desc': '네트워크 혼잡도에 따라 네트워크 수수료가 변동됩니다. 혼잡 시 수수료가 높아질 수 있습니다.', 'level': 'info', 'condition': None},
         {'label': '입금 확인 시간 소요', 'desc': '1 블록 확인에 약 10분, 거래소 입금 반영까지 1~6 블록(10분~1시간) 소요됩니다.', 'level': 'info', 'condition': None},
     ],
 }
