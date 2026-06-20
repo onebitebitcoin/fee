@@ -60,7 +60,7 @@ export function InputStep() {
     <>
               {/* 방문자 수 */}
               {stats && (
-                <div className="flex items-center gap-3 py-0.5">
+                <div className="flex items-center justify-center gap-3 py-0.5">
                   <span className="text-[11px] text-label-tertiary">
                     오늘 방문 <span className="font-semibold text-label-secondary num">{stats.visitors_today.toLocaleString('ko-KR')}</span>명
                   </span>
