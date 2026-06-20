@@ -418,7 +418,7 @@ export function ResultStep() {
                       <button
                         onClick={() => setShowAltPaths(o => !o)}
                         className="w-full mb-2 rounded-2xl px-4 py-3 flex items-center gap-2.5 text-left cursor-pointer"
-                        style={{ background: 'linear-gradient(135deg, rgba(52,199,89,0.10) 0%, rgba(52,199,89,0.04) 100%)', border: '0.5px solid rgba(52,199,89,0.20)' }}
+                        style={{ background: 'linear-gradient(135deg, rgba(52,199,89,0.22) 0%, rgba(52,199,89,0.12) 100%)', border: '0.5px solid rgba(52,199,89,0.45)' }}
                       >
                         <div className="w-6 h-6 rounded-full bg-acc-green/15 flex items-center justify-center shrink-0">
                           <span className="text-acc-green text-[11px] font-bold">↓</span>

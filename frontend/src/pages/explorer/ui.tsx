@@ -1,7 +1,9 @@
 // ── 공용 프레젠테이션 컴포넌트 ────────────────────────────────────────────────────
 // 단계 컴포넌트들이 공유하는 표시용 컴포넌트 모음.
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getNetworkIconUrl } from '../../lib/networkIcons';
 
 // ── 네트워크 아이콘 ──────────────────────────────────────────────────────────────
 
@@ -74,7 +76,23 @@ function getNetworkMeta(n: string): NetworkMeta {
 }
 
 export function NetworkIcon({ network, size = 36 }: { network: string; size?: number }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const meta = getNetworkMeta(network);
+  const url = getNetworkIconUrl(network);
+
+  if (url && !imgFailed) {
+    return (
+      <img
+        src={url}
+        alt={network}
+        width={size}
+        height={size}
+        style={{ borderRadius: size * 0.28, flexShrink: 0, objectFit: 'contain' }}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
   return (
     <div
       style={{
