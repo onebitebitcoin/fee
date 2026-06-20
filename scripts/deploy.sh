@@ -71,6 +71,14 @@ done
 # ============================================================
 echo "[5/6] ${INACTIVE_SLOT}(${INACTIVE_PORT}) 슬롯 시작..."
 
+# 레거시 단일 app 컨테이너가 포트를 점유하고 있으면 먼저 제거
+LEGACY_CONTAINER="${COMPOSE_PROJECT_NAME:-fee}-app-1"
+if docker ps -q --filter "name=^${LEGACY_CONTAINER}$" 2>/dev/null | grep -q .; then
+    echo "  레거시 컨테이너(${LEGACY_CONTAINER}) 제거..."
+    docker stop "${LEGACY_CONTAINER}" 2>/dev/null || true
+    docker rm "${LEGACY_CONTAINER}" 2>/dev/null || true
+fi
+
 # 비활성 슬롯에 잔여 컨테이너 있으면 제거
 $COMPOSE stop "app_${INACTIVE_SLOT}" 2>/dev/null || true
 $COMPOSE rm -f "app_${INACTIVE_SLOT}" 2>/dev/null || true
@@ -109,14 +117,6 @@ echo "  ✅ nginx upstream 전환 완료"
 # [6/6] 기존 슬롯 정리 및 최종 검증
 # ============================================================
 echo "[6/6] 기존 ${ACTIVE_SLOT} 슬롯 정리..."
-
-# 레거시 단일 app 컨테이너 정리 (구 시스템 → 신 시스템 최초 마이그레이션 시)
-LEGACY_CONTAINER="${COMPOSE_PROJECT_NAME:-fee}-app-1"
-if docker ps -q --filter "name=^${LEGACY_CONTAINER}$" 2>/dev/null | grep -q .; then
-    echo "  레거시 컨테이너(${LEGACY_CONTAINER}) 포트 해제..."
-    docker stop "${LEGACY_CONTAINER}" 2>/dev/null || true
-    docker rm "${LEGACY_CONTAINER}" 2>/dev/null || true
-fi
 
 # 기존 활성 슬롯 중지
 $COMPOSE stop "app_${ACTIVE_SLOT}" 2>/dev/null || true
