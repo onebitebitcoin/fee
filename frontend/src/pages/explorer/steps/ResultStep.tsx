@@ -1,5 +1,6 @@
-import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Lightning, Wrench } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, ArrowRight, CaretDown, Lightning, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -13,6 +14,8 @@ export function ResultStep() {
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
     globalExitMethod, allData,
   } = useExplorer();
+  const [showAltPaths, setShowAltPaths] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
@@ -156,78 +159,96 @@ export function ResultStep() {
                             순손익(김치 프리미엄 포함) {krwPnL < 0 ? '▼' : '▲'} ₩{formatNumber(Math.abs(krwPnL))}
                           </p>
                         )}
+                        {globalPnL != null && (
+                          <button
+                            onClick={() => setShowPremium(o => !o)}
+                            className="mt-2 flex items-center gap-1 text-[10px] text-label-tertiary hover:text-label-secondary transition-colors cursor-pointer"
+                          >
+                            프리미엄 고려했을 때는?
+                            <CaretDown className={`w-3 h-3 transition-transform duration-200 ${showPremium ? 'rotate-180' : ''}`} />
+                          </button>
+                        )}
                       </div>
 
-                      {globalPnL != null && (() => {
-                        const exchangeRateDiff = isUsdtPath ? (globalPnL + resultPath.total_fee_krw) : null;
-                        return (
-                          <>
-                            <div className="sep" />
-                            <div>
-                              <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
-                                글로벌 시세 기준
-                                <span className="ml-1.5 normal-case font-normal">
-                                  ({isUsdtPath && usdtPremiumPct != null ? (
-                                    <>원달러 프리미엄 <span className={usdtPremiumPct >= 0 ? 'text-acc-red' : 'text-acc-green'}>{usdtPremiumPct >= 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%</span></>
-                                  ) : (
-                                    <>김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span></>
-                                  )}
-                                  <span className="text-[9px] text-label-tertiary"> / 원달러 환산</span>)
-                                </span>
-                              </p>
-                              <p className="text-xs text-label-secondary leading-relaxed">
-                                같은 비트코인을 글로벌 시세(원달러 환산)로 평가하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
-                              </p>
-                              <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
-                                {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
-                                <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
-                              </p>
-                              {isUsdtPath && exchangeRateDiff != null && (() => {
-                                const showRateDiff = Math.abs(exchangeRateDiff) > 50;
-                                return (
-                                  <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
-                                    <div className="flex justify-between items-center text-[10px]">
-                                      <span className="text-label-tertiary">거래소·출금 수수료 <span className="text-[9px] opacity-70">(원달러 환산)</span></span>
-                                      <span className="num text-acc-red">-{formatFeeKrw(resultPath.total_fee_krw)}</span>
-                                    </div>
-                                    {showRateDiff && (
+                      <AnimatePresence>
+                        {showPremium && globalPnL != null && (() => {
+                          const exchangeRateDiff = isUsdtPath ? (globalPnL + resultPath.total_fee_krw) : null;
+                          return (
+                            <motion.div
+                              key="premium"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="sep mb-3" />
+                              <div>
+                                <p className="text-[10px] text-label-tertiary uppercase tracking-wide mb-1.5">
+                                  글로벌 시세 기준
+                                  <span className="ml-1.5 normal-case font-normal">
+                                    ({isUsdtPath && usdtPremiumPct != null ? (
+                                      <>원달러 프리미엄 <span className={usdtPremiumPct >= 0 ? 'text-acc-red' : 'text-acc-green'}>{usdtPremiumPct >= 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%</span></>
+                                    ) : (
+                                      <>김치 프리미엄 <span className={kimchi! >= 0 ? 'text-acc-red' : 'text-acc-green'}>{kimchi! >= 0 ? '+' : ''}{kimchi!.toFixed(2)}%</span></>
+                                    )}
+                                    <span className="text-[9px] text-label-tertiary"> / 원달러 환산</span>)
+                                  </span>
+                                </p>
+                                <p className="text-xs text-label-secondary leading-relaxed">
+                                  같은 비트코인을 글로벌 시세(원달러 환산)로 평가하면 <span className="num font-semibold text-label-primary">₩{formatNumber(satsGlobalKrw!)}</span>
+                                </p>
+                                <p className={`text-sm font-bold num mt-1 ${globalPnL >= 0 ? 'text-acc-green' : 'text-acc-red'}`}>
+                                  {globalPnL >= 0 ? '▲' : '▼'} ₩{formatNumber(Math.abs(globalPnL))} {globalPnL >= 0 ? '수익' : '지출'}
+                                  <span className="text-[11px] font-normal ml-1.5 opacity-70">({(Math.abs(globalPnL) / amountKrw * 100).toFixed(2)}%)</span>
+                                </p>
+                                {isUsdtPath && exchangeRateDiff != null && (() => {
+                                  const showRateDiff = Math.abs(exchangeRateDiff) > 50;
+                                  return (
+                                    <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
                                       <div className="flex justify-between items-center text-[10px]">
-                                        <span className="text-label-tertiary">원달러 프리미엄 차이</span>
-                                        <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                                          {exchangeRateDiff < 0 ? '-' : '+'}
-                                          {formatFeeKrw(Math.abs(exchangeRateDiff))}
-                                        </span>
+                                        <span className="text-label-tertiary">거래소·출금 수수료 <span className="text-[9px] opacity-70">(원달러 환산)</span></span>
+                                        <span className="num text-acc-red">-{formatFeeKrw(resultPath.total_fee_krw)}</span>
                                       </div>
-                                    )}
-                                    {usdtPremiumPct != null && (
-                                      <div className="rounded-xl bg-fill-secondary px-3 py-2 space-y-1">
-                                        <div className="flex justify-between text-[9px]">
-                                          <span className="text-label-tertiary">업비트 USDT <span className="opacity-60">(upbit)</span></span>
-                                          <span className="num text-label-secondary font-medium">
-                                            {upbitUsdt ? `₩${formatNumber(Math.round(upbitUsdt))}` : '-'}
+                                      {showRateDiff && (
+                                        <div className="flex justify-between items-center text-[10px]">
+                                          <span className="text-label-tertiary">원달러 프리미엄 차이</span>
+                                          <span className={`num ${exchangeRateDiff < 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                            {exchangeRateDiff < 0 ? '-' : '+'}
+                                            {formatFeeKrw(Math.abs(exchangeRateDiff))}
                                           </span>
                                         </div>
-                                        <div className="flex justify-between text-[9px]">
-                                          <span className="text-label-tertiary">달러 포렉스 <span className="opacity-60">(dunamu)</span></span>
-                                          <span className="num text-label-secondary font-medium">
-                                            {forexRate ? `₩${formatNumber(Math.round(forexRate))}` : '-'}
-                                          </span>
+                                      )}
+                                      {usdtPremiumPct != null && (
+                                        <div className="rounded-xl bg-fill-secondary px-3 py-2 space-y-1">
+                                          <div className="flex justify-between text-[9px]">
+                                            <span className="text-label-tertiary">업비트 USDT <span className="opacity-60">(upbit)</span></span>
+                                            <span className="num text-label-secondary font-medium">
+                                              {upbitUsdt ? `₩${formatNumber(Math.round(upbitUsdt))}` : '-'}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between text-[9px]">
+                                            <span className="text-label-tertiary">달러 포렉스 <span className="opacity-60">(dunamu)</span></span>
+                                            <span className="num text-label-secondary font-medium">
+                                              {forexRate ? `₩${formatNumber(Math.round(forexRate))}` : '-'}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
+                                            <span className="text-label-tertiary">원달러 프리미엄</span>
+                                            <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
+                                              {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
+                                            </span>
+                                          </div>
                                         </div>
-                                        <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
-                                          <span className="text-label-tertiary">원달러 프리미엄</span>
-                                          <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                                            {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </>
-                        );
-                      })()}
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </motion.div>
+                          );
+                        })()}
+                      </AnimatePresence>
                     </div>
                   );
                 })()}
@@ -391,20 +412,20 @@ export function ResultStep() {
                 const savingsKrw = !cheapestIsCurrent
                   ? Math.round(resultPath.total_fee_krw - cheapest.total_fee_krw)
                   : 0;
-                const rankColors = [
-                  'bg-acc-amber text-white',
-                  'bg-fill-tertiary text-label-secondary',
-                  'bg-fill-secondary text-label-tertiary',
-                ];
+                const medals = ['🥇', '🥈', '🥉'];
                 return (
                   <div>
                     <SectionLabel>추천 경로</SectionLabel>
-                    {savingsKrw > 100 && (
-                      <div className="mb-2 rounded-2xl px-4 py-3 flex items-center gap-2.5" style={{ background: 'linear-gradient(135deg, rgba(52,199,89,0.10) 0%, rgba(52,199,89,0.04) 100%)', border: '0.5px solid rgba(52,199,89,0.20)' }}>
+                    {savingsKrw > 100 ? (
+                      <button
+                        onClick={() => setShowAltPaths(o => !o)}
+                        className="w-full mb-2 rounded-2xl px-4 py-3 flex items-center gap-2.5 text-left cursor-pointer"
+                        style={{ background: 'linear-gradient(135deg, rgba(52,199,89,0.10) 0%, rgba(52,199,89,0.04) 100%)', border: '0.5px solid rgba(52,199,89,0.20)' }}
+                      >
                         <div className="w-6 h-6 rounded-full bg-acc-green/15 flex items-center justify-center shrink-0">
                           <span className="text-acc-green text-[11px] font-bold">↓</span>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[11px] font-semibold text-acc-green">
                             현재보다 <span className="num">{formatFeeKrw(savingsKrw)}</span> 더 절약 가능한 경로가 있어요
                           </p>
@@ -412,8 +433,27 @@ export function ResultStep() {
                             1위 경로 선택 시 수수료를 줄일 수 있어요
                           </p>
                         </div>
-                      </div>
+                        <CaretDown className={`shrink-0 w-4 h-4 text-acc-green transition-transform duration-200 ${showAltPaths ? 'rotate-180' : ''}`} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowAltPaths(o => !o)}
+                        className="mb-2 flex items-center gap-1 text-[10px] text-label-tertiary hover:text-label-secondary transition-colors cursor-pointer"
+                      >
+                        다른 경로 보기 ({altPaths.length}개)
+                        <CaretDown className={`w-3 h-3 transition-transform duration-200 ${showAltPaths ? 'rotate-180' : ''}`} />
+                      </button>
                     )}
+                    <AnimatePresence>
+                      {showAltPaths && (
+                      <motion.div
+                        key="alt-paths"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
                     <div className="space-y-2">
                       {altPaths.map((p, i) => {
                         const isCurrent = isCurrentPath(p);
@@ -427,9 +467,15 @@ export function ResultStep() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${rankColors[i] ?? rankColors[2]}`}>
-                                  {i + 1}
-                                </span>
+                                {i < 3 ? (
+                                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-[15px] leading-none">
+                                    {medals[i]}
+                                  </span>
+                                ) : (
+                                  <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-fill-secondary text-label-tertiary">
+                                    {i + 1}
+                                  </span>
+                                )}
                                 <div className="flex items-center gap-1 flex-wrap min-w-0">
                                   <ExFavicon id={p.korean_exchange} size={16} />
                                   <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
@@ -472,6 +518,9 @@ export function ResultStep() {
                         );
                       })}
                     </div>
+                      </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 );
               })()}
