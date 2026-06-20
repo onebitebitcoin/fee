@@ -206,9 +206,9 @@ export function InputStep() {
 
               {/* 변경 공지사항 */}
               {networkChanges.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-1.5">변경 공지사항</p>
-                  <div className="space-y-1">
+                <div className="ios-card rounded-2xl px-4 py-3">
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">변경 공지사항</p>
+                  <div className="space-y-1.5">
                     {networkChanges.map((item, i) => (
                       <div key={i} className="flex items-center gap-1.5">
                         <span className={`flex-shrink-0 ${item.change_type === 'suspended' ? 'text-acc-red' : 'text-acc-green'}`}>
