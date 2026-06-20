@@ -5,12 +5,8 @@
       <stop offset="100%" stop-color="#D4693A"/>
     </linearGradient>
   </defs>
-
   <rect width="64" height="64" rx="15" fill="url(#bg)"/>
-
-  <!-- Route: start dot → down → rounded corner → right → arrowhead -->
-  <circle cx="21" cy="18" r="5.2" fill="white"/>
-  <path d="M 21 18 V 35 Q 21 43 29 43 H 39"
-        stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M 37 36 L 48 43 L 37 50 Z" fill="white"/>
+  <text x="32" y="44"
+        font-size="40" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+        font-weight="700" fill="white" text-anchor="middle">%</text>
 </svg>

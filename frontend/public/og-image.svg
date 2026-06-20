@@ -5,14 +5,20 @@
       <stop offset="100%" stop-color="#C85A28"/>
     </linearGradient>
   </defs>
-
-  <!-- Full amber background -->
   <rect width="1200" height="630" fill="url(#bg)"/>
-
-  <!-- Service name (centered) -->
-  <text x="600" y="315"
-        font-size="96" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+  <!-- % icon -->
+  <text x="200" y="380"
+        font-size="280" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+        font-weight="700" fill="white" fill-opacity="0.2" text-anchor="middle">%</text>
+  <!-- Service name -->
+  <text x="660" y="295"
+        font-size="88" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
         font-weight="700" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="-2">
     수수료는 얼마나 들까?
+  </text>
+  <text x="660" y="400"
+        font-size="36" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+        font-weight="400" fill="white" fill-opacity="0.8" text-anchor="middle" dominant-baseline="middle">
+    한국 거래소 → 개인 BTC 지갑 최저 수수료 경로
   </text>
 </svg>
