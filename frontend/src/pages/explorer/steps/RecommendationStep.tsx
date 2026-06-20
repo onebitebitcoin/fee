@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaretDown, Funnel, Wrench, X } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
@@ -6,10 +6,22 @@ import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { fmtKst } from '../constants';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
-import { api } from '../../../lib/api';
-import type { CheapestPathEntry, ExchangeNoticeItem } from '../../../types';
+import type { CheapestPathEntry } from '../../../types';
 
 const PAGE_SIZE = 15;
+
+type PresetKey = 'no_disabled' | 'no_kyc_lightning' | 'no_lightning' |
+  'bithumb_binance' | 'bithumb_okx' | 'upbit_binance' | 'upbit_okx';
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: 'no_disabled',     label: '비활성화 제외' },
+  { key: 'no_kyc_lightning', label: 'KYC 라이트닝 제외' },
+  { key: 'no_lightning',    label: '라이트닝 제외' },
+  { key: 'bithumb_binance', label: '빗썸 → 바이낸스' },
+  { key: 'bithumb_okx',    label: '빗썸 → OKX' },
+  { key: 'upbit_binance',  label: '업비트 → 바이낸스' },
+  { key: 'upbit_okx',      label: '업비트 → OKX' },
+];
 
 function routeText(p: CheapestPathEntry & { _g: string }): string {
   const isUsdt = p.transfer_coin === 'USDT';
@@ -86,11 +98,6 @@ export function RecommendationStep() {
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [notices, setNotices] = useState<ExchangeNoticeItem[]>([]);
-
-  useEffect(() => {
-    api.getLatestNotices(10).then(r => setNotices(r.items)).catch(() => {});
-  }, []);
 
   const visible = topRecommendedPaths.slice(0, visibleCount);
   const hasMore = topRecommendedPaths.length > visibleCount;
@@ -110,6 +117,12 @@ export function RecommendationStep() {
     [...new Set(allRecommendedPaths
       .filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__')
       .map(p => p.lightning_exit_provider!))].sort(),
+    [allRecommendedPaths],
+  );
+  const kycServices = useMemo(() =>
+    [...new Set(allRecommendedPaths
+      .filter(p => p.exit_service_kyc_status === 'kyc' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__')
+      .map(p => p.lightning_exit_provider!))],
     [allRecommendedPaths],
   );
   const hasLightningPaths = allRecommendedPaths.some(p => p.path_type === 'lightning_exit');
@@ -159,6 +172,81 @@ export function RecommendationStep() {
     setVisibleCount(PAGE_SIZE);
   }
 
+  function isPresetActive(key: PresetKey): boolean {
+    switch (key) {
+      case 'no_disabled': return excludeDisabled;
+      case 'no_kyc_lightning':
+        return kycServices.length > 0 && kycServices.every(s => excludeServices.has(s));
+      case 'no_lightning': return excludeLightning;
+      case 'bithumb_binance': {
+        const nonBithumb = availableExchanges.filter(e => e !== 'bithumb');
+        const nonBinance = availableGlobalExchanges.filter(e => e !== 'binance');
+        return nonBithumb.length > 0 && nonBithumb.every(e => excludeExchanges.has(e)) &&
+               nonBinance.length > 0 && nonBinance.every(e => excludeGlobalExchanges.has(e));
+      }
+      case 'bithumb_okx': {
+        const nonBithumb = availableExchanges.filter(e => e !== 'bithumb');
+        const nonOkx = availableGlobalExchanges.filter(e => e !== 'okx');
+        return nonBithumb.length > 0 && nonBithumb.every(e => excludeExchanges.has(e)) &&
+               nonOkx.length > 0 && nonOkx.every(e => excludeGlobalExchanges.has(e));
+      }
+      case 'upbit_binance': {
+        const nonUpbit = availableExchanges.filter(e => e !== 'upbit');
+        const nonBinance = availableGlobalExchanges.filter(e => e !== 'binance');
+        return nonUpbit.length > 0 && nonUpbit.every(e => excludeExchanges.has(e)) &&
+               nonBinance.length > 0 && nonBinance.every(e => excludeGlobalExchanges.has(e));
+      }
+      case 'upbit_okx': {
+        const nonUpbit = availableExchanges.filter(e => e !== 'upbit');
+        const nonOkx = availableGlobalExchanges.filter(e => e !== 'okx');
+        return nonUpbit.length > 0 && nonUpbit.every(e => excludeExchanges.has(e)) &&
+               nonOkx.length > 0 && nonOkx.every(e => excludeGlobalExchanges.has(e));
+      }
+      default: return false;
+    }
+  }
+
+  function applyPreset(key: PresetKey) {
+    if (isPresetActive(key)) {
+      clearFilters();
+      return;
+    }
+    setExcludeExchanges(new Set());
+    setExcludeGlobalExchanges(new Set());
+    setExcludeServices(new Set());
+    setExcludeOnchain(false);
+    setExcludeLightning(false);
+    setExcludeDisabled(false);
+    setVisibleCount(PAGE_SIZE);
+    switch (key) {
+      case 'no_disabled':
+        setExcludeDisabled(true);
+        break;
+      case 'no_kyc_lightning':
+        setExcludeServices(new Set(kycServices));
+        break;
+      case 'no_lightning':
+        setExcludeLightning(true);
+        break;
+      case 'bithumb_binance':
+        setExcludeExchanges(new Set(availableExchanges.filter(e => e !== 'bithumb')));
+        setExcludeGlobalExchanges(new Set(availableGlobalExchanges.filter(e => e !== 'binance')));
+        break;
+      case 'bithumb_okx':
+        setExcludeExchanges(new Set(availableExchanges.filter(e => e !== 'bithumb')));
+        setExcludeGlobalExchanges(new Set(availableGlobalExchanges.filter(e => e !== 'okx')));
+        break;
+      case 'upbit_binance':
+        setExcludeExchanges(new Set(availableExchanges.filter(e => e !== 'upbit')));
+        setExcludeGlobalExchanges(new Set(availableGlobalExchanges.filter(e => e !== 'binance')));
+        break;
+      case 'upbit_okx':
+        setExcludeExchanges(new Set(availableExchanges.filter(e => e !== 'upbit')));
+        setExcludeGlobalExchanges(new Set(availableGlobalExchanges.filter(e => e !== 'okx')));
+        break;
+    }
+  }
+
   return (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -186,6 +274,27 @@ export function RecommendationStep() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* 자주 쓰는 필터 프리셋 */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-0.5">
+        {PRESETS.map(({ key, label }) => {
+          const active = isPresetActive(key);
+          return (
+            <button
+              key={key}
+              onClick={() => applyPreset(key)}
+              className={[
+                'flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap',
+                active
+                  ? 'bg-acc-amber/15 text-acc-amber'
+                  : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter panel */}
@@ -365,34 +474,6 @@ export function RecommendationStep() {
           더보기 <CaretDown className="w-3.5 h-3.5" />
           <span className="text-label-tertiary text-xs">({topRecommendedPaths.length - visibleCount}개 남음)</span>
         </motion.button>
-      )}
-
-      {/* 최근 공지사항 */}
-      {notices.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold text-label-quaternary uppercase tracking-wider px-1">최근 공지사항</p>
-          <div className="ios-card rounded-2xl overflow-hidden divide-y divide-white/4">
-            {notices.map((n, i) => (
-              <a
-                key={i}
-                href={n.url ?? undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-3 px-4 py-3 hover:bg-white/4 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] text-label-tertiary font-medium">{fmtEx(n.exchange)}</span>
-                  </div>
-                  <p className="text-[12px] text-label-primary leading-snug line-clamp-2">{n.title}</p>
-                  {n.noticed_at != null && (
-                    <p className="text-[10px] text-label-tertiary mt-1 num">{fmtKst(n.noticed_at)} 감지</p>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
       )}
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">
