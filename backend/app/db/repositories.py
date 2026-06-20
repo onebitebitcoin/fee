@@ -4,7 +4,7 @@ import datetime as dt
 from collections import defaultdict
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, func as sqlfunc, select
+from sqlalchemy import desc, func as sqlfunc, or_, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
@@ -148,7 +148,7 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
 
     알트코인 무관 공지를 제외하기 위해 BTC 특화 + 거래소 전체 주요 공지만 허용.
     """
-    from sqlalchemy import nullslast, or_
+    from sqlalchemy import nullslast  # noqa: PLC0415
     btc_keywords = ['BTC', 'Bitcoin', '비트코인', 'USDT', 'Tether', '테더', 'Lightning', '라이트닝', 'SegWit', '세그윗', 'halving', '반감기']
     major_keywords = ['전체 점검', '전체점검', '서비스 점검', '서비스점검', '시스템 점검', '시스템점검', '거래소 점검', '긴급 점검', '긴급점검']
     binance_fee_keywords = ['zero fee', 'zero-fee', '0% fee', '0% maker', '0% taker', 'fee promotion', 'fee update', 'trading fee', 'fee structure', 'fee change', 'fee rate', 'fee waiver', 'FDUSD']
@@ -170,83 +170,67 @@ def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
     return list(db.scalars(stmt))
 
 
+_NOTICE_STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
+
+
+def _to_suspended_set(rows: list[NetworkStatusSnapshot]) -> set[tuple[str, str, str]]:
+    return {
+        (r.exchange, r.coin or '', r.network or '')
+        for r in rows
+        if r.status != 'ok'
+    }
+
+
 def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
     """최근 N시간 내 연속 크롤 실행 쌍에서 네트워크 상태 변경 목록 반환.
 
-    각 항목:
-      exchange, coin, network, change_type ('suspended'|'resumed'),
-      detected_at (unix timestamp), related_notices (list of {title, url, published_at})
+    반환 항목 필드: exchange, coin, network, change_type ('suspended'|'resumed'),
+    detected_at (unix timestamp), related_notices (list of {title, url, published_at})
     """
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours)
-
-    # 최근 N시간 내 성공한 크롤 실행 목록 (오래된 순)
     runs = list(db.scalars(
         select(CrawlRun)
         .where(CrawlRun.status.in_(['success', 'partial_success']))
         .where(CrawlRun.completed_at >= cutoff)
         .order_by(CrawlRun.id)
     ))
-
     if len(runs) < 2:
         return []
 
-    # 각 run의 network status를 미리 로드
     run_status: dict[int, list[NetworkStatusSnapshot]] = {
         r.id: list_network_status_for_run(db, r.id) for r in runs
     }
 
-    # 연속 쌍(prev, curr)에서 변경 감지
     seen_keys: set[tuple] = set()
     changes: list[dict] = []
 
     for i in range(len(runs) - 1, 0, -1):  # 최신 쌍부터
         curr_run = runs[i]
-        prev_run = runs[i - 1]
-        prev_rows = run_status[prev_run.id]
-        curr_rows = run_status[curr_run.id]
-
-        def _suspended_set(rows: list) -> set[tuple]:
-            return {
-                (r.exchange, r.coin or '', r.network or '')
-                for r in rows
-                if r.status != 'ok'
-            }
-
-        prev_susp = _suspended_set(prev_rows)
-        curr_susp = _suspended_set(curr_rows)
-
+        prev_susp = _to_suspended_set(run_status[runs[i - 1].id])
+        curr_susp = _to_suspended_set(run_status[curr_run.id])
         detected_at = int(curr_run.completed_at.timestamp()) if curr_run.completed_at else None
 
-        for key in curr_susp - prev_susp:
+        for key, change_type in [*[(k, 'suspended') for k in curr_susp - prev_susp],
+                                  *[(k, 'resumed') for k in prev_susp - curr_susp]]:
             if key not in seen_keys:
                 seen_keys.add(key)
                 changes.append({
                     'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None,
-                    'change_type': 'suspended', 'detected_at': detected_at,
-                })
-        for key in prev_susp - curr_susp:
-            if key not in seen_keys:
-                seen_keys.add(key)
-                changes.append({
-                    'exchange': key[0], 'coin': key[1] or None, 'network': key[2] or None,
-                    'change_type': 'resumed', 'detected_at': detected_at,
+                    'change_type': change_type, 'detected_at': detected_at,
                 })
 
     if not changes:
         return []
 
-    # 각 변경에 관련 공지 첨부
-    _STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
-    from sqlalchemy import or_  # noqa: PLC0415
     for change in changes:
         keywords: list[str] = []
         if change['coin']:
             keywords.append(change['coin'])
         if change['network']:
-            for word in change['network'].split():
-                if word.lower() not in _STOPWORDS and len(word) >= 3:
-                    keywords.append(word)
-
+            keywords.extend(
+                w for w in change['network'].split()
+                if w.lower() not in _NOTICE_STOPWORDS and len(w) >= 3
+            )
         if not keywords:
             change['related_notices'] = []
             continue
