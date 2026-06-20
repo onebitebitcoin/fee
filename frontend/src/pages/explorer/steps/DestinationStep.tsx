@@ -31,13 +31,13 @@ export function DestinationStep() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm font-bold ${personalAvailable ? 'text-label-primary' : 'text-label-disabled'}`}>개인지갑 (온체인 BTC)</p>
+                        <p className={`text-sm font-bold ${personalAvailable ? 'text-label-primary' : 'text-label-disabled'}`}>개인지갑 (온체인 비트코인)</p>
                         {!personalAvailable && (
                           <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">경로 없음</span>
                         )}
                       </div>
                       <p className={`text-xs mt-0.5 ${personalAvailable ? 'text-label-secondary' : 'text-label-disabled'}`}>
-                        라이트닝 출금 후 스왑 서비스를 거쳐 온체인 BTC로 개인지갑에 수령.
+                        라이트닝 출금 후 스왑 서비스를 거쳐 온체인 비트코인으로 개인지갑에 수령.
                       </p>
                     </div>
                   </div>

@@ -165,7 +165,7 @@ export function DomesticStep() {
                                         </p>
                                       </div>
                                       <div>
-                                        <span className="text-label-tertiary">1회 최대 BTC</span>
+                                        <span className="text-label-tertiary">1회 최대 비트코인</span>
                                         <p className="font-medium text-label-primary mt-0.5 num">
                                           {mergedLimits.btc_per_tx_max != null ? `${mergedLimits.btc_per_tx_max} BTC` : '제한 없음'}
                                         </p>

@@ -61,7 +61,7 @@ export function BtcMethodStep() {
                   className="ios-card rounded-2xl p-4 text-xs space-y-2">
                   <p className="font-semibold text-label-primary">라이트닝 네트워크란?</p>
                   <p className="text-label-secondary">Bitcoin 위에 구축된 2nd Layer 결제 프로토콜로, 수수료가 매우 저렴하고 거래가 즉시 완료됩니다.</p>
-                  <p className="text-label-secondary"><span className="font-medium text-acc-red">국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다.</span> 온체인으로 출금 후 별도 스왑 서비스를 이용하는 경로를 원하신다면 코인 선택 단계에서 &apos;BTC → 해외거래소 경유&apos;를 선택하세요.</p>
+                  <p className="text-label-secondary"><span className="font-medium text-acc-red">국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다.</span> 온체인으로 출금 후 별도 스왑 서비스를 이용하는 경로를 원하신다면 코인 선택 단계에서 &apos;비트코인 → 해외거래소 경유&apos;를 선택하세요.</p>
                 </motion.div>
               )}
 

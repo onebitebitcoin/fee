@@ -77,7 +77,7 @@ export function ResultStep() {
               {isHoldOnGlobal && (
                 <div className="ios-card rounded-2xl px-4 py-3 flex items-center gap-2">
                   <span className="text-[10px] font-semibold bg-acc-blue/10 text-acc-blue px-2 py-0.5 rounded-full shrink-0">개인지갑으로 출금하지 않음</span>
-                  <p className="text-[10px] text-label-secondary">출금 없이 해외 거래소에 BTC 보유하는 경우 기준. 출금 수수료 제외 시 실제 수수료는 더 낮습니다.</p>
+                  <p className="text-[10px] text-label-secondary">출금 없이 해외 거래소에 비트코인 보유하는 경우 기준. 출금 수수료 제외 시 실제 수수료는 더 낮습니다.</p>
                 </div>
               )}
 
@@ -111,7 +111,7 @@ export function ResultStep() {
                   {formatNumber(displaySats)}
                 </p>
                 <p className="text-sm text-label-tertiary mt-1 num relative z-10">sats</p>
-                <p className="text-[10px] text-label-quaternary mt-1 relative z-10">1 BTC = 100,000,000 sats</p>
+                <p className="text-[10px] text-label-quaternary mt-1 relative z-10">1 비트코인 = 100,000,000 sats</p>
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
@@ -269,7 +269,7 @@ export function ResultStep() {
                       <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                       <p className="text-[9px] text-label-tertiary mt-1">
                         {resultPath.transfer_coin === 'BTC'
-                          ? (!usesGlobal && isLnWallet ? 'BTC Lightning' : '비트코인')
+                          ? (!usesGlobal && isLnWallet ? '비트코인 라이트닝' : '비트코인')
                           : resultPath.transfer_coin}
                       </p>
                     </div>
@@ -285,7 +285,7 @@ export function ResultStep() {
                             <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
                             <p className="text-[9px] text-label-tertiary mt-1">
                               {/* 글로벌 출금 레그 = global_exit_mode 기준 (라이트닝이면 스왑 서비스로도 LN 진입) */}
-                              {resultPath.global_exit_mode === 'lightning' ? 'BTC Lightning' : '비트코인'}
+                              {resultPath.global_exit_mode === 'lightning' ? '비트코인 라이트닝' : '비트코인'}
                             </p>
                           </div>
                         )}
