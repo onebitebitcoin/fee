@@ -41,7 +41,7 @@ _STATIC_KYC: dict[str, KycStatus] = {
     'bitfreeze': 'non_kyc',
     'coinos': 'non_kyc',
     'strike': 'kyc',
-    'walletofsatoshi': 'kyc',
+    'walletofsatoshi': 'non_kyc',
 }
 
 
