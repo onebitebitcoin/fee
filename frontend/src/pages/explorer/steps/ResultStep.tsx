@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, Lightning, Wrench } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
@@ -308,13 +308,7 @@ export function ResultStep() {
                     {/* 종착지: 라이트닝 지갑 / 개인 지갑 (출금하지 않음 선택 시 숨김) */}
                     {!isHoldOnGlobal && (
                       <div className="flex flex-col items-center">
-                        {isLnWallet
-                          ? (
-                            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-acc-amber/15">
-                              <Lightning weight="fill" className="w-5 h-5 text-acc-amber" />
-                            </div>
-                          )
-                          : <NetworkIcon network="bitcoin" size={24} />}
+                        <NetworkIcon network="bitcoin" size={24} />
                         <p className="text-[10px] text-label-secondary mt-1">{isLnWallet ? '라이트닝 지갑' : '내 지갑'}</p>
                       </div>
                     )}
