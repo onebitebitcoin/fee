@@ -1,94 +1,78 @@
-"""kyc_registry 동시성·negative cache 동작 테스트."""
+"""kyc_registry DB 기반 동작 테스트."""
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import backend.app.services.kyc_registry as kyc_mod
 
 
 def _reset_cache():
-    """테스트 격리: 캐시를 초기 상태로 리셋."""
     kyc_mod._cache['registry'] = {}
     kyc_mod._cache['expires_at'] = 0.0
 
 
-# ── fetch 실패 시 static fallback 반환 ───────────────────────────────────────
+# ── DB 조회 성공 ─────────────────────────────────────────────────────────────
 
-def test_get_kyc_registry_returns_empty_registry_on_fetch_failure(monkeypatch):
-    """외부 fetch 실패 + 캐시 없음 → 빈 레지스트리({}) 반환.
-
-    registry 타입은 {key: {is_kyc: ...}} 이므로 실패 시 빈 dict여야 한다.
-    정적 fallback(_STATIC_KYC)은 registry 자리에 넣지 않고 resolve_* 단계에서 적용한다.
-    """
+def test_get_kyc_registry_reads_from_db(monkeypatch):
+    """DB에서 KYC 설정을 정상적으로 읽어 반환한다."""
     _reset_cache()
-    monkeypatch.setattr(
-        'backend.app.services.kyc_registry.requests.get',
-        MagicMock(side_effect=ConnectionError('unreachable')),
-    )
-    result = kyc_mod.get_kyc_registry()
+    mock_row_strike = MagicMock()
+    mock_row_strike.key = 'strike'
+    mock_row_strike.is_kyc = True
+    mock_row_boltz = MagicMock()
+    mock_row_boltz.key = 'boltz'
+    mock_row_boltz.is_kyc = False
+
+    mock_db = MagicMock()
+    mock_db.query.return_value.all.return_value = [mock_row_strike, mock_row_boltz]
+    mock_db.__enter__ = MagicMock(return_value=mock_db)
+    mock_db.__exit__ = MagicMock(return_value=False)
+
+    with patch('backend.app.services.kyc_registry.SessionLocal', return_value=mock_db):
+        result = kyc_mod.get_kyc_registry()
+
+    assert result == {'strike': {'is_kyc': True}, 'boltz': {'is_kyc': False}}
+
+
+def test_get_kyc_registry_returns_empty_on_db_failure(monkeypatch):
+    """DB 조회 실패 시 빈 레지스트리 반환. 정적 fallback은 resolve_* 단계에서 적용."""
+    _reset_cache()
+    with patch('backend.app.services.kyc_registry.SessionLocal', side_effect=Exception('DB error')):
+        result = kyc_mod.get_kyc_registry(force_refresh=True)
     assert result == {}
 
 
-def test_static_fallback_applies_without_error_during_fetch_failure(monkeypatch):
-    """fetch 실패(빈 registry) 상태에서도 resolve_service_kyc_status가
-    예외 없이 정적 fallback을 적용해야 한다 (oksusu → non_kyc)."""
+def test_static_fallback_applies_on_db_failure():
+    """DB 실패 시에도 resolve_service_kyc_status가 _STATIC_KYC fallback을 반환한다."""
     _reset_cache()
-    monkeypatch.setattr(
-        'backend.app.services.kyc_registry.requests.get',
-        MagicMock(side_effect=ConnectionError('unreachable')),
-    )
-    # registry 자리에 status 문자열이 들어가면 entry.get('is_kyc')에서 AttributeError가 났었음.
-    assert kyc_mod.resolve_service_kyc_status('oksusu') == 'non_kyc'
+    with patch('backend.app.services.kyc_registry.SessionLocal', side_effect=Exception('DB error')):
+        assert kyc_mod.resolve_service_kyc_status('oksusu') == 'non_kyc'
+        assert kyc_mod.resolve_service_kyc_status('strike') == 'kyc'
 
 
-def test_get_kyc_registry_uses_stale_cache_on_fetch_failure(monkeypatch):
-    """외부 fetch 실패 + 기존 캐시 있음 → 기존 캐시 반환."""
+# ── 캐시 동작 ────────────────────────────────────────────────────────────────
+
+def test_get_kyc_registry_uses_cache(monkeypatch):
+    """TTL 내 두 번째 호출은 DB를 재조회하지 않는다."""
     _reset_cache()
-    kyc_mod._cache['registry'] = {'someservice': {'is_kyc': False}}
-    kyc_mod._cache['expires_at'] = time.time() - 1  # 만료됨
+    kyc_mod._cache['registry'] = {'boltz': {'is_kyc': False}}
+    kyc_mod._cache['expires_at'] = time.time() + 1000
 
-    monkeypatch.setattr(
-        'backend.app.services.kyc_registry.requests.get',
-        MagicMock(side_effect=ConnectionError('unreachable')),
-    )
-    result = kyc_mod.get_kyc_registry()
-    assert result == {'someservice': {'is_kyc': False}}
+    mock_session = MagicMock()
+    with patch('backend.app.services.kyc_registry.SessionLocal', mock_session):  # noqa: SIM117
+        result = kyc_mod.get_kyc_registry()
 
-
-# ── negative cache: 실패 후 두 번째 호출은 네트워크 재시도 안 함 ──────────────
-
-def test_get_kyc_registry_negative_cache_prevents_immediate_retry(monkeypatch):
-    """fetch 실패 후 negative TTL 내 두 번째 호출은 requests.get을 다시 호출하지 않는다."""
-    _reset_cache()
-    mock_get = MagicMock(side_effect=ConnectionError('unreachable'))
-    monkeypatch.setattr('backend.app.services.kyc_registry.requests.get', mock_get)
-
-    kyc_mod.get_kyc_registry()   # 첫 번째 호출 — 실패, negative TTL 설정
-    kyc_mod.get_kyc_registry()   # 두 번째 호출 — TTL 내라서 캐시 사용
-
-    # requests.get은 정확히 1번만 호출되어야 한다
-    assert mock_get.call_count == 1
+    mock_session.assert_not_called()
+    assert result == {'boltz': {'is_kyc': False}}
 
 
-# ── 락이 네트워크 호출 중 유지되지 않음 ─────────────────────────────────────
+def test_invalidate_kyc_cache():
+    """invalidate_kyc_cache 호출 시 캐시가 즉시 만료된다."""
+    kyc_mod._cache['registry'] = {'strike': {'is_kyc': True}}
+    kyc_mod._cache['expires_at'] = time.time() + 1000
 
-def test_get_kyc_registry_does_not_hold_lock_during_fetch(monkeypatch):
-    """requests.get 호출 도중 _cache_lock이 해제되어 있어야 한다."""
-    _reset_cache()
-    lock_held_during_fetch = []
+    kyc_mod.invalidate_kyc_cache()
 
-    def mock_get(*args, **kwargs):
-        # 이 시점에 락이 잠겨 있으면 acquire 시도 시 False를 반환
-        acquired = kyc_mod._cache_lock.acquire(blocking=False)
-        lock_held_during_fetch.append(not acquired)
-        if acquired:
-            kyc_mod._cache_lock.release()
-        raise ConnectionError('unreachable')
-
-    monkeypatch.setattr('backend.app.services.kyc_registry.requests.get', mock_get)
-
-    kyc_mod.get_kyc_registry()
-
-    # fetch 도중 락이 잠겨 있지 않았어야 함
-    assert lock_held_during_fetch == [False]
+    assert kyc_mod._cache['registry'] == {}
+    assert float(kyc_mod._cache['expires_at']) == 0.0

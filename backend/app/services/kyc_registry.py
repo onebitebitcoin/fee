@@ -5,14 +5,12 @@ import time
 from threading import Lock
 from typing import Literal
 
-import requests
+from backend.app.db.models import KycConfig
+from backend.app.db.session import SessionLocal
 
 KycStatus = Literal['kyc', 'non_kyc', 'mixed']
 
-PLAYGROUND_SERVICE_NODES_URL = 'https://playground.onebitebitcoin.com/api/service-nodes/admin?username=guest'
 _CACHE_TTL_SECONDS = 1800
-_NEGATIVE_CACHE_TTL_SECONDS = 120
-_REQUEST_TIMEOUT_SECONDS = 2
 
 _logger = logging.getLogger(__name__)
 _cache_lock = Lock()
@@ -32,7 +30,7 @@ _SERVICE_ALIASES = {
     '개인지갑': 'personalwallet',
 }
 
-# playground registry에 등록되지 않은 서비스의 KYC 상태 정적 fallback
+# DB에 없는 서비스의 최종 fallback (코드 배포 없이 DB에서 관리 권장)
 _STATIC_KYC: dict[str, KycStatus] = {
     'oksusu': 'non_kyc',
     'boltz': 'non_kyc',
@@ -70,55 +68,31 @@ def _status_from_bool(value: bool) -> KycStatus:
 
 
 def get_kyc_registry(force_refresh: bool = False) -> dict[str, dict]:
+    """DB의 kyc_config 테이블에서 KYC 설정을 읽어 반환 (메모리 캐시 30분)."""
     now = time.time()
-    # (a) 락 안에서: TTL이 유효하면 즉시 반환 (registry가 비어있어도 negative cache 적용)
     with _cache_lock:
-        if not force_refresh and now < float(_cache['expires_at']):
-            if _cache['registry']:
-                return dict(_cache['registry'])
-            # negative cache 기간 — 빈 레지스트리 반환.
-            # 정적 fallback(_STATIC_KYC)은 resolve_* 단계에서 적용되므로 여기선 빈 dict.
-            # (_STATIC_KYC는 {service: status} 타입이라 registry({key: {is_kyc}}) 자리에 넣으면 안 됨)
-            return {}
+        if not force_refresh and now < float(_cache['expires_at']) and _cache['registry']:
+            return dict(_cache['registry'])
 
-    # (b) 락 밖에서: 네트워크 호출 수행 (두 스레드가 동시에 여기 도달해도 각자 호출하되 직렬화는 없음)
-    fetch_exc: Exception | None = None
-    registry: dict[str, dict] = {}
     try:
-        response = requests.get(
-            PLAYGROUND_SERVICE_NODES_URL,
-            headers={'Accept': 'application/json'},
-            timeout=_REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        for node in payload.get('nodes', []):
-            service_key = _normalize_service(node.get('service') or node.get('display_name'))
-            if not service_key:
-                continue
-            registry[service_key] = {
-                'display_name': node.get('display_name'),
-                'is_kyc': bool(node.get('is_kyc')),
-                'is_custodial': bool(node.get('is_custodial')),
-            }
+        with SessionLocal() as db:
+            rows = db.query(KycConfig).all()
+        registry = {row.key: {'is_kyc': row.is_kyc} for row in rows}
     except Exception as exc:
-        fetch_exc = exc
+        _logger.warning('KYC DB 조회 실패, 빈 레지스트리 반환: %s', exc)
+        registry = {}
 
-    # (c) 락 안에서: 결과 저장
     with _cache_lock:
-        if fetch_exc is not None:
-            _logger.warning('Failed to load playground KYC registry: %s', fetch_exc)
-            # 이전 캐시가 있으면 그대로 쓰되 TTL을 negative로 짧게 갱신
-            existing = dict(_cache['registry']) if _cache['registry'] else None
-            _cache['expires_at'] = time.time() + _NEGATIVE_CACHE_TTL_SECONDS
-            if existing:
-                return existing
-            # 캐시도 없음 → 빈 레지스트리 반환(short TTL). 정적 fallback은 resolve_* 단계에서 적용.
-            return {}
-        _cache['registry'] = dict(registry)
+        _cache['registry'] = registry
         _cache['expires_at'] = time.time() + _CACHE_TTL_SECONDS
-        return dict(_cache['registry'])
+    return registry
 
+
+def invalidate_kyc_cache() -> None:
+    """KYC 캐시를 즉시 만료시킨다 (어드민 수정 후 호출)."""
+    with _cache_lock:
+        _cache['expires_at'] = 0.0
+        _cache['registry'] = {}
 
 
 def infer_kyc_status_from_note(note: str | None) -> KycStatus | None:
@@ -136,7 +110,6 @@ def infer_kyc_status_from_note(note: str | None) -> KycStatus | None:
     return None
 
 
-
 def resolve_service_kyc_status(service_name: str | None, registry: dict[str, dict] | None = None) -> KycStatus | None:
     if not service_name:
         return None
@@ -146,7 +119,6 @@ def resolve_service_kyc_status(service_name: str | None, registry: dict[str, dic
     if entry:
         return _status_from_bool(bool(entry.get('is_kyc')))
     return _STATIC_KYC.get(normalized)
-
 
 
 def resolve_exchange_asset_kyc_status(
@@ -163,7 +135,6 @@ def resolve_exchange_asset_kyc_status(
         if entry:
             return _status_from_bool(bool(entry.get('is_kyc')))
     return infer_kyc_status_from_note(note)
-
 
 
 def aggregate_kyc_status(statuses: list[KycStatus | None]) -> KycStatus | None:

@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     manual_crawl_enabled: bool = True
     admin_api_key: str = '0000'
     frontend_dist_dir: Path = Field(default=FRONTEND_DIST_DIR)
-    playground_service_nodes_url: str = 'https://playground.onebitebitcoin.com/api/service-nodes/admin?username=guest'
     openai_api_key: Optional[str] = None
 
     @property

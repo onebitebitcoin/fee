@@ -242,3 +242,13 @@ class AdminConfig(Base):
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_source: Mapped[str] = mapped_column(String(50), nullable=False, default='manual')
+
+
+class KycConfig(Base):
+    """서비스/거래소-자산 조합의 KYC 요구 여부를 DB에서 관리."""
+    __tablename__ = 'kyc_config'
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    is_kyc: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
