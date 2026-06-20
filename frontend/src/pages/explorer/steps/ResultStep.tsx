@@ -412,7 +412,11 @@ export function ResultStep() {
                 const savingsKrw = !cheapestIsCurrent
                   ? Math.round(resultPath.total_fee_krw - cheapest.total_fee_krw)
                   : 0;
-                const medals = ['🥇', '🥈', '🥉'];
+                const medalColors = [
+                  'bg-[#FFD700]/20 text-[#FFD700]',
+                  'bg-[#A8A9AD]/20 text-[#A8A9AD]',
+                  'bg-[#CD7F32]/20 text-[#CD7F32]',
+                ];
                 return (
                   <div>
                     <SectionLabel>추천 경로</SectionLabel>
@@ -467,15 +471,9 @@ export function ResultStep() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {i < 3 ? (
-                                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-[15px] leading-none">
-                                    {medals[i]}
-                                  </span>
-                                ) : (
-                                  <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-fill-secondary text-label-tertiary">
-                                    {i + 1}
-                                  </span>
-                                )}
+                                <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${medalColors[i] ?? 'bg-fill-secondary text-label-tertiary'}`}>
+                                  {i + 1}
+                                </span>
                                 <div className="flex items-center gap-1 flex-wrap min-w-0">
                                   <ExFavicon id={p.korean_exchange} size={16} />
                                   <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
