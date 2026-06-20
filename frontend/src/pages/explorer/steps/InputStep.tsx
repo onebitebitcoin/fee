@@ -61,25 +61,14 @@ export function InputStep() {
     <>
               {/* 방문자 수 */}
               {stats && (
-                <div className="flex flex-col items-center gap-1 py-0.5">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-label-tertiary">
-                      오늘 방문 <span className="font-semibold text-label-secondary num">{stats.visitors_today.toLocaleString('ko-KR')}</span>명
-                    </span>
-                    <span className="text-label-quaternary text-[10px]">·</span>
-                    <span className="text-[11px] text-label-tertiary">
-                      누적 <span className="font-semibold text-label-secondary num">{stats.visitors_total.toLocaleString('ko-KR')}</span>명
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-label-tertiary">
-                      오늘 경로 탐색 <span className="font-semibold text-label-secondary num">{stats.routes_today.toLocaleString('ko-KR')}</span>회
-                    </span>
-                    <span className="text-label-quaternary text-[10px]">·</span>
-                    <span className="text-[11px] text-label-tertiary">
-                      누적 <span className="font-semibold text-label-secondary num">{stats.routes_total.toLocaleString('ko-KR')}</span>회
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3 py-0.5">
+                  <span className="text-[11px] text-label-tertiary">
+                    오늘 방문 <span className="font-semibold text-label-secondary num">{stats.visitors_today.toLocaleString('ko-KR')}</span>명
+                  </span>
+                  <span className="text-label-quaternary text-[10px]">·</span>
+                  <span className="text-[11px] text-label-tertiary">
+                    누적 <span className="font-semibold text-label-secondary num">{stats.visitors_total.toLocaleString('ko-KR')}</span>명
+                  </span>
                 </div>
               )}
 

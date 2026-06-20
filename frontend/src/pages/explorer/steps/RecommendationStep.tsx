@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaretDown, Funnel, Wrench, X } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
+import { fmtKst } from '../constants';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
-import type { CheapestPathEntry } from '../../../types';
+import { api } from '../../../lib/api';
+import type { CheapestPathEntry, ExchangeNoticeItem } from '../../../types';
 
 const PAGE_SIZE = 15;
 
@@ -84,6 +86,11 @@ export function RecommendationStep() {
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [notices, setNotices] = useState<ExchangeNoticeItem[]>([]);
+
+  useEffect(() => {
+    api.getLatestNotices(10).then(r => setNotices(r.items)).catch(() => {});
+  }, []);
 
   const visible = topRecommendedPaths.slice(0, visibleCount);
   const hasMore = topRecommendedPaths.length > visibleCount;
@@ -358,6 +365,34 @@ export function RecommendationStep() {
           더보기 <CaretDown className="w-3.5 h-3.5" />
           <span className="text-label-tertiary text-xs">({topRecommendedPaths.length - visibleCount}개 남음)</span>
         </motion.button>
+      )}
+
+      {/* 최근 공지사항 */}
+      {notices.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-label-quaternary uppercase tracking-wider px-1">최근 공지사항</p>
+          <div className="ios-card rounded-2xl overflow-hidden divide-y divide-white/4">
+            {notices.map((n, i) => (
+              <a
+                key={i}
+                href={n.url ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 px-4 py-3 hover:bg-white/4 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[10px] text-label-tertiary font-medium">{fmtEx(n.exchange)}</span>
+                  </div>
+                  <p className="text-[12px] text-label-primary leading-snug line-clamp-2">{n.title}</p>
+                  {n.noticed_at != null && (
+                    <p className="text-[10px] text-label-tertiary mt-1 num">{fmtKst(n.noticed_at)} 감지</p>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
       )}
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">

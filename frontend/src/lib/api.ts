@@ -69,6 +69,9 @@ export const api = {
   getNetworkChanges: (): Promise<NetworkChangesResponse> =>
     request('/api/v1/market/network-changes/recent'),
 
+  getLatestNotices: (limit = 10): Promise<{ items: import('../types').ExchangeNoticeItem[] }> =>
+    request(`/api/v1/market/notices/latest?limit=${limit}`),
+
   getLiveKimp: (): Promise<LiveKimpResponse> =>
     request('/api/v1/market/kimp/live'),
 
