@@ -73,6 +73,18 @@ function useExplorerValue() {
   const skipPopstate         = useRef(false);
   const fromRecommendation   = useRef(false);
 
+  const _prefetchCache = useRef<{
+    amount: number;
+    byGlobal: Record<string, CheapestPathResponse>;
+    tickers: TickerRow[];
+    latestRunAt: number | null;
+    kimp: Record<string, number> | null;
+    usdtPremium: number | null;
+    kimpFetchedAt: number | null;
+    fetchedAt: number;
+  } | null>(null);
+  const _isPrefetching = useRef(false);
+
   function scrollToStepEnd() {
     requestAnimationFrame(() =>
       stepEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -136,6 +148,49 @@ function useExplorerValue() {
     prevPhase.current = phase;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [phase]);
+
+  // 금액 입력 후 500ms 디바운스로 백그라운드 프리페치 — 버튼 클릭 시 즉시 응답
+  useEffect(() => {
+    if (!amountKrw || amountKrw < 10_000) return;
+    const PREFETCH_TTL = 55_000;
+    if (
+      _prefetchCache.current?.amount === amountKrw &&
+      Date.now() - _prefetchCache.current.fetchedAt < PREFETCH_TTL
+    ) return;
+    if (_isPrefetching.current) return;
+
+    const timer = setTimeout(async () => {
+      if (_isPrefetching.current) return;
+      _isPrefetching.current = true;
+      try {
+        const [tickerRes, kimpRes, allRes] = await Promise.all([
+          api.getTickers().catch(() => null),
+          api.getLiveKimp().catch(() => null),
+          api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch(() => null),
+        ]);
+        if (!allRes) return;
+        const byGlobal: Record<string, CheapestPathResponse> = {};
+        for (const g of GLOBAL_EXCHANGES) {
+          const entry = allRes.by_global[g];
+          if (entry && !entry.error) byGlobal[g] = entry as CheapestPathResponse;
+        }
+        if (Object.keys(byGlobal).length === 0) return;
+        _prefetchCache.current = {
+          amount: amountKrw,
+          byGlobal,
+          tickers: tickerRes?.items ?? [],
+          latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
+          kimp: kimpRes?.kimp ?? null,
+          usdtPremium: kimpRes?.usdt_premium ?? null,
+          kimpFetchedAt: kimpRes?.fetched_at ?? null,
+          fetchedAt: Date.now(),
+        };
+      } catch { /* prefetch 실패 무시 */ }
+      finally { _isPrefetching.current = false; }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [amountKrw]);
 
   // ── Derived options ──────────────────────────────────────────────────────────
 
@@ -469,6 +524,23 @@ function useExplorerValue() {
 
   async function handleSearch(dest: 'recommendation' | 'domestic' = 'recommendation') {
     if (!amountKrw || amountKrw < 10_000) return;
+
+    // 프리페치 캐시 히트 → 즉시 네비게이션 (로딩 없음)
+    const PREFETCH_TTL = 55_000;
+    const cached = _prefetchCache.current;
+    if (cached?.amount === amountKrw && Date.now() - cached.fetchedAt < PREFETCH_TTL) {
+      setAllData({ byGlobal: cached.byGlobal, tickers: cached.tickers, latestRunAt: cached.latestRunAt });
+      if (cached.kimp) { setLiveKimp(cached.kimp); setKimpFetchedAt(cached.kimpFetchedAt); setUsdtPremium(cached.usdtPremium); }
+      setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
+      setFailedGlobalExchanges([]);
+      setError(null);
+      setLoadingDone(true);
+      setIsSearching(false);
+      history.pushState({ phase: dest }, '');
+      setPhase(dest);
+      return;
+    }
+
     setIsSearching(true);
     setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);

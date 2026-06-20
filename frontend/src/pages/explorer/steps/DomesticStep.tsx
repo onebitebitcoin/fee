@@ -65,17 +65,23 @@ export function DomesticStep() {
                     transition={{ duration: 0.2 }}
                     className="mt-2 rounded-xl bg-fill-secondary p-3 space-y-2 overflow-hidden"
                   >
-                    <p className="text-[11px] font-semibold text-label-secondary uppercase tracking-wide">김치 프리미엄 계산 방식</p>
-                    <div className="rounded-lg p-2.5 space-y-1 bg-fill-tertiary">
-                      <p className="text-[11px] font-semibold text-label-primary">원달러(포렉스) 기준</p>
-                      <p className="text-[10px] font-mono text-label-secondary">국내BTC ÷ (바이낸스BTC × USD/KRW) − 1</p>
+                    <p className="text-[11px] font-semibold text-label-secondary uppercase tracking-wide">김치 프리미엄 안내</p>
+                    <div className="rounded-lg p-2.5 space-y-2.5 bg-fill-tertiary">
+                      <div>
+                        <p className="text-[11px] font-semibold text-label-primary mb-0.5">BTC 김치 프리미엄</p>
+                        <p className="text-[10px] text-label-secondary leading-relaxed">
+                          USDT 기준으로 국내 BTC 가격이 해외(바이낸스)보다 얼마나 비싼지를 나타내요.<br />
+                          차이가 클수록 국내외 BTC 수급 불균형이 크다는 신호예요.
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-label-primary mb-0.5">원달러 김치 프리미엄</p>
+                        <p className="text-[10px] text-label-secondary leading-relaxed">
+                          공식 원달러 환율과 국내 USDT(업비트) 가격의 차이를 나타내요.<br />
+                          차이가 클수록 달러 현물 시장과 국내 USDT 수급 간 괴리가 크다는 신호예요.
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-label-tertiary leading-relaxed">
-                      업비트 USDT/KRW 실시간 체결가를 환율 기준으로 사용해요. 30초 TTL 캐시로 갱신돼요.
-                      국내 거래소의 USDT 시세를 기준으로 삼으면 거래소마다 다른 USDT 수급 차이(역테더 프리미엄)가 섞여 들어가서
-                      "글로벌 시세 대비 국내 시세 괴리"라는 김프 본래의 의미가 흐려져요. 업비트 USDT는 거래량이 가장 많고
-                      달러 현물 환율에 가장 근접해 있어 원달러 기준으로 채택했어요.
-                    </p>
                   </motion.div>
                 )}
               </div>

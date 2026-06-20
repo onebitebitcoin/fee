@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -31,6 +32,9 @@ class _TtlCache:
     def __init__(self, ttl: int):
         self._ttl = ttl
         self._store: dict = {}
+        # single-flight: 같은 키 동시 미스를 1회 계산으로 병합하기 위한 키별 락
+        self._locks: dict[str, threading.Lock] = {}
+        self._guard = threading.Lock()
 
     def get(self, key: str):
         entry = self._store.get(key)
@@ -41,15 +45,47 @@ class _TtlCache:
     def set(self, key: str, data) -> None:
         self._store[key] = {'data': data, 'ts': time.time()}
 
+    def _key_lock(self, key: str) -> threading.Lock:
+        with self._guard:
+            lock = self._locks.get(key)
+            if lock is None:
+                lock = threading.Lock()
+                self._locks[key] = lock
+            return lock
+
+    def get_or_compute(self, key: str, compute_fn):
+        """캐시 히트면 즉시 반환, 미스면 키별 락으로 1회만 계산(single-flight).
+
+        동시 미스가 N개 들어와도 compute_fn은 1회만 실행되고, 나머지는
+        완성된 결과를 공유한다(cache stampede 방어). 동기 핸들러가
+        anyio threadpool에서 실행되므로 threading.Lock으로 동기화한다.
+        """
+        cached = self.get(key)
+        if cached is not None:
+            return cached
+        lock = self._key_lock(key)
+        with lock:
+            # 락 안에서 재확인 — 대기 중 다른 스레드가 이미 채웠을 수 있음
+            cached = self.get(key)
+            if cached is not None:
+                return cached
+            data = compute_fn()
+            self.set(key, data)
+            return data
+
     def invalidate(self, key: str) -> None:
         self._store.pop(key, None)
 
     def clear(self) -> None:
         self._store.clear()
+        with self._guard:
+            self._locks.clear()
 
 
 _status_cache = _TtlCache(ttl=60)
-_cheapest_path_cache = _TtlCache(ttl=60)
+# 키에 run_id가 포함되어 새 크롤이 나오면 키 자체가 바뀌고, 크롤 후
+# invalidate_status_cache()가 clear()까지 하므로 TTL을 길게 잡아도 stale 위험이 없다.
+_cheapest_path_cache = _TtlCache(ttl=3600)
 
 # Upbit USDT/KRW 실시간 환율 캐시 (30초 TTL)
 _usd_krw_cache: dict = {'rate': None, 'ts': 0.0}
@@ -448,27 +484,20 @@ def get_cheapest_path(
     return result
 
 
-@router.get('/path-finder/cheapest-all')
-def get_cheapest_path_all(
-    background_tasks: BackgroundTasks,
-    amount_krw: int = Query(1000000, ge=10000),
-    amount_btc: float | None = Query(None, gt=0),
-    wallet_utxo_count: int = Query(1, ge=1, le=200),
-    mode: str = Query('buy'),
-    db: Session = Depends(get_db),
+def _compute_cheapest_all(
+    db: Session,
+    *,
+    mode: str,
+    amount_krw: int,
+    amount_btc: float | None,
+    wallet_utxo_count: int,
 ) -> dict:
-    """모든 글로벌 거래소에 대해 최적 경로를 한 번에 계산해 반환한다.
+    """모든 글로벌 거래소 최적 경로를 계산한다(순수 계산부, 캐시/접속로그 제외).
 
-    DB 스냅샷 조회는 한 번만 수행하고, 거래소별로 경로 계산을 반복한다.
-    반환 형태: {"by_global": {<exchange>: <payload or error>}, "last_run": {...}, "latest_scraping_time": ...}
+    라우트(get_cheapest_path_all)와 크롤 후 캐시 워밍(warm_cheapest_path_cache)이
+    동일 로직을 공유하도록 분리했다. DB 스냅샷 조회는 한 번만 수행한다.
     """
-    background_tasks.add_task(repositories.record_access, db)
     latest_run = repositories.get_latest_successful_run(db)
-    _run_id = latest_run.id if latest_run else None
-    _cache_key = f"all:{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{_run_id}"
-    _cached = _cheapest_path_cache.get(_cache_key)
-    if _cached is not None:
-        return _cached
 
     # DB 읽기 1회
     ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
@@ -565,13 +594,72 @@ def get_cheapest_path_all(
             logger.warning('cheapest-all: error for %s: %s', gex, exc)
             by_global[gex] = {'error': str(exc)}
 
-    result = {
+    return {
         'by_global': by_global,
         'last_run': _serialize_run(latest_run),
         'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
     }
-    _cheapest_path_cache.set(_cache_key, result)
-    return result
+
+
+# 캐시 워밍에 사용할 대표 금액 프리셋(원). 사용자가 자주 입력하는 단위 금액.
+WARM_AMOUNT_PRESETS_KRW = (100_000, 500_000, 1_000_000, 5_000_000, 10_000_000)
+
+
+def warm_cheapest_path_cache(db: Session) -> int:
+    """대표 금액 프리셋에 대해 cheapest-all 결과를 미리 계산해 캐시에 채운다.
+
+    크롤 성공 직후 호출하면 인기 금액의 콜드스타트/만료 미스를 선제 제거한다.
+    캐시 키 형식은 라우트(get_cheapest_path_all)와 동일하게 맞춘다.
+    반환: 워밍에 성공한 프리셋 개수.
+    """
+    latest_run = repositories.get_latest_successful_run(db)
+    run_id = latest_run.id if latest_run else None
+    warmed = 0
+    for amount_krw in WARM_AMOUNT_PRESETS_KRW:
+        cache_key = f"all:buy:{amount_krw}:None:1:{run_id}"
+        try:
+            result = _compute_cheapest_all(
+                db,
+                mode='buy',
+                amount_krw=amount_krw,
+                amount_btc=None,
+                wallet_utxo_count=1,
+            )
+            _cheapest_path_cache.set(cache_key, result)
+            warmed += 1
+        except Exception as exc:
+            logger.warning('cheapest-all 캐시 워밍 실패 (amount_krw=%s): %s', amount_krw, exc)
+    return warmed
+
+
+@router.get('/path-finder/cheapest-all')
+def get_cheapest_path_all(
+    background_tasks: BackgroundTasks,
+    amount_krw: int = Query(1000000, ge=10000),
+    amount_btc: float | None = Query(None, gt=0),
+    wallet_utxo_count: int = Query(1, ge=1, le=200),
+    mode: str = Query('buy'),
+    db: Session = Depends(get_db),
+) -> dict:
+    """모든 글로벌 거래소에 대해 최적 경로를 한 번에 계산해 반환한다.
+
+    캐시 히트면 즉시 반환, 미스면 single-flight로 동시 요청을 1회 계산으로 병합한다.
+    반환 형태: {"by_global": {<exchange>: <payload or error>}, "last_run": {...}, "latest_scraping_time": ...}
+    """
+    background_tasks.add_task(repositories.record_access, db)
+    latest_run = repositories.get_latest_successful_run(db)
+    _run_id = latest_run.id if latest_run else None
+    _cache_key = f"all:{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{_run_id}"
+    return _cheapest_path_cache.get_or_compute(
+        _cache_key,
+        lambda: _compute_cheapest_all(
+            db,
+            mode=mode,
+            amount_krw=amount_krw,
+            amount_btc=amount_btc,
+            wallet_utxo_count=wallet_utxo_count,
+        ),
+    )
 
 
 @router.get('/scrape-status')
