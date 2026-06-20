@@ -48,4 +48,8 @@ EOF
 
 alembic -c backend/alembic.ini upgrade head
 
+# 단일 워커 유지(--workers 미지정): 경로 계산 캐시(_cheapest_path_cache)와 single-flight,
+# kimp 폴링이 모두 프로세스-로컬 인메모리 상태이므로 멀티 워커는 캐시를 워커별로 쪼개
+# stampede를 워커마다 유발한다. 수십 명 동시 접속 규모에서는 단일 워커 + 강한 캐시가 최적.
+# (멀티 워커 전환이 필요해지면 Redis 등 공유 캐시 도입이 선행되어야 한다.)
 exec uvicorn backend.app.main:app --host 0.0.0.0 --port "${PORT:-8000}"

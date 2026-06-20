@@ -134,14 +134,6 @@ def _current_usdt_krw_rate() -> float | None:
         return None
 
 
-def _get_status_cache() -> dict | None:
-    return _status_cache.get('status')
-
-
-def _set_status_cache(data: dict) -> None:
-    _status_cache.set('status', data)
-
-
 def invalidate_status_cache() -> None:
     _status_cache.invalidate('status')
     _cheapest_path_cache.clear()
@@ -409,79 +401,80 @@ def get_cheapest_path(
     latest_run = repositories.get_latest_successful_run(db)
     _run_id = latest_run.id if latest_run else None
     _cache_key = f"{mode}:{amount_krw}:{amount_btc}:{wallet_utxo_count}:{global_exchange}:{_run_id}"
-    _cached = _cheapest_path_cache.get(_cache_key)
-    if _cached is not None:
-        return _cached
-    ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
-    withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
-    network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
-    lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
-    crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
-    blocking_errors = []
-    if latest_run:
-        blocking_errors = [
-            {
-                'exchange': row.exchange,
-                'coin': row.coin,
-                'stage': row.stage,
-                'error_message': row.error_message,
-                'created_at': int(row.created_at.timestamp()) if row.created_at else None,
-            }
-            for row in crawl_errors
-            if row.stage in {'withdrawal', 'ticker'} and (
-                row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', global_exchange.lower()} or row.exchange is None
-            )
-        ]
-        legacy_rows = [row for row in withdrawal_rows if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs']
-        if legacy_rows:
-            blocking_errors.extend([
+
+    def _compute() -> dict:
+        # single-flight 하에 1회만 실행된다. HTTPException(422/503)은 예외로 전파되어
+        # 캐시되지 않고, blocking_errors/정상 결과만 캐시(run_id 키 → 다음 크롤 시 무효화)된다.
+        ticker_rows = repositories.list_ticker_snapshots_for_run(db, latest_run.id) if latest_run else []
+        withdrawal_rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id) if latest_run else []
+        network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
+        lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
+        crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
+        blocking_errors = []
+        if latest_run:
+            blocking_errors = [
                 {
                     'exchange': row.exchange,
                     'coin': row.coin,
-                    'stage': 'withdrawal',
-                    'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                    'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                    'stage': row.stage,
+                    'error_message': row.error_message,
+                    'created_at': int(row.created_at.timestamp()) if row.created_at else None,
                 }
-                for row in legacy_rows
-            ])
-    if blocking_errors:
-        return {
-            'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
-            'errors': blocking_errors,
-            'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
-            'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
-        }
-    if mode == 'sell':
-        if amount_btc is None:
-            raise HTTPException(status_code=422, detail='sell 모드에는 amount_btc가 필요합니다.')
-        exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
-        payload = find_cheapest_sell_path_from_snapshot_rows(
-            amount_btc=amount_btc,
-            wallet_utxo_count=wallet_utxo_count,
-            global_exchange=global_exchange,
-            latest_run=latest_run,
-            ticker_rows=ticker_rows,
-            withdrawal_rows=withdrawal_rows,
-            network_rows=network_rows,
-            lightning_swap_rows=lightning_swap_rows,
-            exchange_capability_rows=exchange_capability_rows,
-        )
-    else:
-        payload = find_cheapest_path_from_snapshot_rows(
-            amount_krw=amount_krw,
-            global_exchange=global_exchange,
-            latest_run=latest_run,
-            ticker_rows=ticker_rows,
-            withdrawal_rows=withdrawal_rows,
-            network_rows=network_rows,
-            lightning_swap_rows=lightning_swap_rows,
-            usdt_krw_rate=_current_usdt_krw_rate(),
-        )
-    if payload.get('error'):
-        raise HTTPException(status_code=503, detail=payload['error'])
-    result = _enrich_path_payload_with_kyc(payload, global_exchange)
-    _cheapest_path_cache.set(_cache_key, result)
-    return result
+                for row in crawl_errors
+                if row.stage in {'withdrawal', 'ticker'} and (
+                    row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', global_exchange.lower()} or row.exchange is None
+                )
+            ]
+            legacy_rows = [row for row in withdrawal_rows if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs']
+            if legacy_rows:
+                blocking_errors.extend([
+                    {
+                        'exchange': row.exchange,
+                        'coin': row.coin,
+                        'stage': 'withdrawal',
+                        'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
+                        'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
+                    }
+                    for row in legacy_rows
+                ])
+        if blocking_errors:
+            return {
+                'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
+                'errors': blocking_errors,
+                'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
+                'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
+            }
+        if mode == 'sell':
+            if amount_btc is None:
+                raise HTTPException(status_code=422, detail='sell 모드에는 amount_btc가 필요합니다.')
+            exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
+            payload = find_cheapest_sell_path_from_snapshot_rows(
+                amount_btc=amount_btc,
+                wallet_utxo_count=wallet_utxo_count,
+                global_exchange=global_exchange,
+                latest_run=latest_run,
+                ticker_rows=ticker_rows,
+                withdrawal_rows=withdrawal_rows,
+                network_rows=network_rows,
+                lightning_swap_rows=lightning_swap_rows,
+                exchange_capability_rows=exchange_capability_rows,
+            )
+        else:
+            payload = find_cheapest_path_from_snapshot_rows(
+                amount_krw=amount_krw,
+                global_exchange=global_exchange,
+                latest_run=latest_run,
+                ticker_rows=ticker_rows,
+                withdrawal_rows=withdrawal_rows,
+                network_rows=network_rows,
+                lightning_swap_rows=lightning_swap_rows,
+                usdt_krw_rate=_current_usdt_krw_rate(),
+            )
+        if payload.get('error'):
+            raise HTTPException(status_code=503, detail=payload['error'])
+        return _enrich_path_payload_with_kyc(payload, global_exchange)
+
+    return _cheapest_path_cache.get_or_compute(_cache_key, _compute)
 
 
 def _compute_cheapest_all(
@@ -807,13 +800,8 @@ def get_crawl_status(db: Session = Depends(get_db)) -> dict:
 @router.get('/status')
 def get_exchange_status(db: Session = Depends(get_db)) -> dict:
     """출금 수수료 + 네트워크 상태 + 공지사항 통합 뷰"""
-    cached = _get_status_cache()
-    if cached is not None:
-        return cached
-
-    result = build_exchange_status(db)
-    _set_status_cache(result)
-    return result
+    # single-flight: 캐시 만료 직후 동시 요청을 1회 계산으로 병합
+    return _status_cache.get_or_compute('status', lambda: build_exchange_status(db))
 
 
 @router.get('/notices/latest')

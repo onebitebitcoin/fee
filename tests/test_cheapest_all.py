@@ -231,3 +231,49 @@ def test_cheapest_all_binance_has_valid_path(monkeypatch):
     if 'error' not in binance_entry:
         assert 'best_path' in binance_entry
         assert binance_entry['data_source'] == 'latest_snapshot'
+
+
+def test_warm_cheapest_path_cache_populates_cache(monkeypatch):
+    """크롤 후 워밍이 대표 금액 프리셋을 캐시에 채우고, 이후 요청이 캐시 히트가 된다."""
+    from backend.app.api.routes import market
+
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+    _seed_db(db, crawl_run.id)
+    run_id = crawl_run.id
+
+    monkeypatch.setattr('backend.app.api.routes.market.kyc_registry.get_kyc_registry', lambda force_refresh=False: {})
+
+    market._cheapest_path_cache.clear()
+    warmed = market.warm_cheapest_path_cache(db)
+    db.close()
+
+    # 모든 프리셋이 워밍되고, 캐시 키 형식이 라우트와 동일해야 한다
+    assert warmed == len(market.WARM_AMOUNT_PRESETS_KRW)
+    for amount in market.WARM_AMOUNT_PRESETS_KRW:
+        key = f"all:buy:{amount}:None:1:{run_id}"
+        assert market._cheapest_path_cache.get(key) is not None
+
+    # 워밍된 금액으로 요청하면 계산 없이 캐시 히트(get_or_compute가 compute 미실행)
+    def _boom():
+        raise AssertionError('캐시 히트여야 하므로 compute가 호출되면 안 됨')
+
+    cached = market._cheapest_path_cache.get_or_compute(
+        f"all:buy:1000000:None:1:{run_id}", _boom
+    )
+    assert 'by_global' in cached
+
+    market._cheapest_path_cache.clear()
+    Base.metadata.drop_all(bind=engine)

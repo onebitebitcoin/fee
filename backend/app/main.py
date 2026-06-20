@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -79,6 +80,14 @@ async def _auto_crawl_loop() -> None:
             with SessionLocal() as db:
                 result = CrawlService(db).run_full_crawl(trigger='scheduled')
                 logger.info('Scheduled crawl completed: id=%s status=%s', result.id, result.status)
+                # 크롤 성공 직후 인기 금액 cheapest-all 결과를 선제 캐싱(콜드스타트/만료 미스 제거)
+                if result.status in ('success', 'partial_success'):
+                    try:
+                        from backend.app.api.routes.market import warm_cheapest_path_cache
+                        warmed = warm_cheapest_path_cache(db)
+                        logger.info('cheapest-all 캐시 워밍 완료: %s개 프리셋', warmed)
+                    except Exception as exc:
+                        logger.warning('cheapest-all 캐시 워밍 실패: %s', exc)
         except Exception as exc:
             logger.warning('Scheduled crawl failed: %s', exc)
         await asyncio.sleep(interval_seconds)
@@ -104,6 +113,9 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.router.redirect_slashes = False
+    # cheapest-all 등 대형 JSON 응답(수백 KB)을 gzip 압축 → 전송시간·대역폭 절감,
+    # 동시 접속 시 커넥션이 더 빨리 반환된다. 1KB 미만 응답은 압축 생략.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
