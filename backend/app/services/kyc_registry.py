@@ -35,6 +35,13 @@ _SERVICE_ALIASES = {
 # playground registry에 등록되지 않은 서비스의 KYC 상태 정적 fallback
 _STATIC_KYC: dict[str, KycStatus] = {
     'oksusu': 'non_kyc',
+    'boltz': 'non_kyc',
+    'boltzsubmarine': 'non_kyc',
+    'boltzmutual': 'non_kyc',
+    'bitfreeze': 'non_kyc',
+    'coinos': 'non_kyc',
+    'strike': 'kyc',
+    'walletofsatoshi': 'kyc',
 }
 
 
