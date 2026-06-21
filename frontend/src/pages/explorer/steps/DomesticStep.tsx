@@ -11,7 +11,7 @@ export function DomesticStep() {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const {
-    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, usdtPremium,
+    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimpTotal, usdtPremium,
     btcPrice, withdrawalLimits, stepEndRef, forexUsdKrw,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
@@ -24,7 +24,7 @@ export function DomesticStep() {
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {
-                  const kimp = (liveKimp ?? snapshotKimp)[exchange] ?? null;
+                  const kimp = (liveKimpTotal ?? snapshotKimp)[exchange] ?? null;
                   const takerFee = allData?.tickers.find(t =>
                     t.exchange === exchange && t.currency === 'KRW' && t.pair?.includes('BTC')
                   )?.taker_fee_pct ?? null;
@@ -104,7 +104,7 @@ export function DomesticStep() {
                   source: apiLimits?.source ?? 'static',
                 };
                 const vol = koreaVolumeMap[domestic];
-                const kimp = (liveKimp ?? snapshotKimp)[domestic] ?? null;
+                const kimp = (liveKimpTotal ?? snapshotKimp)[domestic] ?? null;
                 return (
                   <div className="space-y-2">
                     <button
@@ -134,7 +134,7 @@ export function DomesticStep() {
                               {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                               {kimp != null && (
                                 <div>
-                                  <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(원달러 기준)</span></span>
+                                  <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(총)</span></span>
                                   <p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
                                 </div>
                               )}

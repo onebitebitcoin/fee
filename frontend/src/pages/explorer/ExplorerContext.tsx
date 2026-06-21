@@ -30,6 +30,8 @@ function useExplorerValue() {
   const [destination, setDestination] = useState<Destination | null>(null);  // 마법사 종착지 선택
   const [swapSvc, setSwapSvc]     = useState<string | null>(null);
   const [liveKimp, setLiveKimp]       = useState<Record<string, number> | null>(null);
+  // 김치 프리미엄(총, 포렉스 기준) — 전 화면 '김치 프리미엄' 표시 단일 기준
+  const [liveKimpTotal, setLiveKimpTotal] = useState<Record<string, number> | null>(null);
   const [kimpFetchedAt, setKimpFetchedAt] = useState<number | null>(null);
   const [liveUsdtKrw, setLiveUsdtKrw] = useState<number | null>(null); // Upbit KRW-USDT 실거래가
   const [usdtPremium, setUsdtPremium] = useState<number | null>(null); // 원달러(테더) 프리미엄 %
@@ -81,6 +83,7 @@ function useExplorerValue() {
     tickers: TickerRow[];
     latestRunAt: number | null;
     kimp: Record<string, number> | null;
+    kimpTotal: Record<string, number> | null;
     usdtPremium: number | null;
     kimpFetchedAt: number | null;
     fetchedAt: number;
@@ -185,6 +188,7 @@ function useExplorerValue() {
           tickers: tickerRes?.items ?? [],
           latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
           kimp: kimpRes?.kimp ?? null,
+          kimpTotal: kimpRes?.kimchi_premium_total ?? null,
           usdtPremium: kimpRes?.usdt_premium ?? null,
           kimpFetchedAt: kimpRes?.fetched_at ?? null,
           fetchedAt: Date.now(),
@@ -496,7 +500,7 @@ function useExplorerValue() {
     const cached = _prefetchCache.current;
     if (cached?.amount === amountKrw && Date.now() - cached.fetchedAt < PREFETCH_TTL) {
       setAllData({ byGlobal: cached.byGlobal, tickers: cached.tickers, latestRunAt: cached.latestRunAt });
-      if (cached.kimp) { setLiveKimp(cached.kimp); setKimpFetchedAt(cached.kimpFetchedAt); setUsdtPremium(cached.usdtPremium); }
+      if (cached.kimp) { setLiveKimp(cached.kimp); setLiveKimpTotal(cached.kimpTotal); setKimpFetchedAt(cached.kimpFetchedAt); setUsdtPremium(cached.usdtPremium); }
       setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
       setFailedGlobalExchanges([]);
       setError(null);
@@ -509,7 +513,7 @@ function useExplorerValue() {
 
     setIsSearching(true);
     setLoadingDone(false);
-    setAllData(null); setError(null); setLiveKimp(null); setKimpFetchedAt(null);
+    setAllData(null); setError(null); setLiveKimp(null); setLiveKimpTotal(null); setKimpFetchedAt(null);
     setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
     setFailedGlobalExchanges([]);
 
@@ -537,7 +541,7 @@ function useExplorerValue() {
         DOMESTIC_EXCHANGES.forEach(d => { next[d] = domesticStatus; });
         return next;
       });
-      if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setKimpFetchedAt(kimpRes.fetched_at ?? null); setUsdtPremium(kimpRes.usdt_premium ?? null); setForexUsdKrw(kimpRes.forex_usd_krw_rate ?? null); }
+      if (kimpRes?.kimp) { setLiveKimp(kimpRes.kimp); setLiveKimpTotal(kimpRes.kimchi_premium_total ?? null); setKimpFetchedAt(kimpRes.fetched_at ?? null); setUsdtPremium(kimpRes.usdt_premium ?? null); setForexUsdKrw(kimpRes.forex_usd_krw_rate ?? null); }
 
       // 단일 배치 호출로 7개 글로벌 거래소를 한 번에 조회
       const allRes = await withTimeout(
@@ -745,6 +749,7 @@ function useExplorerValue() {
     destination, setDestination,
     swapSvc, setSwapSvc,
     liveKimp,
+    liveKimpTotal,
     liveUsdtKrw,
     usdtPremium,
     forexUsdKrw,

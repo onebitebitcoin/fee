@@ -14,7 +14,7 @@ import { buildReportQuery } from '../../board/reportTemplate';
 export function ResultStep() {
   const navigate = useNavigate();
   const {
-    amountKrw, domestic, global, network, swapSvc, liveKimp, liveUsdtKrw, displaySats,
+    amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, displaySats,
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
     globalExitMethod, allData,
   } = useExplorer();
@@ -119,7 +119,7 @@ export function ResultStep() {
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
-                  const kimchi = domestic ? ((liveKimp ?? snapshotKimp)[domestic] ?? null) : null;
+                  const kimchi = domestic ? ((liveKimpTotal ?? snapshotKimp)[domestic] ?? null) : null;
                   const satsKrw = domesticBtcKrw != null && resultPath.btc_received != null
                     ? Math.round(resultPath.btc_received * domesticBtcKrw)
                     : null;
