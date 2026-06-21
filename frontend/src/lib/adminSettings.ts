@@ -80,7 +80,7 @@ const DEFAULT_KOREAN_NODES: KoreanExchangeNode[] = [
     perTxKrwLimit: 1_000_000,
     dailyBtcLimitVerified: 5,
     personalWalletNote: '고객센터 확인 필요',
-    notes: '⚠️ 고파이 사태 진행 중, 사용 주의',
+    notes: '2023년 바이낸스 인수. 현재 정상 운영 중.',
   },
 ];
 

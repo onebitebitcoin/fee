@@ -36,50 +36,52 @@ DEFAULT_REGISTRY: dict = {
         'upbit': [
             {'label': '출금 주소 사전 등록 필수', 'desc': 'My Wallet에 출금 주소를 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': '본인 명의 지갑만 허용', 'desc': '타인 명의 거래소 주소 또는 서비스 주소로 출금이 불가합니다.', 'level': 'required', 'condition': None},
-            {'label': '신규 주소 24시간 지연', 'desc': '처음 등록한 주소는 24시간 이후에 출금이 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
+            {'label': '출금 주소 심사 1~3일 소요', 'desc': '1:1 문의를 통한 출금 주소 등록 심사에 10시간~3일이 소요될 수 있습니다. 미신고 거래소 주소는 등록 불가합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
+            {'label': '원화 입금 후 출금 지연', 'desc': '첫 원화 입금 시 72시간, 이후 각 입금마다 24시간 동안 해당 금액 상당의 가상자산 출금이 제한됩니다.', 'level': 'conditional', 'condition': '원화 입금 시'},
             {'label': '고액 출금 시 자금 출처 증명', 'desc': '일정 금액 이상 출금 시 자금 출처 서류 제출이 요구될 수 있습니다.', 'level': 'conditional', 'condition': '대규모 출금 시'},
         ],
         'bithumb': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 주소록에 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증이 완료된 계정에서만 출금 가능합니다.', 'level': 'required', 'condition': None},
-            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '트래블룰', 'desc': '100만원 이상 출금 시 수신 지갑 소유자 정보를 입력해야 합니다. 2025년 4월부터 100만원 미만도 주소 등록 필요.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
             {'label': '고액 출금 자금 출처 증명', 'desc': '고액 출금 시 자금 출처 서류 제출이 요구될 수 있습니다.', 'level': 'conditional', 'condition': '고액 출금 시'},
         ],
         'korbit': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '원화 입금 후 출금 지연', 'desc': '신규 고객은 첫 원화 입금 후 72시간, 기존 고객은 각 원화 입금 후 24시간 해당 금액 상당의 가상자산 출금이 제한됩니다.', 'level': 'conditional', 'condition': '원화 입금 시'},
+            {'label': '트래블룰', 'desc': '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
         ],
         'coinone': [
             {'label': '출금 주소 사전 등록 필수', 'desc': '안심 주소록에 출금 주소를 등록해야 합니다.', 'level': 'required', 'condition': None},
-            {'label': '신규 주소 72시간 지연', 'desc': '새로 등록한 주소는 72시간 이후에 출금이 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
+            {'label': '원화 입금 후 72시간 출금 지연', 'desc': '원화 입금 후 72시간 동안 해당 금액 상당의 가상자산 출금이 제한됩니다. 2025년 5월부터 24시간 지연제도 병행 적용됩니다.', 'level': 'conditional', 'condition': '원화 입금 시'},
             {'label': '자금 출처 증명', 'desc': '고액 출금 시 자금 출처 서류 제출이 필요합니다.', 'level': 'conditional', 'condition': '고액 출금 시'},
         ],
         'gopax': [
-            {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 미리 등록해야 합니다.', 'level': 'required', 'condition': None},
+            {'label': '출금 주소 사전 등록 필수', 'desc': '출금 주소를 미리 등록해야 합니다. 관리자 증빙 심사 후 승인됩니다.', 'level': 'required', 'condition': None},
             {'label': 'KYC 실명 인증 필수', 'desc': '본인 인증이 완료된 계정에서만 출금 가능합니다.', 'level': 'required', 'condition': None},
-            {'label': '트레블룰', 'desc': '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
+            {'label': '트래블룰', 'desc': '100만원 이상 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '100만원 이상 출금 시'},
         ],
     },
     'global': {
         'binance': [
-            {'label': 'KYC 인증 (Level 1 이상)', 'desc': '신분증 인증이 완료되어야 입출금이 가능합니다.', 'level': 'required', 'condition': None},
-            {'label': '일일 출금 한도', 'desc': 'KYC Level 1: $8M/day, 미인증: 출금 불가', 'level': 'info', 'condition': None},
-            {'label': '트레블룰', 'desc': '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '한국 KYC 완료 사용자'},
+            {'label': 'KYC 인증 (Level 1 이상)', 'desc': '신분증 인증이 완료되어야 입출금이 가능합니다. 미인증 시 출금 불가.', 'level': 'required', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': 'KYC Level 1 (Basic): $1,000,000/day, Level 2 (Advanced): $2,000,000/day, 미인증: 출금 불가', 'level': 'info', 'condition': None},
+            {'label': '트래블룰', 'desc': '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '한국 KYC 완료 사용자'},
         ],
         'okx': [
             {'label': 'KYC 인증 필수', 'desc': '개인 신원 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': '일일 출금 한도', 'desc': 'Level 1: $1,000/day, Level 2: $100,000/day, Level 3: 무제한', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': 'KYC1(기본 인증): $5,000/day, KYC2(고급·얼굴인식 추가): $10,000,000/day', 'level': 'info', 'condition': None},
             {'label': '신규 주소 24시간 지연', 'desc': '새로 등록한 주소는 24시간 후 출금이 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
         ],
         'bybit': [
             {'label': 'KYC 인증 필수', 'desc': '거주 국가 및 신분 인증 필요합니다.', 'level': 'required', 'condition': None},
             {'label': '신규 주소 24시간 지연', 'desc': '새로 등록한 주소는 24시간 후 사용 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
-            {'label': '일일 출금 한도', 'desc': 'KYC 완료 시 최대 $1,000,000/day', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': 'Level 1 (Standard): $1,000,000/day, Level 2 (Advanced): $2,000,000/day', 'level': 'info', 'condition': None},
         ],
         'bitget': [
             {'label': 'KYC 인증 필수', 'desc': '신분증 인증이 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': '일일 출금 한도', 'desc': 'KYC Level별 한도 상이. 미인증 시 출금 불가.', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': '미인증: $20,000/day, KYC 완료(VIP0): $3,000,000/day, 고급 VIP: 최대 $15,000,000/day', 'level': 'info', 'condition': None},
             {'label': '신규 주소 24시간 지연', 'desc': '새로 추가한 주소는 24시간 후 출금 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
         ],
         'kraken': [
@@ -88,8 +90,14 @@ DEFAULT_REGISTRY: dict = {
         ],
         'coinbase': [
             {'label': 'KYC 인증 필수', 'desc': '신분 인증 및 거주지 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': '한국 서비스 제한', 'desc': 'Coinbase는 한국 거주자에게 서비스를 제공하지 않을 수 있습니다.', 'level': 'required', 'condition': None},
+            {'label': '한국 법정화폐 서비스 미제공', 'desc': 'Coinbase는 한국 거주자에게 법정화폐 입출금 서비스를 제공하지 않습니다. 크립토 간 거래는 제한적으로 가능합니다.', 'level': 'required', 'condition': None},
             {'label': '일일 출금 한도', 'desc': '계정 등급에 따라 한도 상이', 'level': 'info', 'condition': None},
+        ],
+        'gate': [
+            {'label': 'KYC 인증 필수', 'desc': '신분증 인증이 필요합니다. KYC 미완료 시 출금 불가.', 'level': 'required', 'condition': None},
+            {'label': '트래블룰 지원 (VerifyVASP·CODE)', 'desc': 'Gate.io는 VerifyVASP 및 CODE 트래블룰 솔루션을 지원합니다. 국내 거래소와의 이전이 가능합니다.', 'level': 'info', 'condition': None},
+            {'label': '신규 주소 24시간 지연', 'desc': '새로 추가한 출금 주소는 24시간 후 사용 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
+            {'label': '일일 출금 한도', 'desc': 'KYC Lv1: $2,000,000/day, Lv2: $5,000,000/day', 'level': 'info', 'condition': None},
         ],
     },
     'onchain': [
