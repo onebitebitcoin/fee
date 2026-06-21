@@ -2,22 +2,19 @@
 
 한국 거래소 KRW 마켓 최소 주문 금액은 약관 고정값이라 실시간 수집 대상이 아니다.
 업비트만 공식 확인(5,000원)이고 나머지는 대표 근사값이다. 값 정확화가 필요하면
-이 파일만 수정한다.
+backend/app/domain/exchanges/profiles.py 의 min_order_krw 필드를 수정한다.
 
-용도: 매수 시 투자금이 최소 주문 단위로 나눠떨어지지 않아 남는 잔돈을
-'버려지는 금액(discarded_krw)'으로 근사 표시한다. (시장가 금액지정 매수에선
-실제 잔돈이 거의 0이지만, 최소 단위 기준 보수적 근사로 노출한다.)
+이 파일은 기존 호출 인터페이스를 유지하는 thin wrapper다.
 """
 from __future__ import annotations
 
-# 한국 거래소 KRW 마켓 최소 주문 금액 (원). 출처: 각 거래소 주문 화면/약관.
-# upbit: 공식 5,000원. 그 외: 대표 근사값(추후 정확화 가능).
+from backend.app.domain.exchanges.profiles import get_korea_profiles
+
+# 한국 거래소 KRW 마켓 최소 주문 금액 (원). profiles.py 에서 파생.
 KOREA_MIN_ORDER_KRW: dict[str, int] = {
-    'upbit': 5000,
-    'bithumb': 1000,
-    'coinone': 1000,
-    'korbit': 1000,
-    'gopax': 1000,
+    p.id: p.min_order_krw
+    for p in get_korea_profiles()
+    if p.min_order_krw is not None
 }
 
 _DEFAULT_MIN_ORDER_KRW = 1000

@@ -5,49 +5,22 @@ Sources:
   - OECD Commitments PDF: https://www.oecd.org/content/dam/oecd/en/networks/global-forum-tax-transparency/commitments-carf.pdf
   - Korea implementation: data collection from 2026-01-01, first exchange 2027
   - 2026-01-01부터 거래 데이터 수집 시작, 2027년에 첫 정보 교환
+
+관할권 데이터는 backend/app/domain/exchanges/profiles.py 에서 관리.
+이 파일은 CARF 상태 계산 로직 + 기존 호출 인터페이스를 유지하는 thin wrapper다.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from backend.app.domain.exchanges._types import JurisdictionCarf  # noqa: F401 (re-export)
+from backend.app.domain.exchanges.profiles import EXCHANGE_PROFILES
 
+# ── 거래소별 주요 관할권 ─────────────────────────────────────────────────────
+# profiles.py 에서 파생. carf_jurisdiction이 있는 거래소만 포함.
 
-@dataclass(frozen=True)
-class JurisdictionCarf:
-    country: str
-    flag: str
-    carf_first_exchange_year: int | None   # None = 미확정/미가입
-    carf_status: str                        # "confirmed_2027" | "confirmed_2028" | "unknown"
-    note: str = ""
-
-
-# ── 거래소별 주요 관할권 (CARF 보고 기준 등록 법인 소재) ──────────────
 EXCHANGE_JURISDICTIONS: dict[str, JurisdictionCarf] = {
-    # 한국 거래소 (source)
-    "upbit":   JurisdictionCarf("대한민국", "🇰🇷", 2027, "confirmed_2027",
-                                 "52개국 2027 첫 교환 그룹. 2026년부터 데이터 수집."),
-    "bithumb": JurisdictionCarf("대한민국", "🇰🇷", 2027, "confirmed_2027",
-                                 "52개국 2027 첫 교환 그룹. 2026년부터 데이터 수집."),
-    "korbit":  JurisdictionCarf("대한민국", "🇰🇷", 2027, "confirmed_2027",
-                                 "52개국 2027 첫 교환 그룹. 2026년부터 데이터 수집."),
-    "coinone": JurisdictionCarf("대한민국", "🇰🇷", 2027, "confirmed_2027",
-                                 "52개국 2027 첫 교환 그룹. 2026년부터 데이터 수집."),
-    "gopax":   JurisdictionCarf("대한민국", "🇰🇷", 2027, "confirmed_2027",
-                                 "52개국 2027 첫 교환 그룹. 2026년부터 데이터 수집."),
-
-    # 글로벌 거래소 (dest) — 등록 법인 기준
-    "binance": JurisdictionCarf("아랍에미리트 (Abu Dhabi)", "🇦🇪", 2028, "confirmed_2028",
-                                 "2025-12-07 Abu Dhabi Global Market(ADGM) 이전 발표, 2026-01-05 운영 시작. "
-                                 "등록 법인: Nest Exchange Ltd. (ADGM). UAE는 2028 그룹."),
-    "okx":     JurisdictionCarf("세이셸", "🇸🇨", 2028, "confirmed_2028",
-                                 "Aux Cayes FinTech Co. Ltd 등록지. 세이셸은 2028 그룹."),
-    "coinbase":JurisdictionCarf("미국", "🇺🇸", 2028, "confirmed_2028",
-                                 "Coinbase Inc. 미국 법인. 미국은 2028 그룹."),
-    "kraken":  JurisdictionCarf("미국", "🇺🇸", 2028, "confirmed_2028",
-                                 "Payward Inc. 미국 법인. 미국은 2028 그룹."),
-    "bitget":  JurisdictionCarf("세이셸", "🇸🇨", 2028, "confirmed_2028",
-                                 "Bitget Limited 등록지. 세이셸은 2028 그룹."),
-    "bybit":   JurisdictionCarf("아랍에미리트 / BVI", "🇦🇪", 2028, "confirmed_2028",
-                                 "Bybit Fintech Ltd(BVI 등록) + Dubai 운영. UAE·BVI 모두 2028 그룹."),
+    exchange_id: profile.carf_jurisdiction
+    for exchange_id, profile in EXCHANGE_PROFILES.items()
+    if profile.carf_jurisdiction is not None
 }
 
 
