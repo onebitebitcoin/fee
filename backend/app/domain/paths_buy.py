@@ -19,6 +19,7 @@ from backend.app.domain.paths import (
     PER_EXCHANGE_BUILDERS,
     BuilderContext,
 )
+from backend.app.domain.paths.destination import resolve_destination
 
 logger = logging.getLogger(__name__)
 
@@ -117,15 +118,10 @@ def find_cheapest_path_from_snapshot_rows(
         disabled_paths.extend(result.disabled)
 
     # 최소 주문 단위로 인해 못 쓰고 남는 잔돈(표시용 근사). btc_received는 건드리지 않는다.
-    # 종착지(destination) 태깅: LN 직접출금(__direct__)은 라이트닝 지갑이 수신처(온체인 개인지갑
-    # 으로 직접 받을 수 없음) → 'lightning_wallet'. 그 외(온체인/스왑 경유)는 'personal'.
+    # 종착지(destination) 태깅은 paths/destination.py 리졸버에 위임 (선언적 규칙).
     for p in paths:
         p['discarded_krw'] = calc_discarded_krw(amount_krw, p['korean_exchange'])
-        p['destination'] = (
-            'lightning_wallet'
-            if p.get('path_type') == 'lightning_exit' and p.get('lightning_exit_provider') == '__direct__'
-            else 'personal'
-        )
+        p['destination'] = resolve_destination(p)
 
     paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
     lightning_services = sorted({

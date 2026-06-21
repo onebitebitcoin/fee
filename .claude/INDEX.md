@@ -84,6 +84,7 @@ cd frontend && npm run test
 | `usdt.py` | `build_usdt(bctx, exchange)` — USDT 경유→글로벌 BTC 매수→온체인 경로. |
 | `lightning.py` | `build_lightning(bctx)` — **집계 빌더**(내부 거래소 순회). LN exit 경로(USDT/BTC→글로벌→LN, 스왑/직접). LN 헬퍼(`_resolve_global_ln_row`/`_ln_num_txs`/`_global_ln_fee_krw`/`_build_ln_global_exit_components`) 포함. |
 | `registry.py` | **빌더 실행 순서 Single Source.** `PER_EXCHANGE_BUILDERS`(거래소 루프 내, 순서 보존) + `AGGREGATE_BUILDERS`(루프 이후). 새 경로 타입 = 모듈 작성 → 리스트 등록. |
+| `destination.py` | **종착지 리졸버.** `resolve_destination(path)` — `DESTINATION_RULES`(predicate→destination, 순서대로 첫 매치) + `DEFAULT_DESTINATION='personal'`. LN 직접출금(__direct__)→'lightning_wallet'. 새 종착지 = 규칙 1개 추가. paths_buy 후처리 루프가 소비. |
 
 #### `backend/app/domain/exchanges/` (Phase 1 신설 패키지 — 거래소 메타데이터 SSoT)
 
