@@ -36,10 +36,12 @@ def _is_admin(x_api_key: str | None) -> bool:
 # ── 직렬화 (비밀번호 필드 절대 미포함) ───────────────────────────────────────
 
 def _serialize_post_brief(post: BoardPost, comment_count: int) -> dict:
+    preview = (post.content or '').strip().replace('\n', ' ')[:80]
     return {
         'id': post.id,
         'category': post.category,
         'title': post.title,
+        'content_preview': preview,
         'nickname': post.nickname,
         'comment_count': comment_count,
         'created_at': _ts(post.created_at),

@@ -310,6 +310,7 @@ export type BoardPostBrief = {
   id: number;
   category: BoardCategory;
   title: string;
+  content_preview: string;
   nickname: string;
   comment_count: number;
   created_at: number | null;

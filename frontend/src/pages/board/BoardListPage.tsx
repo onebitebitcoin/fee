@@ -9,33 +9,44 @@ import { BoardLayout } from './BoardLayout';
 
 const PAGE_SIZE = 20;
 
-function PostRow({ post, onClick }: { post: BoardPostBrief; onClick: () => void }) {
+function PostCard({ post, onClick }: { post: BoardPostBrief; onClick: () => void }) {
   const meta = categoryMeta(post.category);
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left ios-card rounded-2xl px-4 py-3 border transition-colors hover:bg-fill-primary ${
-        meta.rowClass || 'border-transparent'
+      className={`w-full text-left ios-card rounded-2xl px-4 py-4 transition-colors hover:bg-fill-primary active:scale-[0.99] ${
+        meta.rowClass || ''
       }`}
     >
-      <div className="flex items-center gap-2">
-        <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta.badgeClass}`}>
+      {/* 상단: 카테고리 뱃지 + 날짜 */}
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta.badgeClass}`}>
           {meta.label}
         </span>
-        <span className="flex-1 min-w-0 truncate text-sm font-semibold text-label-primary">
-          {post.title}
-        </span>
+        <span className="text-[11px] text-label-quaternary">{fmtKst(post.created_at)}</span>
+      </div>
+
+      {/* 제목 */}
+      <p className="text-sm font-bold text-label-primary leading-snug mb-1.5">
+        {post.title}
+      </p>
+
+      {/* 본문 미리보기 */}
+      {post.content_preview && (
+        <p className="text-[12px] text-label-tertiary leading-relaxed line-clamp-2 mb-2.5">
+          {post.content_preview}
+        </p>
+      )}
+
+      {/* 하단: 닉네임 + 댓글 수 */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-label-secondary">{post.nickname}</span>
         {post.comment_count > 0 && (
-          <span className="flex-shrink-0 flex items-center gap-0.5 text-[11px] text-acc-amber font-semibold">
+          <span className="flex items-center gap-1 text-[11px] text-label-tertiary">
             <ChatCircle className="w-3 h-3" weight="fill" />
-            {post.comment_count}
+            댓글 {post.comment_count}
           </span>
         )}
-      </div>
-      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-label-tertiary">
-        <span className="font-medium text-label-secondary">{post.nickname}</span>
-        <span className="text-label-quaternary">·</span>
-        <span>{fmtKst(post.created_at)}</span>
       </div>
     </button>
   );
@@ -122,13 +133,13 @@ export function BoardListPage() {
       {loading && !data ? (
         <p className="text-center text-sm text-label-tertiary py-8">불러오는 중…</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* 공지: 모든 페이지 상단 고정 (검색 없을 때만) */}
           {!q && data?.notices.map(p => (
-            <PostRow key={`n-${p.id}`} post={p} onClick={() => navigate(`/board/${p.id}`)} />
+            <PostCard key={`n-${p.id}`} post={p} onClick={() => navigate(`/board/${p.id}`)} />
           ))}
           {data?.items.map(p => (
-            <PostRow key={p.id} post={p} onClick={() => navigate(`/board/${p.id}`)} />
+            <PostCard key={p.id} post={p} onClick={() => navigate(`/board/${p.id}`)} />
           ))}
           {data && data.items.length === 0 && data.notices.length === 0 && (
             <p className="text-center text-sm text-label-tertiary py-8">게시글이 없습니다.</p>
