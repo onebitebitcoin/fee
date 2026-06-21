@@ -12,7 +12,7 @@ import type { CheapestPathEntry, CheapestPathResponse, DisabledCheapestPathEntry
 import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
-import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByFee } from './constants';
+import { GLOBAL_EXCHANGES, GLOBAL_INFO, DOMESTIC_INFO, bestByFee } from './constants';
 import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
 
 function useExplorerValue() {
@@ -361,10 +361,14 @@ function useExplorerValue() {
     return false;
   }, [allData, domestic, global, coin, network]);
 
-  // 글로벌 거래소가 실제로 라이트닝 출금 경로를 제공하는지 (정적 메타데이터 대신 실제 경로 기반)
-  // okx처럼 라이트닝을 지원하지만 수수료 스냅샷이 비어 경로가 없으면 false → 표시와 게이팅 일치
+  // 글로벌 거래소가 라이트닝 출금을 지원하는지:
+  // 1순위 — 실제 경로 존재 여부(API 기반)
+  // 2순위 — GLOBAL_INFO.lightning 정적 메타데이터 폴백 (OKX처럼 지원하지만 스냅샷 누락 시)
   const globalSupportsLightning = (g: string | null): boolean =>
-    !!g && (allData?.byGlobal[g]?.all_paths ?? []).some(p => p.path_type === 'lightning_exit');
+    !!g && (
+      (allData?.byGlobal[g]?.all_paths ?? []).some(p => p.path_type === 'lightning_exit') ||
+      (GLOBAL_INFO[g as keyof typeof GLOBAL_INFO]?.lightning ?? false)
+    );
 
   // 현재 선택(국내/코인/글로벌/네트워크) 기준의 lightning_exit 경로 집합 — 종착지 단계·스왑 단계가 공유
   const currentLightningPaths = useMemo(() => {

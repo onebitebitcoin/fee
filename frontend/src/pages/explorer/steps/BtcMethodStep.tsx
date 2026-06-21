@@ -28,7 +28,7 @@ export function BtcMethodStep() {
                     </div>
                   </div>
                 </OptionCard>
-                <OptionCard selected={btcMethod === 'lightning'} onClick={() => { setBtcMethod('lightning'); scrollToStepEnd(); }}>
+                <div className="ios-card rounded-2xl p-4 opacity-50 cursor-not-allowed">
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-xs font-bold text-label-secondary">2</span>
@@ -41,7 +41,14 @@ export function BtcMethodStep() {
                       <p className="text-xs text-label-secondary mt-0.5">즉시 결제 · 수수료 저렴 · 국내 거래소에서 직접 출금 불가</p>
                     </div>
                   </div>
-                </OptionCard>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
+                <span className="text-acc-amber mt-0.5 flex-shrink-0 text-sm">⚡</span>
+                <p className="text-[11px] text-label-secondary leading-relaxed">
+                  <span className="font-semibold text-acc-amber">라이트닝 출금 불가</span> — 국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다. 라이트닝 경로를 원하신다면 코인 선택 단계에서 <span className="font-medium text-label-primary">비트코인 → 해외거래소 경유</span>를 선택하세요.
+                </p>
               </div>
 
               {btcMethod === 'onchain' && (
@@ -56,26 +63,12 @@ export function BtcMethodStep() {
                 </motion.div>
               )}
 
-              {btcMethod === 'lightning' && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={SPRING_SLOW}
-                  className="ios-card rounded-2xl p-4 text-xs space-y-2">
-                  <p className="font-semibold text-label-primary">라이트닝 네트워크란?</p>
-                  <p className="text-label-secondary">Bitcoin 위에 구축된 2nd Layer 결제 프로토콜로, 수수료가 매우 저렴하고 거래가 즉시 완료됩니다.</p>
-                  <p className="text-label-secondary"><span className="font-medium text-acc-red">국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다.</span> 온체인으로 출금 후 별도 스왑 서비스를 이용하는 경로를 원하신다면 코인 선택 단계에서 &apos;비트코인 → 해외거래소 경유&apos;를 선택하세요.</p>
-                </motion.div>
-              )}
-
               {btcMethod !== null && (
                 <motion.button
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
-                  disabled={btcMethod === 'lightning'}
-                  onClick={() => { if (btcMethod === 'onchain') handleNext('btc_method'); }}
-                  className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                    btcMethod === 'lightning'
-                      ? 'bg-fill-secondary text-label-tertiary cursor-not-allowed'
-                      : 'bg-acc-amber text-white shadow-glow-amber cursor-pointer'
-                  }`}
+                  onClick={() => handleNext('btc_method')}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-acc-amber text-white shadow-glow-amber cursor-pointer"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

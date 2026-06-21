@@ -82,8 +82,8 @@ const NETWORK_ICONS: Record<string, string> = {
   // Celo
   celo:                     TW('celo'),
 
-  // Kaia (formerly Klaytn)
-  kaia:                     TW('kaia'),
+  // Kaia (formerly Klaytn) — TrustWallet CDN에 'kaia' 없음, 'klaytn' 사용
+  kaia:                     TW('klaytn'),
   klaytn:                   TW('klaytn'),
 
   // Polkadot
