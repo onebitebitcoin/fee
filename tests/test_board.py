@@ -1,18 +1,21 @@
 """게시판 API 통합 테스트."""
-import os
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-os.environ['ADMIN_API_KEY'] = 'test-admin-key'
-
-from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-from sqlalchemy.pool import StaticPool  # noqa: E402
-
-from backend.app.db.base import Base  # noqa: E402
-from backend.app.db.session import get_db  # noqa: E402
-from backend.app.main import app  # noqa: E402
+from backend.app.db.base import Base
+from backend.app.db.session import get_db
+from backend.app.main import app
 
 ADMIN_HEADERS = {'X-API-Key': 'test-admin-key'}
+
+
+@pytest.fixture(autouse=True)
+def _admin_key(monkeypatch):
+    """ADMIN_API_KEY를 테스트 범위에서만 설정 (다른 테스트 모듈로 누수 방지, 자동 복원)."""
+    monkeypatch.setenv('ADMIN_API_KEY', 'test-admin-key')
 
 
 def make_client() -> TestClient:
