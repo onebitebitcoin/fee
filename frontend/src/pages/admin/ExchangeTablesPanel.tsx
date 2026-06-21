@@ -1,8 +1,6 @@
 import { EditCell } from './adminHelpers';
 import type { KoreanExchangeNode, GlobalExchangeNode } from '../../lib/adminSettings';
-
-type GateLevel = 'required' | 'conditional' | 'info';
-type GateItem = { label: string; desc: string; level: GateLevel; condition: string | null };
+import type { GateLevel, GateItem } from '../../lib/gatemanRegistry';
 
 const LEVEL_CFG: Record<GateLevel, { badge: string; label: string }> = {
   required:    { badge: 'bg-acc-red/10 text-acc-red',     label: '필수' },

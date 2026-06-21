@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { AdminSettings } from '../../lib/adminSettings';
+import type { GateItem } from '../../lib/gatemanRegistry';
 import { KoreanExchangeCards, GlobalExchangeCards, EdgePropertiesSection } from './ExchangeTablesPanel';
 import { CautionPanel } from './CautionPanel';
 import { WithdrawalFeePanel } from './WithdrawalFeePanel';
@@ -7,7 +8,6 @@ import { api } from '../../lib/api';
 
 type ExchangeTab = 'korean' | 'global' | 'edges';
 
-type GateItem = { label: string; desc: string; level: string; condition: string | null };
 type GateRegistry = {
   domestic: Record<string, GateItem[]>;
   global: Record<string, GateItem[]>;
