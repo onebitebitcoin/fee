@@ -123,7 +123,8 @@ export function fmtAmountText(text: string | null | undefined): string | null {
   const m = text.match(/^([0-9.e+\-]+)\s*BTC(\s*\(.+\))?$/i);
   if (m) {
     const btc = parseFloat(m[1]);
-    if (!isNaN(btc) && btc < 0.001) {
+    // 수수료대(< 0.01 BTC)는 sats로 통일. 0.01 이상은 대액으로 보고 BTC 유지.
+    if (!isNaN(btc) && btc < 0.01) {
       const suffix = m[2] ? ` ${m[2].trim()}` : '';
       return `${Math.round(btc * 1e8)} sats${suffix}`;
     }
