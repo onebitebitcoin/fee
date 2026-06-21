@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from backend.app.api.routes import admin, chat, crawl_runs, exchanges, health, market, stats
+from backend.app.api.routes import admin, board, chat, crawl_runs, exchanges, health, market, stats
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=['health'])
@@ -10,3 +10,4 @@ api_router.include_router(crawl_runs.router, prefix='/crawl-runs', tags=['crawl-
 api_router.include_router(stats.router, prefix='/stats', tags=['stats'])
 api_router.include_router(chat.router, prefix='/chat', tags=['chat'])
 api_router.include_router(admin.router, prefix='/admin', tags=['admin'])
+api_router.include_router(board.router, prefix='/board', tags=['board'])
