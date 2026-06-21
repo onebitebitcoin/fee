@@ -14,7 +14,7 @@ const EXCHANGE_NAMES: Record<string, string> = {
   // lightning swap services
   boltz: 'Boltz',
   coinos: 'Coinos',
-  bitflower: 'BitFlower',
+  bitfreezer: 'BitFreezer',
   walletofsatoshi: 'Wallet of Satoshi',
   strike: 'Strike',
   oksusu: 'Oksusu',
@@ -36,7 +36,7 @@ const EXCHANGE_DOMAINS: Record<string, string> = {
   // lightning swap services
   boltz: 'boltz.exchange',
   coinos: 'coinos.io',
-  bitflower: 'bitflower.com',
+  bitfreezer: 'bitfreezer.vercel.app',
   walletofsatoshi: 'walletofsatoshi.com',
   strike: 'strike.me',
   oksusu: 'team.oksu.su',
@@ -45,6 +45,10 @@ const EXCHANGE_DOMAINS: Record<string, string> = {
 // Google favicon API가 인식 못하는 사이트는 직접 URL 지정
 const FAVICON_URL_OVERRIDES: Record<string, string> = {
   oksusu: 'https://team.oksu.su/corn-logo.png',
+  // BitFreezer 사이트(bitfreezer.vercel.app)는 봇 차단(403)으로 favicon을 가져올 수 없어,
+  // 실제 브랜드(눈송이 / 색 #3399ff)에 맞춘 인라인 SVG 아이콘을 사용한다.
+  bitfreezer:
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233399ff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='2' x2='22' y1='12' y2='12'/%3E%3Cline x1='12' x2='12' y1='2' y2='22'/%3E%3Cpath d='m20 16-4-4 4-4'/%3E%3Cpath d='m4 8 4 4-4 4'/%3E%3Cpath d='m16 4-4 4-4-4'/%3E%3Cpath d='m8 20 4-4 4 4'/%3E%3C/svg%3E",
 };
 
 export function getFaviconUrl(id: string, size: number): string | null {
@@ -70,9 +74,9 @@ const LIGHTNING_SERVICE_INFO: Record<string, LightningServiceInfo> = {
     description: '무료 Lightning 지갑 및 스왑 서비스. Lightning 결제 인보이스를 생성해 On-chain BTC로 수령할 수 있습니다.',
     tags: ['무료 지갑', 'KYC 불필요'],
   },
-  bitflower: {
-    description: 'Lightning 채널 자동 관리 및 On-chain 스왑 서비스. 기업·개인 모두 이용 가능합니다.',
-    tags: ['기업·개인'],
+  bitfreezer: {
+    description: '라이트닝 BTC를 온체인 BTC 주소로 보내주는 한국 Lightning 노드 기반 스왑 서비스. 비수탁형으로 본인 인증이 필요 없습니다.',
+    tags: ['비수탁형', 'KYC 불필요', '한국'],
   },
   walletofsatoshi: {
     description: '간편한 UX의 호주산 Lightning 지갑. 초보자도 쉽게 Lightning을 사용할 수 있으며, On-chain 출금(스왑)을 지원합니다.',
