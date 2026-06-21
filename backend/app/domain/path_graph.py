@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -94,6 +95,7 @@ def withdraw_leg(
     price_krw: float,
     usd_krw: float,
     num_txs: int = 1,
+    split_on_max: bool = False,
     source_url: str | None = None,
     label_override: str | None = None,
     maintenance_status: dict | None = None,
@@ -130,7 +132,11 @@ def withdraw_leg(
     if min_wd is not None and amount_coin < min_wd:
         return Blocked(reason='출금 최소 한도 미달')
     if max_wd is not None and amount_coin > max_wd:
-        return Blocked(reason='출금 1회 최대 한도 초과')
+        if split_on_max:
+            # 1회 한도 초과 시 차단 대신 ceil(수량/한도)회로 분할 출금 (수수료 × 횟수)
+            num_txs = max(num_txs, math.ceil(amount_coin / max_wd))
+        else:
+            return Blocked(reason='출금 1회 최대 한도 초과')
 
     # 수수료 계산
     single_fee = row.fee

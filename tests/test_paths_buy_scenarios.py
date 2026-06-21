@@ -450,14 +450,16 @@ def test_ln_path_present_for_small_amount_within_max():
     assert ln_paths, "소액(100만원)은 LN max 한도 내 → LN 경로가 1개 이상 생성되어야 한다"
 
 
-def test_ln_path_blocked_for_large_amount_exceeding_max():
-    """거액(2억원 ≈ 1.43 BTC)은 LN max=0.01 BTC 초과 → LN 경로 0개 + disabled_paths 사유 기록.
+def test_ln_path_split_for_large_amount_exceeding_max():
+    """거액(2억원 ≈ 1.43 BTC)은 LN max=0.01 BTC 초과 → 차단 대신 분할 출금 경로 생성.
 
-    Arrange: 글로벌 LN 출금 max_withdrawal=0.01 BTC
+    Arrange: 글로벌 LN 출금 max_withdrawal=0.01 BTC, 단일 LN 수수료 fee_krw=140
     Act: 2억원 계산
     Assert:
-        - lightning_exit 경로 = 0개
-        - disabled_paths에 '한도' 관련 사유(출금 1회 최대 한도 초과) ≥ 1개
+        - lightning_exit 경로 ≥ 1개 (차단되지 않음)
+        - 분할 경로의 num_withdrawal_txs > 1
+        - 분할 경로의 LN 출금 수수료 = 단일 수수료(140) × num_withdrawal_txs
+        - disabled_paths에 '최대 한도 초과' 사유 없음 (분할로 해소)
     """
     # Arrange
     rows = _withdrawals_with_ln_max(max_withdrawal_btc=0.01)
@@ -473,19 +475,26 @@ def test_ln_path_blocked_for_large_amount_exceeding_max():
         lightning_swap_rows=[_swap("BitFreezer")],
     )
 
-    # Assert — LN 경로 없음
+    # Assert — LN 경로 생성됨
     ln_paths = [p for p in result["all_paths"] if p.get("path_type") == "lightning_exit"]
-    assert ln_paths == [], f"2억원은 LN max 초과 → LN 경로 0개여야 한다. 실제: {len(ln_paths)}개"
+    assert ln_paths, "2억원도 분할 출금으로 LN 경로가 생성되어야 한다."
 
-    # Assert — disabled_paths에 한도 초과 사유 ≥ 1개
-    ln_disabled = [
-        d for d in result["disabled_paths"]
-        if "한도" in d.get("reason", "")
-    ]
-    assert ln_disabled, (
-        "LN max 초과로 Blocked된 경로 사유가 disabled_paths에 기록되어야 한다. "
-        f"disabled_paths: {result['disabled_paths']}"
+    # Assert — 분할(num_withdrawal_txs > 1) 경로 존재 + 수수료 × 횟수
+    split_paths = [p for p in ln_paths if (p.get("num_withdrawal_txs") or 1) > 1]
+    assert split_paths, (
+        "LN max 초과 시 num_withdrawal_txs > 1 분할 경로가 있어야 한다. "
+        f"num_txs들: {[p.get('num_withdrawal_txs') for p in ln_paths]}"
     )
+    for p in split_paths:
+        n = p["num_withdrawal_txs"]
+        assert p["global_withdrawal_fee_krw"] == 140 * n, (
+            f"LN 출금 수수료는 단일(140) × {n}회 = {140 * n} 이어야 한다. "
+            f"실제: {p['global_withdrawal_fee_krw']}"
+        )
+
+    # Assert — '최대 한도 초과' 사유는 더 이상 없음 (분할로 해소)
+    over_max = [d for d in result["disabled_paths"] if "최대 한도" in d.get("reason", "")]
+    assert not over_max, f"분할 출금으로 최대 한도 초과 차단이 없어야 한다. 실제: {over_max}"
 
 
 def test_ln_path_blocked_for_below_min_withdrawal():

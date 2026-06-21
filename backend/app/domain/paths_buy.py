@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from types import SimpleNamespace
 
 from backend.app.domain.market_core import GROUPS, TRADING_FEES, get_withdrawal_source_url
@@ -484,6 +485,14 @@ def _resolve_global_ln_row(ctx: SnapshotContext, global_exchange: str):
     return None
 
 
+def _ln_num_txs(global_ln_wd_row, amount_coin: float) -> int:
+    """글로벌 LN 출금 1회 한도(max_withdrawal) 초과 시 필요한 분할 출금 횟수."""
+    max_wd = getattr(global_ln_wd_row, 'max_withdrawal', None)
+    if max_wd and amount_coin > max_wd:
+        return math.ceil(amount_coin / max_wd)
+    return 1
+
+
 def _global_ln_fee_krw(global_ln_wd_row, ctx: SnapshotContext) -> int:
     if global_ln_wd_row is None:
         return 0
@@ -580,12 +589,15 @@ def _build_lightning_paths(
 
                 gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
 
-                # 글로벌 LN 출금 엣지 — max_withdrawal 포함 모든 제약 검증
+                # 글로벌 LN 출금 엣지 — 1회 한도 초과 시 분할 출금(수수료 × 횟수)
+                ln_num_txs = _ln_num_txs(global_ln_wd_row, gbuy.amount_out)
                 global_ln_wd = withdraw_leg(
                     global_ln_wd_row, gbuy.amount_out,
                     coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
                     usd_krw=ctx.usd_krw_rate,
-                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})',
+                    split_on_max=True,
+                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})'
+                    + (f' · {ln_num_txs}회 분할' if ln_num_txs > 1 else ''),
                 )
                 if isinstance(global_ln_wd, Blocked):
                     _key = (exchange, 'USDT', ln_network_label, global_ln_wd.reason)
@@ -628,7 +640,10 @@ def _build_lightning_paths(
                 usdt_comp['amount_text'] = f'{row.fee:g} USDT'
 
                 global_ln_comp = global_ln_wd.components[0].copy()
-                global_ln_comp['amount_text'] = f'{global_ln_wd_fee} BTC'
+                global_ln_comp['amount_text'] = (
+                    f'{round(global_ln_wd_fee * ln_num_txs, 8)} BTC ({ln_num_txs}회)'
+                    if ln_num_txs > 1 else f'{global_ln_wd_fee} BTC'
+                )
 
                 total_fee_krw = (
                     buy_usdt.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw
@@ -653,6 +668,7 @@ def _build_lightning_paths(
                     'global_exit_mode': 'lightning',
                     'global_exit_network': ln_network_label,
                     'lightning_exit_provider': lightning_exit_provider,
+                    'num_withdrawal_txs': ln_num_txs,
                     'path_id': _build_path_id(
                         global_exchange=global_exchange,
                         korean_exchange=exchange,
@@ -697,12 +713,15 @@ def _build_lightning_paths(
                 if domestic_wd.amount_out <= 0:
                     continue
 
-                # 글로벌 LN 출금 엣지 — max_withdrawal 포함 모든 제약 검증
+                # 글로벌 LN 출금 엣지 — 1회 한도 초과 시 분할 출금(수수료 × 횟수)
+                ln_num_txs = _ln_num_txs(global_ln_wd_row, domestic_wd.amount_out)
                 global_ln_wd = withdraw_leg(
                     global_ln_wd_row, domestic_wd.amount_out,
                     coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
                     usd_krw=ctx.usd_krw_rate,
-                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})',
+                    split_on_max=True,
+                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})'
+                    + (f' · {ln_num_txs}회 분할' if ln_num_txs > 1 else ''),
                 )
                 if isinstance(global_ln_wd, Blocked):
                     _key = (exchange, 'BTC', ln_network_label, global_ln_wd.reason)
@@ -745,7 +764,10 @@ def _build_lightning_paths(
                 domestic_comp['amount_text'] = f'{row.fee} BTC'
 
                 global_ln_comp = global_ln_wd.components[0].copy()
-                global_ln_comp['amount_text'] = f'{global_ln_wd_fee} BTC'
+                global_ln_comp['amount_text'] = (
+                    f'{round(global_ln_wd_fee * ln_num_txs, 8)} BTC ({ln_num_txs}회)'
+                    if ln_num_txs > 1 else f'{global_ln_wd_fee} BTC'
+                )
 
                 total_fee_krw = (
                     buy_btc.fee_krw + domestic_wd.fee_krw
@@ -771,7 +793,7 @@ def _build_lightning_paths(
                     'global_exit_mode': 'lightning',
                     'global_exit_network': ln_network_label,
                     'lightning_exit_provider': lightning_exit_provider,
-                    'num_withdrawal_txs': 1,
+                    'num_withdrawal_txs': ln_num_txs,
                     'krw_per_tx_limit': None,
                     'path_id': _build_path_id(
                         global_exchange=global_exchange,

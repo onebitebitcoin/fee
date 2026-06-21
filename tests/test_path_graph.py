@@ -191,6 +191,34 @@ class TestWithdrawLeg:
         # Assert
         assert isinstance(result, Leg)
 
+    def test_max_withdrawal_split_on_max_multiplies_fee(self):
+        # Arrange: 0.025 BTC > max 0.01 → split_on_max로 ceil(0.025/0.01)=3회 분할
+        row = _wd_row(fee=0.0002, fee_krw=28_000, max_withdrawal=0.01)
+        # Act
+        result = withdraw_leg(row, 0.025, coin='BTC', price_krw=KRW_PER_BTC, usd_krw=USD_KRW, split_on_max=True)
+        # Assert: 차단되지 않고 3회 수수료 적용
+        assert isinstance(result, Leg)
+        assert result.fee_krw == 28_000 * 3
+        assert result.amount_out == pytest.approx(0.025 - 0.0002 * 3)
+
+    def test_max_withdrawal_split_off_still_blocks(self):
+        # Arrange: split_on_max 기본값(False)이면 기존대로 차단
+        row = _wd_row(fee=0.0002, fee_krw=28_000, max_withdrawal=0.01)
+        # Act
+        result = withdraw_leg(row, 0.025, coin='BTC', price_krw=KRW_PER_BTC, usd_krw=USD_KRW)
+        # Assert
+        assert isinstance(result, Blocked)
+        assert '최대 한도' in result.reason
+
+    def test_max_withdrawal_split_within_limit_single_tx(self):
+        # Arrange: 한도 이내면 split_on_max여도 1회
+        row = _wd_row(fee=0.0002, fee_krw=28_000, max_withdrawal=0.01)
+        # Act
+        result = withdraw_leg(row, 0.008, coin='BTC', price_krw=KRW_PER_BTC, usd_krw=USD_KRW, split_on_max=True)
+        # Assert
+        assert isinstance(result, Leg)
+        assert result.fee_krw == 28_000
+
     def test_min_and_max_both_none_no_restriction(self):
         # Arrange: min/max 필드 자체가 없는 기존 픽스처
         row = SimpleNamespace(enabled=True, fee=0.0002, fee_krw=28_000, network_label='Bitcoin')
