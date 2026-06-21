@@ -98,3 +98,14 @@ const NETWORK_ICONS: Record<string, string> = {
 export function getNetworkIconUrl(network: string): string | null {
   return NETWORK_ICONS[network.toLowerCase()] ?? null;
 }
+
+// 경로 표시용 네트워크 라벨 변환.
+// Bitcoin 온체인 계열("Bitcoin (On-chain)" 등)은 코인명과 중복되므로 짧은 '온체인'으로 축약.
+// USDT 등 다른 네트워크(TRC20, ERC20...)는 식별 의미가 있어 원본 유지.
+export function formatNetworkLabel(network: string): string {
+  const k = network.toLowerCase().trim();
+  if (k.includes('on-chain') || k === 'bitcoin' || k === 'btc' || k === 'btc (segwit)') {
+    return '온체인';
+  }
+  return network;
+}

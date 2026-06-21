@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaretDown, Funnel, Wrench, X } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
+import { formatNetworkLabel } from '../../../lib/networkIcons';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { fmtKst } from '../constants';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
@@ -32,16 +33,16 @@ function routeText(p: CheapestPathEntry & { _g: string }): string {
 
   if (isUsdt) {
     parts.push('USDT');
-    if (p.network) parts.push(p.network);
+    if (p.network) parts.push(formatNetworkLabel(p.network));
     // 라이트닝 지갑 종착: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
     parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
   } else if (isViaGlobal) {
     parts.push('BTC');
     parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
-    if (!isLightning && p.network) parts.push(p.network);
+    if (!isLightning && p.network) parts.push(formatNetworkLabel(p.network));
   } else {
     parts.push('BTC');
-    if (!isLightning && p.network) parts.push(p.network);
+    if (!isLightning && p.network) parts.push(formatNetworkLabel(p.network));
   }
 
   // 개인지갑 종착(LN 스왑 경유): 서비스명 표시, 없으면 "LN 스왑"으로 명시

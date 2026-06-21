@@ -289,14 +289,18 @@ def test_get_all_lightning_swap_fees_includes_strike_both_directions(mocker):
     assert 'onchain_to_ln' in directions, 'Strike onchain_to_ln 항목 없음'
 
 
-def test_get_all_lightning_swap_fees_includes_boltz_submarine_ln_to_onchain():
-    """get_all_lightning_swap_fees()에 Boltz (Submarine) ln_to_onchain 항목이 포함된다."""
+def test_get_all_lightning_swap_fees_includes_boltz_ln_to_onchain():
+    """get_all_lightning_swap_fees()에 Boltz ln_to_onchain(reverse) 항목이 포함된다.
+
+    방향에 무관하게 표시명은 'Boltz'로 통일되므로 direction으로 reverse 항목을 식별한다.
+    """
     from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 
     all_fees = get_all_lightning_swap_fees()
-    boltz_sub = [s for s in all_fees if s.get('service_name') == 'Boltz (Submarine)']
-    assert len(boltz_sub) > 0, 'Boltz (Submarine) 항목이 get_all_lightning_swap_fees() 결과에 없음'
-    assert boltz_sub[0].get('direction') == 'ln_to_onchain', 'Boltz (Submarine) direction이 ln_to_onchain이 아님'
+    boltz_rev = [s for s in all_fees
+                 if s.get('service_name') == 'Boltz' and s.get('direction') == 'ln_to_onchain']
+    assert len(boltz_rev) > 0, 'Boltz ln_to_onchain 항목이 get_all_lightning_swap_fees() 결과에 없음'
+    assert boltz_rev[0].get('direction') == 'ln_to_onchain', 'Boltz reverse direction이 ln_to_onchain이 아님'
 
 
 def test_fetch_boltz_reverse_fees_direction():
@@ -304,6 +308,6 @@ def test_fetch_boltz_reverse_fees_direction():
     from backend.app.services.lightning_scraper import fetch_boltz_reverse_fees
 
     result = fetch_boltz_reverse_fees()
-    assert result['service_name'] == 'Boltz (Submarine)'
+    assert result['service_name'] == 'Boltz'
     assert result.get('direction') == 'ln_to_onchain', f"direction 불일치: {result.get('direction')}"
     assert result.get('fee_pct') is not None or result.get('error') is not None

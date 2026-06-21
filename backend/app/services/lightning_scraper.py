@@ -291,8 +291,9 @@ def fetch_boltz_reverse_fees() -> dict:
     Boltz Exchange Lightning→BTC(온체인) 스왑 수수료 조회.
     Reverse swap: Lightning을 보내면 온체인 BTC로 받는 방식 (0.5%).
     API: https://api.boltz.exchange/v2/swap/reverse
+    방향(onchain_to_ln/ln_to_onchain)은 direction 필드로 구분하므로 표시명은 'Boltz'로 통일.
     """
-    service_name = 'Boltz (Submarine)'
+    service_name = 'Boltz'
     source_url = 'https://boltz.exchange'
     api_url = 'https://api.boltz.exchange/v2/swap/reverse'
     try:

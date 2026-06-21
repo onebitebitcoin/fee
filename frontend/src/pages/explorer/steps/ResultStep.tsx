@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ArrowRight, CaretDown, Wrench } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
+import { formatNetworkLabel } from '../../../lib/networkIcons';
 import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../../lib/formatBtc';
 import { SPRING_SLOW, fmtAmountText } from '../constants';
 import { ExFavicon, SectionLabel, Chip } from '../ui';
@@ -487,7 +488,7 @@ export function ResultStep() {
                                       ? (p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__'
                                           ? fmtEx(p.lightning_exit_provider)
                                           : 'LN 스왑')
-                                      : (p.global_exit_network || p.network)}
+                                      : formatNetworkLabel(p.global_exit_network || p.network)}
                                   </span>
                                 </div>
                               </div>

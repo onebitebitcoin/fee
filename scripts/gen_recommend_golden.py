@@ -128,7 +128,7 @@ def main():
         add(f'exKorean:{e}', empty_filter(excludeExchanges=[e]))
     for e in avail_global:
         add(f'exGlobal:{e}', empty_filter(excludeGlobalExchanges=[e]))
-    for s in ['Boltz (Submarine)', 'Coinos', 'Oksusu', 'Strike', 'WalletOfSatoshi']:
+    for s in ['Boltz', 'Coinos', 'Oksusu', 'Strike', 'WalletOfSatoshi']:
         add(f'exService:{s}', empty_filter(excludeServices=[s]))
 
     out_scenarios = []

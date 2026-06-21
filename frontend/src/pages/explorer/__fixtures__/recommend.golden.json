@@ -493,13 +493,13 @@
       }
     },
     {
-      "name": "exService:Boltz (Submarine)",
+      "name": "exService:Boltz",
       "filter": {
         "destinationFilter": "personal",
         "excludeExchanges": [],
         "excludeGlobalExchanges": [],
         "excludeServices": [
-          "Boltz (Submarine)"
+          "Boltz"
         ],
         "excludeOnchain": false,
         "excludeLightning": false,
@@ -731,7 +731,7 @@
         "sats": 1020784
       },
       {
-        "routeKey": "bithumb|USDT|bitget||lightning|Boltz (Submarine)",
+        "routeKey": "bithumb|USDT|bitget||lightning|Boltz",
         "totalFeeKrw": 7852,
         "sats": 1020784
       },
@@ -751,7 +751,7 @@
         "sats": 1020630
       },
       {
-        "routeKey": "upbit|USDT|bitget||lightning|Boltz (Submarine)",
+        "routeKey": "upbit|USDT|bitget||lightning|Boltz",
         "totalFeeKrw": 7951,
         "sats": 1020681
       },
@@ -776,7 +776,7 @@
         "sats": 1020205
       },
       {
-        "routeKey": "bithumb|USDT|okx||lightning|Boltz (Submarine)",
+        "routeKey": "bithumb|USDT|okx||lightning|Boltz",
         "totalFeeKrw": 8339,
         "sats": 1020205
       },
@@ -786,7 +786,7 @@
         "sats": 1020205
       },
       {
-        "routeKey": "upbit|USDT|okx||lightning|Boltz (Submarine)",
+        "routeKey": "upbit|USDT|okx||lightning|Boltz",
         "totalFeeKrw": 8439,
         "sats": 1020103
       },
@@ -806,7 +806,7 @@
         "sats": 1017697
       },
       {
-        "routeKey": "korbit|USDT|bitget||lightning|Boltz (Submarine)",
+        "routeKey": "korbit|USDT|bitget||lightning|Boltz",
         "totalFeeKrw": 10963,
         "sats": 1017600
       },
@@ -836,7 +836,7 @@
         "sats": 1017212
       },
       {
-        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Boltz (Submarine)",
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Boltz",
         "totalFeeKrw": 11387,
         "sats": 1019319
       },
@@ -851,7 +851,7 @@
         "sats": 1017178
       },
       {
-        "routeKey": "korbit|USDT|okx||lightning|Boltz (Submarine)",
+        "routeKey": "korbit|USDT|okx||lightning|Boltz",
         "totalFeeKrw": 11450,
         "sats": 1017022
       },
@@ -861,7 +861,7 @@
         "sats": 1017022
       },
       {
-        "routeKey": "coinone|USDT|bitget||lightning|Boltz (Submarine)",
+        "routeKey": "coinone|USDT|bitget||lightning|Boltz",
         "totalFeeKrw": 11490,
         "sats": 1017076
       },
@@ -876,7 +876,7 @@
         "sats": 1018924
       },
       {
-        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Boltz (Submarine)",
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Boltz",
         "totalFeeKrw": 11875,
         "sats": 1018821
       },
@@ -891,7 +891,7 @@
         "sats": 1016599
       },
       {
-        "routeKey": "coinone|USDT|okx||lightning|Boltz (Submarine)",
+        "routeKey": "coinone|USDT|okx||lightning|Boltz",
         "totalFeeKrw": 11978,
         "sats": 1016497
       },
@@ -921,7 +921,7 @@
         "sats": 1012287
       },
       {
-        "routeKey": "gopax|USDT|bitget||lightning|Boltz (Submarine)",
+        "routeKey": "gopax|USDT|bitget||lightning|Boltz",
         "totalFeeKrw": 16288,
         "sats": 1012185
       },
@@ -936,7 +936,7 @@
         "sats": 1011709
       },
       {
-        "routeKey": "gopax|USDT|okx||lightning|Boltz (Submarine)",
+        "routeKey": "gopax|USDT|okx||lightning|Boltz",
         "totalFeeKrw": 16776,
         "sats": 1011607
       },
@@ -1116,7 +1116,7 @@
         "sats": 1001733
       },
       {
-        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 26383,
         "sats": 1002072
       },
@@ -1131,7 +1131,7 @@
         "sats": 1003968
       },
       {
-        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 26481,
         "sats": 1001633
       },
@@ -1156,7 +1156,7 @@
         "sats": 1001236
       },
       {
-        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 26871,
         "sats": 1001574
       },
@@ -1166,7 +1166,7 @@
         "sats": 1001574
       },
       {
-        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 26969,
         "sats": 1001135
       },
@@ -1361,7 +1361,7 @@
         "sats": 942401
       },
       {
-        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 84739,
         "sats": 942306
       },
@@ -1376,7 +1376,7 @@
         "sats": 941505
       },
       {
-        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 85621,
         "sats": 941411
       },
@@ -1391,7 +1391,7 @@
         "sats": 941892
       },
       {
-        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 85736,
         "sats": 941798
       },
@@ -1406,7 +1406,7 @@
         "sats": 941008
       },
       {
-        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 86109,
         "sats": 940913
       },
@@ -1421,7 +1421,7 @@
         "sats": 940997
       },
       {
-        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 86619,
         "sats": 940902
       },
@@ -1436,7 +1436,7 @@
         "sats": 940499
       },
       {
-        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz",
         "totalFeeKrw": 87107,
         "sats": 940405
       },
