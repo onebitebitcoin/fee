@@ -10,9 +10,10 @@ import { ExchangeTabContent } from './admin/ExchangeTabContent';
 import { GatemanRegistryPanel } from './admin/KYCPanel';
 import { NoticesPanel } from './admin/NoticesPanel';
 import { CrawlStatusPanel } from './admin/CrawlStatusPanel';
+import { RouteInspectorPanel } from './admin/RouteInspectorPanel';
 
 const ADMIN_PASSWORD = '0000';
-type Tab = 'korean' | 'global' | 'edges' | 'gateman' | 'notices' | 'crawl' | 'board';
+type Tab = 'korean' | 'global' | 'edges' | 'gateman' | 'notices' | 'crawl' | 'board' | 'inspect';
 
 export function AdminPage() {
   const navigate = useNavigate();
@@ -88,6 +89,7 @@ export function AdminPage() {
     { id: 'notices', label: '공지사항' },
     { id: 'board',   label: '게시판 공지' },
     { id: 'crawl',   label: '크롤 상태' },
+    { id: 'inspect', label: '경로 검사기' },
   ];
 
   return (
@@ -135,6 +137,7 @@ export function AdminPage() {
         {tab === 'notices' && <NoticesPanel />}
         {tab === 'board'   && <AdminNoticePanel />}
         {tab === 'crawl'   && <CrawlStatusPanel />}
+        {tab === 'inspect' && <RouteInspectorPanel />}
       </main>
     </div>
   );
