@@ -887,8 +887,15 @@ def _fetch_kimp_data() -> dict | None:
     }
     # 원달러 프리미엄 = 업비트 USDT/KRW ÷ 두나무 포렉스 − 1 (테더 프리미엄, 단일 시장값)
     usdt_premium = round((usd_krw / forex - 1) * 100, 4) if forex else None
+    # 김치 프리미엄(총) = 한국 BTC(KRW) ÷ (글로벌 BTC(USD) × 두나무 포렉스) − 1
+    # = (1 + 비트코인 프리미엄)(1 + 테더 프리미엄) − 1. 포렉스 없으면 계산 불가.
+    kimchi_premium_total: dict[str, float] = (
+        {ex: round((price / (btc_usd * forex) - 1) * 100, 4) for ex, price in korea_btc_prices.items()}
+        if forex else {}
+    )
     return {
         'kimp': kimp,
+        'kimchi_premium_total': kimchi_premium_total,
         'korean_btc_prices': korea_btc_prices,
         'global_btc_price_krw': round(global_btc_price_krw),
         'usd_krw_rate': round(usd_krw, 2),

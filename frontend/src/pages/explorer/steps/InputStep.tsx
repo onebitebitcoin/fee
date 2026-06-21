@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp, ArrowsCounterClockwise } from '@phosphor-icons/react';
+import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp, ArrowsCounterClockwise, CaretDown } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
@@ -40,6 +40,7 @@ export function InputStep() {
   const [networkChanges, setNetworkChanges] = useState<NetworkChange[]>([]);
   const [disabledNetworks, setDisabledNetworks] = useState<WithdrawalRow[]>([]);
   const [refreshingDisabled, setRefreshingDisabled] = useState(false);
+  const [kimpDetailOpen, setKimpDetailOpen] = useState(false);
 
   useEffect(() => {
     api.getAccessCount().then(setStats).catch(() => {});
@@ -62,13 +63,29 @@ export function InputStep() {
     handleSearch, isSearching,
   } = useExplorer();
 
+  // 비트코인 자체 프리미엄(USDT 환산) — 분해 보조값
   const kimp = btcPrice?.kimchiPremium;
-  const kimpColor = kimp == null
-    ? 'text-label-tertiary'
-    : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green';
+  // 김치 프리미엄(총) — 메인값. 포렉스 실패 시 BTC 자체 값으로 폴백.
+  const kimpTotal = btcPrice?.kimchiPremiumTotal ?? null;
+  const heroPrem = kimpTotal ?? kimp ?? null;
+  const showBreakdown = kimpTotal != null && (kimp != null || usdtPremium != null);
+  const premColor = (v: number | null | undefined) =>
+    v == null ? 'text-label-tertiary'
+      : v > 2 ? 'text-acc-red' : v > 0 ? 'text-acc-amber' : 'text-acc-green';
+  const heroColor = premColor(heroPrem);
+  const kimpColor = premColor(kimp);
   const usdtColor = usdtPremium == null
     ? 'text-label-tertiary'
     : usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green';
+  const fmtPct = (v: number | null | undefined) =>
+    v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
+
+  // 김치 프리미엄 구성 비중 (절대값 기준 — 부호 무관 기여도)
+  const btcMag = Math.abs(kimp ?? 0);
+  const fxMag = Math.abs(usdtPremium ?? 0);
+  const magSum = btcMag + fxMag;
+  const btcShare = magSum > 0 ? (btcMag / magSum) * 100 : 0;
+  const fxShare = magSum > 0 ? (fxMag / magSum) * 100 : 0;
 
   return (
     <>
@@ -105,19 +122,61 @@ export function InputStep() {
                       </p>
                     </div>
                     <div className="col-span-2 h-px bg-separator" />
-                    <div className="text-center">
+                    {/* 김치 프리미엄: 총합 대표 + 분해 보조 */}
+                    <div className="col-span-2 text-center">
                       <p className="text-[10px] text-label-tertiary mb-0.5">비트코인 김치 프리미엄</p>
-                      <p className={`text-[13px] font-bold num ${kimpColor}`}>
-                        {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '—'}
+                      <p className={`text-[22px] font-bold num leading-none ${heroColor}`}>
+                        {fmtPct(heroPrem)}
                       </p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-0.5">
-                        <p className="text-[10px] text-label-tertiary">원달러 김치 프리미엄</p>
-                      </div>
-                      <p className={`text-[13px] font-bold num ${usdtColor}`}>
-                        {usdtPremium != null ? `${usdtPremium >= 0 ? '+' : ''}${usdtPremium.toFixed(2)}%` : '—'}
-                      </p>
+                      {showBreakdown && (
+                        <div className="flex items-center justify-center gap-3 mt-1.5">
+                          <span className="text-[10px] text-label-tertiary">
+                            BTC 자체 <span className={`font-semibold num ${kimpColor}`}>{fmtPct(kimp)}</span>
+                          </span>
+                          <span className="text-label-quaternary text-[10px]">·</span>
+                          <span className="text-[10px] text-label-tertiary">
+                            테더(USDT) <span className={`font-semibold num ${usdtColor}`}>{fmtPct(usdtPremium)}</span>
+                          </span>
+                        </div>
+                      )}
+                      {/* 자세히 토글 */}
+                      {showBreakdown && magSum > 0 && (
+                        <button
+                          onClick={() => setKimpDetailOpen(o => !o)}
+                          className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] font-medium text-acc-amber hover:opacity-80 transition-opacity"
+                        >
+                          자세히
+                          <CaretDown className={`w-2.5 h-2.5 transition-transform ${kimpDetailOpen ? 'rotate-180' : ''}`} weight="bold" />
+                        </button>
+                      )}
+                      {/* 구성 비중 progress bar */}
+                      {showBreakdown && magSum > 0 && kimpDetailOpen && (
+                        <div className="mt-2.5 text-left">
+                          <p className="text-[10px] text-label-tertiary mb-1.5">
+                            김치 프리미엄은 두 가지 요인으로 구성됩니다
+                          </p>
+                          {/* 스택 막대 */}
+                          <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-fill-tertiary">
+                            <div className="h-full bg-acc-amber" style={{ width: `${btcShare}%` }} />
+                            <div className="h-full bg-acc-blue" style={{ width: `${fxShare}%` }} />
+                          </div>
+                          {/* 범례 */}
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="w-2 h-2 rounded-full bg-acc-amber flex-shrink-0" />
+                              <span className="text-label-secondary">거래소 BTC 가격차</span>
+                              <span className="font-semibold text-label-primary num ml-auto">{btcShare.toFixed(0)}%</span>
+                              <span className={`num ${kimpColor}`}>{fmtPct(kimp)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="w-2 h-2 rounded-full bg-acc-blue flex-shrink-0" />
+                              <span className="text-label-secondary">원달러 환율차 (테더)</span>
+                              <span className="font-semibold text-label-primary num ml-auto">{fxShare.toFixed(0)}%</span>
+                              <span className={`num ${usdtColor}`}>{fmtPct(usdtPremium)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>

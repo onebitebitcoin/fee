@@ -35,7 +35,7 @@ function useExplorerValue() {
   const [usdtPremium, setUsdtPremium] = useState<number | null>(null); // 원달러(테더) 프리미엄 %
   const [forexUsdKrw, setForexUsdKrw] = useState<number | null>(null); // 두나무 포렉스 USD/KRW (USDT 프리미엄 기준)
   const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
-  const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; fetchedAt: Date } | null>(null);
+  const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; kimchiPremiumTotal: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
   const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
@@ -132,6 +132,7 @@ function useExplorerValue() {
             krw: Math.round(res.global_btc_price_krw),
             upbitKrw: res.korean_btc_prices?.['upbit'] ? Math.round(res.korean_btc_prices['upbit']) : null,
             kimchiPremium: res.kimp?.['upbit'] != null ? res.kimp['upbit'] : null,
+            kimchiPremiumTotal: res.kimchi_premium_total?.['upbit'] != null ? res.kimchi_premium_total['upbit'] : null,
             fetchedAt: new Date(),
           });
           if (res.usd_krw_rate) setLiveUsdtKrw(res.usd_krw_rate);

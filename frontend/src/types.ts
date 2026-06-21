@@ -210,8 +210,10 @@ export type NetworkChangesResponse = {
 };
 
 export type LiveKimpResponse = {
-  /** Yahoo Finance USD/KRW 실시간 포렉스 기준 김치 프리미엄 (kimpga 등 주요 사이트와 동일 방식) */
+  /** 비트코인 자체 프리미엄 % = 한국 BTC(KRW) ÷ (글로벌 BTC(USD) × 업비트 USDT 실거래가) − 1 */
   kimp: Record<string, number>;
+  /** 김치 프리미엄(총) % = 한국 BTC(KRW) ÷ (글로벌 BTC × 두나무 포렉스) − 1 = (1+비트코인)(1+테더)−1. 포렉스 없으면 빈 객체. */
+  kimchi_premium_total?: Record<string, number>;
   korean_btc_prices: Record<string, number>;
   global_btc_price_krw: number;
   usd_krw_rate: number;
