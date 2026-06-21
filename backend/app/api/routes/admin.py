@@ -66,18 +66,18 @@ DEFAULT_REGISTRY: dict = {
     'global': {
         'binance': [
             {'label': 'KYC 인증 (Level 1 이상)', 'desc': '신분증 인증이 완료되어야 입출금이 가능합니다. 미인증 시 출금 불가.', 'level': 'required', 'condition': None},
-            {'label': '일일 출금 한도', 'desc': 'KYC Level 1 (Basic): $1,000,000/day, Level 2 (Advanced): $2,000,000/day, 미인증: 출금 불가', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': '미인증: 0.06 BTC/day, Basic 인증(Level 1): 0.6 BTC/day, 고급 인증(Level 2): 100 BTC/day', 'level': 'info', 'condition': None},
             {'label': '트래블룰', 'desc': '한국 이용자의 경우 특정 거래소로 출금 시 수신자 정보 입력이 필요합니다.', 'level': 'conditional', 'condition': '한국 KYC 완료 사용자'},
         ],
         'okx': [
             {'label': 'KYC 인증 필수', 'desc': '개인 신원 인증 완료 필요합니다.', 'level': 'required', 'condition': None},
-            {'label': '일일 출금 한도', 'desc': 'KYC1(기본 인증): $5,000/day, KYC2(고급·얼굴인식 추가): $10,000,000/day', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': 'KYC1(기본·이메일 인증): $5,000/day, KYC2(신분증+얼굴 인증): $500,000/day, KYC3(고급): 무제한', 'level': 'info', 'condition': None},
             {'label': '신규 주소 24시간 지연', 'desc': '새로 등록한 주소는 24시간 후 출금이 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
         ],
         'bybit': [
             {'label': 'KYC 인증 필수', 'desc': '거주 국가 및 신분 인증 필요합니다.', 'level': 'required', 'condition': None},
             {'label': '신규 주소 24시간 지연', 'desc': '새로 등록한 주소는 24시간 후 사용 가능합니다.', 'level': 'conditional', 'condition': '신규 주소 등록 시'},
-            {'label': '일일 출금 한도', 'desc': 'Level 1 (Standard): $1,000,000/day, Level 2 (Advanced): $2,000,000/day', 'level': 'info', 'condition': None},
+            {'label': '일일 출금 한도', 'desc': '미인증: 2 BTC/day, Standard KYC(Level 1): 50 BTC/day, Advanced KYC(Level 2): 100 BTC/day', 'level': 'info', 'condition': None},
         ],
         'bitget': [
             {'label': 'KYC 인증 필수', 'desc': '신분증 인증이 필요합니다.', 'level': 'required', 'condition': None},

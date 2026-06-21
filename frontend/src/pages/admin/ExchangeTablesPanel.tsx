@@ -1,10 +1,50 @@
-import { EditCell, FieldRow } from './adminHelpers';
+import { EditCell } from './adminHelpers';
 import type { KoreanExchangeNode, GlobalExchangeNode } from '../../lib/adminSettings';
 
-export function KoreanExchangeTable({
-  nodes, onChange,
+type GateLevel = 'required' | 'conditional' | 'info';
+type GateItem = { label: string; desc: string; level: GateLevel; condition: string | null };
+
+const LEVEL_CFG: Record<GateLevel, { badge: string; label: string }> = {
+  required:    { badge: 'bg-acc-red/10 text-acc-red',     label: '필수' },
+  conditional: { badge: 'bg-acc-amber/10 text-acc-amber', label: '조건부' },
+  info:        { badge: 'bg-acc-blue/10 text-acc-blue',   label: '참고' },
+};
+
+function GateSection({ gates }: { gates: GateItem[] }) {
+  if (!gates || gates.length === 0) return null;
+  return (
+    <div className="mt-3 pt-3 border-t border-sys-separator space-y-1.5">
+      {gates.map((g, i) => (
+        <div key={i} className="flex items-start gap-2">
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 font-medium ${LEVEL_CFG[g.level]?.badge ?? ''}`}>
+            {LEVEL_CFG[g.level]?.label ?? g.level}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] text-label-primary leading-snug">{g.label}</p>
+            {g.condition && (
+              <p className="text-[10px] text-label-tertiary">{g.condition}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NodeRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-1 border-b border-sys-separator last:border-0">
+      <span className="text-[11px] text-label-tertiary flex-shrink-0">{label}</span>
+      <div className="text-[11px] text-label-primary text-right flex items-center gap-0.5">{children}</div>
+    </div>
+  );
+}
+
+export function KoreanExchangeCards({
+  nodes, gates, onChange,
 }: {
   nodes: KoreanExchangeNode[];
+  gates: Record<string, GateItem[]>;
   onChange: (nodes: KoreanExchangeNode[]) => void;
 }) {
   function update(idx: number, patch: Partial<KoreanExchangeNode>) {
@@ -12,115 +52,94 @@ export function KoreanExchangeTable({
   }
 
   return (
-    <>
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-sys-separator">
-              {['거래소', '거래 수수료 (%)', '1회 KRW 제한', '일일 BTC 한도', '개인지갑 요건', '비고'].map(h => (
-                <th key={h} className="text-left py-2 px-3 text-label-tertiary font-medium">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {nodes.map((node, i) => (
-              <tr key={node.id} className="border-b border-sys-separator hover:bg-fill-primary transition-colors">
-                <td className="py-2.5 px-3 font-semibold text-label-primary">{node.name}</td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.perTxKrwLimit} type="number" nullable onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.dailyBtcLimitVerified} type="number" nullable onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.personalWalletNote} onSave={v => update(i, { personalWalletNote: String(v ?? '') })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="text-[10px] text-label-tertiary mt-2 px-3">공개 정보 기준 추정치. 실제 한도는 각 거래소 확인 필요.</p>
-      </div>
-
-      <div className="md:hidden space-y-3">
-        {nodes.map((node, i) => (
-          <div key={node.id} className="ios-card rounded-2xl p-4">
-            <p className="font-semibold text-sm text-label-primary mb-3">{node.name}</p>
-            <FieldRow label="거래 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
-            <FieldRow label="1회 KRW 제한"><EditCell value={node.perTxKrwLimit} type="number" nullable onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })} /></FieldRow>
-            <FieldRow label="일일 BTC 한도"><EditCell value={node.dailyBtcLimitVerified} type="number" nullable onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })} /></FieldRow>
-            <FieldRow label="개인지갑 요건"><EditCell value={node.personalWalletNote} onSave={v => update(i, { personalWalletNote: String(v ?? '') })} /></FieldRow>
-            <FieldRow label="비고"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></FieldRow>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {nodes.map((node, i) => (
+        <div key={node.id} className="ios-card rounded-2xl p-4">
+          <p className="text-sm font-bold text-label-primary mb-3">{node.name}</p>
+          <div>
+            <NodeRow label="거래 수수료">
+              <EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} />
+              <span className="text-label-tertiary text-[10px]">%</span>
+            </NodeRow>
+            <NodeRow label="1회 KRW 제한">
+              <EditCell value={node.perTxKrwLimit} type="number" nullable onSave={v => update(i, { perTxKrwLimit: v === null ? null : Number(v) })} />
+            </NodeRow>
+            <NodeRow label="일일 BTC 한도">
+              <EditCell value={node.dailyBtcLimitVerified} type="number" nullable onSave={v => update(i, { dailyBtcLimitVerified: v === null ? null : Number(v) })} />
+              {node.dailyBtcLimitVerified !== null && <span className="text-label-tertiary text-[10px]">BTC</span>}
+            </NodeRow>
+            <NodeRow label="개인지갑 등록">
+              <EditCell value={node.personalWalletNote} onSave={v => update(i, { personalWalletNote: String(v ?? '') })} />
+            </NodeRow>
+            {node.notes ? (
+              <NodeRow label="비고">
+                <EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} />
+              </NodeRow>
+            ) : null}
           </div>
-        ))}
-        <p className="text-[11px] text-label-tertiary px-1">공개 정보 기준 추정치. 실제 한도는 각 거래소 확인 필요.</p>
-      </div>
-    </>
+          <GateSection gates={gates[node.id] ?? []} />
+        </div>
+      ))}
+    </div>
   );
 }
 
-export function GlobalExchangeTable({
-  nodes, onChange,
+export function GlobalExchangeCards({
+  nodes, gates, onChange,
 }: {
   nodes: GlobalExchangeNode[];
+  gates: Record<string, GateItem[]>;
   onChange: (nodes: GlobalExchangeNode[]) => void;
 }) {
   function update(idx: number, patch: Partial<GlobalExchangeNode>) {
     onChange(nodes.map((n, i) => i === idx ? { ...n, ...patch } : n));
   }
 
-  const FatcaBtn = ({ node, i }: { node: GlobalExchangeNode; i: number }) => (
-    <button
-      onClick={() => update(i, { fatca: !node.fatca })}
-      className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
-        node.fatca ? 'bg-acc-red/10 text-acc-red' : 'bg-fill-secondary text-label-tertiary'
-      }`}
-    >
-      {node.fatca ? '대상' : '비대상'}
-    </button>
-  );
-
   return (
-    <>
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-sys-separator">
-              {['거래소', '국가', 'CARF 연도', '거래 수수료 (%)', 'FATCA', '비고'].map(h => (
-                <th key={h} className="text-left py-2 px-3 text-label-tertiary font-medium">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {nodes.map((node, i) => (
-              <tr key={node.id} className="border-b border-sys-separator hover:bg-fill-primary transition-colors">
-                <td className="py-2.5 px-3 font-semibold text-label-primary">{node.name}</td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></td>
-                <td className="py-2.5 px-3"><FatcaBtn node={node} i={i} /></td>
-                <td className="py-2.5 px-3 text-label-secondary"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="md:hidden space-y-3">
-        {nodes.map((node, i) => (
-          <div key={node.id} className="ios-card rounded-2xl p-4">
-            <p className="font-semibold text-sm text-label-primary mb-3">{node.name}</p>
-            <FieldRow label="국가"><EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} /></FieldRow>
-            <FieldRow label="CARF 연도"><EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} /></FieldRow>
-            <FieldRow label="거래 수수료 (%)"><EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} /></FieldRow>
-            <FieldRow label="FATCA"><FatcaBtn node={node} i={i} /></FieldRow>
-            <FieldRow label="비고"><EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} /></FieldRow>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {nodes.map((node, i) => (
+        <div key={node.id} className="ios-card rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-label-primary">{node.name}</p>
+            <button
+              onClick={() => update(i, { fatca: !node.fatca })}
+              className={`text-[9px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                node.fatca
+                  ? 'bg-acc-red/10 text-acc-red'
+                  : 'bg-fill-secondary text-label-disabled hover:text-label-tertiary'
+              }`}
+            >
+              FATCA {node.fatca ? '대상' : '비대상'}
+            </button>
           </div>
-        ))}
-      </div>
-    </>
+          <div>
+            <NodeRow label="국가">
+              <EditCell value={node.country} onSave={v => update(i, { country: String(v ?? '') })} />
+            </NodeRow>
+            <NodeRow label="CARF 시행">
+              <EditCell value={node.carfYear} type="number" nullable onSave={v => update(i, { carfYear: v === null ? null : Number(v) })} />
+              {node.carfYear && <span className="text-label-tertiary text-[10px]">년</span>}
+            </NodeRow>
+            <NodeRow label="거래 수수료">
+              <EditCell value={node.takerFeePct} type="number" onSave={v => update(i, { takerFeePct: Number(v) })} />
+              <span className="text-label-tertiary text-[10px]">%</span>
+            </NodeRow>
+            {node.notes ? (
+              <NodeRow label="비고">
+                <EditCell value={node.notes} onSave={v => update(i, { notes: String(v ?? '') })} />
+              </NodeRow>
+            ) : null}
+          </div>
+          <GateSection gates={gates[node.id] ?? []} />
+        </div>
+      ))}
+    </div>
   );
 }
 
 export function EdgePropertiesSection() {
   const sourceCls = (s: string) =>
-    s === '크롤링'     ? 'bg-acc-blue/10 text-acc-blue'   :
+    s === '크롤링'      ? 'bg-acc-blue/10 text-acc-blue'   :
     s === '어드민 설정' ? 'bg-acc-amber/10 text-acc-amber' :
                           'bg-fill-secondary text-label-tertiary';
 
@@ -128,41 +147,41 @@ export function EdgePropertiesSection() {
     {
       title: '국내 USDT 출금 엣지', color: 'blue',
       props: [
-        { name: 'fee', desc: '출금 수수료 (USDT)', source: '크롤링' },
-        { name: 'network', desc: 'TRC20, ERC20 등', source: '크롤링' },
-        { name: 'min_withdrawal', desc: '최소 출금량', source: '크롤링' },
-        { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
+        { name: 'fee',            desc: '출금 수수료 (USDT)',   source: '크롤링' },
+        { name: 'network',        desc: 'TRC20, ERC20 등',     source: '크롤링' },
+        { name: 'min_withdrawal', desc: '최소 출금량',          source: '크롤링' },
+        { name: 'enabled',        desc: '출금 활성 여부',       source: '크롤링' },
       ],
     },
     {
       title: '국내 BTC 출금 엣지 (개인 지갑)', color: 'amber',
       props: [
-        { name: 'fee', desc: '출금 수수료 (BTC)', source: '크롤링' },
-        { name: 'network', desc: '비트코인, 라이트닝 등', source: '크롤링' },
-        { name: 'perTxKrwLimit', desc: '1회 KRW 출금 제한', source: '어드민 설정' },
-        { name: 'dailyBtcLimit', desc: '일일 BTC 한도', source: '어드민 설정' },
+        { name: 'fee',           desc: '출금 수수료 (BTC)',     source: '크롤링' },
+        { name: 'network',       desc: '비트코인, 라이트닝 등', source: '크롤링' },
+        { name: 'perTxKrwLimit', desc: '1회 KRW 출금 제한',    source: '어드민 설정' },
+        { name: 'dailyBtcLimit', desc: '일일 BTC 한도',         source: '어드민 설정' },
       ],
     },
     {
       title: '국내 BTC → 해외 경유 엣지', color: 'green',
       props: [
-        { name: 'koreanFee', desc: '국내 BTC 출금 수수료', source: '크롤링' },
-        { name: 'globalFee', desc: '해외 BTC 재출금 수수료', source: '크롤링' },
+        { name: 'koreanFee',  desc: '국내 BTC 출금 수수료',            source: '크롤링' },
+        { name: 'globalFee',  desc: '해외 BTC 재출금 수수료',          source: '크롤링' },
         { name: 'perTxLimit', desc: '1회 KRW 제한 없음 (거래소 주소)', source: '규정' },
       ],
     },
     {
       title: '해외 BTC 출금 엣지', color: 'neutral',
       props: [
-        { name: 'fee', desc: '출금 수수료 (BTC)', source: '크롤링' },
-        { name: 'network', desc: '전송 네트워크', source: '크롤링' },
-        { name: 'enabled', desc: '출금 활성 여부', source: '크롤링' },
+        { name: 'fee',     desc: '출금 수수료 (BTC)', source: '크롤링' },
+        { name: 'network', desc: '전송 네트워크',     source: '크롤링' },
+        { name: 'enabled', desc: '출금 활성 여부',    source: '크롤링' },
       ],
     },
   ];
 
   const dotCls = (c: string) =>
-    c === 'blue' ? 'bg-acc-blue' :
+    c === 'blue'  ? 'bg-acc-blue'  :
     c === 'amber' ? 'bg-acc-amber' :
     c === 'green' ? 'bg-acc-green' : 'bg-label-disabled';
 
