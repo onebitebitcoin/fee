@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp } from '@phosphor-icons/react';
+import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp, ArrowsCounterClockwise } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
@@ -39,6 +39,7 @@ export function InputStep() {
   const [stats, setStats] = useState<AccessStats | null>(null);
   const [networkChanges, setNetworkChanges] = useState<NetworkChange[]>([]);
   const [disabledNetworks, setDisabledNetworks] = useState<WithdrawalRow[]>([]);
+  const [refreshingDisabled, setRefreshingDisabled] = useState(false);
 
   useEffect(() => {
     api.getAccessCount().then(setStats).catch(() => {});
@@ -47,6 +48,14 @@ export function InputStep() {
       .then(r => setDisabledNetworks(filterDisabledWithdrawals(r.items)))
       .catch(() => {});
   }, []);
+
+  function refreshDisabledNetworks() {
+    setRefreshingDisabled(true);
+    api.getWithdrawalFees()
+      .then(r => setDisabledNetworks(filterDisabledWithdrawals(r.items)))
+      .catch(() => {})
+      .finally(() => setRefreshingDisabled(false));
+  }
 
   const {
     amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, usdtPremium,
@@ -240,7 +249,18 @@ export function InputStep() {
               {/* 네트워크 비활성 목록 (출금 중단된 BTC/USDT 네트워크) */}
               {disabledNetworks.length > 0 && (
                 <div className="ios-card rounded-2xl px-4 py-3">
-                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">네트워크 비활성 목록</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider">네트워크 비활성 목록</p>
+                    <button
+                      onClick={refreshDisabledNetworks}
+                      disabled={refreshingDisabled}
+                      className="p-1 rounded-lg hover:bg-fill-primary text-label-quaternary hover:text-label-secondary transition-colors disabled:opacity-40"
+                    >
+                      <ArrowsCounterClockwise
+                        className={`w-3 h-3 ${refreshingDisabled ? 'animate-spin' : ''}`}
+                      />
+                    </button>
+                  </div>
                   <div className="space-y-1.5">
                     {disabledNetworks.map((row, i) => (
                       <div key={i} className="flex items-center gap-1.5">
