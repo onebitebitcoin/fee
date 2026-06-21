@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { House } from '@phosphor-icons/react';
+import { House, ClipboardText } from '@phosphor-icons/react';
 import type { Phase } from './explorer/flow';
 import { SPRING_SLOW } from './explorer/constants';
 import { StepDots } from './explorer/ui';
@@ -66,6 +67,14 @@ function ExplorerShell() {
                 <StepDots current={stepIdx} total={steps.length} />
               </motion.div>
             )}
+            <Link
+              to="/board"
+              className="flex items-center gap-1 text-label-tertiary hover:text-label-secondary transition-colors"
+              title="게시판"
+            >
+              <ClipboardText className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">게시판</span>
+            </Link>
             {allData && (
               <button
                 onClick={reset}

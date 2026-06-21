@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, Wrench } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatNetworkLabel } from '../../../lib/networkIcons';
@@ -8,8 +9,10 @@ import { formatFeeKrw, formatNumber, formatPercent, SATS_PER_BTC } from '../../.
 import { SPRING_SLOW, fmtAmountText } from '../constants';
 import { ExFavicon, SectionLabel, Chip } from '../ui';
 import { useExplorer } from '../ExplorerContext';
+import { buildReportQuery } from '../../board/reportTemplate';
 
 export function ResultStep() {
+  const navigate = useNavigate();
   const {
     amountKrw, domestic, global, network, swapSvc, liveKimp, liveUsdtKrw, displaySats,
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
@@ -527,6 +530,21 @@ export function ResultStep() {
               </button>
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">
                 <ArrowLeft className="w-3.5 h-3.5" weight="bold" /> 이전으로
+              </button>
+
+              {/* 제보하기: 현재 경로 정보를 게시판 제보 템플릿에 자동첨부 */}
+              <button
+                onClick={() => navigate(`/board/new?${buildReportQuery({
+                  koreanExchange: fmtEx(resultPath.korean_exchange),
+                  globalExchange: global ? fmtEx(global) : null,
+                  coin: resultPath.transfer_coin,
+                  network: resultPath.network ?? resultPath.global_exit_network,
+                  amountKrw,
+                  feeText: `${formatFeeKrw(resultPath.total_fee_krw)} (${formatPercent(resultPath.fee_pct)})`,
+                })}`)}
+                className="w-full py-2 text-xs text-label-tertiary hover:text-acc-blue transition-colors flex items-center justify-center gap-1.5"
+              >
+                <WarningCircle className="w-3.5 h-3.5" /> 이 경로에 문제가 있나요? 제보하기
               </button>
     </>
   );

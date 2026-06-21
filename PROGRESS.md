@@ -13,9 +13,7 @@
 - [x] Phase 1: Backend 모델/마이그레이션/비번 유틸 (BoardPost/BoardComment, 3b54494a63c3, security.py)
 - [x] Phase 2: Backend API(board.py)+board_repository.py+라우터 등록+pytest 10/10
 - [x] Phase 3: Frontend 타입/api + 게시판 3페이지(목록/상세/작성)+레이아웃+라우팅+reportTemplate(테스트 5)
+- [x] Phase 4: 헤더 게시판 링크 + 제보하기 링크(추천/결과) + AdminPage 게시판공지 탭(AdminNoticePanel) + categoryStyle 테스트
 
 ## 현재 진행 중
-- [ ] Phase 4: 진입 링크(헤더) + 제보하기 링크(추천/결과) + AdminPage 공지 탭 + vitest
-
-## 남은 Phase
 - [ ] Phase 5: 전체 검증(lint/test/build) + INDEX.md 동기화 + 최종 커밋

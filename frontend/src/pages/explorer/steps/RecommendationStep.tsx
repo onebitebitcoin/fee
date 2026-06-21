@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { CaretDown, Funnel, Wrench, X } from '@phosphor-icons/react';
+import { CaretDown, Funnel, Wrench, X, WarningCircle } from '@phosphor-icons/react';
+import { buildReportQuery } from '../../board/reportTemplate';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatNetworkLabel } from '../../../lib/networkIcons';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
@@ -81,6 +83,7 @@ function ToggleChip({
 }
 
 export function RecommendationStep() {
+  const navigate = useNavigate();
   const {
     amountKrw,
     allRecommendedPaths,
@@ -492,6 +495,14 @@ export function RecommendationStep() {
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">
         처음으로
+      </button>
+
+      {/* 제보하기: 게시판 제보 템플릿으로 이동 (금액 자동첨부) */}
+      <button
+        onClick={() => navigate(`/board/new?${buildReportQuery({ amountKrw })}`)}
+        className="w-full py-2 text-xs text-label-tertiary hover:text-acc-blue transition-colors flex items-center justify-center gap-1.5"
+      >
+        <WarningCircle className="w-3.5 h-3.5" /> 문제점·의견 제보하기
       </button>
     </>
   );

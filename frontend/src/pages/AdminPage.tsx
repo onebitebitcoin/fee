@@ -5,6 +5,7 @@ import {
   PencilSimple, Check, X, ArrowsClockwise, Lightning, WarningCircle,
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
+import { AdminNoticePanel } from './board/AdminNoticePanel';
 import {
   loadAdminSettings, saveAdminSettings, resetAdminSettings,
   type AdminSettings, type KoreanExchangeNode, type GlobalExchangeNode,
@@ -370,7 +371,7 @@ function EdgePropertiesSection() {
 
 // ── Main AdminPage ─────────────────────────────────────────────────────────────
 
-type Tab = 'korean' | 'global' | 'edges' | 'gateman' | 'notices' | 'crawl';
+type Tab = 'korean' | 'global' | 'edges' | 'gateman' | 'notices' | 'crawl' | 'board';
 
 export function AdminPage() {
   const navigate = useNavigate();
@@ -461,6 +462,7 @@ export function AdminPage() {
     { id: 'edges',   label: '엣지 속성' },
     { id: 'gateman', label: '게이트맨' },
     { id: 'notices', label: '공지사항' },
+    { id: 'board',   label: '게시판 공지' },
     { id: 'crawl',   label: '크롤 상태' },
   ];
 
@@ -567,6 +569,7 @@ export function AdminPage() {
         )}
         {tab === 'gateman' && <GatemanRegistryPanel />}
         {tab === 'notices' && <NoticesPanel />}
+        {tab === 'board'   && <AdminNoticePanel />}
         {tab === 'crawl'   && <CrawlStatusPanel />}
       </main>
     </div>
