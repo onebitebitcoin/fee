@@ -252,3 +252,41 @@ class KycConfig(Base):
     is_kyc: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class BoardPost(Base):
+    """게시판 게시글. category: general(일반)|report(제보)|notice(공지)."""
+    __tablename__ = 'board_posts'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    category: Mapped[str] = mapped_column(String(16), nullable=False, default='general', index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    nickname: Mapped[str] = mapped_column(String(50), nullable=False)
+    # 공지(notice)는 admin X-API-Key로 관리하므로 비밀번호 null 허용
+    password_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    password_salt: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    comments: Mapped[list['BoardComment']] = relationship(
+        'BoardComment', back_populates='post', cascade='all, delete-orphan'
+    )
+
+
+class BoardComment(Base):
+    """게시글 댓글. 닉네임 + 비밀번호(해시) 기반 수정/삭제."""
+    __tablename__ = 'board_comments'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey('board_posts.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    nickname: Mapped[str] = mapped_column(String(50), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    password_salt: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    post: Mapped['BoardPost'] = relationship('BoardPost', back_populates='comments')
