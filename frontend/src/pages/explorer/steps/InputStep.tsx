@@ -278,10 +278,21 @@ export function InputStep() {
                 </motion.button>
 
                 <motion.button
-                  disabled
-                  className="flex-1 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 bg-fill-secondary text-label-disabled cursor-not-allowed"
+                  onClick={() => handleSearch('domestic')}
+                  disabled={isSearching || !amountKrw || amountKrw < 10_000}
+                  whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
+                  whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                  transition={SPRING_FAST}
+                  className={[
+                    'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
+                    isSearching
+                      ? 'bg-fill-secondary text-label-disabled cursor-not-allowed'
+                      : amountKrw >= 10_000
+                        ? 'border border-acc-amber text-acc-amber hover:bg-acc-amber/10 cursor-pointer'
+                        : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
+                  ].join(' ')}
                 >
-                  내 경로 찾기 <span className="text-[11px] font-normal text-label-quaternary">(준비중)</span>
+                  내 경로 찾기
                 </motion.button>
               </div>
 
