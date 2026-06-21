@@ -35,9 +35,9 @@ def test_fetch_kimp_data_returns_forex_based_kimp():
         return fake_btc
 
     with (
-        patch('backend.app.api.routes.market.KOREA_FETCHERS', {'upbit': mock_korea_fetcher}),
-        patch('backend.app.api.routes.market.fetch_binance_spot', return_value=fake_btc_usd),
-        patch('backend.app.api.routes.market._fetch_usd_krw_realtime', return_value=1545.0),
+        patch('backend.app.api.routes.market.kimp.KOREA_FETCHERS', {'upbit': mock_korea_fetcher}),
+        patch('backend.app.api.routes.market.kimp.fetch_binance_spot', return_value=fake_btc_usd),
+        patch('backend.app.api.routes.market.kimp._fetch_usd_krw_realtime', return_value=1545.0),
     ):
         result = _fetch_kimp_data()
 

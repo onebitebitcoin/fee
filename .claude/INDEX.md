@@ -49,7 +49,7 @@ cd frontend && npm run test
 
 | 파일 | 엔드포인트 | 역할 |
 |------|-----------|------|
-| `market.py` | `/market/*` | **핵심 API 파일**. 모든 시세/경로/수수료 API. `_TtlCache` 인메모리 캐시(status 60초 / cheapest 3600초, 키에 run_id 포함→크롤 시 clear). `get_or_compute()` single-flight로 동시 미스 1회 계산 병합. `_compute_cheapest_all()`(라우트+워밍 공유 계산부) + `warm_cheapest_path_cache()`(대표 금액 프리셋 선제 캐싱, `WARM_AMOUNT_PRESETS_KRW`). |
+| `market/` | `/market/*` | **핵심 API 패키지**(기존 단일 market.py 분할). `__init__.py`가 4개 서브라우터 통합 + 외부 호환 심볼 re-export(`router`/`invalidate_status_cache`/`warm_cheapest_path_cache`/`WARM_AMOUNT_PRESETS_KRW`/`kimp_poll_loop`/`kyc_registry`/`_cheapest_path_cache`/`_fetch_kimp_data`). 서브모듈: **`_shared.py`**(캐시 `_status_cache`60초/`_cheapest_path_cache`3600초+single-flight, `invalidate_status_cache`, 직렬화·공지·KYC enrich 헬퍼), **`tickers.py`**(tickers/withdrawal-fees/network-status/lightning-swap/capabilities/withdrawal-limits), **`path_finder.py`**(cheapest/cheapest-all/inspect + `_compute_cheapest_all`+`warm_cheapest_path_cache`), **`kimp.py`**(kimp/live + `_fetch_kimp_data`/`_fetch_usd_krw_realtime`/`_current_usdt_krw_rate`/`kimp_poll_loop`; 테스트는 `market.kimp.*` monkeypatch), **`status.py`**(status/scrape-status/crawl-status/notices/network-changes/carf/volumes). |
 | `crawl_runs.py` | `/crawl-runs/*` | 크롤링 실행 이력 조회/트리거 |
 | `exchanges.py` | `/exchanges/*` | 거래소 정보 |
 | `health.py` | `/health` | 헬스체크 |
