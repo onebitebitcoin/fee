@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, CircleNotch, MagnifyingGlass, Warning, ArrowDown, ArrowUp, ArrowsCounterClockwise, CaretDown } from '@phosphor-icons/react';
+import { CircleNotch, MagnifyingGlass, Warning, ArrowsCounterClockwise, CaretDown, ArrowSquareOut } from '@phosphor-icons/react';
 import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
@@ -52,10 +52,18 @@ export function InputStep() {
 
   function refreshDisabledNetworks() {
     setRefreshingDisabled(true);
-    api.getWithdrawalFees()
-      .then(r => setDisabledNetworks(filterDisabledWithdrawals(r.items)))
-      .catch(() => {})
-      .finally(() => setRefreshingDisabled(false));
+    Promise.all([
+      api.getWithdrawalFees().then(r => setDisabledNetworks(filterDisabledWithdrawals(r.items))),
+      api.getNetworkChanges().then(r => setNetworkChanges(r.items)),
+    ]).catch(() => {}).finally(() => setRefreshingDisabled(false));
+  }
+
+  // suspended 변경 이력으로 비활성 행 보강 (언제부터 + 관련 공지). key: exchange|coin|network_label
+  const suspendedByKey = new Map<string, NetworkChange>();
+  for (const c of networkChanges) {
+    if (c.change_type !== 'suspended') continue;
+    const k = `${c.exchange}|${c.coin ?? ''}|${c.network ?? ''}`;
+    if (!suspendedByKey.has(k)) suspendedByKey.set(k, c);
   }
 
   const {
@@ -277,34 +285,6 @@ export function InputStep() {
                 </motion.button>
               </div>
 
-              {/* 변경 공지사항 */}
-              {networkChanges.length > 0 && (
-                <div className="ios-card rounded-2xl px-4 py-3">
-                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">변경 공지사항</p>
-                  <div className="space-y-1.5">
-                    {networkChanges.map((item, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <span className={`flex-shrink-0 ${item.change_type === 'suspended' ? 'text-acc-red' : 'text-acc-green'}`}>
-                          {item.change_type === 'suspended'
-                            ? <ArrowDown size={11} weight="bold" />
-                            : <ArrowUp size={11} weight="bold" />}
-                        </span>
-                        <ExFavicon id={item.exchange} size={12} />
-                        <span className="text-[11px] text-label-secondary">{fmtEx(item.exchange)}</span>
-                        {item.coin && <span className="text-[11px] text-label-tertiary">{item.coin}</span>}
-                        {item.network && <span className="text-[10px] text-label-quaternary">{item.network}</span>}
-                        <span className={`text-[11px] font-semibold ${item.change_type === 'suspended' ? 'text-acc-red' : 'text-acc-green'}`}>
-                          {item.change_type === 'suspended' ? '출금 중단' : '출금 재개'}
-                        </span>
-                        {item.detected_at && (
-                          <span className="text-[10px] text-label-quaternary ml-auto">· {fmtKst(item.detected_at)}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* 네트워크 비활성 목록 (출금 중단된 BTC/USDT 네트워크) */}
               {disabledNetworks.length > 0 && (
                 <div className="ios-card rounded-2xl px-4 py-3">
@@ -320,17 +300,42 @@ export function InputStep() {
                       />
                     </button>
                   </div>
-                  <div className="space-y-1.5">
-                    {disabledNetworks.map((row, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acc-red" />
-                        <ExFavicon id={row.exchange} size={12} />
-                        <span className="text-[11px] text-label-secondary">{fmtEx(row.exchange)}</span>
-                        <span className="text-[11px] text-label-tertiary">{row.coin}</span>
-                        <span className="text-[10px] text-label-quaternary">{row.network_label}</span>
-                        <span className="text-[11px] font-semibold text-acc-red ml-auto">출금 중단</span>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    {disabledNetworks.map((row, i) => {
+                      const change = suspendedByKey.get(`${row.exchange}|${row.coin}|${row.network_label}`);
+                      const notice = change?.related_notices?.find(n => n.url);
+                      return (
+                        <div key={i} className="flex items-start gap-1.5">
+                          <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acc-red mt-1.5" />
+                          <span className="flex-shrink-0 mt-0.5"><ExFavicon id={row.exchange} size={12} /></span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] text-label-secondary">{fmtEx(row.exchange)}</span>
+                              <span className="text-[11px] text-label-tertiary">{row.coin}</span>
+                              <span className="text-[10px] text-label-quaternary truncate">{row.network_label}</span>
+                              <span className="text-[11px] font-semibold text-acc-red ml-auto flex-shrink-0">출금 중단</span>
+                            </div>
+                            {(change?.detected_at || notice) && (
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {change?.detected_at && (
+                                  <span className="text-[10px] text-label-quaternary">{fmtKst(change.detected_at)}부터</span>
+                                )}
+                                {notice?.url && (
+                                  <a
+                                    href={notice.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-0.5 text-[10px] text-acc-blue hover:underline"
+                                  >
+                                    공지 <ArrowSquareOut className="w-2.5 h-2.5" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
