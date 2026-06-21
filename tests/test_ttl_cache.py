@@ -3,7 +3,7 @@ import time
 
 
 def _make_cache(ttl: int):
-    from backend.app.api.routes.market import _TtlCache
+    from backend.app.services.cache import _TtlCache
     return _TtlCache(ttl=ttl)
 
 
@@ -23,7 +23,7 @@ def test_cache_expires_after_ttl(monkeypatch):
     original_time = time.time()
     cache.set('status', {'data': 'ok'})
     monkeypatch.setattr(
-        'backend.app.api.routes.market.time',
+        'backend.app.services.cache.time',
         type('T', (), {'time': staticmethod(lambda: original_time + 2)})()
     )
     assert cache.get('status') is None

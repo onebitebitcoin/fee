@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.db import repositories
 from backend.app.db.session import get_db
 from backend.app.services import kyc_registry
+from backend.app.services.cache import _TtlCache
 from backend.app.services.exchange_status_builder import build_exchange_status
 from backend.app.domain.paths_buy import find_cheapest_path_from_snapshot_rows
 from backend.app.domain.paths_sell import find_cheapest_sell_path_from_snapshot_rows
@@ -25,59 +25,6 @@ from backend.app.domain.market_core import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-class _TtlCache:
-    def __init__(self, ttl: int):
-        self._ttl = ttl
-        self._store: dict = {}
-        # single-flight: 같은 키 동시 미스를 1회 계산으로 병합하기 위한 키별 락
-        self._locks: dict[str, threading.Lock] = {}
-        self._guard = threading.Lock()
-
-    def get(self, key: str):
-        entry = self._store.get(key)
-        if entry and time.time() - entry['ts'] < self._ttl:
-            return entry['data']
-        return None
-
-    def set(self, key: str, data) -> None:
-        self._store[key] = {'data': data, 'ts': time.time()}
-
-    def _key_lock(self, key: str) -> threading.Lock:
-        with self._guard:
-            lock = self._locks.get(key)
-            if lock is None:
-                lock = threading.Lock()
-                self._locks[key] = lock
-            return lock
-
-    def get_or_compute(self, key: str, compute_fn):
-        """캐시 히트면 즉시 반환, 미스면 키별 락으로 1회만 계산(single-flight).
-
-        동시 미스가 N개 들어와도 compute_fn은 1회만 실행되고, 나머지는
-        완성된 결과를 공유한다(cache stampede 방어). 동기 핸들러가
-        anyio threadpool에서 실행되므로 threading.Lock으로 동기화한다.
-        """
-        cached = self.get(key)
-        if cached is not None:
-            return cached
-        lock = self._key_lock(key)
-        with lock:
-            # 락 안에서 재확인 — 대기 중 다른 스레드가 이미 채웠을 수 있음
-            cached = self.get(key)
-            if cached is not None:
-                return cached
-            data = compute_fn()
-            self.set(key, data)
-            return data
-
-    def invalidate(self, key: str) -> None:
-        self._store.pop(key, None)
-
-    def clear(self) -> None:
-        self._store.clear()
-        with self._guard:
-            self._locks.clear()
 
 
 _status_cache = _TtlCache(ttl=60)
