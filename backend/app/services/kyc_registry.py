@@ -22,8 +22,6 @@ _cache: dict[str, object] = {
 _SERVICE_ALIASES = {
     'bitfreezer': 'bitfreeze',
     'boltz': 'boltz',
-    'boltzsubmarine': 'boltz',
-    'boltzmutual': 'boltz',
     'walletofsatoshi': 'walletofsatoshi',
     'walletofsats': 'walletofsatoshi',
     'personalwallet': 'personalwallet',
@@ -34,8 +32,6 @@ _SERVICE_ALIASES = {
 _STATIC_KYC: dict[str, KycStatus] = {
     'oksusu': 'non_kyc',
     'boltz': 'non_kyc',
-    'boltzsubmarine': 'non_kyc',
-    'boltzmutual': 'non_kyc',
     'bitfreeze': 'non_kyc',
     'coinos': 'non_kyc',
     'strike': 'kyc',
