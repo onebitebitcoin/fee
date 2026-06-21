@@ -58,6 +58,7 @@ class TestInspectPath:
     def test_invalid_global_exchange_is_warning(self):
         result = inspect_path(_valid_entry(global_exchange='unknown_exchange'))
         assert any('global_exchange' in i for i in result.issues)
+        assert result.severity == 'warning'
 
     def test_empty_breakdown_components_is_error(self):
         entry = _valid_entry()

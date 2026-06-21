@@ -12,6 +12,15 @@ _VALID_GLOBAL_EXCHANGES = {
     'binance', 'okx', 'coinbase', 'kraken', 'bitget', 'bybit', 'gate',
 }
 
+# 이 prefix로 시작하는 이슈만 'error'; 나머지는 'warning'
+_ERROR_PREFIXES = (
+    'path_id가 없음',
+    'total_fee_krw 없음',
+    'total_fee_krw 음수',
+    'btc_received 없음',
+    'btc_received 0 이하',
+)
+
 
 @dataclass
 class InspectResult:
@@ -76,8 +85,7 @@ def inspect_path(entry: dict) -> InspectResult:
     severity = 'ok'
     if issues:
         severity = 'error' if any(
-            'btc_received' in i or '음수' in i or '없음' in i
-            for i in issues
+            i.startswith(_ERROR_PREFIXES) for i in issues
         ) else 'warning'
 
     return InspectResult(path_id=path_id, issues=issues, severity=severity)
