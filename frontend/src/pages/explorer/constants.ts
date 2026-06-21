@@ -119,10 +119,14 @@ export function fmtKst(ts: number | null): string {
 // BTC amount_text → sats when value is tiny (e.g. "1e-06 BTC" → "100 sats")
 export function fmtAmountText(text: string | null | undefined): string | null {
   if (!text) return null;
-  const m = text.match(/^([0-9.e+\-]+)\s*BTC$/i);
+  // "X BTC" 또는 "X BTC (N회)" 형태 → sats 변환, 접미사는 유지
+  const m = text.match(/^([0-9.e+\-]+)\s*BTC(\s*\(.+\))?$/i);
   if (m) {
     const btc = parseFloat(m[1]);
-    if (!isNaN(btc) && btc < 0.001) return `${Math.round(btc * 1e8)} sats`;
+    if (!isNaN(btc) && btc < 0.001) {
+      const suffix = m[2] ? ` ${m[2].trim()}` : '';
+      return `${Math.round(btc * 1e8)} sats${suffix}`;
+    }
   }
   return text;
 }
