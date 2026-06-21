@@ -6,7 +6,8 @@ import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
 import { api } from '../../../lib/api';
-import type { AccessStats, NetworkChange } from '../../../types';
+import { filterDisabledWithdrawals } from '../disabledNetworks';
+import type { AccessStats, NetworkChange, WithdrawalRow } from '../../../types';
 
 const EXCHANGES = [
   'upbit', 'bithumb', 'coinone', 'korbit', 'gopax',
@@ -37,10 +38,14 @@ function ExchangeMarquee() {
 export function InputStep() {
   const [stats, setStats] = useState<AccessStats | null>(null);
   const [networkChanges, setNetworkChanges] = useState<NetworkChange[]>([]);
+  const [disabledNetworks, setDisabledNetworks] = useState<WithdrawalRow[]>([]);
 
   useEffect(() => {
     api.getAccessCount().then(setStats).catch(() => {});
     api.getNetworkChanges().then(r => setNetworkChanges(r.items)).catch(() => {});
+    api.getWithdrawalFees()
+      .then(r => setDisabledNetworks(filterDisabledWithdrawals(r.items)))
+      .catch(() => {});
   }, []);
 
   const {
@@ -226,6 +231,25 @@ export function InputStep() {
                         {item.detected_at && (
                           <span className="text-[10px] text-label-quaternary ml-auto">· {fmtKst(item.detected_at)}</span>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 네트워크 비활성 목록 (출금 중단된 BTC/USDT 네트워크) */}
+              {disabledNetworks.length > 0 && (
+                <div className="ios-card rounded-2xl px-4 py-3">
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">네트워크 비활성 목록</p>
+                  <div className="space-y-1.5">
+                    {disabledNetworks.map((row, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acc-red" />
+                        <ExFavicon id={row.exchange} size={12} />
+                        <span className="text-[11px] text-label-secondary">{fmtEx(row.exchange)}</span>
+                        <span className="text-[11px] text-label-tertiary">{row.coin}</span>
+                        <span className="text-[10px] text-label-quaternary">{row.network_label}</span>
+                        <span className="text-[11px] font-semibold text-acc-red ml-auto">출금 중단</span>
                       </div>
                     ))}
                   </div>
