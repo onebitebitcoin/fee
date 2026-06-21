@@ -24,6 +24,17 @@ from backend.app.domain.min_order_registry import calc_discarded_krw
 
 logger = logging.getLogger(__name__)
 
+_EXCHANGE_KO: dict[str, str] = {
+    'binance': '바이낸스', 'okx': 'OKX', 'bybit': '바이빗',
+    'bitget': '비트겟', 'kraken': '크라켄', 'coinbase': '코인베이스',
+    'gate': '게이트', 'upbit': '업비트', 'bithumb': '빗썸',
+    'coinone': '코인원', 'korbit': '코빗', 'gopax': '고팍스',
+}
+
+
+def _ex_ko(exchange_id: str) -> str:
+    return _EXCHANGE_KO.get(exchange_id.lower(), exchange_id)
+
 
 def _force_calc_withdraw(row, amount_coin, *, coin, price_krw, usd_krw,
                          num_txs=1, source_url=None, label_override=None):
@@ -574,7 +585,7 @@ def _build_lightning_paths(
                     global_ln_wd_row, gbuy.amount_out,
                     coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
                     usd_krw=ctx.usd_krw_rate,
-                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
+                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})',
                 )
                 if isinstance(global_ln_wd, Blocked):
                     _key = (exchange, 'USDT', ln_network_label, global_ln_wd.reason)
@@ -691,7 +702,7 @@ def _build_lightning_paths(
                     global_ln_wd_row, domestic_wd.amount_out,
                     coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
                     usd_krw=ctx.usd_krw_rate,
-                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({global_exchange})',
+                    label_override=f'해외 BTC 라이트닝 출금 수수료 ({_ex_ko(global_exchange)})',
                 )
                 if isinstance(global_ln_wd, Blocked):
                     _key = (exchange, 'BTC', ln_network_label, global_ln_wd.reason)
