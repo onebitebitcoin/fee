@@ -591,6 +591,12 @@ def _estimate_eth_erc20_fee_in_usdt() -> float:
     return round(fee_eth * eth_price_usd, 4)
 
 
+# Coinbase는 공개 API로 BTC 출금 수수료를 제공하지 않는다(개인 계정은 Coinbase Exchange API 접근 불가).
+# 멤풀 네트워크 추정치는 실제 코인베이스 청구액과 동떨어지므로(혼잡 한산 시 140 sats 등) 정적 등록값을 사용한다.
+# 실제값이 바뀌면 이 상수만 갱신하면 된다. (어드민 패널에 source='static'으로 노출됨)
+_COINBASE_BTC_WITHDRAWAL_FEE_BTC = 0.0001  # 10,000 sats — 코인베이스 BTC 온체인 출금 정적 등록값
+
+
 def fetch_coinbase_withdrawal(coin: str) -> list:
     metadata = _fetch_coinbase_currency_metadata(coin)
     supported_networks = metadata.get("supported_networks") or []
@@ -608,10 +614,10 @@ def fetch_coinbase_withdrawal(coin: str) -> list:
         )
         return [{
             "label": label,
-            "fee": _estimate_btc_withdrawal_fee_btc(),
+            "fee": _COINBASE_BTC_WITHDRAWAL_FEE_BTC,
             "min": float(min_amount) if min_amount not in (None, "") else None,
             "enabled": not bool(network_entry.get("is_disabled")),
-            "note": "공식 자산 메타데이터 + 공개 BTC 수수료 추정",
+            "note": "정적 등록값 (공개 API 미제공)",
         }]
 
     if coin == "USDT":

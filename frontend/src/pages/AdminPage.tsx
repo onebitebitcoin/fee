@@ -5,6 +5,7 @@ import {
   PencilSimple, Check, X, ArrowsClockwise, Lightning, WarningCircle,
 } from '@phosphor-icons/react';
 import { api } from '../lib/api';
+import type { WithdrawalRow } from '../types';
 import { AdminNoticePanel } from './board/AdminNoticePanel';
 import {
   loadAdminSettings, saveAdminSettings, resetAdminSettings,
@@ -207,6 +208,71 @@ function GlobalExchangeTable({
 }
 
 // ── Caution Panel ─────────────────────────────────────────────────────────────
+
+// 출금 수수료 출처 라벨/스타일 (static=정적, realtime_api=실시간, scraped/playwright=스크래핑)
+const WD_SOURCE_META: Record<string, { label: string; cls: string }> = {
+  realtime_api: { label: '실시간 API', cls: 'bg-acc-green/10 text-acc-green' },
+  static:       { label: '정적',       cls: 'bg-acc-amber/15 text-acc-amber' },
+  static_fallback: { label: '정적',    cls: 'bg-acc-amber/15 text-acc-amber' },
+  scraped_page: { label: '스크래핑',   cls: 'bg-acc-blue/10 text-acc-blue' },
+  playwright:   { label: '스크래핑',   cls: 'bg-acc-blue/10 text-acc-blue' },
+};
+
+function fmtWdFee(coin: string, fee: number | null | undefined): string {
+  if (fee == null) return '—';
+  if (coin === 'BTC') return `${Math.round(fee * 1e8).toLocaleString()} sats`;
+  return `${fee} ${coin}`;
+}
+
+/** 거래소별 현재 출금 수수료 + 데이터 출처(정적/실시간/스크래핑) 표시 (읽기 전용). */
+function WithdrawalFeePanel({ exchanges }: { exchanges: { id: string; name: string }[] }) {
+  const [rows, setRows] = useState<WithdrawalRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getWithdrawalFees()
+      .then(r => setRows(r.items))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const nameById = new Map(exchanges.map(e => [e.id, e.name]));
+  const ids = new Set(exchanges.map(e => e.id));
+  const byEx = new Map<string, WithdrawalRow[]>();
+  for (const r of rows) {
+    if (!ids.has(r.exchange)) continue;
+    if (!byEx.has(r.exchange)) byEx.set(r.exchange, []);
+    byEx.get(r.exchange)!.push(r);
+  }
+
+  if (loading) return <p className="text-xs text-label-tertiary">불러오는 중…</p>;
+  if (byEx.size === 0) return <p className="text-xs text-label-tertiary">출금 수수료 데이터가 없습니다.</p>;
+
+  return (
+    <div className="space-y-3">
+      {[...byEx.entries()].map(([ex, exRows]) => (
+        <div key={ex}>
+          <p className="text-xs font-semibold text-label-primary mb-1">{nameById.get(ex) ?? ex}</p>
+          <div className="space-y-1">
+            {exRows.map((r, i) => {
+              const src = WD_SOURCE_META[r.source] ?? { label: r.source, cls: 'bg-fill-secondary text-label-tertiary' };
+              return (
+                <div key={i} className="flex items-center gap-2 text-[11px]">
+                  <span className="text-label-tertiary w-9 flex-shrink-0">{r.coin}</span>
+                  <span className="text-label-secondary flex-1 min-w-0 truncate">{r.network_label}</span>
+                  <span className={`num flex-shrink-0 ${r.enabled ? 'text-label-primary' : 'text-label-tertiary line-through'}`}>
+                    {fmtWdFee(r.coin, r.fee)}
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${src.cls}`}>{src.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function CautionPanel({ group, exchanges }: {
   group: 'korea' | 'global';
@@ -560,6 +626,19 @@ export function AdminPage() {
                 <div className="p-4">
                   <CautionPanel
                     group={tab === 'korean' ? 'korea' : 'global'}
+                    exchanges={(tab === 'korean' ? settings.koreanNodes : settings.globalNodes).map(n => ({ id: n.id, name: n.name }))}
+                  />
+                </div>
+              </div>
+            )}
+            {(tab === 'korean' || tab === 'global') && (
+              <div className="ios-card rounded-2xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-sys-separator">
+                  <p className="text-xs font-semibold text-label-primary">출금 수수료 (현재값 · 출처)</p>
+                  <p className="text-[11px] text-label-tertiary mt-0.5">실시간 API / 스크래핑 / <span className="text-acc-amber font-semibold">정적</span> 등록값 구분. 정적은 공개 API 미제공 항목(코인베이스 BTC 등)으로 코드 상수로 관리됩니다.</p>
+                </div>
+                <div className="p-4">
+                  <WithdrawalFeePanel
                     exchanges={(tab === 'korean' ? settings.koreanNodes : settings.globalNodes).map(n => ({ id: n.id, name: n.name }))}
                   />
                 </div>

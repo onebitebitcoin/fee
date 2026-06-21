@@ -378,7 +378,8 @@ class TestGetScrapedWithdrawal:
     def test_bithumb_api_source_url_is_exposed(self):
         assert get_withdrawal_source_url("bithumb", "USDT", "TRC20") == "https://gw.bithumb.com/exchange/v1/coin-inout/info"
 
-    def test_coinbase_btc_uses_official_metadata_plus_public_fee_estimate(self, monkeypatch):
+    def test_coinbase_btc_uses_static_fee(self, monkeypatch):
+        """코인베이스 BTC 출금 수수료는 정적 등록값 사용 (멤풀 추정 금지)."""
         class DummyResponse:
             def __init__(self, status_code, payload=None):
                 self.status_code = status_code
@@ -394,21 +395,19 @@ class TestGetScrapedWithdrawal:
                     "min_withdrawal_amount": "0.0001",
                     "supported_networks": [{"name": "Bitcoin", "is_disabled": False}],
                 })
-            if "mempool.space" in url:
-                return DummyResponse(200, {"hourFee": 10})
-            if "blockstream.info" in url:
-                return DummyResponse(200, {"6": 10})
-            raise AssertionError(f"unexpected URL: {url}")
+            # 멤풀/blockstream을 절대 호출하면 안 됨 (정적 등록값 사용)
+            raise AssertionError(f"정적 수수료여야 하는데 네트워크 추정 호출됨: {url}")
 
         monkeypatch.setattr(fee_checker, "_get", fake_get)
         result = get_scraped_withdrawal("coinbase", "BTC")
         assert result == [{
             "label": "Bitcoin (On-chain)",
-            "fee": 0.000014,
+            "fee": fee_checker._COINBASE_BTC_WITHDRAWAL_FEE_BTC,
             "min": 0.0001,
             "enabled": True,
-            "note": "공식 자산 메타데이터 + 공개 BTC 수수료 추정",
+            "note": "정적 등록값 (공개 API 미제공)",
         }]
+        assert result[0]["fee"] == 0.0001  # 10,000 sats
 
     def test_coinbase_usdt_uses_metadata_and_gas_estimate(self, monkeypatch):
         class DummyResponse:

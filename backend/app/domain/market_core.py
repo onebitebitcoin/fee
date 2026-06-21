@@ -66,6 +66,20 @@ WITHDRAWAL_FETCHERS = {
 
 SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES = {'coinbase', 'kraken'}
 
+# (거래소, 코인) — 공개 API 미제공으로 정적 등록값을 쓰는 출금 수수료. 어드민에 'static'으로 노출.
+STATIC_WITHDRAWAL_FEE_KEYS = {('coinbase', 'BTC')}
+
+
+def withdrawal_source(exchange: str, coin: str) -> str:
+    """출금 수수료 데이터 출처 라벨: static / realtime_api / scraped_page."""
+    if (exchange, coin.upper()) in STATIC_WITHDRAWAL_FEE_KEYS:
+        return 'static'
+    if exchange in SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES:
+        return 'scraped_page'
+    if exchange in WITHDRAWAL_FETCHERS:
+        return 'realtime_api'
+    return 'scraped_page'
+
 __all__ = [
     'ALL_EXCHANGES',
     'GLOBAL_FETCHERS',
@@ -73,6 +87,8 @@ __all__ = [
     'KOREA_FETCHERS',
     'TRADING_FEES',
     'WITHDRAWAL_FETCHERS',
+    'STATIC_WITHDRAWAL_FEE_KEYS',
+    'withdrawal_source',
     'check_maintenance_status',
     'enrich_ticker_fees',
     'fetch_binance_perp',
@@ -207,7 +223,7 @@ def get_withdrawal_fees(exchange: str, coin: str = 'BTC') -> dict:
         result = {
             'exchange': exchange,
             'coin': coin,
-            'source': 'scraped_page' if exchange in SCRAPED_WITHDRAWAL_FETCHER_EXCHANGES else ('realtime_api' if exchange in WITHDRAWAL_FETCHERS else 'scraped_page'),
+            'source': withdrawal_source(exchange, coin),
             'networks': networks,
         }
         usd_krw_rate = fetch_usd_krw_rate()
