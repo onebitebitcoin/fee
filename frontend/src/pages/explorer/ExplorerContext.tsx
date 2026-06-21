@@ -7,13 +7,30 @@ import { createContext, useContext, useState, useMemo, useEffect, useRef } from 
 import type { ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
-import type { LiveRegistry } from '../../lib/gatemanRegistry';
-import type { CheapestPathEntry, CheapestPathResponse, DisabledCheapestPathEntry, TickerRow } from '../../types';
+import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../../types';
 import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
-import { GLOBAL_EXCHANGES, GLOBAL_INFO, DOMESTIC_INFO, bestByFee } from './constants';
+import { GLOBAL_EXCHANGES, DOMESTIC_INFO } from './constants';
 import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
+import { useExchangeMetadata } from './useExchangeMetadata';
+import {
+  computeSnapshotKimp,
+  computeDomesticBtcKrw,
+  computeKoreaVolumeMap,
+  computeDomesticOptions,
+  computeCoinOptions,
+  computeGlobalOptions,
+  computeNetworkOptions,
+  computeDisabledNetworkOptions,
+  computeHasLightningPaths,
+  computeGlobalSupportsLightning,
+  computeCurrentLightningPaths,
+  computeLightningExitInfo,
+  computeSwapServiceOptions,
+  computeResultPath,
+  computeAltPaths,
+} from './derivations';
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
@@ -39,12 +56,11 @@ function useExplorerValue() {
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; kimchiPremiumTotal: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
-  const [liveRegistry, setLiveRegistry] = useState<LiveRegistry | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
-  const [cautionMap, setCautionMap] = useState<Record<string, { caution: boolean; reason: string | null }>>({});
-  // CARF 첫 정보교환 연도 (DB 권위 소스, id→연도). 미수신 시 정적 constants(info.carf) fallback.
-  const [carfMap, setCarfMap] = useState<Record<string, number>>({});
+
+  // 거래소 메타데이터(게이트맨/유의/CARF/출금한도) — 마운트 1회 fetch, 탐색 상태와 결합 없음
+  const { liveRegistry, cautionMap, carfMap, withdrawalLimits } = useExchangeMetadata();
 
   // ── 추천 경로 필터 (제외 필터) ──────────────────────────────────────────────────
   const [excludeExchanges,       setExcludeExchanges]       = useState<Set<string>>(new Set());
@@ -60,15 +76,6 @@ function useExplorerValue() {
   const [loadingDone, setLoadingDone] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [failedGlobalExchanges, setFailedGlobalExchanges] = useState<string[]>([]);
-
-  const [withdrawalLimits, setWithdrawalLimits] = useState<Record<string, {
-    krw_per_tx_limit: number | null;
-    btc_per_tx_max: number | null;
-    btc_daily_verified: number | null;
-    krw_daily_verified_digital: number | null;
-    source: string;
-    scraped_at: number | null;
-  }>>({});
 
   const prevPhase            = useRef<Phase>('input');
   const satRafRef            = useRef<number | null>(null);
@@ -96,33 +103,6 @@ function useExplorerValue() {
   }
 
   const amountKrw = parseFloat(amount || '0') * (unit === '만원' ? 10_000 : 100_000_000);
-
-  useEffect(() => {
-    api.getGatemanRegistry().then(res => {
-      setLiveRegistry(res.data as unknown as LiveRegistry);
-    }).catch(() => { /* use static defaults */ });
-  }, []);
-
-  useEffect(() => {
-    api.getWithdrawalLimits().then(res => {
-      setWithdrawalLimits(res.limits);
-    }).catch(() => { /* keep static DOMESTIC_INFO fallback */ });
-  }, []);
-
-  useEffect(() => {
-    api.getCaution().then(setCautionMap).catch(() => { /* keep empty */ });
-  }, []);
-
-  useEffect(() => {
-    api.getCarfExchanges().then(res => {
-      const m: Record<string, number> = {};
-      for (const e of res.exchanges) {
-        const year = e.carfFirstExchange ? parseInt(e.carfFirstExchange, 10) : NaN;
-        if (!Number.isNaN(year)) m[e.id] = year;
-      }
-      setCarfMap(m);
-    }).catch(() => { /* keep static constants fallback */ });
-  }, []);
 
   // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
   useEffect(() => {
@@ -218,252 +198,62 @@ function useExplorerValue() {
     [allRecommendedPaths, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
-  const snapshotKimp = useMemo(() => {
-    if (!allData) return {} as Record<string, number>;
-    const ref = allData.byGlobal['binance'] ?? Object.values(allData.byGlobal)[0];
-    if (!ref) return {} as Record<string, number>;
-    const gkrw = ref.global_btc_price_usd * ref.usd_krw_rate;
-    const result: Record<string, number> = {};
-    for (const t of allData.tickers) {
-      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.price && gkrw)
-        result[t.exchange] = ((t.price - gkrw) / gkrw) * 100;
-    }
-    return result;
-  }, [allData]);
+  const snapshotKimp = useMemo(() => computeSnapshotKimp(allData), [allData]);
 
-  const domesticBtcKrw = useMemo(() => {
-    if (!allData || !domestic) return null;
-    return allData.tickers.find(t =>
-      t.exchange === domestic && t.currency === 'KRW' && t.pair?.includes('BTC')
-    )?.price ?? null;
-  }, [allData, domestic]);
+  const domesticBtcKrw = useMemo(() => computeDomesticBtcKrw(allData, domestic), [allData, domestic]);
 
   // 한국 거래소 24h 거래량 맵 — KRW 단위 (BTC 거래량 × BTC/KRW 기준가)
-  const koreaVolumeMap = useMemo(() => {
-    const ref = allData?.byGlobal['binance'] ?? Object.values(allData?.byGlobal ?? {})[0];
-    const btcKrw = ref ? ref.global_btc_price_usd * ref.usd_krw_rate : 0;
-    const m: Record<string, number> = {};
-    for (const t of (allData?.tickers ?? [])) {
-      if (t.currency === 'KRW' && t.pair?.includes('BTC') && t.volume_24h_btc && btcKrw) {
-        m[t.exchange] = t.volume_24h_btc * btcKrw;  // KRW
-      }
-    }
-    return m;
-  }, [allData]);
+  const koreaVolumeMap = useMemo(() => computeKoreaVolumeMap(allData), [allData]);
 
-  const domesticOptions = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const data of Object.values(allData?.byGlobal ?? {}))
-      for (const p of data.all_paths) {
-        const cur = map.get(p.korean_exchange) ?? Infinity;
-        const fee = p.total_fee_krw ?? Infinity;
-        if (fee < cur) map.set(p.korean_exchange, fee);
-      }
-    return [...map.entries()]
-      .map(([exchange, best]) => ({ exchange, best }))
-      .sort((a, b) => (koreaVolumeMap[b.exchange] ?? 0) - (koreaVolumeMap[a.exchange] ?? 0));
-  }, [allData, koreaVolumeMap]);
+  const domesticOptions = useMemo(
+    () => computeDomesticOptions(allData, koreaVolumeMap),
+    [allData, koreaVolumeMap]);
 
-  const coinOptions = useMemo(() => {
-    if (!allData || !domestic) return [] as { coin: CoinType; best: CheapestPathEntry }[];
-    const anyData = Object.values(allData.byGlobal)[0];
-    const paths = (anyData?.all_paths ?? []).filter(p => p.korean_exchange === domestic);
-    const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
-    const u  = bestByFee(paths.filter(p => p.transfer_coin === 'USDT'));
-    const b  = bestByFee(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'));
-    const bg = bestByFee(paths.filter(p => p.route_variant === 'btc_via_global'));
-    if (u)  opts.push({ coin: 'USDT',       best: u });
-    if (bg) opts.push({ coin: 'BTC_GLOBAL',  best: bg });
-    if (b)  opts.push({ coin: 'BTC',         best: b });
-    return opts;
-  }, [allData, domestic]);
+  const coinOptions = useMemo(() => computeCoinOptions(allData, domestic), [allData, domestic]);
 
-  const globalOptions = useMemo(() => {
-    if (!allData || !domestic) return [];
-    return GLOBAL_EXCHANGES
-      .map(g => {
-        let paths = (allData.byGlobal[g]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic,
-        );
-        if (coin === 'USDT') {
-          paths = paths.filter(p => p.transfer_coin === 'USDT');
-        } else if (coin === 'BTC_GLOBAL') {
-          paths = paths.filter(p => p.route_variant === 'btc_via_global');
-        }
-        const best = bestByFee(paths);
-        if (!best) return null;
-        return { exchange: g, best };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => {
-        const diff = (a.best.total_fee_krw ?? 0) - (b.best.total_fee_krw ?? 0);
-        if (diff !== 0) return diff;
-        return (b.best.btc_received ?? 0) - (a.best.btc_received ?? 0);
-      });
-  }, [allData, domestic, coin]);
+  const globalOptions = useMemo(
+    () => computeGlobalOptions(allData, domestic, coin),
+    [allData, domestic, coin]);
 
-  const networkOptions = useMemo(() => {
-    if (!allData || !domestic || !coin) return [] as { network: string; best: CheapestPathEntry }[];
-    let paths: CheapestPathEntry[];
-    if (coin === 'BTC') {
-      paths = (Object.values(allData.byGlobal)[0]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global');
-    } else if (coin === 'BTC_GLOBAL') {
-      if (!global) return [];
-      paths = (allData.byGlobal[global]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.route_variant === 'btc_via_global');
-    } else {
-      if (!global) return [];
-      paths = (allData.byGlobal[global]?.all_paths ?? [])
-        .filter(p => p.korean_exchange === domestic && p.transfer_coin === 'USDT');
-    }
-    const map = new Map<string, CheapestPathEntry>();
-    for (const p of paths) {
-      const cur = map.get(p.network);
-      const pFee = p.total_fee_krw ?? Infinity;
-      const curFee = cur ? (cur.total_fee_krw ?? Infinity) : Infinity;
-      if (!cur || pFee < curFee || (pFee === curFee && (p.btc_received ?? 0) > (cur.btc_received ?? 0))) {
-        map.set(p.network, p);
-      }
-    }
-    return [...map.entries()].map(([n, best]) => ({ network: n, best }));
-  }, [allData, domestic, coin, global]);
+  const networkOptions = useMemo(
+    () => computeNetworkOptions(allData, domestic, coin, global),
+    [allData, domestic, coin, global]);
 
-  const disabledNetworkOptions = useMemo((): DisabledCheapestPathEntry[] => {
-    if (!allData || !domestic || !coin) return [];
-    const transferCoin = coin === 'USDT' ? 'USDT' : 'BTC';
-    const source = coin === 'USDT' || coin === 'BTC_GLOBAL'
-      ? (global ? allData.byGlobal[global] : null)
-      : Object.values(allData.byGlobal)[0];
-    return (source?.disabled_paths ?? []).filter(
-      p => p.korean_exchange === domestic && p.transfer_coin === transferCoin,
-    );
-  }, [allData, domestic, coin, global]);
+  const disabledNetworkOptions = useMemo(
+    () => computeDisabledNetworkOptions(allData, domestic, coin, global),
+    [allData, domestic, coin, global]);
 
   // Lightning exit paths available for current global exchange selection (before network is chosen)
-  const hasLightningPaths = useMemo(() => {
-    if (!allData || !domestic || !global) return false;
-    if (coin === 'USDT') {
-      return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
-        p.korean_exchange === domestic &&
-        p.transfer_coin === 'USDT' &&
-        (network ? p.network === network : true) &&
-        p.path_type === 'lightning_exit',
-      );
-    }
-    if (coin === 'BTC_GLOBAL') {
-      return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
-        p.korean_exchange === domestic &&
-        p.route_variant === 'btc_via_global' &&
-        p.path_type === 'lightning_exit',
-      );
-    }
-    return false;
-  }, [allData, domestic, global, coin, network]);
+  const hasLightningPaths = useMemo(
+    () => computeHasLightningPaths(allData, domestic, global, coin, network),
+    [allData, domestic, global, coin, network]);
 
-  // 글로벌 거래소가 라이트닝 출금을 지원하는지:
-  // 1순위 — 실제 경로 존재 여부(API 기반)
-  // 2순위 — GLOBAL_INFO.lightning 정적 메타데이터 폴백 (OKX처럼 지원하지만 스냅샷 누락 시)
+  // 글로벌 거래소가 라이트닝 출금을 지원하는지: 실제 경로 존재 → 정적 메타데이터 폴백
   const globalSupportsLightning = (g: string | null): boolean =>
-    !!g && (
-      (allData?.byGlobal[g]?.all_paths ?? []).some(p => p.path_type === 'lightning_exit') ||
-      (GLOBAL_INFO[g as keyof typeof GLOBAL_INFO]?.lightning ?? false)
-    );
+    computeGlobalSupportsLightning(allData, g);
 
   // 현재 선택(국내/코인/글로벌/네트워크) 기준의 lightning_exit 경로 집합 — 종착지 단계·스왑 단계가 공유
-  const currentLightningPaths = useMemo(() => {
-    const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
-    if (!allData || !domestic || (!isBtcGlobalLightning && !network)) return [] as CheapestPathEntry[];
-    const basePaths = coin === 'BTC'
-      ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
-      : coin === 'BTC_GLOBAL'
-        ? global
-          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.route_variant === 'btc_via_global')
-          : []
-        : global
-          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && p.network === network)
-          : [];
-    return basePaths.filter(p => p.path_type === 'lightning_exit' && p.lightning_exit_provider);
-  }, [allData, domestic, coin, global, network, globalExitMethod]);
+  const currentLightningPaths = useMemo(
+    () => computeCurrentLightningPaths(allData, domestic, coin, global, network, globalExitMethod),
+    [allData, domestic, coin, global, network, globalExitMethod]);
 
   // 종착지 단계 가용성: 라이트닝 지갑(직접출금) / 개인지갑(스왑 경유) 경로 존재 여부
-  const lightningExitInfo = useMemo(() => ({
-    hasLightningWallet: currentLightningPaths.some(p => p.destination === 'lightning_wallet'),
-    hasPersonal:        currentLightningPaths.some(p => (p.destination ?? 'personal') === 'personal'),
-  }), [currentLightningPaths]);
+  const lightningExitInfo = useMemo(
+    () => computeLightningExitInfo(currentLightningPaths),
+    [currentLightningPaths]);
 
   // Available lightning swap services (개인지갑 종착, network/destination step → swap_service step)
-  const swapServiceOptions = useMemo(() => {
-    const svcMap = new Map<string, { name: string; fee_pct: number; fee_fixed_sat: number; kyc: boolean; btc_received: number; source_url: string | null }>();
-    // 스왑 경유(personal)만 — 라이트닝 지갑 직접출금(__direct__)은 종착지 단계에서 분리됨
-    for (const p of currentLightningPaths.filter(p => p.destination !== 'lightning_wallet')) {
-      const name = p.lightning_exit_provider!;
-      const existing = svcMap.get(name);
-      if (!existing || (p.btc_received ?? 0) > existing.btc_received) {
-        const swapComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('스왑'));
-        const minerComp = p.breakdown?.components.find(c => c.label.toLowerCase().includes('네트워크 수수료') || c.label.toLowerCase().includes('miner fee'));
-        const fee_pct = swapComp?.rate_pct ?? 0;
-        const fee_fixed_sat = minerComp?.amount_text
-          ? parseInt(minerComp.amount_text.replace(/,/g, '').replace(' sats', ''), 10) || 0
-          : 0;
-        svcMap.set(name, {
-          name,
-          fee_pct,
-          fee_fixed_sat,
-          kyc: p.exit_service_kyc_status === 'kyc',
-          btc_received: p.btc_received ?? 0,
-          source_url: swapComp?.source_url ?? null,
-        });
-      }
-    }
-    return [...svcMap.values()].sort((a, b) => b.btc_received - a.btc_received);
-  }, [currentLightningPaths]);
+  const swapServiceOptions = useMemo(
+    () => computeSwapServiceOptions(currentLightningPaths),
+    [currentLightningPaths]);
 
-  const resultPath = useMemo((): CheapestPathEntry | null => {
-    const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
-    const isNone = globalExitMethod === 'none';
-    if (!allData || !domestic || !coin || (!isBtcGlobalLightning && !isNone && !network)) return null;
-    let basePaths = coin === 'BTC'
-      ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global' && p.network === network)
-      : coin === 'BTC_GLOBAL'
-        ? global
-          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.route_variant === 'btc_via_global' &&
-              (isBtcGlobalLightning || isNone || p.network === network))
-          : []
-        : global
-          ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-              p.korean_exchange === domestic && p.transfer_coin === 'USDT' && (isNone || p.network === network))
-          : [];
-    if (globalExitMethod === 'onchain') {
-      basePaths = basePaths.filter(p => p.path_type !== 'lightning_exit');
-    } else if (globalExitMethod === 'lightning') {
-      basePaths = basePaths.filter(p => p.path_type === 'lightning_exit');
-      // 종착지 분기: 라이트닝 지갑 → 직접출금 경로만, 개인지갑 → 스왑 경유 경로만
-      if (destination === 'lightning_wallet') {
-        basePaths = basePaths.filter(p => p.destination === 'lightning_wallet');
-      } else if (destination === 'personal') {
-        basePaths = basePaths.filter(p => (p.destination ?? 'personal') === 'personal');
-      }
-    }
-    if (swapSvc) {
-      const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
-      if (filtered.length > 0) return bestByFee(filtered);
-    }
-    return bestByFee(basePaths);
-  }, [allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
+  const resultPath = useMemo(
+    () => computeResultPath(allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination),
+    [allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
 
-  const altPaths = useMemo(() => {
-    if (!allRecommendedPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
-    const destFilter = (resultPath?.destination ?? 'personal') as Destination;
-    return allRecommendedPaths
-      .filter(p => (p.destination ?? 'personal') === destFilter)
-      .slice(0, 3);
-  }, [allRecommendedPaths, resultPath]);
+  const altPaths = useMemo(
+    () => computeAltPaths(allRecommendedPaths, resultPath),
+    [allRecommendedPaths, resultPath]);
 
   useEffect(() => {
     if (phase !== 'result') return;

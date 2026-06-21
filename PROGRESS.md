@@ -7,8 +7,8 @@
 - [x] Phase 1: 경로 빌더 패키지 + 레지스트리 (`backend/app/domain/paths/`) — paths_buy.py 923→155줄, 385 passed
 - [x] Phase 2: 종착지(destination) 리졸버 (`paths/destination.py`) — 선언적 규칙, 385 passed
 - [x] Phase 3: market.py 라우터 분할 (`backend/app/api/routes/market/`) — 999줄→6모듈(max 344), 17라우트 동일, 385 passed
+- [x] Phase 4: ExplorerContext 순수파생/메타데이터 분리 (`derivations.ts`+`useExchangeMetadata.ts`) — 827→617줄, tsc+52 golden pass, 빌드 OK
 
-## 현재 진행 중
-- [ ] Phase 4: ExplorerContext 훅 분할 (`frontend/src/pages/explorer/hooks/`)
+## 완료 — 전 Phase 종료
 
 ## 남은 Phase
