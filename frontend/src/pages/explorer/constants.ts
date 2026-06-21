@@ -77,7 +77,7 @@ export const GLOBAL_INFO: Record<string, GlobalInfo> = {
   binance:  { country: 'UAE',    carf: 2028, risk: 'med',  fatca: false, url: 'https://binance.com',  lightning: true,  vol24hB: 200 },
   okx:      { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://okx.com',      lightning: true,  vol24hB: 40  },
   bybit:    { country: 'UAE',    carf: 2028, risk: 'med',  fatca: false, url: 'https://bybit.com',    lightning: false, vol24hB: 30  },
-  bitget:   { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://bitget.com',   lightning: false, vol24hB: 10  },
+  bitget:   { country: '세이셸', carf: 2028, risk: 'low',  fatca: false, url: 'https://bitget.com',   lightning: true,  vol24hB: 10  },
   kraken:   { country: '미국',   carf: 2028, risk: 'med',  fatca: true,  url: 'https://kraken.com',   lightning: false, vol24hB: 5   },
   coinbase: { country: '미국',   carf: 2028, risk: 'high', fatca: true,  url: 'https://coinbase.com', lightning: false, vol24hB: 15  },
   gate:     { country: '파나마', carf: 2028, risk: 'med',  fatca: false, url: 'https://gate.io',       lightning: false, vol24hB: 25  },
