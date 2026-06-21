@@ -357,7 +357,7 @@ export function ResultStep() {
                           {c.network && (
                             <p className="text-[10px] text-label-tertiary mt-0.5 flex items-center gap-1">
                               출금 네트워크 <NetworkIcon network={c.network} size={11} />
-                              <span className="text-label-secondary font-medium">{c.network}</span>
+                              <span className="text-label-secondary font-medium">{formatNetworkLabel(c.network)}</span>
                             </p>
                           )}
                           {fmtAmountText(c.amount_text) && (

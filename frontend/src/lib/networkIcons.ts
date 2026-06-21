@@ -107,5 +107,8 @@ export function formatNetworkLabel(network: string): string {
   if (k.includes('on-chain') || k === 'bitcoin' || k === 'btc' || k === 'btc (segwit)') {
     return '온체인';
   }
+  if (k === 'lightning') {
+    return '라이트닝';
+  }
   return network;
 }
