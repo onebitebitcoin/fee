@@ -59,4 +59,21 @@ describe('filterDisabledWithdrawals', () => {
     const rows = [row({ enabled: true }), row({ coin: 'USDT', enabled: true })];
     expect(filterDisabledWithdrawals(rows)).toEqual([]);
   });
+
+  it('레거시 BTC 온체인 망(BTC (SegWit) 등)은 비활성이어도 제외한다', () => {
+    const rows = [
+      row({ exchange: 'binance', coin: 'BTC', network_label: 'BTC (SegWit)', enabled: false }),
+      row({ exchange: 'okx', coin: 'BTC', network_label: 'Bitcoin (Legacy)', enabled: false }),
+    ];
+    expect(filterDisabledWithdrawals(rows)).toHaveLength(0);
+  });
+
+  it('네이티브/라이트닝 BTC 망은 segwit 표기가 있어도 제외하지 않는다', () => {
+    const rows = [
+      row({ exchange: 'binance', coin: 'BTC', network_label: 'Bitcoin', enabled: false }),
+      row({ exchange: 'okx', coin: 'BTC', network_label: 'Native SegWit', enabled: false }),
+      row({ exchange: 'bitget', coin: 'BTC', network_label: 'Lightning Network', enabled: false }),
+    ];
+    expect(filterDisabledWithdrawals(rows)).toHaveLength(3);
+  });
 });
