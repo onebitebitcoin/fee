@@ -135,7 +135,7 @@ export function InputStep() {
                           </span>
                           <span className="text-label-quaternary text-[10px]">·</span>
                           <span className="text-[10px] text-label-tertiary">
-                            테더(USDT) <span className={`font-semibold num ${usdtColor}`}>{fmtPct(usdtPremium)}</span>
+                            원달러(테더) <span className={`font-semibold num ${usdtColor}`}>{fmtPct(usdtPremium)}</span>
                           </span>
                         </div>
                       )}

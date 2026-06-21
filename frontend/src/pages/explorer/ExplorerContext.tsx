@@ -36,7 +36,6 @@ function useExplorerValue() {
   const [liveUsdtKrw, setLiveUsdtKrw] = useState<number | null>(null); // Upbit KRW-USDT 실거래가
   const [usdtPremium, setUsdtPremium] = useState<number | null>(null); // 원달러(테더) 프리미엄 %
   const [forexUsdKrw, setForexUsdKrw] = useState<number | null>(null); // 두나무 포렉스 USD/KRW (USDT 프리미엄 기준)
-  const [kimpInfoOpen, setKimpInfoOpen] = useState(false);
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; kimchiPremiumTotal: number | null; fetchedAt: Date } | null>(null);
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
@@ -754,7 +753,6 @@ function useExplorerValue() {
     usdtPremium,
     forexUsdKrw,
     kimpFetchedAt,
-    kimpInfoOpen, setKimpInfoOpen,
     btcPrice,
     btcMethod, setBtcMethod,
     globalExitMethod, setGlobalExitMethod,

@@ -14,7 +14,7 @@ import { buildReportQuery } from '../../board/reportTemplate';
 export function ResultStep() {
   const navigate = useNavigate();
   const {
-    amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, displaySats,
+    amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, usdtPremium, forexUsdKrw, displaySats,
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
     globalExitMethod, allData,
   } = useExplorer();
@@ -133,10 +133,11 @@ export function ResultStep() {
                   const gd = global ? allData?.byGlobal?.[global] : null;
                   const globalBtcUsd = gd && !('error' in gd) ? gd.global_btc_price_usd ?? null : null;
                   const upbitUsdt = liveUsdtKrw;
-                  // usd_krw_rate(두나무 포렉스)는 개별 경로가 아닌 응답 최상위에 있음
+                  // 경로 P&L 계산용 forex(크롤 스냅샷) — globalBtcKrw 환산에만 사용
                   const forexRate = global ? allData?.byGlobal?.[global]?.usd_krw_rate ?? null : null;
-                  const usdtPremiumPct = upbitUsdt && forexRate
-                    ? ((upbitUsdt / forexRate) - 1) * 100 : null;
+                  // 표시용 원달러 프리미엄/환율은 앱 전역 live 값으로 통일 (첫화면·선택단계와 값 일치)
+                  const usdtPremiumPct = usdtPremium;
+                  const displayForex = forexUsdKrw;
                   const globalBtcKrw = isUsdtPath && forexRate && globalBtcUsd
                     ? globalBtcUsd * forexRate
                     : (domesticBtcKrw != null && kimchi != null
@@ -234,7 +235,7 @@ export function ResultStep() {
                                           <div className="flex justify-between text-[9px]">
                                             <span className="text-label-tertiary">달러 포렉스 <span className="opacity-60">(dunamu)</span></span>
                                             <span className="num text-label-secondary font-medium">
-                                              {forexRate ? `₩${formatNumber(Math.round(forexRate))}` : '-'}
+                                              {displayForex ? `₩${formatNumber(Math.round(displayForex))}` : '-'}
                                             </span>
                                           </div>
                                           <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">

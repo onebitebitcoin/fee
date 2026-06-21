@@ -11,7 +11,7 @@ export function DomesticStep() {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const {
-    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimpTotal, usdtPremium,
+    allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, liveKimpTotal, usdtPremium,
     btcPrice, withdrawalLimits, stepEndRef, forexUsdKrw,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
@@ -77,7 +77,7 @@ export function DomesticStep() {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">원달러 환율 프리미엄</p>
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">원달러 프리미엄</p>
                             <p className={`text-sm font-bold num mt-0.5 ${exchangeUsdtPremium == null ? 'text-label-tertiary' : exchangeUsdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                               {exchangeUsdtPremium != null ? `${exchangeUsdtPremium >= 0 ? '+' : ''}${exchangeUsdtPremium.toFixed(2)}%` : '–'}
                             </p>
@@ -104,7 +104,8 @@ export function DomesticStep() {
                   source: apiLimits?.source ?? 'static',
                 };
                 const vol = koreaVolumeMap[domestic];
-                const kimp = (liveKimpTotal ?? snapshotKimp)[domestic] ?? null;
+                const kimp = (liveKimpTotal ?? snapshotKimp)[domestic] ?? null;  // 총 김치 프리미엄
+                const kimpBtc = liveKimp?.[domestic] ?? null;                    // BTC 자체 (분해 보조)
                 return (
                   <div className="space-y-2">
                     <button
@@ -133,15 +134,20 @@ export function DomesticStep() {
                               <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
                               {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                               {kimp != null && (
-                                <div>
+                                <div className="col-span-2">
                                   <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(총)</span></span>
-                                  <p className={`font-medium mt-0.5 num ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
-                                </div>
-                              )}
-                              {usdtPremium != null && (
-                                <div>
-                                  <span className="text-label-tertiary">원달러 프리미엄 <span className="text-[9px]">(테더)</span></span>
-                                  <p className={`font-medium mt-0.5 num ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>{usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%</p>
+                                  <p className={`font-bold mt-0.5 num text-sm ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
+                                  {(kimpBtc != null || usdtPremium != null) && (
+                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-label-tertiary">
+                                      {kimpBtc != null && (
+                                        <span>BTC 자체 <span className={`num font-semibold ${kimpBtc > 2 ? 'text-acc-red' : kimpBtc > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimpBtc >= 0 ? '+' : ''}{kimpBtc.toFixed(2)}%</span></span>
+                                      )}
+                                      {kimpBtc != null && usdtPremium != null && <span className="opacity-50">·</span>}
+                                      {usdtPremium != null && (
+                                        <span>원달러(테더) <span className={`num font-semibold ${usdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>{usdtPremium >= 0 ? '+' : ''}{usdtPremium.toFixed(2)}%</span></span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
