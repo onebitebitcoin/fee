@@ -302,3 +302,44 @@ export type ExchangeNoticeItem = {
   published_at: number | null;
   noticed_at: number | null;
 };
+
+// ── 게시판 ──────────────────────────────────────────────────────────────────
+export type BoardCategory = 'general' | 'report' | 'notice';
+
+export type BoardPostBrief = {
+  id: number;
+  category: BoardCategory;
+  title: string;
+  nickname: string;
+  comment_count: number;
+  created_at: number | null;
+  updated_at: number | null;
+};
+
+export type BoardComment = {
+  id: number;
+  post_id: number;
+  nickname: string;
+  content: string;
+  created_at: number | null;
+  updated_at: number | null;
+};
+
+export type BoardPostDetail = {
+  id: number;
+  category: BoardCategory;
+  title: string;
+  content: string;
+  nickname: string;
+  created_at: number | null;
+  updated_at: number | null;
+  comments: BoardComment[];
+};
+
+export type BoardListResponse = {
+  notices: BoardPostBrief[];
+  items: BoardPostBrief[];
+  total: number;
+  page: number;
+  size: number;
+};

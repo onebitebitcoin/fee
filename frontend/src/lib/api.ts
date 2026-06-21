@@ -1,11 +1,24 @@
 import type {
   AccessStats,
+  BoardComment,
+  BoardListResponse,
+  BoardPostDetail,
   CheapestPathResponse,
   CrawlRun,
   LiveKimpResponse,
   NetworkChangesResponse,
   TickerRow,
+  WithdrawalRow,
 } from '../types';
+
+const adminHeader = (adminKey?: string): Record<string, string> =>
+  adminKey ? { 'X-API-Key': adminKey } : {};
+
+export interface WithdrawalFeesResponse {
+  last_run: CrawlRun | null;
+  latest_scraping_time: number | null;
+  items: WithdrawalRow[];
+}
 
 export interface CheapestPathAllResponse {
   by_global: Record<string, CheapestPathResponse>;
@@ -14,12 +27,19 @@ export interface CheapestPathAllResponse {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const { headers, ...rest } = options ?? {};
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
+    headers: { 'Content-Type': 'application/json', ...headers },
+    ...rest,
   });
   if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
+    let detail = '';
+    try {
+      detail = (await response.clone().json())?.detail ?? '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(detail || `API 요청 실패: ${response.status}`);
   }
   return response.json() as Promise<T>;
 }
@@ -68,6 +88,9 @@ export const api = {
 
   getNetworkChanges: (): Promise<NetworkChangesResponse> =>
     request('/api/v1/market/network-changes/recent'),
+
+  getWithdrawalFees: (): Promise<WithdrawalFeesResponse> =>
+    request('/api/v1/market/withdrawal-fees/latest'),
 
   getLatestNotices: (limit = 10): Promise<{ items: import('../types').ExchangeNoticeItem[] }> =>
     request(`/api/v1/market/notices/latest?limit=${limit}`),
@@ -172,5 +195,77 @@ export const api = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': adminKey },
       body: JSON.stringify({ group, caution, reason }),
+    }),
+
+  // ── 게시판 ──────────────────────────────────────────────────────────────
+  getBoardPosts: (params: {
+    page?: number; size?: number; q?: string; category?: string;
+  } = {}): Promise<BoardListResponse> => {
+    const qs = new URLSearchParams();
+    if (params.page) qs.set('page', String(params.page));
+    if (params.size) qs.set('size', String(params.size));
+    if (params.q) qs.set('q', params.q);
+    if (params.category) qs.set('category', params.category);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request(`/api/v1/board/posts${suffix}`);
+  },
+
+  getBoardPost: (id: number): Promise<BoardPostDetail> =>
+    request(`/api/v1/board/posts/${id}`),
+
+  createBoardPost: (
+    body: { category: string; title: string; content: string; nickname: string; password?: string },
+    adminKey?: string,
+  ): Promise<BoardPostDetail> =>
+    request('/api/v1/board/posts', {
+      method: 'POST',
+      headers: adminHeader(adminKey),
+      body: JSON.stringify(body),
+    }),
+
+  updateBoardPost: (
+    id: number,
+    body: { title: string; content: string; password?: string },
+    adminKey?: string,
+  ): Promise<BoardPostDetail> =>
+    request(`/api/v1/board/posts/${id}`, {
+      method: 'PUT',
+      headers: adminHeader(adminKey),
+      body: JSON.stringify(body),
+    }),
+
+  deleteBoardPost: (
+    id: number,
+    password?: string,
+    adminKey?: string,
+  ): Promise<{ ok: boolean }> =>
+    request(`/api/v1/board/posts/${id}`, {
+      method: 'DELETE',
+      headers: adminHeader(adminKey),
+      body: JSON.stringify({ password: password ?? null }),
+    }),
+
+  createBoardComment: (
+    postId: number,
+    body: { nickname: string; content: string; password: string },
+  ): Promise<BoardComment> =>
+    request(`/api/v1/board/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateBoardComment: (
+    id: number,
+    body: { content: string; password: string },
+  ): Promise<BoardComment> =>
+    request(`/api/v1/board/comments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteBoardComment: (id: number, password: string): Promise<{ ok: boolean }> =>
+    request(`/api/v1/board/comments/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
     }),
 };
