@@ -13,6 +13,7 @@ import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
 import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO, bestByFee } from './constants';
+import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
@@ -198,57 +199,19 @@ function useExplorerValue() {
 
   const allPaths = useMemo(() => {
     if (!allData) return [] as (CheapestPathEntry & { _g: string })[];
-    return Object.entries(allData.byGlobal).flatMap(([g, d]) =>
-      d.all_paths.map(p => ({ ...p, _g: g })),
-    );
+    return flattenPaths(allData.byGlobal);
   }, [allData]);
 
   // 필터 적용 전 전체 dedup+sort 목록 (필터 옵션 도출용)
-  const allRecommendedPaths = useMemo(() => {
-    if (!allPaths.length) return [] as (CheapestPathEntry & { _g: string })[];
-    const getRouteKey = (p: CheapestPathEntry & { _g: string }) => {
-      const isUsdt = p.transfer_coin === 'USDT';
-      const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
-      const coinPart = isUsdt ? 'USDT' : isViaGlobal ? 'BTC_GLOBAL' : 'BTC_DIRECT';
-      const globalPart = (isUsdt || isViaGlobal) ? p._g : '';
-      // USDT 경로는 네트워크(TRC20/BEP20 등)를 키에서 제외:
-      // 같은 (국내→글로벌→출금방식) 조합에서 가장 싼 네트워크 하나만 추천에 표시
-      const networkPart = isUsdt ? '' : p.network;
-      return `${p.korean_exchange}|${coinPart}|${globalPart}|${networkPart}|${p.global_exit_mode}|${p.lightning_exit_provider ?? ''}`;
-    };
-    const best = new Map<string, CheapestPathEntry & { _g: string }>();
-    for (const p of allPaths) {
-      const key = getRouteKey(p);
-      const cur = best.get(key);
-      if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
-    }
-    return [...best.values()].sort((a, b) => {
-      const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
-      if (diff !== 0) return diff;
-      return (b.btc_received ?? 0) - (a.btc_received ?? 0);
-    });
-  }, [allPaths]);
+  const allRecommendedPaths = useMemo(() => dedupAndSortPaths(allPaths), [allPaths]);
 
   // 필터 적용 결과 (화면 표시용)
-  const topRecommendedPaths = useMemo(() => {
-    return allRecommendedPaths.filter(p => {
-      // 종착지 필터: 개인지갑 모드엔 personal 경로만, 라이트닝 지갑 모드엔 lightning_wallet 경로만.
-      if ((p.destination ?? 'personal') !== destinationFilter) return false;
-      if (excludeExchanges.has(p.korean_exchange)) return false;
-      const isUsdt = p.transfer_coin === 'USDT';
-      const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
-      if ((isUsdt || isViaGlobal) && excludeGlobalExchanges.has(p._g)) return false;
-      if (p.path_type === 'lightning_exit') {
-        if (excludeLightning) return false;
-        const svc = p.lightning_exit_provider;
-        if (svc && excludeServices.has(svc)) return false;
-      } else {
-        if (excludeOnchain) return false;
-      }
-      if (excludeDisabled && p.disabled) return false;
-      return true;
-    });
-  }, [allRecommendedPaths, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
+  const topRecommendedPaths = useMemo(() =>
+    filterRecommendedPaths(allRecommendedPaths, {
+      destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
+      excludeOnchain, excludeLightning, excludeDisabled,
+    }),
+    [allRecommendedPaths, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => {

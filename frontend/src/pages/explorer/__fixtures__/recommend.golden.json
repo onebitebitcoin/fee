@@ -1,0 +1,1622 @@
+{
+  "_comment": "recommend.ts golden 회귀 기준. scripts/gen_recommend_golden.py로 재생성. fixture: cheapestAll.fixture.json (amount_krw=1,000,000 고정). oracle는 Playwright로 실제 UI와 27/27 시나리오 일치 확인됨.",
+  "amountKrw": 1000000,
+  "availableExchanges": [
+    "bithumb",
+    "coinone",
+    "gopax",
+    "korbit",
+    "upbit"
+  ],
+  "availableGlobalExchanges": [
+    "binance",
+    "bitget",
+    "bybit",
+    "coinbase",
+    "gate",
+    "kraken",
+    "okx"
+  ],
+  "kycServices": [
+    "Strike"
+  ],
+  "dedupCount": 204,
+  "scenarios": [
+    {
+      "name": "default(personal)",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 182,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "default(lightning_wallet)",
+      "filter": {
+        "destinationFilter": "lightning_wallet",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 22,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|__direct__",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "preset:KYC 라이트닝 제외",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "Strike"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|binance||onchain|",
+        "topFeeKrw": 2886,
+        "topSats": 1025854
+      }
+    },
+    {
+      "name": "preset:라이트닝 제외",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": true,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 72,
+        "topRouteKey": "bithumb|USDT|binance||onchain|",
+        "topFeeKrw": 2886,
+        "topSats": 1025854
+      }
+    },
+    {
+      "name": "preset:bithumb→binance",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "coinone",
+          "gopax",
+          "korbit",
+          "upbit"
+        ],
+        "excludeGlobalExchanges": [
+          "bitget",
+          "bybit",
+          "coinbase",
+          "gate",
+          "kraken",
+          "okx"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 3,
+        "topRouteKey": "bithumb|USDT|binance||onchain|",
+        "topFeeKrw": 2886,
+        "topSats": 1025854
+      }
+    },
+    {
+      "name": "preset:bithumb→okx",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "coinone",
+          "gopax",
+          "korbit",
+          "upbit"
+        ],
+        "excludeGlobalExchanges": [
+          "binance",
+          "bitget",
+          "bybit",
+          "coinbase",
+          "gate",
+          "kraken"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 13,
+        "topRouteKey": "bithumb|USDT|okx||lightning|Strike",
+        "topFeeKrw": 2880,
+        "topSats": 1025757
+      }
+    },
+    {
+      "name": "preset:upbit→binance",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "bithumb",
+          "coinone",
+          "gopax",
+          "korbit"
+        ],
+        "excludeGlobalExchanges": [
+          "bitget",
+          "bybit",
+          "coinbase",
+          "gate",
+          "kraken",
+          "okx"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 3,
+        "topRouteKey": "upbit|USDT|binance||onchain|",
+        "topFeeKrw": 2986,
+        "topSats": 1025752
+      }
+    },
+    {
+      "name": "preset:upbit→okx",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "bithumb",
+          "coinone",
+          "gopax",
+          "korbit"
+        ],
+        "excludeGlobalExchanges": [
+          "binance",
+          "bitget",
+          "bybit",
+          "coinbase",
+          "gate",
+          "kraken"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 13,
+        "topRouteKey": "upbit|USDT|okx||lightning|Strike",
+        "topFeeKrw": 2980,
+        "topSats": 1025654
+      }
+    },
+    {
+      "name": "toggle:온체인제외",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": true,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 110,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "toggle:비활성화제외",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": true
+      },
+      "expected": {
+        "count": 181,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exKorean:bithumb",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "bithumb"
+        ],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 147,
+        "topRouteKey": "upbit|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2490,
+        "topSats": 1026236
+      }
+    },
+    {
+      "name": "exKorean:coinone",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "coinone"
+        ],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 143,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exKorean:gopax",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "gopax"
+        ],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 148,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exKorean:korbit",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "korbit"
+        ],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 143,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exKorean:upbit",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [
+          "upbit"
+        ],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 147,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:binance",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "binance"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 162,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:bitget",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "bitget"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 122,
+        "topRouteKey": "bithumb|USDT|okx||lightning|Strike",
+        "topFeeKrw": 2880,
+        "topSats": 1025757
+      }
+    },
+    {
+      "name": "exGlobal:bybit",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "bybit"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 172,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:coinbase",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "coinbase"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 175,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:gate",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "gate"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 172,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:kraken",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "kraken"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 172,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exGlobal:okx",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [
+          "okx"
+        ],
+        "excludeServices": [],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 122,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exService:Boltz (Submarine)",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "Boltz (Submarine)"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exService:Coinos",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "Coinos"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exService:Oksusu",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "Oksusu"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    },
+    {
+      "name": "exService:Strike",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "Strike"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|binance||onchain|",
+        "topFeeKrw": 2886,
+        "topSats": 1025854
+      }
+    },
+    {
+      "name": "exService:WalletOfSatoshi",
+      "filter": {
+        "destinationFilter": "personal",
+        "excludeExchanges": [],
+        "excludeGlobalExchanges": [],
+        "excludeServices": [
+          "WalletOfSatoshi"
+        ],
+        "excludeOnchain": false,
+        "excludeLightning": false,
+        "excludeDisabled": false
+      },
+      "expected": {
+        "count": 160,
+        "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
+        "topFeeKrw": 2390,
+        "topSats": 1026338
+      }
+    }
+  ],
+  "order": {
+    "personal": [
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|Strike",
+        "totalFeeKrw": 2390,
+        "sats": 1026338
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|Strike",
+        "totalFeeKrw": 2490,
+        "sats": 1026236
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|Strike",
+        "totalFeeKrw": 2880,
+        "sats": 1025757
+      },
+      {
+        "routeKey": "bithumb|USDT|binance||onchain|",
+        "totalFeeKrw": 2886,
+        "sats": 1025854
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|Strike",
+        "totalFeeKrw": 2980,
+        "sats": 1025654
+      },
+      {
+        "routeKey": "upbit|USDT|binance||onchain|",
+        "totalFeeKrw": 2986,
+        "sats": 1025752
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||onchain|",
+        "totalFeeKrw": 4263,
+        "sats": 1024357
+      },
+      {
+        "routeKey": "bithumb|USDT|bitget||onchain|",
+        "totalFeeKrw": 4361,
+        "sats": 1024338
+      },
+      {
+        "routeKey": "upbit|USDT|okx||onchain|",
+        "totalFeeKrw": 4363,
+        "sats": 1024254
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||onchain|",
+        "totalFeeKrw": 4461,
+        "sats": 1024236
+      },
+      {
+        "routeKey": "gopax|BTC_DIRECT||Bitcoin|onchain|",
+        "totalFeeKrw": 4954,
+        "sats": 1025866
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|coinbase|Bitcoin|onchain|",
+        "totalFeeKrw": 5092,
+        "sats": 1025726
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|Strike",
+        "totalFeeKrw": 5517,
+        "sats": 1023139
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Strike",
+        "totalFeeKrw": 5933,
+        "sats": 1024866
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|Strike",
+        "totalFeeKrw": 6007,
+        "sats": 1022558
+      },
+      {
+        "routeKey": "korbit|USDT|binance||onchain|",
+        "totalFeeKrw": 6013,
+        "sats": 1022655
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|Strike",
+        "totalFeeKrw": 6047,
+        "sats": 1022612
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|binance|Bitcoin|onchain|",
+        "totalFeeKrw": 6423,
+        "sats": 1024366
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Strike",
+        "totalFeeKrw": 6423,
+        "sats": 1024366
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|Strike",
+        "totalFeeKrw": 6537,
+        "sats": 1022030
+      },
+      {
+        "routeKey": "coinone|USDT|binance||onchain|",
+        "totalFeeKrw": 6543,
+        "sats": 1022128
+      },
+      {
+        "routeKey": "bithumb|USDT|coinbase||onchain|",
+        "totalFeeKrw": 6756,
+        "sats": 1023087
+      },
+      {
+        "routeKey": "korbit|USDT|okx||onchain|",
+        "totalFeeKrw": 7390,
+        "sats": 1021158
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||onchain|",
+        "totalFeeKrw": 7488,
+        "sats": 1021139
+      },
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|Oksusu",
+        "totalFeeKrw": 7751,
+        "sats": 1020886
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|onchain|",
+        "totalFeeKrw": 7801,
+        "sats": 1022966
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|Oksusu",
+        "totalFeeKrw": 7850,
+        "sats": 1020784
+      },
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 7852,
+        "sats": 1020784
+      },
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|Coinos",
+        "totalFeeKrw": 7852,
+        "sats": 1020784
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|onchain|",
+        "totalFeeKrw": 7908,
+        "sats": 1022866
+      },
+      {
+        "routeKey": "coinone|USDT|okx||onchain|",
+        "totalFeeKrw": 7920,
+        "sats": 1020630
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 7951,
+        "sats": 1020681
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|Coinos",
+        "totalFeeKrw": 7951,
+        "sats": 1020681
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||onchain|",
+        "totalFeeKrw": 8018,
+        "sats": 1020612
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|Oksusu",
+        "totalFeeKrw": 8238,
+        "sats": 1020308
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|Oksusu",
+        "totalFeeKrw": 8338,
+        "sats": 1020205
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 8339,
+        "sats": 1020205
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|Coinos",
+        "totalFeeKrw": 8339,
+        "sats": 1020205
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 8439,
+        "sats": 1020103
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|Coinos",
+        "totalFeeKrw": 8439,
+        "sats": 1020103
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|Oksusu",
+        "totalFeeKrw": 10862,
+        "sats": 1017703
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|Strike",
+        "totalFeeKrw": 10869,
+        "sats": 1017697
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 10963,
+        "sats": 1017600
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|Coinos",
+        "totalFeeKrw": 10963,
+        "sats": 1017600
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Oksusu",
+        "totalFeeKrw": 11287,
+        "sats": 1019421
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|Oksusu",
+        "totalFeeKrw": 11350,
+        "sats": 1017124
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|Strike",
+        "totalFeeKrw": 11359,
+        "sats": 1017116
+      },
+      {
+        "routeKey": "gopax|USDT|binance||onchain|",
+        "totalFeeKrw": 11365,
+        "sats": 1017212
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 11387,
+        "sats": 1019319
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|Coinos",
+        "totalFeeKrw": 11387,
+        "sats": 1019319
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|Oksusu",
+        "totalFeeKrw": 11390,
+        "sats": 1017178
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 11450,
+        "sats": 1017022
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|Coinos",
+        "totalFeeKrw": 11450,
+        "sats": 1017022
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 11490,
+        "sats": 1017076
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|Coinos",
+        "totalFeeKrw": 11490,
+        "sats": 1017076
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Oksusu",
+        "totalFeeKrw": 11775,
+        "sats": 1018924
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 11875,
+        "sats": 1018821
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|Coinos",
+        "totalFeeKrw": 11875,
+        "sats": 1018821
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|Oksusu",
+        "totalFeeKrw": 11877,
+        "sats": 1016599
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 11978,
+        "sats": 1016497
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|Coinos",
+        "totalFeeKrw": 11978,
+        "sats": 1016497
+      },
+      {
+        "routeKey": "gopax|USDT|okx||onchain|",
+        "totalFeeKrw": 12742,
+        "sats": 1015716
+      },
+      {
+        "routeKey": "upbit|USDT|coinbase||onchain|",
+        "totalFeeKrw": 12788,
+        "sats": 1016944
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||onchain|",
+        "totalFeeKrw": 12840,
+        "sats": 1015697
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|Oksusu",
+        "totalFeeKrw": 16188,
+        "sats": 1012287
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 16288,
+        "sats": 1012185
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|Coinos",
+        "totalFeeKrw": 16288,
+        "sats": 1012185
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|Oksusu",
+        "totalFeeKrw": 16676,
+        "sats": 1011709
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|Boltz (Submarine)",
+        "totalFeeKrw": 16776,
+        "sats": 1011607
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|Coinos",
+        "totalFeeKrw": 16776,
+        "sats": 1011607
+      },
+      {
+        "routeKey": "bithumb|BTC_DIRECT||Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 20035,
+        "sats": 1008533
+      },
+      {
+        "routeKey": "upbit|BTC_DIRECT||Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 20135,
+        "sats": 1008091
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|coinbase|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 20173,
+        "sats": 1008393
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|coinbase|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 20273,
+        "sats": 1007951
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 21014,
+        "sats": 1007533
+      },
+      {
+        "routeKey": "bithumb|USDT|bybit||onchain|",
+        "totalFeeKrw": 21076,
+        "sats": 1007308
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 21114,
+        "sats": 1007091
+      },
+      {
+        "routeKey": "upbit|USDT|bybit||onchain|",
+        "totalFeeKrw": 21176,
+        "sats": 1007205
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|binance|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 21504,
+        "sats": 1007033
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 21504,
+        "sats": 1007033
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 21604,
+        "sats": 1006591
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 21604,
+        "sats": 1006591
+      },
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 22484,
+        "sats": 1005902
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 22582,
+        "sats": 1005801
+      },
+      {
+        "routeKey": "bithumb|USDT|kraken||onchain|",
+        "totalFeeKrw": 22671,
+        "sats": 1006877
+      },
+      {
+        "routeKey": "upbit|USDT|kraken||onchain|",
+        "totalFeeKrw": 22771,
+        "sats": 1006775
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 22882,
+        "sats": 1005633
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 22964,
+        "sats": 1005331
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 22982,
+        "sats": 1005191
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 22989,
+        "sats": 1005533
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 23062,
+        "sats": 1005231
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 23089,
+        "sats": 1005091
+      },
+      {
+        "routeKey": "korbit|USDT|bybit||onchain|",
+        "totalFeeKrw": 24203,
+        "sats": 1004109
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|kraken|Bitcoin|onchain|",
+        "totalFeeKrw": 24589,
+        "sats": 1005866
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bybit|Bitcoin|onchain|",
+        "totalFeeKrw": 24589,
+        "sats": 1005866
+      },
+      {
+        "routeKey": "coinone|USDT|bybit||onchain|",
+        "totalFeeKrw": 24733,
+        "sats": 1003581
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 25549,
+        "sats": 1002765
+      },
+      {
+        "routeKey": "korbit|USDT|kraken||onchain|",
+        "totalFeeKrw": 25793,
+        "sats": 1003679
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 25999,
+        "sats": 1004458
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 26030,
+        "sats": 1002195
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 26069,
+        "sats": 1002248
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 26284,
+        "sats": 1002173
+      },
+      {
+        "routeKey": "coinone|USDT|kraken||onchain|",
+        "totalFeeKrw": 26322,
+        "sats": 1003152
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 26382,
+        "sats": 1001733
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 26383,
+        "sats": 1002072
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 26383,
+        "sats": 1002072
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 26481,
+        "sats": 1003968
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 26481,
+        "sats": 1001633
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 26481,
+        "sats": 1001633
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 26550,
+        "sats": 1001678
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 26772,
+        "sats": 1001675
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 26870,
+        "sats": 1001236
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 26871,
+        "sats": 1001574
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 26871,
+        "sats": 1001574
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 26969,
+        "sats": 1001135
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 26969,
+        "sats": 1001135
+      },
+      {
+        "routeKey": "gopax|USDT|bybit||onchain|",
+        "totalFeeKrw": 29555,
+        "sats": 998666
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 30797,
+        "sats": 997429
+      },
+      {
+        "routeKey": "gopax|USDT|kraken||onchain|",
+        "totalFeeKrw": 31136,
+        "sats": 998239
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|WalletOfSatoshi",
+        "totalFeeKrw": 31278,
+        "sats": 996859
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|kraken|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 39670,
+        "sats": 988533
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bybit|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 39670,
+        "sats": 988533
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|kraken|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 39770,
+        "sats": 988091
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bybit|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 39770,
+        "sats": 988091
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 40747,
+        "sats": 987463
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 40839,
+        "sats": 987030
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 41229,
+        "sats": 986972
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 41321,
+        "sats": 986540
+      },
+      {
+        "routeKey": "bithumb|USDT|gate||onchain|",
+        "totalFeeKrw": 50574,
+        "sats": 977311
+      },
+      {
+        "routeKey": "upbit|USDT|gate||onchain|",
+        "totalFeeKrw": 50674,
+        "sats": 977208
+      },
+      {
+        "routeKey": "korbit|USDT|gate||onchain|",
+        "totalFeeKrw": 53701,
+        "sats": 974112
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|gate|Bitcoin|onchain|",
+        "totalFeeKrw": 54066,
+        "sats": 975866
+      },
+      {
+        "routeKey": "coinone|USDT|gate||onchain|",
+        "totalFeeKrw": 54231,
+        "sats": 973585
+      },
+      {
+        "routeKey": "gopax|USDT|gate||onchain|",
+        "totalFeeKrw": 59053,
+        "sats": 968670
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|gate|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 69147,
+        "sats": 958533
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|gate|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 69247,
+        "sats": 958091
+      },
+      {
+        "routeKey": "coinone|BTC_DIRECT||Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 79573,
+        "sats": 947566
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 79665,
+        "sats": 947466
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|coinbase|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 79711,
+        "sats": 947426
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 80552,
+        "sats": 946566
+      },
+      {
+        "routeKey": "korbit|BTC_DIRECT||Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 80573,
+        "sats": 947055
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 80665,
+        "sats": 946955
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|coinbase|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 80711,
+        "sats": 946915
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 81042,
+        "sats": 946066
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 81042,
+        "sats": 946066
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 81552,
+        "sats": 946055
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 82042,
+        "sats": 945555
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Strike",
+        "totalFeeKrw": 82042,
+        "sats": 945555
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 82420,
+        "sats": 944666
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 82527,
+        "sats": 944566
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 83420,
+        "sats": 944155
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 83527,
+        "sats": 944055
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 84646,
+        "sats": 942401
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 84739,
+        "sats": 942306
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 84739,
+        "sats": 942306
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 85528,
+        "sats": 941505
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 85621,
+        "sats": 941411
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 85621,
+        "sats": 941411
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 85643,
+        "sats": 941892
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 85736,
+        "sats": 941798
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 85736,
+        "sats": 941798
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 86016,
+        "sats": 941008
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 86109,
+        "sats": 940913
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 86109,
+        "sats": 940913
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 86526,
+        "sats": 940997
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 86619,
+        "sats": 940902
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 86619,
+        "sats": 940902
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Oksusu",
+        "totalFeeKrw": 87014,
+        "sats": 940499
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Boltz (Submarine)",
+        "totalFeeKrw": 87107,
+        "sats": 940405
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|Coinos",
+        "totalFeeKrw": 87107,
+        "sats": 940405
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 98246,
+        "sats": 928568
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 99116,
+        "sats": 927685
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|kraken|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 99208,
+        "sats": 927566
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bybit|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 99208,
+        "sats": 927566
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 99237,
+        "sats": 928067
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 99598,
+        "sats": 927195
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 100107,
+        "sats": 927184
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|kraken|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 100208,
+        "sats": 927055
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bybit|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 100208,
+        "sats": 927055
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|WalletOfSatoshi",
+        "totalFeeKrw": 100588,
+        "sats": 926694
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|gate|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 128685,
+        "sats": 897566
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|gate|Bitcoin (On-chain)|onchain|",
+        "totalFeeKrw": 129685,
+        "sats": 897055
+      }
+    ],
+    "lightning_wallet": [
+      {
+        "routeKey": "bithumb|USDT|bitget||lightning|__direct__",
+        "totalFeeKrw": 2390,
+        "sats": 1026338
+      },
+      {
+        "routeKey": "upbit|USDT|bitget||lightning|__direct__",
+        "totalFeeKrw": 2490,
+        "sats": 1026236
+      },
+      {
+        "routeKey": "bithumb|USDT|okx||lightning|__direct__",
+        "totalFeeKrw": 2880,
+        "sats": 1025757
+      },
+      {
+        "routeKey": "upbit|USDT|okx||lightning|__direct__",
+        "totalFeeKrw": 2980,
+        "sats": 1025654
+      },
+      {
+        "routeKey": "korbit|USDT|bitget||lightning|__direct__",
+        "totalFeeKrw": 5517,
+        "sats": 1023139
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|bitget|Bitcoin|lightning|__direct__",
+        "totalFeeKrw": 5933,
+        "sats": 1024866
+      },
+      {
+        "routeKey": "korbit|USDT|okx||lightning|__direct__",
+        "totalFeeKrw": 6007,
+        "sats": 1022558
+      },
+      {
+        "routeKey": "coinone|USDT|bitget||lightning|__direct__",
+        "totalFeeKrw": 6047,
+        "sats": 1022612
+      },
+      {
+        "routeKey": "gopax|BTC_GLOBAL|okx|Bitcoin|lightning|__direct__",
+        "totalFeeKrw": 6423,
+        "sats": 1024366
+      },
+      {
+        "routeKey": "coinone|USDT|okx||lightning|__direct__",
+        "totalFeeKrw": 6537,
+        "sats": 1022030
+      },
+      {
+        "routeKey": "gopax|USDT|bitget||lightning|__direct__",
+        "totalFeeKrw": 10869,
+        "sats": 1017697
+      },
+      {
+        "routeKey": "gopax|USDT|okx||lightning|__direct__",
+        "totalFeeKrw": 11359,
+        "sats": 1017116
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 21014,
+        "sats": 1007533
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 21114,
+        "sats": 1007091
+      },
+      {
+        "routeKey": "bithumb|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 21504,
+        "sats": 1007033
+      },
+      {
+        "routeKey": "upbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 21604,
+        "sats": 1006591
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 79665,
+        "sats": 947466
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 80552,
+        "sats": 946566
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|binance|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 80665,
+        "sats": 946955
+      },
+      {
+        "routeKey": "coinone|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 81042,
+        "sats": 946066
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|bitget|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 81552,
+        "sats": 946055
+      },
+      {
+        "routeKey": "korbit|BTC_GLOBAL|okx|Bitcoin (On-chain)|lightning|__direct__",
+        "totalFeeKrw": 82042,
+        "sats": 945555
+      }
+    ]
+  }
+}

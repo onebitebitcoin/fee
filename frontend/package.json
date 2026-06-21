@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --port 5180 --host 0.0.0.0",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false",
+    "test": "vitest run",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
@@ -26,6 +26,7 @@
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.5.4",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vitest": "^2.1.9"
   }
 }
