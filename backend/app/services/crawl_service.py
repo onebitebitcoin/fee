@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 import logging
 
 from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, KoreaWithdrawalLimitSnapshot, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
-from backend.app.services import live_market
+from backend.app.domain.market_core import ALL_EXCHANGES, fetch_usd_krw_rate, get_ticker, get_withdrawal_fees
+from backend.app.domain.market_paths import get_network_status
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices, fetch_notices_for_exchange
 from backend.app.services.volume_service import fetch_exchange_volumes
@@ -36,13 +37,13 @@ class CrawlService:
         self.db.refresh(crawl_run)
 
         try:
-            usd_krw_rate = live_market.fetch_usd_krw_rate()
+            usd_krw_rate = fetch_usd_krw_rate()
             crawl_run.usd_krw_rate = usd_krw_rate
 
             # Phase 1: 독립 스테이지를 동시 fetch (DB 저장 없음)
             with ThreadPoolExecutor(max_workers=4) as pool:
                 f_exchange  = pool.submit(self._fetch_exchange_data, usd_krw_rate)
-                f_network   = pool.submit(live_market.get_network_status, 'all')
+                f_network   = pool.submit(get_network_status, 'all')
                 f_lightning = pool.submit(get_all_lightning_swap_fees)
                 f_notices   = pool.submit(get_all_notices)
             # with 블록 종료 시 모든 Future 완료 보장
@@ -94,14 +95,14 @@ class CrawlService:
         def _fetch_one(exchange: str) -> dict:
             return {
                 'exchange': exchange,
-                'ticker': live_market.get_ticker(exchange),
-                'btc_wd': live_market.get_withdrawal_fees(exchange, 'BTC'),
-                'usdt_wd': live_market.get_withdrawal_fees(exchange, 'USDT'),
+                'ticker': get_ticker(exchange),
+                'btc_wd': get_withdrawal_fees(exchange, 'BTC'),
+                'usdt_wd': get_withdrawal_fees(exchange, 'USDT'),
             }
 
         fetch_results: dict[str, dict] = {}
         with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_exchange = {executor.submit(_fetch_one, ex): ex for ex in live_market.ALL_EXCHANGES}
+            future_to_exchange = {executor.submit(_fetch_one, ex): ex for ex in ALL_EXCHANGES}
             for future in as_completed(future_to_exchange):
                 ex = future_to_exchange[future]
                 try:
@@ -125,7 +126,7 @@ class CrawlService:
         error_count = 0
         ln_btc_exchanges: set[str] = set()
 
-        for exchange in live_market.ALL_EXCHANGES:
+        for exchange in ALL_EXCHANGES:
             result = fetch_results[exchange]
             ticker_payload = result['ticker']
 
@@ -237,7 +238,7 @@ class CrawlService:
     def _crawl_capabilities(self, crawl_run: CrawlRun, ln_btc_exchanges: set[str]) -> int:
         """거래소별 Lightning 입출금 지원 여부를 저장하고 저장 건수를 반환한다."""
         capability_count = 0
-        for ex in live_market.ALL_EXCHANGES:
+        for ex in ALL_EXCHANGES:
             has_ln = ex in ln_btc_exchanges
             self.db.add(ExchangeCapabilitySnapshot(
                 crawl_run_id=crawl_run.id,

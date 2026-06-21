@@ -218,7 +218,7 @@ def test_cheapest_path_uses_latest_snapshot_data(mocker):
 
 
 def test_trigger_crawl_persists_rows(mocker):
-    from backend.app.services import live_market
+    import backend.app.services.crawl_service as cs_mod
 
     engine, TestingSessionLocal = make_test_session()
 
@@ -231,9 +231,9 @@ def test_trigger_crawl_persists_rows(mocker):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    mocker.patch.object(live_market, 'ALL_EXCHANGES', ['upbit'])
-    mocker.patch.object(live_market, 'fetch_usd_krw_rate', return_value=1400.0)
-    mocker.patch.object(live_market, 'get_ticker', return_value={
+    mocker.patch.object(cs_mod, 'ALL_EXCHANGES', ['upbit'])
+    mocker.patch.object(cs_mod, 'fetch_usd_krw_rate', return_value=1400.0)
+    mocker.patch.object(cs_mod, 'get_ticker', return_value={
         'exchange': 'upbit',
         'pair': 'BTC/KRW',
         'market_type': 'spot',
@@ -250,11 +250,11 @@ def test_trigger_crawl_persists_rows(mocker):
         'taker_fee_krw': 70000.0,
         'usd_krw_rate': 1400,
     })
-    mocker.patch.object(live_market, 'get_withdrawal_fees', side_effect=[
+    mocker.patch.object(cs_mod, 'get_withdrawal_fees', side_effect=[
         {'exchange': 'upbit', 'coin': 'BTC', 'source': 'official_docs', 'networks': [{'label': 'Bitcoin', 'fee': 0.0002, 'fee_usd': 20.0, 'fee_krw': 28000.0, 'enabled': True, 'note': 'test'}]},
         {'exchange': 'upbit', 'coin': 'USDT', 'source': 'official_docs', 'networks': [{'label': 'TRC20', 'fee': 1.0, 'fee_usd': 1.0, 'fee_krw': 1400.0, 'enabled': True, 'note': 'test'}]},
     ])
-    mocker.patch.object(live_market, 'get_network_status', return_value={
+    mocker.patch.object(cs_mod, 'get_network_status', return_value={
         'exchanges': {'upbit': {'status': 'ok', 'suspended_networks': [], 'checked_at': '2026-03-10T00:00:00'}}
     })
 

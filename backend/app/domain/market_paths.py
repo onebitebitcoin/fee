@@ -1,3 +1,14 @@
+"""실시간 API 기반 경로 계산 함수 모음 + 하위 호환 re-export 레이어.
+
+정의된 함수 (live API 호출):
+  compare_btc_prices, get_exchange_summary, calculate_btc_purchase_cost,
+  find_cheapest_path, get_network_status
+
+하위 호환 re-export (paths_buy / paths_sell에서):
+  find_cheapest_path_from_snapshot_rows, find_cheapest_sell_path_from_snapshot_rows
+
+MCP 도구는 live_market.py를 통해 이 모듈을 소비합니다.
+"""
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor

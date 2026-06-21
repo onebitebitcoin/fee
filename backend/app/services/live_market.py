@@ -1,7 +1,10 @@
-"""
-.. deprecated::
-    이 모듈은 더 이상 사용되지 않습니다.
-    실시간 데이터 조회는 market_core.py를 직접 사용하세요.
+"""MCP 도구 레이어 파사드 (live_market.py).
+
+mcp/server.py가 이 모듈을 단일 진입점으로 사용합니다.
+MCP 도구에 필요한 모든 함수/상수를 market_core + market_paths에서 re-export합니다.
+
+내부 백엔드 코드(market.py, crawl_service.py, exchanges.py)는
+market_core / paths_buy / paths_sell을 직접 import하세요.
 """
 from backend.app.domain.market_core import (
     ALL_EXCHANGES,

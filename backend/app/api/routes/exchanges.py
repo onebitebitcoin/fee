@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
 from backend.app.db.session import get_db
-from backend.app.services.live_market import list_exchanges
+from backend.app.domain.market_core import list_exchanges
 
 router = APIRouter()
 

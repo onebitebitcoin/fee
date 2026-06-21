@@ -19,13 +19,13 @@ def make_test_session():
 
 
 def test_run_full_crawl_records_partial_success(mocker):
-    from backend.app.services import live_market
+    import backend.app.services.crawl_service as cs_mod
 
     engine, TestingSessionLocal = make_test_session()
 
-    mocker.patch.object(live_market, 'ALL_EXCHANGES', ['upbit', 'binance'])
-    mocker.patch.object(live_market, 'fetch_usd_krw_rate', return_value=1400.0)
-    mocker.patch.object(live_market, 'get_ticker', side_effect=[
+    mocker.patch.object(cs_mod, 'ALL_EXCHANGES', ['upbit', 'binance'])
+    mocker.patch.object(cs_mod, 'fetch_usd_krw_rate', return_value=1400.0)
+    mocker.patch.object(cs_mod, 'get_ticker', side_effect=[
         {
             'exchange': 'upbit',
             'pair': 'BTC/KRW',
@@ -37,13 +37,13 @@ def test_run_full_crawl_records_partial_success(mocker):
         },
         {'error': 'binance down'},
     ])
-    mocker.patch.object(live_market, 'get_withdrawal_fees', side_effect=[
+    mocker.patch.object(cs_mod, 'get_withdrawal_fees', side_effect=[
         {'exchange': 'upbit', 'coin': 'BTC', 'source': 'official_docs', 'networks': []},
         {'exchange': 'upbit', 'coin': 'USDT', 'source': 'official_docs', 'networks': []},
         {'exchange': 'binance', 'coin': 'BTC', 'source': 'realtime_api', 'networks': []},
         {'exchange': 'binance', 'coin': 'USDT', 'error': 'withdrawal fail'},
     ])
-    mocker.patch.object(live_market, 'get_network_status', return_value={'exchanges': {'upbit': {'status': 'ok', 'suspended_networks': [], 'checked_at': 'now'}}})
+    mocker.patch.object(cs_mod, 'get_network_status', return_value={'exchanges': {'upbit': {'status': 'ok', 'suspended_networks': [], 'checked_at': 'now'}}})
 
     with TestingSessionLocal() as db:
         result = CrawlService(db).run_full_crawl(trigger='scheduler')

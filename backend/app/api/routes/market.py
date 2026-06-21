@@ -12,10 +12,8 @@ from backend.app.db import repositories
 from backend.app.db.session import get_db
 from backend.app.services import kyc_registry
 from backend.app.services.exchange_status_builder import build_exchange_status
-from backend.app.services.live_market import (
-    find_cheapest_path_from_snapshot_rows,
-    find_cheapest_sell_path_from_snapshot_rows,
-)
+from backend.app.domain.paths_buy import find_cheapest_path_from_snapshot_rows
+from backend.app.domain.paths_sell import find_cheapest_sell_path_from_snapshot_rows
 from backend.app.domain.market_core import (
     GROUPS,
     KOREA_FETCHERS,
