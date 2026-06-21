@@ -650,4 +650,34 @@ def test_exchange_capabilities_latest_endpoint():
     assert items['binance']['supports_lightning_withdrawal'] is True
 
     app.dependency_overrides.clear()
+
+
+def test_inspect_endpoint_exists_and_returns_summary():
+    """GET /path-finder/inspect — 엔드포인트 존재 및 응답 구조 검증."""
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/path-finder/inspect?amount_krw=1000000')
+    assert response.status_code == 200
+    payload = response.json()
+    assert 'results' in payload
+    assert 'summary' in payload
+    summary = payload['summary']
+    assert 'total' in summary
+    assert 'ok' in summary
+    assert 'warnings' in summary
+    assert 'errors' in summary
+    assert summary['total'] == len(payload['results'])
+    assert summary['total'] == summary['ok'] + summary['warnings'] + summary['errors']
+
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.drop_all(bind=engine)

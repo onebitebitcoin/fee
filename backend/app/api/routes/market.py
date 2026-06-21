@@ -21,6 +21,7 @@ from backend.app.domain.market_core import (
     fetch_binance_spot,
     fetch_usd_krw_rate,
 )
+from backend.app.domain.route_inspect import inspect_all as _inspect_all
 
 logger = logging.getLogger(__name__)
 
@@ -608,6 +609,46 @@ def get_cheapest_path_all(
             wallet_utxo_count=wallet_utxo_count,
         ),
     )
+
+
+@router.get('/path-finder/inspect')
+def get_path_inspect(
+    amount_krw: int = Query(1000000, ge=10000),
+    db: Session = Depends(get_db),
+) -> dict:
+    """cheapest-all 경로를 계산하고 각 경로의 invariant를 검사한다.
+
+    어드민 진단 도구. 비정상 경로(음수 수수료, btc_received=0 등)를 조기 발견.
+    """
+    result_map = _compute_cheapest_all(
+        db,
+        mode='buy',
+        amount_krw=amount_krw,
+        amount_btc=None,
+        wallet_utxo_count=1,
+    )
+    all_paths: list[dict] = []
+    for payload in result_map.get('by_global', {}).values():
+        if isinstance(payload, dict):
+            all_paths.extend(payload.get('all_paths', []))
+
+    inspect_results = _inspect_all(all_paths)
+    results = [
+        {
+            'path_id': r.path_id,
+            'severity': r.severity,
+            'issues': r.issues,
+        }
+        for r in inspect_results
+    ]
+    total = len(results)
+    ok = sum(1 for r in inspect_results if r.severity == 'ok')
+    warnings = sum(1 for r in inspect_results if r.severity == 'warning')
+    errors = sum(1 for r in inspect_results if r.severity == 'error')
+    return {
+        'results': results,
+        'summary': {'total': total, 'ok': ok, 'warnings': warnings, 'errors': errors},
+    }
 
 
 @router.get('/scrape-status')
