@@ -20,6 +20,7 @@ export function ResultStep() {
   } = useExplorer();
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [showFeeDetail, setShowFeeDetail] = useState(false);
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
@@ -325,6 +326,23 @@ export function ResultStep() {
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
                 <div>
                   <SectionLabel>수수료 내역</SectionLabel>
+                  <button
+                    onClick={() => setShowFeeDetail(o => !o)}
+                    className="mb-2 flex items-center gap-1 text-[10px] text-label-tertiary hover:text-label-secondary transition-colors cursor-pointer"
+                  >
+                    {showFeeDetail ? '수수료 내역 접기' : `수수료 내역 펼치기 (${resultPath.breakdown.components.length}개)`}
+                    <CaretDown className={`w-3 h-3 transition-transform duration-200 ${showFeeDetail ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {showFeeDetail && (
+                    <motion.div
+                      key="fee-detail"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
                   <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
                     <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정 수수료</span>이동 금액과 무관</span>
                     <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>거래·이동 금액 × 비율</span>
@@ -384,6 +402,9 @@ export function ResultStep() {
                       </div>
                     )}
                   </div>
+                    </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 
