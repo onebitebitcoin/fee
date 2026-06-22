@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle, ArrowSquareOut } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatNetworkLabel } from '../../../lib/networkIcons';
@@ -20,7 +20,14 @@ export function ResultStep() {
   } = useExplorer();
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
-  const [showFeeDetail, setShowFeeDetail] = useState(false);
+  // 수수료 내역: 항목별 '자세히' 펼침 (인덱스 집합). 금액은 항상 노출.
+  const [expandedFees, setExpandedFees] = useState<Set<number>>(new Set());
+  const toggleFee = (i: number) =>
+    setExpandedFees(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
   const isHoldOnGlobal = globalExitMethod === 'none';
   const isDisabled = !!resultPath?.disabled;
   if (!resultPath) return null;
@@ -322,77 +329,104 @@ export function ResultStep() {
                 </div>
               </div>
 
-              {/* Fee breakdown */}
+              {/* Fee breakdown — 각 항목 금액은 항상 노출, 항목별 '자세히'로 세부 펼침 */}
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (
                 <div>
                   <SectionLabel>수수료 내역</SectionLabel>
-                  <button
-                    onClick={() => setShowFeeDetail(o => !o)}
-                    className="mb-2 flex items-center gap-1 text-[10px] text-label-tertiary hover:text-label-secondary transition-colors cursor-pointer"
-                  >
-                    {showFeeDetail ? '수수료 내역 접기' : `수수료 내역 펼치기 (${resultPath.breakdown.components.length}개)`}
-                    <CaretDown className={`w-3 h-3 transition-transform duration-200 ${showFeeDetail ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showFeeDetail && (
-                    <motion.div
-                      key="fee-detail"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
                   <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
                     <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정 수수료</span>이동 금액과 무관</span>
                     <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>거래·이동 금액 × 비율</span>
                   </p>
                   <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
-                    {resultPath.breakdown.components.map((c, i) => (
-                      <div key={i} className="flex items-start justify-between px-4 py-3 gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
-                            {c.is_fixed != null && (
-                              <span
-                                title={c.is_fixed ? '이동 금액에 관계없이 항상 동일한 고정 수수료' : '거래 금액(매수·매도) 또는 이동 금액에 비례하는 비율(%) 수수료'}
-                                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-help ${
-                                  c.is_fixed
-                                    ? 'bg-acc-blue/10 text-acc-blue'
-                                    : 'bg-acc-amber/10 text-acc-amber'
-                                }`}>
-                                {c.is_fixed ? '고정 수수료' : '비율 수수료'}
-                              </span>
-                            )}
-                          </div>
-                          {c.move_amount != null && c.move_coin && (
-                            <p className="text-[10px] text-label-secondary num mt-0.5">
-                              이동 {c.move_coin === 'BTC' ? c.move_amount.toFixed(8) : c.move_amount.toFixed(2)} {c.move_coin}
-                              {c.move_amount_krw != null && (
-                                <span className="text-label-tertiary"> ≈ ₩{formatNumber(c.move_amount_krw)}</span>
+                    {resultPath.breakdown.components.map((c, i) => {
+                      const hasDetail =
+                        (c.move_amount != null && !!c.move_coin) ||
+                        !!c.network ||
+                        !!fmtAmountText(c.amount_text) ||
+                        !!c.source_url;
+                      const open = expandedFees.has(i);
+                      return (
+                        <div key={i} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs text-label-secondary leading-snug">{c.label}</p>
+                                {c.is_fixed != null && (
+                                  <span
+                                    title={c.is_fixed ? '이동 금액에 관계없이 항상 동일한 고정 수수료' : '거래 금액(매수·매도) 또는 이동 금액에 비례하는 비율(%) 수수료'}
+                                    className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-help ${
+                                      c.is_fixed
+                                        ? 'bg-acc-blue/10 text-acc-blue'
+                                        : 'bg-acc-amber/10 text-acc-amber'
+                                    }`}>
+                                    {c.is_fixed ? '고정 수수료' : '비율 수수료'}
+                                  </span>
+                                )}
+                              </div>
+                              {hasDetail && (
+                                <button
+                                  onClick={() => toggleFee(i)}
+                                  className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-acc-amber hover:opacity-80 transition-opacity cursor-pointer"
+                                >
+                                  자세히
+                                  <CaretDown className={`w-2.5 h-2.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} weight="bold" />
+                                </button>
                               )}
-                            </p>
-                          )}
-                          {c.network && (
-                            <p className="text-[10px] text-label-tertiary mt-0.5 flex items-center gap-1">
-                              출금 네트워크 <NetworkIcon network={c.network} size={11} />
-                              <span className="text-label-secondary font-medium">{formatNetworkLabel(c.network)}</span>
-                            </p>
-                          )}
-                          {fmtAmountText(c.amount_text) && (
-                            <p className="text-[10px] text-label-tertiary num mt-0.5">수수료 {fmtAmountText(c.amount_text)}</p>
-                          )}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs font-semibold text-acc-red num">
+                                -{formatFeeKrw(c.amount_krw)}
+                              </p>
+                              {c.rate_pct != null && (
+                                <p className="text-[10px] text-label-tertiary num mt-0.5">{c.rate_pct.toFixed(4)}%</p>
+                              )}
+                            </div>
+                          </div>
+                          <AnimatePresence>
+                            {open && hasDetail && (
+                              <motion.div
+                                key="detail"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1">
+                                  {c.move_amount != null && c.move_coin && (
+                                    <p className="text-[10px] text-label-secondary num">
+                                      이동 {c.move_coin === 'BTC' ? c.move_amount.toFixed(8) : c.move_amount.toFixed(2)} {c.move_coin}
+                                      {c.move_amount_krw != null && (
+                                        <span className="text-label-tertiary"> ≈ ₩{formatNumber(c.move_amount_krw)}</span>
+                                      )}
+                                    </p>
+                                  )}
+                                  {c.network && (
+                                    <p className="text-[10px] text-label-tertiary flex items-center gap-1">
+                                      출금 네트워크 <NetworkIcon network={c.network} size={11} />
+                                      <span className="text-label-secondary font-medium">{formatNetworkLabel(c.network)}</span>
+                                    </p>
+                                  )}
+                                  {fmtAmountText(c.amount_text) && (
+                                    <p className="text-[10px] text-label-tertiary num">수수료 {fmtAmountText(c.amount_text)}</p>
+                                  )}
+                                  {c.source_url && (
+                                    <a
+                                      href={c.source_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-0.5 text-[10px] text-acc-blue hover:underline"
+                                    >
+                                      출처 <ArrowSquareOut className="w-2.5 h-2.5" />
+                                    </a>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs font-semibold text-acc-red num">
-                            -{formatFeeKrw(c.amount_krw)}
-                          </p>
-                          {c.rate_pct != null && (
-                            <p className="text-[10px] text-label-tertiary num mt-0.5">{c.rate_pct.toFixed(4)}%</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {resultPath.discarded_krw != null && resultPath.discarded_krw > 0 && (
                       <div className="flex items-center justify-between px-4 py-3 gap-3">
                         <p className="text-xs text-label-secondary leading-snug">
@@ -402,9 +436,6 @@ export function ResultStep() {
                       </div>
                     )}
                   </div>
-                    </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               )}
 
