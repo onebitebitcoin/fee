@@ -12,7 +12,7 @@ export function DomesticStep() {
   const [showInfo, setShowInfo] = useState(false);
   const {
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, liveKimpTotal, usdtPremium,
-    btcPrice, withdrawalLimits, stepEndRef, forexUsdKrw,
+    btcPrice, withdrawalLimits, stepEndRef,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
   } = useExplorer();
@@ -28,12 +28,6 @@ export function DomesticStep() {
                   const takerFee = allData?.tickers.find(t =>
                     t.exchange === exchange && t.currency === 'KRW' && t.pair?.includes('BTC')
                   )?.taker_fee_pct ?? null;
-                  const usdtTicker = allData?.tickers.find(t =>
-                    t.exchange === exchange && t.currency === 'KRW' && t.pair?.toLowerCase().includes('usdt')
-                  );
-                  const exchangeUsdtPremium = (usdtTicker && forexUsdKrw)
-                    ? Math.round((usdtTicker.price / forexUsdKrw - 1) * 10000) / 100
-                    : null;
                   return (
                     <motion.div
                       key={exchange}
@@ -70,16 +64,10 @@ export function DomesticStep() {
                               {takerFee != null ? `${takerFee.toFixed(2)}%` : '–'}
                             </p>
                           </div>
-                          <div>
-                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">비트코인 김치 프리미엄</p>
+                          <div className="col-span-2">
+                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">김치 프리미엄</p>
                             <p className={`text-sm font-bold num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
                               {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '–'}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-label-tertiary uppercase tracking-wide">원달러 프리미엄</p>
-                            <p className={`text-sm font-bold num mt-0.5 ${exchangeUsdtPremium == null ? 'text-label-tertiary' : exchangeUsdtPremium >= 0 ? 'text-acc-red' : 'text-acc-green'}`}>
-                              {exchangeUsdtPremium != null ? `${exchangeUsdtPremium >= 0 ? '+' : ''}${exchangeUsdtPremium.toFixed(2)}%` : '–'}
                             </p>
                           </div>
                         </div>
