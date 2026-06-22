@@ -9,7 +9,7 @@ import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
 import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../../types';
 import type { Phase, CoinType, Destination, FlowState } from './flow';
-import { phaseIdx, flowNext, flowPrev, flowSteps } from './flow';
+import { phaseIdx, flowNext, flowPrev } from './flow';
 import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO } from './constants';
 import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
@@ -275,15 +275,6 @@ function useExplorerValue() {
     satRafRef.current = requestAnimationFrame(tick);
     return () => { if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current); };
   }, [phase, resultPath?.btc_received]);
-
-  // ── Step sequence for progress dots ─────────────────────────────────────────
-
-  const steps = useMemo(
-    () => flowSteps({ coin, globalExitMethod, destination, swapSvc }),
-    [coin, globalExitMethod, destination, swapSvc],
-  );
-
-  const stepIdx = steps.indexOf(phase);
 
   // ── API ──────────────────────────────────────────────────────────────────────
 
@@ -592,8 +583,6 @@ function useExplorerValue() {
     lightningExitInfo,
     resultPath,
     altPaths,
-    steps,
-    stepIdx,
     // ── 핸들러 ──
     handleSearch,
     handleBack,

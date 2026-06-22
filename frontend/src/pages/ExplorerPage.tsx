@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import { House, ClipboardText } from '@phosphor-icons/react';
 import type { Phase } from './explorer/flow';
 import { SPRING_SLOW } from './explorer/constants';
-import { StepDots } from './explorer/ui';
 import { ExplorerProvider, useExplorer } from './explorer/ExplorerContext';
 import { STEP_REGISTRY } from './explorer/registry';
 
@@ -42,7 +41,7 @@ function StepFrame({ phase, dir }: { phase: Phase; dir: 1 | -1 }) {
 }
 
 function ExplorerShell() {
-  const { phase, dir, allData, steps, stepIdx, reset } = useExplorer();
+  const { phase, dir, allData, reset } = useExplorer();
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -62,11 +61,6 @@ function ExplorerShell() {
           </div>
 
           <div className="flex items-center gap-3">
-            {stepIdx >= 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <StepDots current={stepIdx} total={steps.length} />
-              </motion.div>
-            )}
             <Link
               to="/board"
               className="flex items-center gap-1 text-label-tertiary hover:text-label-secondary transition-colors"

@@ -197,25 +197,6 @@ export function OptionCard({
   );
 }
 
-// Step progress dots
-export function StepDots({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {Array.from({ length: total }).map((_, i) => (
-        <motion.div
-          key={i}
-          animate={{
-            width: i === current ? 20 : 6,
-            opacity: i <= current ? 1 : 0.25,
-          }}
-          transition={SPRING_FAST}
-          className={`h-1.5 rounded-full ${i <= current ? 'bg-acc-amber' : 'bg-fill-primary'}`}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function LoadingScreen({
   progress = {},
   domesticKeys = [],

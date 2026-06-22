@@ -142,10 +142,10 @@ cd frontend && npm run test
 
 | 파일 | 역할 |
 |------|------|
-| `src/pages/ExplorerPage.tsx` | **얇은 컨트롤러 (~87줄)**. `ExplorerProvider` + `ExplorerShell`(헤더/푸터/StepDots) + `StepFrame`(현재 phase의 모션 래퍼). 실제 단계 UI는 `explorer/steps/*`에 위임. |
+| `src/pages/ExplorerPage.tsx` | **얇은 컨트롤러 (~87줄)**. `ExplorerProvider` + `ExplorerShell`(헤더/푸터) + `StepFrame`(현재 phase의 모션 래퍼). 실제 단계 UI는 `explorer/steps/*`에 위임. |
 | `src/pages/explorer/flow.ts` | **순서/경로 정의 (Single Source).** `Phase`·`CoinType`·`Destination` 타입, `FLOW` 그래프(각 단계 next(state)), `flowNext`/`flowPrev`/`flowSteps`, `PHASES`/`phaseIdx`. **순서·경로 변경 시 이 파일만 수정.** 플로우: `domestic→coin→(BTC→btc_method→result / BTC_GLOBAL→btc_method→global→…/ USDT→global→…)→global_exit_method→(lightning→destination→(lightning_wallet→result / personal→swap_service→result) / onchain→result)`. |
 | `src/pages/explorer/constants.ts` | 정적 데이터·헬퍼: `GLOBAL_EXCHANGES`, `DOMESTIC_INFO`, `GLOBAL_INFO`, `RISK_*`, `SPRING_*`, `AllData` 타입, `bestByBtc`/`fmtKst`/`fmtAmountText`. |
-| `src/pages/explorer/ui.tsx` | 공용 컴포넌트: `ExFavicon`, `SectionLabel`, `Chip`, `OptionCard`, `StepDots`, `LoadingScreen`, `GatemanPanel`. |
+| `src/pages/explorer/ui.tsx` | 공용 컴포넌트: `ExFavicon`, `SectionLabel`, `Chip`, `OptionCard`, `LoadingScreen`, `GatemanPanel`. |
 | `src/pages/explorer/ExplorerContext.tsx` | **상태·핸들러 허브 (~617줄).** `useExplorerValue()`에 결합 상태(선택/kimp/필터, `btcPrice`+`btcPriceLoading`=최초 kimp/live fetch 진행 플래그) + 핸들러(`handleSearch`/`handleBack`/`handleNext`/`reset`/`handleSelectRecommendedPath`). 파생값은 `derivations.ts` 순수 함수를 `useMemo`로 호출, 거래소 메타데이터는 `useExchangeMetadata()`로 위임. `ExplorerProvider`/`useExplorer()` 제공. 타입은 `ReturnType<typeof useExplorerValue>` 추론. |
 | `src/pages/explorer/derivations.ts` | **ExplorerContext 순수 파생 로직.** allData+선택값만으로 결정되는 순수 함수: `computeSnapshotKimp`/`computeDomesticBtcKrw`/`computeKoreaVolumeMap`/`computeDomesticOptions`/`computeCoinOptions`/`computeGlobalOptions`/`computeNetworkOptions`/`computeDisabledNetworkOptions`/`computeHasLightningPaths`/`computeGlobalSupportsLightning`/`computeCurrentLightningPaths`/`computeLightningExitInfo`/`computeSwapServiceOptions`/`computeResultPath`/`computeAltPaths`. 부수효과·React 의존 없음 → 단위 테스트 가능. |
 | `src/pages/explorer/useExchangeMetadata.ts` | **거래소 메타데이터 fetch 훅.** `useExchangeMetadata()` — 마운트 1회 fetch로 `liveRegistry`/`cautionMap`/`carfMap`/`withdrawalLimits` 소유, read-only 노출. 탐색 상태와 결합 없음. |
@@ -271,7 +271,7 @@ Frontend (RouteExplorerPage.tsx)
 | 종착지(개인지갑/라이트닝 지갑) | 백엔드 `paths_buy.py`: `find_cheapest_path_from_snapshot_rows`에서 경로마다 `destination` 태깅(`__direct__`=`lightning_wallet`, 그 외=`personal`). LN 직접출금(`swap=None`→`__direct__`, LN 출금까지만)=라이트닝 지갑 종착. 프론트: 추천 리스트 `RecommendationStep` 종착지 토글 필터(`destinationFilter`) + `routeText` 종착 라벨, 마법사 `flow.ts`(`destination` phase)+`DestinationStep.tsx`+`ExplorerContext`(`destination` state, `resultPath`/`swapServiceOptions`/`lightningExitInfo` 분기), 결과 `ResultStep`(종착 노드 라이트닝지갑/내지갑). 타입 `types.ts` `CheapestPathEntry.destination`. 개인지갑 모드엔 `__direct__` 미노출, 라이트닝 지갑 모드엔 스왑·온체인 미노출 |
 | 출금 한도 동적 업데이트 | `fee_checker.py` `scrape_korea_withdrawal_limits()` + `_pw_scrape_upbit_limits()` → 업비트 guide 페이지 스크래핑 → `KoreaWithdrawalLimitSnapshot` DB 저장 → `/market/withdrawal-limits/latest` API → `ExplorerPage.tsx` `withdrawalLimits` state로 동적 표시 |
 | UI 단계 추가 | ① `explorer/steps/XStep.tsx` 작성(`useExplorer()` 소비) → ② `explorer/registry.tsx`의 `STEP_REGISTRY`에 등록 → ③ `explorer/flow.ts`의 `Phase` 타입 + `FLOW` 배열에 끼워넣기. 세 곳만 수정. |
-| UI 단계 순서/경로 변경 | `explorer/flow.ts`의 `FLOW` 배열 next(state)만 수정 (handleNext/handleBack/StepDots 자동 반영) |
+| UI 단계 순서/경로 변경 | `explorer/flow.ts`의 `FLOW` 배열 next(state)만 수정 (handleNext/handleBack 자동 반영) |
 | API 캐시 조정 / 동시접속 성능 | `market.py` `_TtlCache`(ttl + `get_or_compute` single-flight). cheapest TTL=3600초(키 run_id 포함, 크롤 시 `invalidate_status_cache`→clear). 크롤 후 워밍은 `main.py:_auto_crawl_loop`→`warm_cheapest_path_cache`. DB 풀 `session.py`(pool_size=10/overflow=20). gzip `main.py` GZipMiddleware. 단일 워커 유지(`scripts/start.sh` 주석). |
 | DB 스키마 변경 | `models.py` → alembic revision → `repositories.py` |
 | KYC 상태 | `kyc_registry.py`, `market.py` (_enrich_path_payload_with_kyc) |

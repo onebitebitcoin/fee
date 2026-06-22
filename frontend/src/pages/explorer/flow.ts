@@ -50,14 +50,3 @@ export function flowPrev(id: Phase, s: FlowState): Phase | null {
   }
   return null;
 }
-
-export function flowSteps(s: FlowState): Phase[] {
-  const seq: Phase[] = [];
-  let cur: Phase = 'domestic';
-  while (cur !== 'result') {
-    seq.push(cur);
-    cur = flowNext(cur, s);
-  }
-  seq.push('result');
-  return seq;
-}
