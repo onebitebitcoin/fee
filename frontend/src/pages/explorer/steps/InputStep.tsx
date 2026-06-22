@@ -67,7 +67,7 @@ export function InputStep() {
   }
 
   const {
-    amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, usdtPremium,
+    amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, btcPriceLoading, usdtPremium,
     handleSearch, isSearching,
   } = useExplorer();
 
@@ -112,6 +112,21 @@ export function InputStep() {
 
               {/* 지원 거래소 마퀴 */}
               <ExchangeMarquee />
+
+              {/* BTC 시세 + 프리미엄 패널 로딩 (최초 kimp/live fetch 대기) */}
+              {!btcPrice && btcPriceLoading && (
+                <div className="ios-card rounded-2xl px-4 py-5">
+                  <div className="flex flex-col items-center justify-center gap-2.5">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    >
+                      <CircleNotch className="w-5 h-5 text-acc-amber" weight="bold" />
+                    </motion.div>
+                    <p className="text-[11px] text-label-tertiary">실시간 시세·김치 프리미엄 불러오는 중…</p>
+                  </div>
+                </div>
+              )}
 
               {/* BTC 시세 + 프리미엄 패널 */}
               {btcPrice && (

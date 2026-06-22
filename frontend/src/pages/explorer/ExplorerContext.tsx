@@ -54,6 +54,7 @@ function useExplorerValue() {
   const [usdtPremium, setUsdtPremium] = useState<number | null>(null); // 원달러(테더) 프리미엄 %
   const [forexUsdKrw, setForexUsdKrw] = useState<number | null>(null); // 두나무 포렉스 USD/KRW (USDT 프리미엄 기준)
   const [btcPrice, setBtcPrice] = useState<{ usd: number; krw: number; upbitKrw: number | null; kimchiPremium: number | null; kimchiPremiumTotal: number | null; fetchedAt: Date } | null>(null);
+  const [btcPriceLoading, setBtcPriceLoading] = useState(true); // 최초 kimp/live fetch 진행 여부 (첫 페이지 로딩 표시용)
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
   const [displaySats, setDisplaySats]   = useState(0);
@@ -121,7 +122,8 @@ function useExplorerValue() {
           setUsdtPremium(res.usdt_premium ?? null);
           setForexUsdKrw(res.forex_usd_krw_rate ?? null);
         })
-        .catch(() => { /* keep previous */ });
+        .catch(() => { /* keep previous */ })
+        .finally(() => setBtcPriceLoading(false)); // 최초 fetch 완료(성공/실패) 시 로딩 해제
     fetch();
     const id = setInterval(fetch, 30_000);
     return () => clearInterval(id);
@@ -548,6 +550,7 @@ function useExplorerValue() {
     forexUsdKrw,
     kimpFetchedAt,
     btcPrice,
+    btcPriceLoading,
     btcMethod, setBtcMethod,
     globalExitMethod, setGlobalExitMethod,
     liveRegistry,
