@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -73,11 +74,44 @@ _MAJOR_KEYWORDS = [
 ]
 
 
+# 부분 문자열 오탐을 막아야 하는 티커 심볼.
+#   예) "HUSDT"·"BTCUSDT" 같은 (무기한) 선물 페어가 'USDT'/'BTC' 로 오인되는 것을 방지.
+# \b(word boundary) 대신 라틴 문자 전후방탐색을 쓴다 — 한글 조사 결합("BTC를")은
+# 허용해야 하므로(\b는 라틴-한글 경계를 단어 경계로 보지 않아 false negative 발생).
+_TICKER_KEYWORDS: frozenset[str] = frozenset({'btc', 'usdt'})
+_TICKER_PATTERNS: dict[str, re.Pattern[str]] = {
+    kw: re.compile(r'(?<![a-z])' + kw + r'(?![a-z])') for kw in _TICKER_KEYWORDS
+}
+
+
+def _keyword_in_title(title_lower: str, keyword: str) -> bool:
+    """키워드가 제목(소문자)에 포함되는지 판단.
+
+    BTC/USDT 등 티커 심볼은 라틴 문자에 인접하면 매칭 제외(HUSDT·BTCUSDT 등
+    부분 일치 오탐 방지). 그 외 서술형/한글 키워드는 단순 substring 매칭.
+    """
+    kw = keyword.lower()
+    pat = _TICKER_PATTERNS.get(kw)
+    if pat is not None:
+        return pat.search(title_lower) is not None
+    return kw in title_lower
+
+
+def _has_btc(title_lower: str) -> bool:
+    """BTC 티커(라틴 경계) 또는 'bitcoin' 언급 여부"""
+    return _keyword_in_title(title_lower, 'btc') or 'bitcoin' in title_lower
+
+
+def _has_usdt(title_lower: str) -> bool:
+    """USDT 티커(라틴 경계) 언급 여부"""
+    return _keyword_in_title(title_lower, 'usdt')
+
+
 def _is_relevant(title: str) -> bool:
     """BTC/USDT/Lightning 관련 공지이거나 거래소 전체 주요 공지인지 판단"""
     lower = title.lower()
     for kw in _BTC_KEYWORDS:
-        if kw.lower() in lower:
+        if _keyword_in_title(lower, kw):
             return True
     for kw in _MAJOR_KEYWORDS:
         if kw in title:
@@ -122,15 +156,15 @@ def _binance_catalog_filter(catalog_id: int, title: str) -> bool:
     if strategy == 'skip':
         return False
     if strategy == 'btc_only':
-        return 'btc' in lower or 'bitcoin' in lower
+        return _has_btc(lower)
     if strategy == 'keyword':
         return _is_relevant_for_binance(title)
     if strategy == 'fee_or_btc':
-        return ('btc' in lower or 'bitcoin' in lower) or any(kw.lower() in lower for kw in _BINANCE_FEE_KEYWORDS)
+        return _has_btc(lower) or any(kw.lower() in lower for kw in _BINANCE_FEE_KEYWORDS)
     if strategy == 'maintenance':
-        if 'btc' in lower or 'bitcoin' in lower:
+        if _has_btc(lower):
             return True
-        if 'usdt' in lower:
+        if _has_usdt(lower):
             return any(kw in lower for kw in _MAINTENANCE_CONTEXT_KEYWORDS)
         return False
     return _is_relevant_for_binance(title)
@@ -370,11 +404,12 @@ def fetch_notices_for_exchange(exchange: str, extra_keywords: list[str]) -> list
     extra_keywords: 변경된 코인명/네트워크명 (예: ['USDT', 'Aptos'])
     기존 키워드 + extra_keywords 모두 포함된 공지를 반환.
     """
-    extra_lower = [kw.lower() for kw in extra_keywords if kw]
+    targets = [kw for kw in extra_keywords if kw]
 
     def _is_targeted(title: str) -> bool:
         lower = title.lower()
-        return any(kw in lower for kw in extra_lower)
+        # 티커(BTC/USDT)는 라틴 경계 매칭 → HUSDT 등 부분 일치 오탐 방지
+        return any(_keyword_in_title(lower, kw) for kw in targets)
 
     fetcher_map: dict[str, object] = {
         'upbit': fetch_upbit_notices,

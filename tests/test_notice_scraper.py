@@ -7,8 +7,11 @@ from unittest.mock import MagicMock, patch
 from backend.app.services.notice_scraper import (
     _BINANCE_LOCALE_URL_PREFIX,
     _binance_catalog_filter,
+    _is_relevant,
     _is_relevant_for_binance,
+    _keyword_in_title,
     fetch_binance_notices,
+    fetch_notices_for_exchange,
     get_all_notices,
 )
 
@@ -45,6 +48,68 @@ class TestIsRelevantForBinance:
     def test_case_insensitive(self) -> None:
         assert _is_relevant_for_binance('ZERO FEE PROMOTION') is True
         assert _is_relevant_for_binance('zero-fee event') is True
+
+
+# ---------------------------------------------------------------------------
+# 티커 부분 문자열 오탐 방지 (HUSDT·BTCUSDT 선물 페어)
+# ---------------------------------------------------------------------------
+
+# 실제 바이낸스 선물 공지 — 토큰 "H"의 USDⓈ 마진 무기한 계약. BTC/USDT 이송과 무관.
+_HUSDT_FUTURES_TITLE = (
+    'Binance Futures Will End Last Price Protected Period on '
+    'USDⓈ-Margined HUSDT Perpetual Contract (2026-06-18)'
+)
+
+
+class TestTickerWordBoundary:
+    def test_keyword_in_title_usdt_substring_rejected(self) -> None:
+        """'HUSDT' 안의 'usdt'는 USDT 키워드로 매칭되면 안 된다."""
+        assert _keyword_in_title('husdt perpetual contract', 'USDT') is False
+
+    def test_keyword_in_title_btcusdt_pair_rejected(self) -> None:
+        """'btcusdt' 선물 페어는 BTC/USDT 어느 쪽으로도 매칭되면 안 된다."""
+        assert _keyword_in_title('btcusdt funding rate', 'USDT') is False
+        assert _keyword_in_title('btcusdt funding rate', 'BTC') is False
+
+    def test_keyword_in_title_standalone_usdt_passes(self) -> None:
+        assert _keyword_in_title('usdt withdrawal suspended', 'USDT') is True
+
+    def test_keyword_in_title_spot_pair_passes(self) -> None:
+        """공백/슬래시로 분리된 스팟 페어는 정상 매칭."""
+        assert _keyword_in_title('btc/usdt spot trading', 'BTC') is True
+        assert _keyword_in_title('btc/usdt spot trading', 'USDT') is True
+
+    def test_keyword_in_title_korean_particle_passes(self) -> None:
+        """한글 조사 결합(BTC를)도 정상 매칭 — 라틴 문자 인접만 차단."""
+        assert _keyword_in_title('btc를 출금합니다', 'BTC') is True
+
+    def test_keyword_in_title_descriptive_substring(self) -> None:
+        """서술형 키워드는 기존 substring 동작 유지."""
+        assert _keyword_in_title('bitcoin network upgrade', 'Bitcoin') is True
+
+    def test_husdt_futures_not_relevant(self) -> None:
+        assert _is_relevant(_HUSDT_FUTURES_TITLE) is False
+        assert _is_relevant_for_binance(_HUSDT_FUTURES_TITLE) is False
+
+    def test_husdt_futures_rejected_by_catalog49(self) -> None:
+        """catalog 49(keyword 전략)에서 HUSDT 선물 공지가 걸러져야 한다."""
+        assert _binance_catalog_filter(49, _HUSDT_FUTURES_TITLE) is False
+
+    def test_legitimate_usdt_notice_still_passes(self) -> None:
+        assert _is_relevant('USDT Deposits Suspended on Tron (TRC20)') is True
+
+    def test_targeted_fetch_excludes_husdt(self) -> None:
+        """USDT 네트워크 변경 시 타깃 탐색이 HUSDT 선물 공지를 첨부하지 않는다."""
+        husdt = {'exchange': 'binance', 'title': _HUSDT_FUTURES_TITLE, 'url': 'x', 'published_at': None}
+        real = {'exchange': 'binance', 'title': 'USDT Withdrawal Suspended (BEP20)', 'url': 'y', 'published_at': None}
+        with patch(
+            'backend.app.services.notice_scraper.fetch_binance_notices',
+            return_value=[husdt, real],
+        ):
+            result = fetch_notices_for_exchange('binance', ['USDT'])
+        titles = [n['title'] for n in result]
+        assert _HUSDT_FUTURES_TITLE not in titles
+        assert 'USDT Withdrawal Suspended (BEP20)' in titles
 
 
 # ---------------------------------------------------------------------------
