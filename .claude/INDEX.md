@@ -72,6 +72,7 @@ cd frontend && npm run test
 | `korea_exchange_registry.py` | **thin wrapper** — `exchanges/profiles.py`에서 `SLIPPAGE_PROFILES`/`WITHDRAWAL_LIMITS`/`KOREA_EXCHANGE_RISKS` 파생. `get_withdrawal_limits()`/`get_slippage()`/`get_exchange_risk()`/`slippage_adjusted_price()`/`risk_warning_lines()`/`withdrawal_limit_line()` 헬퍼 유지. |
 | `min_order_registry.py` | **thin wrapper** — `exchanges/profiles.py`에서 `KOREA_MIN_ORDER_KRW` 파생. `get_min_order_krw`/`calc_discarded_krw` — 매수 잔돈(`discarded_krw`) 근사 계산. |
 | `carf_registry.py` | **thin wrapper** — `exchanges/profiles.py`에서 `EXCHANGE_JURISDICTIONS` 파생. `get_carf_exchange_status()` 계산 로직 유지. |
+| `notice_match.py` | **공지 제목 관련성 매칭 SSoT (순수 텍스트, I/O 없음).** 스크래퍼(`notice_scraper`)와 저장소(`repositories`)가 공유 — 키워드가 두 계층에 중복되면 한쪽만 고쳐도 오탐이 남기 때문에 단일화. `BTC_KEYWORDS`/`MAJOR_KEYWORDS`/`FEE_KEYWORDS` + `keyword_in_title()`(BTC/USDT 티커는 라틴 문자 전후방탐색 `(?<![a-z])…(?![a-z])`으로 "HUSDT"·"BTCUSDT" substring 오탐 차단, 한글 조사 "BTC를"은 허용)/`has_btc`/`has_usdt`/`is_relevant_title(include_fee=)`. |
 
 #### `backend/app/domain/paths/` (매수 경로 빌더 패키지 — 경로 타입별 분리 + 레지스트리)
 
@@ -103,7 +104,7 @@ cd frontend && npm run test
 | `lightning_scraper.py` | Lightning 스왑 서비스 실시간 수수료 스크래핑 (Boltz, Coinos, Bitfreezer, WalletOfSatoshi, Strike). |
 | `promo_scraper.py` | FDUSD 0% maker 프로모션 등 스크래핑 |
 | `kyc_registry.py` | 거래소/서비스별 KYC 상태 레지스트리 |
-| `notice_scraper.py` | 거래소 BTC/USDT 관련 공지 스크래핑. `fetch_notices_for_exchange(exchange, extra_keywords)` — 변경 감지 시 특정 거래소+키워드 타깃 탐색. **티커 매칭은 `_keyword_in_title()`로 BTC/USDT를 라틴 문자 전후방탐색(`(?<![a-z])…(?![a-z])`)으로 판정 — "HUSDT"·"BTCUSDT" 같은 선물 페어가 'USDT'/'BTC' substring으로 오탐되는 것 방지(한글 조사 "BTC를"은 허용). `_has_btc`/`_has_usdt`가 `_binance_catalog_filter` 전략에서도 동일 적용.** 관련 공지 0건이면 프론트(InputStep)가 링크 영역 자동 숨김. |
+| `notice_scraper.py` | 거래소 BTC/USDT 관련 공지 스크래핑. `fetch_notices_for_exchange(exchange, extra_keywords)` — 변경 감지 시 특정 거래소+키워드 타깃 탐색. **키워드 매칭은 `domain/notice_match.py`(SSoT)에 위임** — `_is_relevant`/`_is_relevant_for_binance`/`_keyword_in_title`는 얇은 위임 래퍼. `_binance_catalog_filter`도 `has_btc`/`has_usdt`/`FEE_KEYWORDS` 공유 사용. 관련 공지 0건이면 프론트(InputStep)가 링크 영역 자동 숨김. |
 | `mempool_service.py` | mempool.space API 연동 (Bitcoin 네트워크 수수료) |
 | `exchange_status_builder.py` | `/market/status` 응답 빌더 |
 | `live_market.py` | **MCP 도구 전용 파사드.** `mcp/server.py`가 단일 진입점으로 사용. market_core + market_paths 모든 함수/상수 re-export. 내부 백엔드 코드(market.py, crawl_service.py, exchanges.py)는 각 도메인 모듈을 직접 import — live_market.py를 경유하지 않음. |
@@ -114,7 +115,7 @@ cd frontend && npm run test
 |------|------|
 | `models.py` | SQLAlchemy 모델 전체 정의 |
 | `board_repository.py` | 게시판(BoardPost/BoardComment) ORM 접근 계층. list_notices/list_posts(페이지네이션)/get/create/update/delete + comment_counts + 댓글 CRUD. |
-| `repositories.py` | DB 조회 함수 전체 (get_latest_successful_run, list_ticker_snapshots_for_run 등). `get_prev_run_network_status(db, crawl_run_id)` — 현재 크롤 이전의 최근 성공 크롤 네트워크 상태 반환. `get_recent_network_changes(db, hours=24)` — **WithdrawalFeeSnapshot.enabled 기반** 24시간 내 연속 크롤 쌍 비교로 suspended/resumed 변경 감지 + 관련 공지 첨부. `record_visit(ip)` — IP 기준 하루 1회 방문자 카운트. `record_route_request()` — 경로 탐색 요청 카운트. |
+| `repositories.py` | DB 조회 함수 전체 (get_latest_successful_run, list_ticker_snapshots_for_run 등). `get_prev_run_network_status(db, crawl_run_id)` — 현재 크롤 이전의 최근 성공 크롤 네트워크 상태 반환. `get_recent_network_changes(db, hours=24)` — **WithdrawalFeeSnapshot.enabled 기반** 24시간 내 연속 크롤 쌍 비교로 suspended/resumed 변경 감지 + 관련 공지 첨부. **공지 첨부/`get_latest_relevant_notices`는 SQL ILIKE를 coarse 프리필터로만 쓰고, `notice_match.keyword_in_title`/`is_relevant_title`로 후처리해 'USDT'가 'HUSDT' 선물 공지에 substring 오탐되는 것을 제거(쿼리 시점 필터라 기존 DB 행도 즉시 교정, 재크롤 불필요).** `record_visit(ip)` — IP 기준 하루 1회 방문자 카운트. `record_route_request()` — 경로 탐색 요청 카운트. |
 | `session.py` | DB 세션 팩토리 (`get_db` 의존성 주입) |
 | `bootstrap.py` | DB 초기화, 테이블 생성 |
 | `carf_seed.py` | CARF 거래소 데이터 시딩 |

@@ -1,8 +1,16 @@
 """네트워크 상태 변경 감지 단위 테스트"""
 from __future__ import annotations
 
+import datetime as dt
 from unittest.mock import MagicMock, patch
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend.app.db.base import Base
+from backend.app.db.models import CrawlRun, ExchangeNotice, WithdrawalFeeSnapshot
+from backend.app.db.repositories import get_recent_network_changes
 from backend.app.services.crawl_service import CrawlService
 
 
@@ -70,6 +78,61 @@ class TestDetectNetworkChanges:
         assert len(changes) == 2
         types = {c['change_type'] for c in changes}
         assert types == {'suspended', 'resumed'}
+
+
+class TestRelatedNoticesPrecision:
+    """get_recent_network_changes 가 'USDT' 변경에 'HUSDT' 선물 공지를 오첨부하지 않아야 한다.
+
+    라이브 버그 재현: SQL ILIKE '%USDT%' 가 'HUSDT' 제목에 substring으로 걸려,
+    Kaia USDT 출금중단 행에 무관한 바이낸스 선물 공지가 붙던 문제.
+    """
+
+    def _new_session(self):
+        engine = create_engine(
+            'sqlite://', future=True,
+            connect_args={'check_same_thread': False}, poolclass=StaticPool,
+        )
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        return Session()
+
+    def test_husdt_futures_not_attached_to_usdt_change(self):
+        db = self._new_session()
+        now = dt.datetime.now(dt.timezone.utc)
+        prev = CrawlRun(trigger='test', status='success',
+                        started_at=now - dt.timedelta(hours=2), completed_at=now - dt.timedelta(hours=2))
+        curr = CrawlRun(trigger='test', status='success',
+                        started_at=now - dt.timedelta(hours=1), completed_at=now - dt.timedelta(hours=1))
+        db.add_all([prev, curr])
+        db.flush()
+
+        # prev: 활성 → curr: 비활성 (Kaia USDT 출금 중단)
+        db.add(WithdrawalFeeSnapshot(crawl_run_id=prev.id, exchange='binance',
+                                     coin='USDT', network_label='Kaia', enabled=True,
+                                     source='scraped_page', recorded_at=now))
+        db.add(WithdrawalFeeSnapshot(crawl_run_id=curr.id, exchange='binance',
+                                     coin='USDT', network_label='Kaia', enabled=False,
+                                     source='scraped_page', recorded_at=now))
+
+        # 오탐 후보(HUSDT 선물) + 정상(USDT/Kaia 출금 중단)
+        db.add(ExchangeNotice(
+            crawl_run_id=curr.id, exchange='binance',
+            title='Binance Futures Will End Last Price Protected Period on USDⓈ-Margined HUSDT Perpetual Contract',
+            url='https://www.binance.com/en/support/announcement/detail/16c1e35bfa7544ce9440e53dbc862473',
+            noticed_at=now))
+        db.add(ExchangeNotice(
+            crawl_run_id=curr.id, exchange='binance',
+            title='Binance Will Suspend USDT Withdrawals on Kaia Network',
+            url='https://www.binance.com/en/support/announcement/detail/real-usdt-kaia',
+            noticed_at=now))
+        db.commit()
+
+        changes = get_recent_network_changes(db, hours=24)
+        usdt = [c for c in changes if c['exchange'] == 'binance' and c['coin'] == 'USDT']
+        assert usdt, 'Kaia USDT 출금 중단 변경이 감지돼야 한다'
+        titles = [n['title'] for c in usdt for n in c['related_notices']]
+        assert any('Kaia' in t for t in titles), '정상 USDT/Kaia 공지는 첨부돼야 한다'
+        assert not any('HUSDT' in t for t in titles), 'HUSDT 선물 공지는 첨부되면 안 된다'
 
 
 class TestFetchTargetedNotices:

@@ -11,6 +11,13 @@ from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapsho
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
 from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot, KoreaWithdrawalLimitSnapshot
 from backend.app.db.models import ExchangeCautionInfo
+from backend.app.domain.notice_match import (
+    BTC_KEYWORDS,
+    FEE_KEYWORDS,
+    MAJOR_KEYWORDS,
+    is_relevant_title,
+    keyword_in_title,
+)
 
 
 def get_latest_successful_run(db: Session) -> CrawlRun | None:
@@ -160,21 +167,21 @@ def get_latest_relevant_notices(db: Session, limit: int = 5) -> list[ExchangeNot
     """BTC/USDT/Lightning 관련 최신 공지 limit건 반환 (전체 DB 기준 최신순)
 
     알트코인 무관 공지를 제외하기 위해 BTC 특화 + 거래소 전체 주요 공지만 허용.
+    SQL ILIKE 는 coarse 프리필터일 뿐 — 'USDT'가 'HUSDT' 선물 공지에 substring으로
+    오탐되므로, is_relevant_title()(티커 라틴 경계 매칭)로 후처리하여 정확히 거른다.
+    키워드 목록은 notice_match SSoT를 공유한다.
     """
     from sqlalchemy import nullslast  # noqa: PLC0415
-    btc_keywords = ['BTC', 'Bitcoin', '비트코인', 'USDT', 'Tether', '테더', 'Lightning', '라이트닝', 'SegWit', '세그윗', 'halving', '반감기']
-    major_keywords = ['전체 점검', '전체점검', '서비스 점검', '서비스점검', '시스템 점검', '시스템점검', '거래소 점검', '긴급 점검', '긴급점검']
-    binance_fee_keywords = ['zero fee', 'zero-fee', '0% fee', '0% maker', '0% taker', 'fee promotion', 'fee update', 'trading fee', 'fee structure', 'fee change', 'fee rate', 'fee waiver', 'FDUSD']
-    conditions = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in btc_keywords]
-    conditions += [ExchangeNotice.title.contains(kw) for kw in major_keywords]
-    conditions += [ExchangeNotice.title.ilike(f'%{kw}%') for kw in binance_fee_keywords]
+    conditions = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in BTC_KEYWORDS]
+    conditions += [ExchangeNotice.title.contains(kw) for kw in MAJOR_KEYWORDS]
+    conditions += [ExchangeNotice.title.ilike(f'%{kw}%') for kw in FEE_KEYWORDS]
     stmt = (
         select(ExchangeNotice)
         .where(or_(*conditions))
         .order_by(nullslast(desc(ExchangeNotice.published_at)), desc(ExchangeNotice.noticed_at))
-        .limit(limit)
     )
-    return list(db.scalars(stmt))
+    relevant = [n for n in db.scalars(stmt) if is_relevant_title(n.title, include_fee=True)]
+    return relevant[:limit]
 
 
 def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
@@ -268,15 +275,21 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
             .where(ExchangeNotice.exchange == change['exchange'])
             .where(or_(*conds))
             .order_by(desc(ExchangeNotice.noticed_at))
-            .limit(3)
+            .limit(20)
         ))
+        # SQL ILIKE 오탐 제거: 'USDT'가 'HUSDT' 선물 공지에 substring으로 걸리는 것을
+        # 티커 라틴 경계 매칭(keyword_in_title)으로 후처리 후 상위 3건만 사용.
+        matched = [
+            n for n in notice_rows
+            if any(keyword_in_title(n.title.lower(), kw) for kw in keywords)
+        ][:3]
         change['related_notices'] = [
             {
                 'title': n.title,
                 'url': n.url,
                 'published_at': int(n.published_at.timestamp()) if n.published_at else None,
             }
-            for n in notice_rows
+            for n in matched
         ]
 
     return changes
