@@ -193,6 +193,22 @@ def get_all_notices_by_exchange(db: Session) -> list[ExchangeNotice]:
 _NOTICE_STOPWORDS = {'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and'}
 
 
+def _notice_matches_change(title_lower: str, coin: str | None, network_words: list[str]) -> bool:
+    """공지가 네트워크 변경(coin+network)과 관련 있는지 판단.
+
+    coin과 network 둘 다(AND) 매칭돼야 관련 공지로 인정한다 — coin(예: USDT)만 든
+    무관 공지(KGST/USDT 캠페인, USDT/KZT 페어 등)가 특정 네트워크 출금중단에 붙는
+    노이즈를 차단. network는 여러 토큰으로 쪼개질 수 있어 그 중 하나라도(any) 매칭되면
+    네트워크 조건을 충족한 것으로 본다. (예: USDT 변경 + Kaia 네트워크 → 제목에
+    USDT '그리고' Kaia 가 함께 있어야 관련)
+    """
+    if coin and not keyword_in_title(title_lower, coin):
+        return False
+    if network_words and not any(keyword_in_title(title_lower, w) for w in network_words):
+        return False
+    return True
+
+
 def _wd_disabled_set(rows: list[WithdrawalFeeSnapshot]) -> set[tuple[str, str, str]]:
     """출금 스냅샷에서 비활성(enabled=False) 행의 (exchange, coin, network_label) 집합 반환."""
     return {(r.exchange, r.coin, r.network_label) for r in rows if not r.enabled}
@@ -257,19 +273,18 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
         return []
 
     for change in changes:
-        keywords: list[str] = []
-        if change['coin']:
-            keywords.append(change['coin'])
-        if change['network']:
-            keywords.extend(
-                w for w in change['network'].split()
-                if w.lower() not in _NOTICE_STOPWORDS and len(w) >= 3
-            )
-        if not keywords:
+        coin_kw: str | None = change['coin']
+        network_words = [
+            w for w in (change['network'] or '').split()
+            if w.lower() not in _NOTICE_STOPWORDS and len(w) >= 3
+        ]
+        all_keywords = ([coin_kw] if coin_kw else []) + network_words
+        if not all_keywords:
             change['related_notices'] = []
             continue
 
-        conds = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in keywords]
+        # SQL ILIKE 는 coarse 프리필터(OR로 넓게 수집) — 정밀 필터는 후처리에서.
+        conds = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in all_keywords]
         notice_rows = list(db.scalars(
             select(ExchangeNotice)
             .where(ExchangeNotice.exchange == change['exchange'])
@@ -277,11 +292,10 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
             .order_by(desc(ExchangeNotice.noticed_at))
             .limit(20)
         ))
-        # SQL ILIKE 오탐 제거: 'USDT'가 'HUSDT' 선물 공지에 substring으로 걸리는 것을
-        # 티커 라틴 경계 매칭(keyword_in_title)으로 후처리 후 상위 3건만 사용.
+        # coin AND network 매칭 + 티커 라틴 경계('USDT'≠'HUSDT')로 정밀 필터, 상위 3건.
         matched = [
             n for n in notice_rows
-            if any(keyword_in_title(n.title.lower(), kw) for kw in keywords)
+            if _notice_matches_change(n.title.lower(), coin_kw, network_words)
         ][:3]
         change['related_notices'] = [
             {

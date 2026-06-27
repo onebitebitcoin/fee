@@ -134,6 +134,45 @@ class TestRelatedNoticesPrecision:
         assert any('Kaia' in t for t in titles), '정상 USDT/Kaia 공지는 첨부돼야 한다'
         assert not any('HUSDT' in t for t in titles), 'HUSDT 선물 공지는 첨부되면 안 된다'
 
+    def test_coin_only_notice_not_attached(self):
+        """coin(USDT)만 들고 네트워크(Kaia)는 없는 공지는 AND 매칭에서 제외돼야 한다."""
+        db = self._new_session()
+        now = dt.datetime.now(dt.timezone.utc)
+        prev = CrawlRun(trigger='test', status='success',
+                        started_at=now - dt.timedelta(hours=2), completed_at=now - dt.timedelta(hours=2))
+        curr = CrawlRun(trigger='test', status='success',
+                        started_at=now - dt.timedelta(hours=1), completed_at=now - dt.timedelta(hours=1))
+        db.add_all([prev, curr])
+        db.flush()
+
+        db.add(WithdrawalFeeSnapshot(crawl_run_id=prev.id, exchange='binance',
+                                     coin='USDT', network_label='Kaia', enabled=True,
+                                     source='scraped_page', recorded_at=now))
+        db.add(WithdrawalFeeSnapshot(crawl_run_id=curr.id, exchange='binance',
+                                     coin='USDT', network_label='Kaia', enabled=False,
+                                     source='scraped_page', recorded_at=now))
+
+        # coin(USDT)만 있고 Kaia 없음 → 제외돼야 함
+        db.add(ExchangeNotice(crawl_run_id=curr.id, exchange='binance',
+                              title='Binance Launches KGST/USDT Zero Trading Fee Campaign',
+                              url='https://x/kgst', noticed_at=now))
+        db.add(ExchangeNotice(crawl_run_id=curr.id, exchange='binance',
+                              title='Binance Adds USDT/KZT Spot Trading Pair',
+                              url='https://x/kzt', noticed_at=now))
+        # coin+network 둘 다 → 포함돼야 함
+        db.add(ExchangeNotice(crawl_run_id=curr.id, exchange='binance',
+                              title='Binance Will Suspend USDT Withdrawals on Kaia Network',
+                              url='https://x/real', noticed_at=now))
+        db.commit()
+
+        changes = get_recent_network_changes(db, hours=24)
+        usdt = [c for c in changes if c['exchange'] == 'binance' and c['coin'] == 'USDT']
+        assert usdt
+        titles = [n['title'] for c in usdt for n in c['related_notices']]
+        assert any('Kaia' in t for t in titles), 'USDT+Kaia 공지는 첨부돼야 한다'
+        assert not any('KGST' in t for t in titles), 'Kaia 없는 USDT 캠페인은 제외돼야 한다'
+        assert not any('KZT' in t for t in titles), 'Kaia 없는 USDT 페어는 제외돼야 한다'
+
 
 class TestFetchTargetedNotices:
     def test_unknown_exchange_returns_empty(self):

@@ -115,7 +115,7 @@ cd frontend && npm run test
 |------|------|
 | `models.py` | SQLAlchemy 모델 전체 정의 |
 | `board_repository.py` | 게시판(BoardPost/BoardComment) ORM 접근 계층. list_notices/list_posts(페이지네이션)/get/create/update/delete + comment_counts + 댓글 CRUD. |
-| `repositories.py` | DB 조회 함수 전체 (get_latest_successful_run, list_ticker_snapshots_for_run 등). `get_prev_run_network_status(db, crawl_run_id)` — 현재 크롤 이전의 최근 성공 크롤 네트워크 상태 반환. `get_recent_network_changes(db, hours=24)` — **WithdrawalFeeSnapshot.enabled 기반** 24시간 내 연속 크롤 쌍 비교로 suspended/resumed 변경 감지 + 관련 공지 첨부. **공지 첨부/`get_latest_relevant_notices`는 SQL ILIKE를 coarse 프리필터로만 쓰고, `notice_match.keyword_in_title`/`is_relevant_title`로 후처리해 'USDT'가 'HUSDT' 선물 공지에 substring 오탐되는 것을 제거(쿼리 시점 필터라 기존 DB 행도 즉시 교정, 재크롤 불필요).** `record_visit(ip)` — IP 기준 하루 1회 방문자 카운트. `record_route_request()` — 경로 탐색 요청 카운트. |
+| `repositories.py` | DB 조회 함수 전체 (get_latest_successful_run, list_ticker_snapshots_for_run 등). `get_prev_run_network_status(db, crawl_run_id)` — 현재 크롤 이전의 최근 성공 크롤 네트워크 상태 반환. `get_recent_network_changes(db, hours=24)` — **WithdrawalFeeSnapshot.enabled 기반** 24시간 내 연속 크롤 쌍 비교로 suspended/resumed 변경 감지 + 관련 공지 첨부. **공지 첨부/`get_latest_relevant_notices`는 SQL ILIKE를 coarse 프리필터로만 쓰고 `notice_match`로 후처리(쿼리 시점 필터라 기존 DB 행도 즉시 교정, 재크롤 불필요). 첨부 정밀 필터 `_notice_matches_change(title, coin, network_words)` — coin AND network 둘 다 매칭해야 관련 인정(coin만 든 KGST/USDT 캠페인·USDT/KZT 페어 등 노이즈 차단; network는 토큰 중 any). 티커는 `keyword_in_title` 라틴 경계라 'USDT'≠'HUSDT'.** `record_visit(ip)` — IP 기준 하루 1회 방문자 카운트. `record_route_request()` — 경로 탐색 요청 카운트. |
 | `session.py` | DB 세션 팩토리 (`get_db` 의존성 주입) |
 | `bootstrap.py` | DB 초기화, 테이블 생성 |
 | `carf_seed.py` | CARF 거래소 데이터 시딩 |
