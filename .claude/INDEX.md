@@ -144,7 +144,9 @@ cd frontend && npm run test
 
 | 파일 | 역할 |
 |------|------|
-| `src/pages/ExplorerPage.tsx` | **얇은 컨트롤러 (~87줄)**. `ExplorerProvider` + `ExplorerShell`(헤더/푸터) + `StepFrame`(현재 phase의 모션 래퍼). 실제 단계 UI는 `explorer/steps/*`에 위임. |
+| `src/pages/ExplorerPage.tsx` | **얇은 컨트롤러 (~90줄)**. `ExplorerProvider` + `ExplorerShell`(헤더/푸터) + `StepTimeline`(진행 타임라인) + `StepFrame`(현재 phase의 모션 래퍼). 실제 단계 UI는 `explorer/steps/*`에 위임. |
+| `src/pages/explorer/timeline.ts` | **마법사 진행 타임라인 순수 로직.** `timelinePhases(sel, current)` — `flowNext()`를 반복 적용해 실제로 거쳐온 단계 목록 산출(분기 규칙은 `flow.ts` FLOW 단일 기준, 여기서 재정의 안 함). `buildTimeline()` — 단계별 라벨/선택값(한글)/파비콘 id/상태(done·current) 생성. `timeline.test.ts`(10케이스). |
+| `src/pages/explorer/StepTimeline.tsx` | 마법사 상단 가로 진행 타임라인 UI(표시 전용). 완료 단계 체크 아이콘 + 거래소 파비콘 + 단계명/선택값 2줄 칩, 현재 단계는 amber 강조. 단계 1개 이하면 렌더 안 함, 가로 스크롤 지원. |
 | `src/pages/explorer/flow.ts` | **순서/경로 정의 (Single Source).** `Phase`·`CoinType`·`Destination` 타입, `FLOW` 그래프(각 단계 next(state)), `flowNext`/`flowPrev`/`flowSteps`, `PHASES`/`phaseIdx`. **순서·경로 변경 시 이 파일만 수정.** 플로우: `domestic→coin→(BTC→btc_method→result / BTC_GLOBAL→btc_method→global→…/ USDT→global→…)→global_exit_method→(lightning→destination→(lightning_wallet→result / personal→swap_service→result) / onchain→result)`. |
 | `src/pages/explorer/constants.ts` | 정적 데이터·헬퍼: `GLOBAL_EXCHANGES`, `DOMESTIC_INFO`, `GLOBAL_INFO`, `RISK_*`, `SPRING_*`, `AllData` 타입, `bestByBtc`/`fmtKst`/`fmtAmountText`. |
 | `src/pages/explorer/ui.tsx` | 공용 컴포넌트: `ExFavicon`, `SectionLabel`, `Chip`, `OptionCard`, `LoadingScreen`, `GatemanPanel`. |

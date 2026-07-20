@@ -6,6 +6,7 @@ import type { Phase } from './explorer/flow';
 import { SPRING_SLOW } from './explorer/constants';
 import { ExplorerProvider, useExplorer } from './explorer/ExplorerContext';
 import { STEP_REGISTRY } from './explorer/registry';
+import { StepTimeline } from './explorer/StepTimeline';
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ function ExplorerShell() {
 
       {/* Main */}
       <div className="flex-1 max-w-xl mx-auto w-full px-4 py-6">
+        <StepTimeline />
         <AnimatePresence mode="wait" custom={dir}>
           <StepFrame key={phase} phase={phase} dir={dir} />
         </AnimatePresence>
