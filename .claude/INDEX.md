@@ -79,11 +79,12 @@ cd frontend && npm run test
 | 파일 | 역할 |
 |------|------|
 | `__init__.py` | `BuilderContext`/`BuildResult` + `PER_EXCHANGE_BUILDERS`/`AGGREGATE_BUILDERS` re-export. |
-| `base.py` | `BuilderContext`(빌더 공유 입력: ctx/amount_krw/global_exchange/사전계산 글로벌출금·usdt_nets·lightning_swap_rows) + `BuildResult(paths, disabled)` dataclass + 공유 헬퍼(`_get_korean_taker`/`_force_calc_withdraw`/`_ex_ko`/`_EXCHANGE_KO`). |
-| `btc_direct.py` | `build_btc_direct(bctx, exchange)` — BTC 직접 온체인 출금 경로. |
-| `btc_via_global.py` | `build_btc_via_global(bctx, exchange)` — 국내 BTC→글로벌 경유→온체인 경로. 글로벌 온체인 출금도 `withdraw_leg` 통과(min/max/suspension 검증, split_on_max). Blocked 시 disabled_paths 기록. |
-| `usdt.py` | `build_usdt(bctx, exchange)` — USDT 경유→글로벌 BTC 매수→온체인 경로. 글로벌 온체인 출금도 `withdraw_leg` 통과. **글로벌 BTC 온체인 행 미수집 시 경로 미생성**(수수료 누락 경로 금지, btc_via_global과 동일). |
-| `lightning.py` | `build_lightning(bctx)` — **집계 빌더**(내부 거래소 순회). LN exit 경로(USDT/BTC→글로벌→LN, 스왑/직접). LN 헬퍼(`_resolve_global_ln_row`/`_ln_num_txs`/`_global_ln_fee_krw`/`_build_ln_global_exit_components`) 포함. |
+| `base.py` | `BuilderContext`(빌더 공유 입력: ctx/amount_krw/global_exchange/사전계산 글로벌출금 fee·**row**·usdt_nets·lightning_swap_rows) + `BuildResult(paths, disabled)` dataclass + 공유 헬퍼(`_get_korean_taker`/`_force_calc_withdraw`/`_ex_ko`/`_EXCHANGE_KO`). |
+| `chain.py` | **공용 진입 체인 + 글로벌 온체인 종료 엣지 (단일 구현).** `Entry` dataclass + `iter_btc_entries(mode='direct'/'via')`(매수→국내 BTC 출금; direct=트래블룰 분할+forced-calc disabled, via=VASP行 스킵) + `iter_usdt_entries(include_disabled=)`(매수→USDT 출금→글로벌 BTC 매수) + `global_onchain_exit()`(withdraw_leg 통일 검증+sats 표기). 진입 체인 로직 변경은 여기 한 곳만. |
+| `btc_direct.py` | `build_btc_direct(bctx, exchange)` — BTC 직접 온체인 출금 경로. `iter_btc_entries('direct')` 소비 후 dict 조립만. |
+| `btc_via_global.py` | `build_btc_via_global(bctx, exchange)` — 국내 BTC→글로벌 경유→온체인 경로. `iter_btc_entries('via')` + `global_onchain_exit()`(min/max/suspension 검증, split_on_max). Blocked 시 disabled_paths 기록. |
+| `usdt.py` | `build_usdt(bctx, exchange)` — USDT 경유→글로벌 BTC 매수→온체인 경로. `iter_usdt_entries(include_disabled=True)` + `global_onchain_exit()`. **글로벌 BTC 온체인 행 미수집 시 경로 미생성**(수수료 누락 경로 금지, btc_via_global과 동일). |
+| `lightning.py` | `build_lightning(bctx)` — **집계 빌더**(내부 거래소 순회). LN exit 경로(USDT/BTC→글로벌→LN, 스왑/직접). 진입 체인은 `chain.py` 반복자 재사용, LN 고유부(`_resolve_global_ln_row`/`_ln_num_txs`/`_ln_withdraw`/`_apply_swap`)만 보유. |
 | `registry.py` | **빌더 실행 순서 Single Source.** `PER_EXCHANGE_BUILDERS`(거래소 루프 내, 순서 보존) + `AGGREGATE_BUILDERS`(루프 이후). 새 경로 타입 = 모듈 작성 → 리스트 등록. |
 | `destination.py` | **종착지 리졸버.** `resolve_destination(path)` — `DESTINATION_RULES`(predicate→destination, 순서대로 첫 매치) + `DEFAULT_DESTINATION='personal'`. LN 직접출금(__direct__)→'lightning_wallet'. 새 종착지 = 규칙 1개 추가. paths_buy 후처리 루프가 소비. |
 
