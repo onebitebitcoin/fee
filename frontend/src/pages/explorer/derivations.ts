@@ -131,6 +131,9 @@ export function computeNetworkOptions(
   }
   const map = new Map<string, CheapestPathEntry>();
   for (const p of paths) {
+    // 출금 정지로 강제계산된 참고용 경로는 정상 선택지에서 제외 —
+    // computeDisabledNetworkOptions가 비활성 목록(사유 포함)으로 노출한다.
+    if (p.disabled) continue;
     const cur = map.get(p.network);
     const pFee = p.total_fee_krw ?? Infinity;
     const curFee = cur ? (cur.total_fee_krw ?? Infinity) : Infinity;
@@ -153,9 +156,35 @@ export function computeDisabledNetworkOptions(
   const source = coin === 'USDT' || coin === 'BTC_GLOBAL'
     ? (global ? allData.byGlobal[global] : null)
     : Object.values(allData.byGlobal)[0];
-  return (source?.disabled_paths ?? []).filter(
+  const fromDisabledList = (source?.disabled_paths ?? []).filter(
     p => p.korean_exchange === domestic && p.transfer_coin === transferCoin,
   );
+  // all_paths에 강제계산된 disabled 경로(출금 정지지만 수수료 참고용)도 비활성 네트워크로 노출.
+  // computeNetworkOptions와 동일한 경로 필터를 적용해 같은 단계의 네트워크만 잡는다.
+  const routeMatch = (p: CheapestPathEntry) =>
+    coin === 'BTC'
+      ? p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'
+      : coin === 'BTC_GLOBAL'
+        ? p.route_variant === 'btc_via_global'
+        : p.transfer_coin === 'USDT';
+  const seen = new Set(fromDisabledList.map(p => p.network));
+  const fromPaths: DisabledCheapestPathEntry[] = [];
+  for (const p of source?.all_paths ?? []) {
+    if (!p.disabled || p.korean_exchange !== domestic || !routeMatch(p)) continue;
+    if (seen.has(p.network)) continue;
+    seen.add(p.network);
+    fromPaths.push({
+      korean_exchange: p.korean_exchange,
+      transfer_coin: transferCoin,
+      network: p.network,
+      reason: p.disabled_reason === 'disabled' ? null : p.disabled_reason,
+      suspension_message: p.suspension_message,
+      notice_url: p.notice_url,
+      notice_published_at: p.notice_published_at,
+      notice_title: p.notice_title,
+    });
+  }
+  return [...fromDisabledList, ...fromPaths];
 }
 
 /** 현재 글로벌 선택에서 라이트닝 exit 경로 가용 여부 (network 선택 전). */

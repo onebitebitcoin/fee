@@ -538,7 +538,12 @@ export function ResultStep() {
                                     </>
                                   )}
                                   <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
+                                  {p.global_exit_mode === 'lightning' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__' ? (
+                                    // 스왑 서비스 경유 → 서비스 로고 (메인 경로 표시와 동일 규칙)
+                                    <ExFavicon id={p.lightning_exit_provider} size={12} />
+                                  ) : (
+                                    <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
+                                  )}
                                   <span className="text-[10px] text-label-tertiary">
                                     {p.global_exit_mode === 'lightning'
                                       ? (p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__'
