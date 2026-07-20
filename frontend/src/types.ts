@@ -305,6 +305,34 @@ export type ExchangeNoticeItem = {
   noticed_at: number | null;
 };
 
+export type ExchangeCapabilityRow = {
+  exchange: string;
+  supports_lightning_deposit: boolean;
+  supports_lightning_withdrawal: boolean;
+};
+
+// /market/carf-exchanges 실제 응답 (carf_seed.py 기반)
+export type CarfExchangeInfo = {
+  id: string;
+  name: string | null;
+  shortName: string | null;
+  type: string | null;
+  registeredCountry: string | null;
+  carfGroup: string | null;
+  carfDataCollectionStart: string | null;
+  carfFirstExchange: string | null;
+  koreaService: string | null;
+  koreaBlocked: boolean | null;
+  koreaImpact: string | null;
+  impactDetail: string | null;
+  travelRuleKorea: string | null;
+  travelRuleNote: string | null;
+  koreaUserJurisdiction: string | null;
+  koreaUserJurisdictionNote: string | null;
+  mapLocation: unknown;
+  sources: string[] | null;
+};
+
 // ── 게시판 ──────────────────────────────────────────────────────────────────
 export type BoardCategory = 'general' | 'report' | 'notice';
 

@@ -3,8 +3,12 @@ import type {
   BoardComment,
   BoardListResponse,
   BoardPostDetail,
+  CarfExchangeInfo,
   CheapestPathResponse,
   CrawlRun,
+  ExchangeCapabilityRow,
+  ExchangeStatusResponse,
+  LightningSwapFeeRow,
   LiveKimpResponse,
   NetworkChangesResponse,
   TickerRow,
@@ -180,9 +184,17 @@ export const api = {
   getCaution: (): Promise<Record<string, { caution: boolean; reason: string | null }>> =>
     request('/api/v1/exchanges/caution'),
 
-  getCarfExchanges: (): Promise<{
-    exchanges: Array<{ id: string; carfFirstExchange: string | null; registeredCountry: string | null }>;
-  }> => request('/api/v1/market/carf-exchanges'),
+  getCarfExchanges: (): Promise<{ exchanges: CarfExchangeInfo[] }> =>
+    request('/api/v1/market/carf-exchanges'),
+
+  getExchangeStatus: (): Promise<ExchangeStatusResponse> =>
+    request('/api/v1/market/status'),
+
+  getExchangeCapabilities: (): Promise<{ last_run: CrawlRun | null; items: ExchangeCapabilityRow[] }> =>
+    request('/api/v1/market/exchange-capabilities/latest'),
+
+  getLightningSwapFees: (): Promise<{ last_run: CrawlRun | null; items: LightningSwapFeeRow[] }> =>
+    request('/api/v1/market/lightning-swap-fees/latest'),
 
   updateCaution: (
     exchangeId: string,

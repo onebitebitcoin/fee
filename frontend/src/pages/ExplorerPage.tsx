@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { House, ClipboardText } from '@phosphor-icons/react';
+import { House, ClipboardText, ListMagnifyingGlass } from '@phosphor-icons/react';
 import type { Phase } from './explorer/flow';
 import { SPRING_SLOW } from './explorer/constants';
 import { ExplorerProvider, useExplorer } from './explorer/ExplorerContext';
@@ -61,6 +61,14 @@ function ExplorerShell() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/services"
+              className="flex items-center gap-1 text-label-tertiary hover:text-label-secondary transition-colors"
+              title="서비스 검색"
+            >
+              <ListMagnifyingGlass className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">서비스</span>
+            </Link>
             <Link
               to="/board"
               className="flex items-center gap-1 text-label-tertiary hover:text-label-secondary transition-colors"

@@ -159,12 +159,16 @@ cd frontend && npm run test
 | `src/pages/explorer/__fixtures__/cheapestAll.fixture.json` | 고정 입력 fixture (`/path-finder/cheapest-all` 실제 응답, amount_krw=1,000,000). 회귀 테스트 입력. |
 | `src/pages/explorer/__fixtures__/recommend.golden.json` | 검증된 기대 출력 (Playwright로 실제 UI와 27/27 일치 확인). `scripts/gen_recommend_golden.py`로 재생성. |
 | `src/pages/explorer/steps/*.tsx` | 단계별 독립 컴포넌트. 각자 `useExplorer()`로 필요한 값만 소비. InputStep/RecommendationStep/DomesticStep/GlobalStep/CoinStep/BtcMethodStep/NetworkStep/GlobalExitMethodStep/**DestinationStep**/SwapServiceStep/ResultStep. 체크리스트는 DomesticStep/GlobalStep에 인라인. `DestinationStep`: 라이트닝 출금 후 종착지(개인지갑=스왑 경유 / 라이트닝 지갑=직접 수신) 선택. `InputStep`(첫 화면): 방문자수·마퀴·시세·금액입력·**네트워크 비활성 목록**. 시세·김치 프리미엄 패널은 최초 `/market/kimp/live` 응답 전까지 `btcPriceLoading`(context) 기준 로딩 스피너("실시간 시세·김치 프리미엄 불러오는 중…") 표시 후 패널로 교체. 비활성 목록(`disabledNetworks.ts` 필터, 0개면 숨김)은 `networkChanges`(suspended)와 `exchange|coin|network_label` 키로 매칭해 **"언제부터"(detected_at)+관련 공지 링크(related_notices)** 표시. (변경 공지사항 섹션은 비활성 목록으로 흡수·제거됨; `getNetworkChanges()`는 enrichment용으로 유지.) |
-| `src/lib/api.ts` | API 클라이언트. `getTickers()`, `getCheapestPath()`, `getNetworkChanges()` (최근 네트워크 상태 변경 조회), `getWithdrawalFees()` (출금 수수료/활성 스냅샷, `WithdrawalFeesResponse`) |
+| `src/lib/api.ts` | API 클라이언트. `getTickers()`, `getCheapestPath()`, `getNetworkChanges()` (최근 네트워크 상태 변경 조회), `getWithdrawalFees()` (출금 수수료/활성 스냅샷, `WithdrawalFeesResponse`), `getExchangeStatus()`(`/market/status`), `getExchangeCapabilities()`(LN 입출금 지원), `getLightningSwapFees()`, `getCarfExchanges()`(`CarfExchangeInfo[]` 전체 필드) |
 | `src/types.ts` | 공유 타입 (`CheapestPathEntry`, `CheapestPathResponse`, `TickerRow`, `NetworkChange`, `NetworkChangeNotice`, `NetworkChangesResponse`) |
 | `src/lib/exchangeNames.ts` | 거래소 id → 표시명 매핑 (`fmtEx()`) |
 | `src/lib/formatBtc.ts` | BTC/수수료/사토시 포맷 유틸 |
 | `src/components/ErrorBoundary.tsx` | 에러 바운더리 |
-| `src/App.tsx` | 라우팅. `/admin`, `/board`(목록), `/board/new`(작성), `/board/:id`(상세), `/board/:id/edit`(수정), `*`→ExplorerPage. |
+| `src/App.tsx` | 라우팅. `/admin`, `/board`(목록), `/board/new`(작성), `/board/:id`(상세), `/board/:id/edit`(수정), `/services`(서비스 검색), `/services/:id`(서비스 상세), `*`→ExplorerPage. |
+| `src/pages/services/serviceDirectory.ts` | **서비스 디렉토리 순수 로직.** `ServiceNode` 타입 + `buildServiceNodes()`(status/capabilities/스왑수수료/caution/CARF 병합, LN 노드 방향별 dedup — ln_to_onchain 우선) + `filterServiceNodes()`(한글명·영문 id 검색 + 타입 필터). `serviceDirectory.test.ts`(6케이스). |
+| `src/pages/services/useServiceNodes.ts` | 목록/상세 공용 fetch 훅 — 공개 API 5종 병렬 호출(`getExchangeStatus`/`getExchangeCapabilities`/`getLightningSwapFees`/`getCaution`/`getCarfExchanges`), 부가 API 실패는 빈값 폴백. |
+| `src/pages/services/ServicesPage.tsx` | `/services` — 검색 인풋 + 타입 칩(전체/국내/해외/라이트닝) + 노드 카드 리스트(파비콘·KYC/라이트닝/유의/공지 칩) → `/services/:id` 이동. `BoardLayout` 재사용. |
+| `src/pages/services/ServiceDetailPage.tsx` | `/services/:id` — 섹션 카드: 개요(국가/은행/위험도/링크), 유의, KYC, 라이트닝(거래소=지원여부·스왑=수수료/한도), CARF·규제, 출금 수수료 테이블, 출금 한도(국내), 출금 규칙(게이트맨 live→정적 폴백), 공지사항. 미존재 id는 에러+목록 버튼. |
 | `src/pages/board/BoardListPage.tsx` | 게시판 목록. 검색(제목+내용)·페이지네이션(20)·공지 상단고정+색상구분. 글쓰기 버튼. |
 | `src/pages/board/BoardDetailPage.tsx` | 게시글 상세 + 본문 수정/삭제(비밀번호) + 댓글 목록/작성/수정/삭제(인라인, 비밀번호). |
 | `src/pages/board/BoardWritePage.tsx` | 작성/수정 폼. 일반/제보 카테고리, 닉네임+비밀번호. `?template=report` 시 제보 템플릿 프리필. |
