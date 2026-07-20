@@ -74,18 +74,19 @@ def resolve_global_onchain_wd_fee(
     global_exchange: str,
     global_btc_price_usd: float,
     usd_krw_rate: float,
-) -> tuple[float | None, int, str | None]:
-    """글로벌 거래소 BTC 온체인 출금 수수료를 (fee_btc, fee_krw, network_label) 형태로 반환.
+) -> tuple[float | None, int, str | None, object | None]:
+    """글로벌 거래소 BTC 온체인 출금 수수료를 (fee_btc, fee_krw, network_label, row) 형태로 반환.
 
-    찾지 못하면 (None, 0, None) 반환.
+    row는 min/max/suspension 검증을 위해 withdraw_leg에 그대로 전달할 원본 행.
+    찾지 못하면 (None, 0, None, None) 반환.
     """
     for wd in withdrawals_by_key.get((global_exchange, 'BTC'), []):
         label_lower = (wd.network_label or '').lower()
         if wd.enabled and wd.fee is not None and is_bitcoin_native_network(label_lower):
             fee_btc = wd.fee
             fee_krw = int(round(wd.fee_krw)) if wd.fee_krw is not None else round(wd.fee * global_btc_price_usd * usd_krw_rate)
-            return fee_btc, fee_krw, wd.network_label
-    return None, 0, None
+            return fee_btc, fee_krw, wd.network_label, wd
+    return None, 0, None, None
 
 
 def _slug_path_part(value: str | None) -> str:

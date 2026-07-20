@@ -65,7 +65,7 @@ cd frontend && npm run test
 | `market_core.py` | fee_checker 래퍼. `KOREA_FETCHERS`, `GLOBAL_FETCHERS`, `WITHDRAWAL_FETCHERS`. `get_ticker()`, `get_withdrawal_fees()` 등 실시간 API 호출 함수. **`withdrawal_source(exchange, coin)` — 출금 수수료 출처 라벨(static/realtime_api/scraped_page). `STATIC_WITHDRAWAL_FEE_KEYS`={('coinbase','BTC')} → 정적. `get_withdrawal_fees` 응답 source가 DB WithdrawalFeeSnapshot.source로 저장 → 프론트/어드민 노출.** |
 | `market_paths.py` | 실시간 API 기반 경로 계산 함수 모음. `compare_btc_prices`, `get_exchange_summary`, `calculate_btc_purchase_cost`, `find_cheapest_path`, `get_network_status` 정의. 하위 호환 re-export: `find_cheapest_path_from_snapshot_rows`(paths_buy), `find_cheapest_sell_path_from_snapshot_rows`(paths_sell). MCP 도구는 live_market.py 경유로 소비. |
 | `path_graph.py` | **엣지 파이프라인 엔진 (3계산기 공통 코어).** `Leg`/`Blocked` + 매수 엣지(`korea_buy_leg`/`global_buy_leg`/`global_buy_maker_leg`), 매도 엣지(`korea_sell_leg`/`global_sell_leg`), `withdraw_leg`(모든 출금 enabled/suspension/min/max 통일), `swap_leg`(양방향), `row_from_dict`(live dict→row 어댑터). |
-| `paths_buy.py` | **얇은 매수 오케스트레이터.** `find_cheapest_path_from_snapshot_rows()` — 컨텍스트 빌드 → `paths/` 레지스트리 순회(거래소별+집계) → 후처리(종착지 태깅/정렬/응답 envelope). `_build_available_filters()`(paths_sell가 import). 빌더 본체는 `paths/` 패키지에 위임. |
+| `paths_buy.py` | **얇은 매수 오케스트레이터.** `find_cheapest_path_from_snapshot_rows()` — 컨텍스트 빌드 → `paths/` 레지스트리 순회(거래소별+집계) → 후처리(종착지 태깅/정렬/응답 envelope). **`best_path`/`top5`는 disabled(강제계산) 경로 제외, `all_paths`에는 유지.** `_build_available_filters()`(paths_sell가 import). 빌더 본체는 `paths/` 패키지에 위임. |
 | `paths_sell.py` | 엣지 체인 기반 매도 경로 계산 (웹). `find_cheapest_sell_path_from_snapshot_rows()` — `korea_sell_leg`/`global_sell_leg`/`withdraw_leg`(min/max 적용)/`swap_leg`(onchain_to_ln). mempool 지갑 수수료·capability 게이팅 유지. |
 | `paths_context.py` | `SnapshotContext` dataclass + `build_snapshot_context()` — buy/sell 공통 스냅샷 컨텍스트. `usd_krw_rate`(포렉스, 표시·USD환산) + `usdt_buy_krw_rate`(한국 USDT/KRW, USDT 매수 leg 기준; 미주입 시 포렉스 폴백) 분리 보유 |
 | `path_helpers.py` | 경로 계산 공통 유틸: `fee_component`, `is_suspended`, `normalize_usdt_network`, `is_bitcoin_native_network`, `resolve_global_onchain_wd_fee`, `_build_path_id` |
@@ -81,8 +81,8 @@ cd frontend && npm run test
 | `__init__.py` | `BuilderContext`/`BuildResult` + `PER_EXCHANGE_BUILDERS`/`AGGREGATE_BUILDERS` re-export. |
 | `base.py` | `BuilderContext`(빌더 공유 입력: ctx/amount_krw/global_exchange/사전계산 글로벌출금·usdt_nets·lightning_swap_rows) + `BuildResult(paths, disabled)` dataclass + 공유 헬퍼(`_get_korean_taker`/`_force_calc_withdraw`/`_ex_ko`/`_EXCHANGE_KO`). |
 | `btc_direct.py` | `build_btc_direct(bctx, exchange)` — BTC 직접 온체인 출금 경로. |
-| `btc_via_global.py` | `build_btc_via_global(bctx, exchange)` — 국내 BTC→글로벌 경유→온체인 경로. |
-| `usdt.py` | `build_usdt(bctx, exchange)` — USDT 경유→글로벌 BTC 매수→온체인 경로. |
+| `btc_via_global.py` | `build_btc_via_global(bctx, exchange)` — 국내 BTC→글로벌 경유→온체인 경로. 글로벌 온체인 출금도 `withdraw_leg` 통과(min/max/suspension 검증, split_on_max). Blocked 시 disabled_paths 기록. |
+| `usdt.py` | `build_usdt(bctx, exchange)` — USDT 경유→글로벌 BTC 매수→온체인 경로. 글로벌 온체인 출금도 `withdraw_leg` 통과. **글로벌 BTC 온체인 행 미수집 시 경로 미생성**(수수료 누락 경로 금지, btc_via_global과 동일). |
 | `lightning.py` | `build_lightning(bctx)` — **집계 빌더**(내부 거래소 순회). LN exit 경로(USDT/BTC→글로벌→LN, 스왑/직접). LN 헬퍼(`_resolve_global_ln_row`/`_ln_num_txs`/`_global_ln_fee_krw`/`_build_ln_global_exit_components`) 포함. |
 | `registry.py` | **빌더 실행 순서 Single Source.** `PER_EXCHANGE_BUILDERS`(거래소 루프 내, 순서 보존) + `AGGREGATE_BUILDERS`(루프 이후). 새 경로 타입 = 모듈 작성 → 리스트 등록. |
 | `destination.py` | **종착지 리졸버.** `resolve_destination(path)` — `DESTINATION_RULES`(predicate→destination, 순서대로 첫 매치) + `DEFAULT_DESTINATION='personal'`. LN 직접출금(__direct__)→'lightning_wallet'. 새 종착지 = 규칙 1개 추가. paths_buy 후처리 루프가 소비. |

@@ -37,6 +37,7 @@ class BuilderContext:
     global_onchain_wd_fee: float | None
     global_onchain_wd_fee_krw: int
     global_onchain_network_label: str | None
+    global_onchain_wd_row: object | None = None
     global_usdt_nets: set[str] = field(default_factory=set)
     lightning_swap_rows: list = field(default_factory=list)
 

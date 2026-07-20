@@ -1,5 +1,4 @@
 """route_inspect.py 유닛 테스트."""
-import pytest
 from backend.app.domain.route_inspect import InspectResult, inspect_all, inspect_path
 
 

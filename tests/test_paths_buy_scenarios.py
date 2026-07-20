@@ -543,3 +543,83 @@ def test_ln_path_blocked_for_below_min_withdrawal():
         "LN min_withdrawal 미달로 Blocked된 사유가 disabled_paths에 기록되어야 한다. "
         f"disabled_paths: {result['disabled_paths']}"
     )
+
+
+# ── 글로벌 온체인 출금 검증 통일 (withdraw_leg invariant) ─────────────────────
+
+def _network_row(exchange, coin, network, status="suspended", reason="점검 중"):
+    return SimpleNamespace(exchange=exchange, coin=coin, network=network,
+                           status=status, reason=reason)
+
+
+def test_usdt_path_dropped_when_global_onchain_missing():
+    """글로벌 BTC 온체인 행이 없으면 USDT 온체인 경로를 만들지 않는다 (수수료 누락 경로 금지)."""
+    rows = [r for r in _withdrawals() if r.network_label != "Bitcoin" or r.exchange != "binance"]
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=rows, network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    usdt_onchain = [
+        p for p in result["all_paths"]
+        if p["transfer_coin"] == "USDT" and p.get("path_type") != "lightning_exit"
+    ]
+    assert usdt_onchain == [], "글로벌 온체인 출금 수수료 미상 시 USDT 온체인 경로 생성 금지"
+
+
+def test_global_onchain_suspension_blocks_via_paths():
+    """글로벌 BTC 온체인 정지 시 경유(via_global)/USDT 온체인 경로가 차단된다."""
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=_withdrawals(),
+        network_rows=[_network_row("binance", "BTC", "Bitcoin")],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    onchain_via = [
+        p for p in result["all_paths"]
+        if p.get("path_type") != "lightning_exit"
+        and (p.get("route_variant") == "btc_via_global" or p["transfer_coin"] == "USDT")
+    ]
+    assert onchain_via == [], "글로벌 온체인 정지 중엔 경유 온체인 경로 생성 금지"
+    # 직접출금 경로는 영향 없음
+    assert any(p.get("route_variant") == "btc_direct" for p in result["all_paths"])
+    # 차단 사유 기록
+    assert any(d.get("reason") == "점검 중" for d in result["disabled_paths"])
+
+
+def test_global_onchain_min_withdrawal_blocks_small_amounts():
+    """글로벌 BTC 온체인 min_withdrawal 미달 시 경유/USDT 경로 차단 + 사유 기록."""
+    rows = _withdrawals()
+    for r in rows:
+        if r.exchange == "binance" and r.network_label == "Bitcoin":
+            r.min_withdrawal = 0.5  # 10M KRW ≈ 0.07 BTC → 미달
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=rows, network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    onchain_via = [
+        p for p in result["all_paths"]
+        if p.get("path_type") != "lightning_exit"
+        and (p.get("route_variant") == "btc_via_global" or p["transfer_coin"] == "USDT")
+    ]
+    assert onchain_via == []
+    assert any("최소 한도" in d.get("reason", "") for d in result["disabled_paths"])
+
+
+def test_best_path_and_top5_exclude_disabled():
+    """강제계산된 disabled 경로는 all_paths엔 남지만 best_path/top5에선 제외."""
+    rows = _withdrawals()
+    for r in rows:
+        if r.exchange in ("bithumb", "upbit") and r.coin == "BTC":
+            r.enabled = False  # 국내 BTC 출금 전부 정지 → disabled 강제계산 경로 발생
+    result = find_cheapest_path_from_snapshot_rows(
+        amount_krw=10_000_000, global_exchange="binance", latest_run=_run(),
+        ticker_rows=_tickers(), withdrawal_rows=rows, network_rows=[],
+        lightning_swap_rows=[_swap("BitFreezer")],
+    )
+    assert any(p.get("disabled") for p in result["all_paths"]), "disabled 경로가 all_paths에 존재해야 함"
+    assert result["best_path"] is not None
+    assert not result["best_path"].get("disabled")
+    for p in result["top5"]:
+        assert not p.get("disabled")

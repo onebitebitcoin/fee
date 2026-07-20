@@ -78,7 +78,7 @@ def find_cheapest_path_from_snapshot_rows(
         return ctx_or_err
     ctx: SnapshotContext = ctx_or_err
 
-    global_onchain_wd_fee, global_onchain_wd_fee_krw, global_onchain_network_label = resolve_global_onchain_wd_fee(
+    global_onchain_wd_fee, global_onchain_wd_fee_krw, global_onchain_network_label, global_onchain_wd_row = resolve_global_onchain_wd_fee(
         ctx.withdrawals_by_key, global_exchange, ctx.global_btc_price_usd, ctx.usd_krw_rate
     )
 
@@ -95,6 +95,7 @@ def find_cheapest_path_from_snapshot_rows(
         global_onchain_wd_fee=global_onchain_wd_fee,
         global_onchain_wd_fee_krw=global_onchain_wd_fee_krw,
         global_onchain_network_label=global_onchain_network_label,
+        global_onchain_wd_row=global_onchain_wd_row,
         global_usdt_nets=global_usdt_nets,
         lightning_swap_rows=lightning_swap_rows or [],
     )
@@ -124,6 +125,8 @@ def find_cheapest_path_from_snapshot_rows(
         p['destination'] = resolve_destination(p)
 
     paths.sort(key=lambda item: (item['total_fee_krw'], -item['btc_received']))
+    # 강제계산된 disabled 경로는 참고용으로 all_paths에 남기되 추천(best/top5)에서는 제외
+    active_paths = [p for p in paths if not p.get('disabled')]
     lightning_services = sorted({
         s.service_name for s in (lightning_swap_rows or [])
         if s.enabled and s.fee_pct is not None
@@ -138,8 +141,8 @@ def find_cheapest_path_from_snapshot_rows(
         # USDT 매수에 실제 사용한 한국 USDT/KRW 환율 (프론트가 동일 환율로 평가해 잔차 0)
         'usdt_buy_krw_rate': round(float(ctx.usdt_buy_krw_rate), 2),
         'total_paths_evaluated': len(paths),
-        'best_path': paths[0] if paths else None,
-        'top5': paths[:5],
+        'best_path': active_paths[0] if active_paths else None,
+        'top5': active_paths[:5],
         'all_paths': paths,
         'disabled_paths': disabled_paths,
         'available_filters': _build_available_filters(paths),

@@ -10,7 +10,6 @@ from backend.app.domain.path_graph import (
 )
 from backend.app.domain.path_helpers import (
     _build_path_id,
-    fee_component,
     is_suspended,
     normalize_usdt_network,
 )
@@ -27,12 +26,18 @@ def build_usdt(bctx: BuilderContext, exchange: str) -> BuildResult:
     ctx = bctx.ctx
     amount_krw = bctx.amount_krw
     global_exchange = bctx.global_exchange
-    global_onchain_wd_fee = bctx.global_onchain_wd_fee
+    global_onchain_wd_row = bctx.global_onchain_wd_row
     global_onchain_network_label = bctx.global_onchain_network_label
     global_usdt_nets = bctx.global_usdt_nets
 
+    # 글로벌 BTC 온체인 출금 행이 없으면 마지막 홉 비용을 알 수 없다 —
+    # 수수료 누락된 채 경로를 만들지 않고 btc_via_global과 동일하게 경로 자체를 생략.
+    if global_onchain_wd_row is None:
+        return BuildResult([], [])
+
     paths: list[dict] = []
     disabled_paths: list[dict] = []
+    _seen_disabled: set[tuple] = set()
 
     ticker_row = ctx.ticker_by_exchange.get(exchange)
     if ticker_row is None:
@@ -112,34 +117,42 @@ def build_usdt(bctx: BuilderContext, exchange: str) -> BuildResult:
         # 글로벌 매수 엣지 — 수수료 원화 환산은 포렉스(usd_krw_rate). 매수 수량만 업비트 USDT.
         gbuy = global_buy_leg(usdt_wd.amount_out, ctx.global_taker, ctx.global_btc_price_usd, ctx.usd_krw_rate)
 
-        if global_onchain_wd_fee is not None:
-            btc_received = gbuy.amount_out - global_onchain_wd_fee
-            # 글로벌 BTC 출금 수수료(BTC)→KRW도 포렉스(usd_krw_rate)로 환산.
-            onchain_wd_fee_krw = round(global_onchain_wd_fee * ctx.global_btc_price_usd * ctx.usd_krw_rate)
-            global_wd_comp = fee_component(
-                f'해외 BTC 출금 수수료 ({global_exchange})', onchain_wd_fee_krw,
-                amount_text=f'{round(global_onchain_wd_fee * 100_000_000):,} sats', is_fixed=True,
-                move_amount=btc_received, move_coin='BTC',
-                move_amount_krw=round(btc_received * ctx.global_btc_price_usd * ctx.usd_krw_rate),
-            )
-            total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw + onchain_wd_fee_krw
-            wd_components = (
-                list(buy.components)
-                + [usdt_comp]
-                + list(gbuy.components)
-                + [global_wd_comp]
-            )
-        else:
-            btc_received = gbuy.amount_out
-            total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw
-            wd_components = (
-                list(buy.components)
-                + [usdt_comp]
-                + list(gbuy.components)
-            )
-
+        # 글로벌 온체인 출금 엣지 — enabled/min/max/suspension 통일 검증 (withdraw_leg invariant)
+        global_wd = withdraw_leg(
+            global_onchain_wd_row, gbuy.amount_out,
+            coin='BTC', price_krw=ctx.global_btc_price_usd * ctx.usd_krw_rate,
+            usd_krw=ctx.usd_krw_rate,
+            split_on_max=True,
+            maintenance_status=ctx.maintenance_status, exchange=global_exchange,
+            label_override=f'해외 BTC 출금 수수료 ({global_exchange})',
+        )
+        if isinstance(global_wd, Blocked):
+            _key = (exchange, row.network_label, global_wd.reason)
+            if _key not in _seen_disabled:
+                _seen_disabled.add(_key)
+                disabled_paths.append({
+                    'korean_exchange': exchange,
+                    'transfer_coin': 'USDT',
+                    'network': global_onchain_wd_row.network_label,
+                    'reason': global_wd.reason,
+                })
+            continue
+        btc_received = global_wd.amount_out
         if btc_received <= 0:
             continue
+
+        # amount_text 보정 — 실제 차감된 총 수수료(BTC)를 sats로 표기 (분할 출금 포함)
+        global_wd_fee_btc = gbuy.amount_out - btc_received
+        global_wd_comp = global_wd.components[0].copy()
+        global_wd_comp['amount_text'] = f'{round(global_wd_fee_btc * 100_000_000):,} sats'
+
+        total_fee_krw = buy.fee_krw + usdt_wd.fee_krw + gbuy.fee_krw + global_wd.fee_krw
+        wd_components = (
+            list(buy.components)
+            + [usdt_comp]
+            + list(gbuy.components)
+            + [global_wd_comp]
+        )
 
         entry: dict = {
             'korean_exchange': exchange,
