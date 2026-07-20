@@ -246,7 +246,7 @@
         "excludeDisabled": true
       },
       "expected": {
-        "count": 181,
+        "count": 182,
         "topRouteKey": "bithumb|USDT|bitget||lightning|Strike",
         "topFeeKrw": 2390,
         "topSats": 1026338
@@ -701,11 +701,6 @@
         "sats": 1022128
       },
       {
-        "routeKey": "bithumb|USDT|coinbase||onchain|",
-        "totalFeeKrw": 6756,
-        "sats": 1023087
-      },
-      {
         "routeKey": "korbit|USDT|okx||onchain|",
         "totalFeeKrw": 7390,
         "sats": 1021158
@@ -899,6 +894,11 @@
         "routeKey": "coinone|USDT|okx||lightning|Coinos",
         "totalFeeKrw": 11978,
         "sats": 1016497
+      },
+      {
+        "routeKey": "bithumb|USDT|coinbase||onchain|",
+        "totalFeeKrw": 12689,
+        "sats": 1017046
       },
       {
         "routeKey": "gopax|USDT|okx||onchain|",

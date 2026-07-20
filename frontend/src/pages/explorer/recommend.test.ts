@@ -66,6 +66,50 @@ describe('recommend: dedup + 정렬', () => {
   }
 });
 
+describe('recommend: dedup은 활성 경로를 우선한다', () => {
+  // USDT 경로는 라우트키에서 네트워크가 빠져 같은 거래소의 여러 네트워크가 한 키로 합쳐진다.
+  // 이때 출금 중단(disabled) 네트워크가 수령량만 크다는 이유로 대표가 되면,
+  // 실제로 쓸 수 있는 네트워크가 통째로 가려지고 그 거래소 경로가 '비활성'으로 보인다.
+  const mk = (over: Partial<RecommendedPath>): RecommendedPath => ({
+    korean_exchange: 'bithumb',
+    transfer_coin: 'USDT',
+    network: 'Aptos',
+    global_exit_mode: 'onchain',
+    total_fee_krw: 3465,
+    btc_received: 0.01058007,
+    _g: 'binance',
+    ...over,
+  } as RecommendedPath);
+
+  it('중단된 네트워크가 수령량이 더 커도 활성 네트워크를 대표로 선택한다', () => {
+    const out = dedupAndSortPaths([
+      mk({ network: 'TRC20', disabled: true, total_fee_krw: 3316, btc_received: 0.01058163 }),
+      mk({ network: 'Aptos' }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].network).toBe('Aptos');
+    expect(out[0].disabled).toBeFalsy();
+  });
+
+  it('활성 네트워크가 여럿이면 그중 수령량이 큰 쪽을 고른다', () => {
+    const out = dedupAndSortPaths([
+      mk({ network: 'ERC20', btc_received: 0.01051939 }),
+      mk({ network: 'Aptos', btc_received: 0.01058007 }),
+    ]);
+    expect(out[0].network).toBe('Aptos');
+  });
+
+  it('활성 경로가 하나도 없으면 중단된 경로를 대표로 남긴다', () => {
+    const out = dedupAndSortPaths([
+      mk({ network: 'TRC20', disabled: true, btc_received: 0.0105 }),
+      mk({ network: 'Aptos', disabled: true, btc_received: 0.0106 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].disabled).toBe(true);
+    expect(out[0].network).toBe('Aptos');
+  });
+});
+
 describe('recommend: 필터 시나리오 (golden 전수)', () => {
   it(`golden 시나리오 수 = 27`, () => {
     expect(golden.scenarios.length).toBe(27);

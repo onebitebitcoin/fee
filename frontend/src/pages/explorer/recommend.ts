@@ -52,7 +52,22 @@ export function recommendRouteKey(p: RecommendedPath): string {
 }
 
 /**
- * 평탄화된 경로를 라우트키로 dedup(같은 키면 btc_received 큰 쪽 유지) 후
+ * 같은 라우트키의 대표 경로 선택 기준: 활성 경로가 중단(disabled) 경로를 항상 이기고,
+ * 상태가 같으면 btc_received 큰 쪽.
+ *
+ * USDT 경로는 라우트키에서 네트워크가 빠지므로 한 거래소의 여러 네트워크가 한 키로 합쳐진다.
+ * 출금 중단 네트워크는 수수료를 강제계산(제약 무시)해 수령량이 더 크게 나올 수 있는데,
+ * 수령량만으로 대표를 뽑으면 그 거래소의 쓸 수 있는 네트워크가 통째로 가려진다.
+ */
+function isBetterRepresentative(candidate: RecommendedPath, current: RecommendedPath): boolean {
+  const candidateDisabled = !!candidate.disabled;
+  const currentDisabled = !!current.disabled;
+  if (candidateDisabled !== currentDisabled) return !candidateDisabled;
+  return (candidate.btc_received ?? 0) > (current.btc_received ?? 0);
+}
+
+/**
+ * 평탄화된 경로를 라우트키로 dedup(활성 우선, 동일 상태면 btc_received 큰 쪽 유지) 후
  * 수수료 오름차순 → 동률 시 btc_received 내림차순 정렬한다.
  */
 export function dedupAndSortPaths(allPaths: RecommendedPath[]): RecommendedPath[] {
@@ -61,7 +76,7 @@ export function dedupAndSortPaths(allPaths: RecommendedPath[]): RecommendedPath[
   for (const p of allPaths) {
     const key = recommendRouteKey(p);
     const cur = best.get(key);
-    if (!cur || (p.btc_received ?? 0) > (cur.btc_received ?? 0)) best.set(key, p);
+    if (!cur || isBetterRepresentative(p, cur)) best.set(key, p);
   }
   return [...best.values()].sort((a, b) => {
     const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);

@@ -48,12 +48,25 @@ def route_key(p):
     return f"{p['korean_exchange']}|{coin}|{gp}|{npart}|{p.get('global_exit_mode')}|{p.get('lightning_exit_provider') or ''}"
 
 
+def _is_better_representative(candidate, current):
+    """대표 경로 선택: 활성 > 중단(disabled), 상태 같으면 btc_received 큰 쪽.
+
+    중단 네트워크는 수수료를 강제계산해 수령량이 더 크게 나올 수 있어,
+    수령량만으로 뽑으면 쓸 수 있는 네트워크가 가려진다.
+    """
+    cand_disabled = bool(candidate.get('disabled'))
+    cur_disabled = bool(current.get('disabled'))
+    if cand_disabled != cur_disabled:
+        return not cand_disabled
+    return (candidate.get('btc_received') or 0) > (current.get('btc_received') or 0)
+
+
 def dedup_sort(all_paths):
     best = {}
     for p in all_paths:
         k = route_key(p)
         cur = best.get(k)
-        if not cur or (p.get('btc_received') or 0) > (cur.get('btc_received') or 0):
+        if not cur or _is_better_representative(p, cur):
             best[k] = p
     return sorted(best.values(), key=lambda p: ((p.get('total_fee_krw') or 0), -(p.get('btc_received') or 0)))
 
