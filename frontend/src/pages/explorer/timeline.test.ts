@@ -73,7 +73,7 @@ describe('buildTimeline — 라벨·값·상태', () => {
   it('아직 고르지 않은 현재 단계는 value가 null', () => {
     const s = sel({ domestic: 'upbit', coin: 'USDT' });
     const steps = buildTimeline(s, 'global');
-    expect(steps.at(-1)).toMatchObject({ phase: 'global', value: null, state: 'current' });
+    expect(steps[steps.length - 1]).toMatchObject({ phase: 'global', value: null, state: 'current' });
   });
 
   it('종착지·해외 출금 방식도 한글로 변환한다', () => {
