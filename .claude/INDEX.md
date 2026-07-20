@@ -104,7 +104,7 @@ cd frontend && npm run test
 | `crawl_service.py` | `CrawlService.run_full_crawl()` — 모든 거래소 데이터 수집 → DB 저장. Ticker, 출금수수료, 네트워크상태, Lightning 수수료 포함. `_detect_network_changes(prev_rows, new_rows)` — 이전/현재 네트워크 상태 비교로 정지/재개 변경 감지. `_fetch_and_save_targeted_notices(crawl_run, prev_rows, new_rows)` — 변경 감지 시 관련 거래소 공지 자동 탐색. |
 | `lightning_scraper.py` | Lightning 스왑 서비스 실시간 수수료 스크래핑 (Boltz, Coinos, Bitfreezer, WalletOfSatoshi, Strike). |
 | `promo_scraper.py` | FDUSD 0% maker 프로모션 등 스크래핑 |
-| `kyc_registry.py` | 거래소/서비스별 KYC 상태 레지스트리 |
+| `kyc_registry.py` | 거래소/서비스별 KYC 상태 레지스트리. `resolve_exchange_asset_kyc_status()` 우선순위: DB `kyc_config`(거래소_자산 키) → 스크래핑 note 추론 → **`_STATIC_EXCHANGE_KYC`**(국내 5+해외 7 전부 `kyc` 고정 — 특금법/ToS 근거, DB에 개별 오버라이드 있으면 그쪽 우선). 라이트닝 서비스는 `resolve_service_kyc_status()` + `_STATIC_KYC`(서비스별 kyc/non_kyc). |
 | `notice_scraper.py` | 거래소 BTC/USDT 관련 공지 스크래핑. `fetch_notices_for_exchange(exchange, extra_keywords)` — 변경 감지 시 특정 거래소+키워드 타깃 탐색. **키워드 매칭은 `domain/notice_match.py`(SSoT)에 위임** — `_is_relevant`/`_is_relevant_for_binance`/`_keyword_in_title`는 얇은 위임 래퍼. `_binance_catalog_filter`도 `has_btc`/`has_usdt`/`FEE_KEYWORDS` 공유 사용. 관련 공지 0건이면 프론트(InputStep)가 링크 영역 자동 숨김. |
 | `mempool_service.py` | mempool.space API 연동 (Bitcoin 네트워크 수수료) |
 | `exchange_status_builder.py` | `/market/status` 응답 빌더 |

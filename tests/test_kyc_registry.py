@@ -76,3 +76,33 @@ def test_invalidate_kyc_cache():
 
     assert kyc_mod._cache['registry'] == {}
     assert float(kyc_mod._cache['expires_at']) == 0.0
+
+
+# ── 거래소 정적 fallback (_STATIC_EXCHANGE_KYC) ──────────────────────────────
+
+def test_exchange_falls_back_to_static_kyc_when_no_registry_or_note():
+    """DB registry에 없고 note도 없는 거래소는 _STATIC_EXCHANGE_KYC로 'kyc' 반환."""
+    assert kyc_mod.resolve_exchange_asset_kyc_status('binance', 'BTC', None, registry={}) == 'kyc'
+    assert kyc_mod.resolve_exchange_asset_kyc_status('upbit', 'USDT', None, registry={}) == 'kyc'
+
+
+def test_exchange_static_fallback_covers_all_12_exchanges():
+    for ex in ['upbit', 'bithumb', 'korbit', 'coinone', 'gopax',
+               'binance', 'okx', 'coinbase', 'kraken', 'bitget', 'bybit', 'gate']:
+        assert kyc_mod.resolve_exchange_asset_kyc_status(ex, 'BTC', None, registry={}) == 'kyc'
+
+
+def test_db_registry_entry_overrides_static_exchange_fallback():
+    """DB에 명시적 오버라이드가 있으면 정적 fallback보다 우선한다."""
+    registry = {'binancebtc': {'is_kyc': False}}
+    assert kyc_mod.resolve_exchange_asset_kyc_status('binance', 'BTC', None, registry=registry) == 'non_kyc'
+
+
+def test_note_inference_overrides_static_exchange_fallback():
+    """스크래핑된 note에 non-kyc 문구가 있으면 정적 fallback보다 우선한다."""
+    assert kyc_mod.resolve_exchange_asset_kyc_status('binance', 'BTC', 'KYC 불필요', registry={}) == 'non_kyc'
+
+
+def test_unknown_exchange_has_no_static_fallback():
+    """등록되지 않은 서비스명은 정적 fallback도 없어 None."""
+    assert kyc_mod.resolve_exchange_asset_kyc_status('unknown_service', 'BTC', None, registry={}) is None

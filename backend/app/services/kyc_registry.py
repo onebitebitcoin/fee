@@ -38,6 +38,15 @@ _STATIC_KYC: dict[str, KycStatus] = {
     'walletofsatoshi': 'non_kyc',
 }
 
+# 거래소(자산 무관) 최종 fallback — 국내 5개는 특금법 제5조(실명 KYC 의무),
+# 해외 7개는 각 거래소 ToS/FATF 권고안상 출금 시 KYC 필수(gatemanRegistry.ts 근거와 동일).
+# DB kyc_config에 개별 (거래소, 자산) 오버라이드가 있으면 그쪽이 우선한다.
+_STATIC_EXCHANGE_KYC: dict[str, KycStatus] = {
+    'upbit': 'kyc', 'bithumb': 'kyc', 'korbit': 'kyc', 'coinone': 'kyc', 'gopax': 'kyc',
+    'binance': 'kyc', 'okx': 'kyc', 'coinbase': 'kyc', 'kraken': 'kyc',
+    'bitget': 'kyc', 'bybit': 'kyc', 'gate': 'kyc',
+}
+
 
 def _normalize(value: str | None) -> str:
     if not value:
@@ -130,7 +139,10 @@ def resolve_exchange_asset_kyc_status(
         entry = resolved_registry.get(f'{service_key}_{asset_key}') or resolved_registry.get(f'{service_key}{asset_key}')
         if entry:
             return _status_from_bool(bool(entry.get('is_kyc')))
-    return infer_kyc_status_from_note(note)
+    from_note = infer_kyc_status_from_note(note)
+    if from_note:
+        return from_note
+    return _STATIC_EXCHANGE_KYC.get(service_key)
 
 
 def aggregate_kyc_status(statuses: list[KycStatus | None]) -> KycStatus | None:
