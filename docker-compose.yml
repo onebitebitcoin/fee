@@ -2,6 +2,11 @@ x-app-common: &app-common
   build: .
   image: fee-app
   restart: unless-stopped
+  # Playwright(Chromium)가 스타트업/스케줄 크롤마다 자식 프로세스를 fork하는데,
+  # start.sh가 uvicorn을 exec하여 PID 1이 되므로 고아가 된 하위 프로세스를
+  # reap하지 못해 좀비(defunct)로 영구 누적됨. init: true로 tini를 PID 1로
+  # 주입해 시스템 전역 고아 프로세스 reap을 위임한다.
+  init: true
   depends_on:
     db:
       condition: service_healthy
