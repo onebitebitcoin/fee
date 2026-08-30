@@ -7,6 +7,7 @@ BTC/USDT 실시간 시세, 거래 수수료, 네트워크별 출금 수수료 �
 
 import argparse
 import asyncio
+import html
 import json
 import os
 import re
@@ -1294,6 +1295,420 @@ def check_maintenance_status(exchanges=None) -> dict:
         return {ex: scraped.get(ex, []) for ex in exchanges}
     except Exception:
         return {}
+
+
+# ══════════════════════════════════════════════════════════════
+# 코인원 거래 수수료 프로모션 감지 (1h TTL)
+# ══════════════════════════════════════════════════════════════
+
+FEE_PROMO_CACHE_TTL_HOURS = 1
+
+COINONE_NOTICE_LIST_URL = (
+    "https://api-gateway.coinone.co.kr/notice/v1/announcements/posts"
+    "?includePin=false&page=0&pageSize=30"
+)
+COINONE_NOTICE_DETAIL_URL = "https://api-gateway.coinone.co.kr/notice/v1/announcements/posts/{notice_id}"
+COINONE_NOTICE_PAGE_URL = "https://coinone.co.kr/info/notice/{notice_id}"
+COINONE_NOTICE_HEADERS = {**HEADERS, "Referer": "https://coinone.co.kr/"}
+
+# 공지 본문 표기 예: "- 수수료율 : Maker 0% / Taker 0%"
+FEE_PROMO_RATE_PATTERN = re.compile(
+    r"Maker\s*(\d+(?:\.\d+)?)\s*%\s*/\s*Taker\s*(\d+(?:\.\d+)?)\s*%", re.IGNORECASE
+)
+_HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
+
+
+def _strip_html(content: str) -> str:
+    """공지 본문 HTML에서 태그/엔티티를 걷어내고 평문으로 변환"""
+    return html.unescape(_HTML_TAG_PATTERN.sub(" ", content or ""))
+
+
+def _find_fee_promo_notices(notices: list) -> list:
+    """진행 중(INPROGRESS)인 수수료 이벤트 공지를 updatedAt 최신순으로 반환"""
+    matched = []
+    for item in notices:
+        title = (item.get("title") or "").strip()
+        event = item.get("eventInformation")
+        if "수수료" not in title or not isinstance(event, dict):
+            continue
+        if event.get("eventStatus") != "INPROGRESS":
+            continue
+        matched.append(item)
+    matched.sort(key=lambda item: item.get("updatedAt") or 0, reverse=True)
+    return matched
+
+
+def _parse_coinone_fee_promo(notice: dict) -> Optional[dict]:
+    """공지 상세 본문에서 프로모션 수수료율을 파싱. 표기가 없으면 None."""
+    notice_id = notice.get("id")
+    r = requests.get(
+        COINONE_NOTICE_DETAIL_URL.format(notice_id=notice_id),
+        headers=COINONE_NOTICE_HEADERS,
+        timeout=TIMEOUT,
+    )
+    if r.status_code != 200:
+        raise ValueError(f"Coinone 공지 상세 오류: {r.status_code}")
+    content = _strip_html((r.json().get("body") or {}).get("content"))
+    m = FEE_PROMO_RATE_PATTERN.search(content)
+    if not m:
+        return None
+    return {
+        "maker_fee_pct": float(m.group(1)),
+        "taker_fee_pct": float(m.group(2)),
+        # 바우처 발급이 전제 조건인 이벤트인지 (공지 본문 언급 여부)
+        "requires_voucher": "바우처" in content,
+        "notice_id": notice_id,
+        "notice_title": (notice.get("title") or "").strip(),
+        "source_url": COINONE_NOTICE_PAGE_URL.format(notice_id=notice_id),
+    }
+
+
+def _scrape_coinone_fee_promo() -> Optional[dict]:
+    """코인원 공지 API에서 진행 중인 거래 수수료 프로모션을 조회"""
+    r = requests.get(COINONE_NOTICE_LIST_URL, headers=COINONE_NOTICE_HEADERS, timeout=TIMEOUT)
+    if r.status_code != 200:
+        raise ValueError(f"Coinone 공지 목록 오류: {r.status_code}")
+    notices = (r.json().get("body") or {}).get("notices") or []
+    for notice in _find_fee_promo_notices(notices):
+        try:
+            promo = _parse_coinone_fee_promo(notice)
+        except Exception as e:
+            # 상세 1건 실패가 나머지 후보 탐색을 막지 않도록 건너뛴다.
+            print(f"[coinone] 공지 {notice.get('id')} 상세 파싱 실패: {e}", file=sys.stderr)
+            continue
+        if promo:
+            return promo
+    return None
+
+
+def _is_fee_promo_cache_valid(cache: dict, exchange: str) -> bool:
+    try:
+        checked_at = cache.get("fee_promo", {}).get(exchange, {}).get("checked_at")
+        if not checked_at:
+            return False
+        return datetime.now() - datetime.fromisoformat(checked_at) < timedelta(hours=FEE_PROMO_CACHE_TTL_HOURS)
+    except Exception:
+        return False
+
+
+def fetch_coinone_fee_promo() -> Optional[dict]:
+    """
+    코인원에서 진행 중인 거래 수수료 프로모션의 실제 적용 수수료율을 조회합니다.
+    결과는 1시간 TTL로 캐시됩니다.
+
+    Returns:
+        {"maker_fee_pct": 0.0, "taker_fee_pct": 0.0, "requires_voucher": True,
+         "notice_id": 5695, "notice_title": "...", "source_url": "...",
+         "checked_at": "..."}
+        진행 중인 프로모션이 없거나 조회/파싱에 실패하면 None.
+        하드코딩 fallback은 두지 않는다 — 근거를 못 찾으면 호출부가 정적 수수료를 쓴다.
+    """
+    try:
+        cache = _load_cache()
+
+        if _is_fee_promo_cache_valid(cache, "coinone"):
+            entry = cache.get("fee_promo", {}).get("coinone", {})
+            return entry if "taker_fee_pct" in entry else None
+
+        try:
+            promo = _scrape_coinone_fee_promo()
+        except Exception as e:
+            print(f"[coinone] 거래 수수료 프로모션 조회 실패: {e}", file=sys.stderr)
+            promo = None
+
+        # 프로모션이 없거나 실패한 경우에도 checked_at을 남겨 TTL 내 재호출을 막는다.
+        entry = {**(promo or {}), "checked_at": datetime.now().isoformat()}
+        fee_promo = cache.get("fee_promo", {})
+        fee_promo["coinone"] = entry
+        cache["fee_promo"] = fee_promo
+        _save_cache(cache)
+
+        return entry if promo else None
+    except Exception as e:
+        print(f"[coinone] 거래 수수료 프로모션 캐시 처리 실패: {e}", file=sys.stderr)
+        return None
+
+
+# ══════════════════════════════════════════════════════════════
+# 코빗 거래 수수료 프로모션 감지 (1h TTL)
+# ══════════════════════════════════════════════════════════════
+# 코인원과 달리 코빗은 공지 JSON API가 없고 수수료 안내 페이지가 클라이언트
+# 렌더링 SPA라 Playwright로 실제 렌더링해서 본문 텍스트를 파싱해야 한다.
+
+KORBIT_FEE_PAGE_URL = "https://lightning.korbit.co.kr/info/fee/"
+
+# 공지 본문 표기 예: "2026.08.24 09:00 부터 코빗 모든 회원의 거래 수수료가 전면 무료로 적용됩니다."
+KORBIT_FEE_PROMO_PATTERN = re.compile(
+    r"(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})\s*(\d{1,2}):(\d{2})\s*부터\s*"
+    r"코빗\s*모든\s*회원의\s*거래\s*수수료가\s*전면\s*무료로\s*적용"
+)
+
+
+def _parse_korbit_fee_promo(text: str) -> Optional[dict]:
+    """수수료 안내 페이지 본문에서 전면 무료 프로모션 여부를 파싱. 표기가 없거나
+    시작 시각이 아직 도래하지 않았으면 None."""
+    m = KORBIT_FEE_PROMO_PATTERN.search(text or "")
+    if not m:
+        return None
+    year, month, day, hour, minute = (int(g) for g in m.groups())
+    try:
+        starts_at = datetime(year, month, day, hour, minute)
+    except ValueError:
+        return None
+    if datetime.now() < starts_at:
+        return None  # 공지는 있으나 아직 시작 전
+    return {
+        # "전면 무료"는 maker/taker 구분 없는 전체 무료 표기이므로 둘 다 0으로 파싱한다
+        # (임의 fallback이 아니라 본문 문구 자체에서 도출한 값).
+        "maker_fee_pct": 0.0,
+        "taker_fee_pct": 0.0,
+        "requires_voucher": "바우처" in text,
+        "starts_at": starts_at.isoformat(),
+        "source_url": KORBIT_FEE_PAGE_URL,
+    }
+
+
+async def _pw_scrape_korbit_fee_promo(browser) -> Optional[dict]:
+    page = await browser.new_page()
+    try:
+        await page.goto(KORBIT_FEE_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(3000)
+        text = await page.evaluate("() => document.body.innerText")
+        return _parse_korbit_fee_promo(text)
+    except Exception:
+        return None
+    finally:
+        await page.close()
+
+
+def _scrape_korbit_fee_promo() -> Optional[dict]:
+    """코빗 수수료 안내 페이지를 Playwright로 렌더링해 진행 중인 프로모션을 조회.
+
+    동기 인터페이스 — 기존 이벤트 루프와 충돌하지 않도록 별도 스레드에서 실행.
+    """
+    container: dict = {}
+
+    async def _run_async():
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            container["result"] = None
+            return
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            try:
+                container["result"] = await _pw_scrape_korbit_fee_promo(browser)
+            finally:
+                await browser.close()
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_run_async())
+        except Exception as e:
+            print(f"[korbit] 수수료 프로모션 스크래핑 실패: {e}", file=sys.stderr)
+            container["result"] = None
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=30)
+    return container.get("result")
+
+
+def fetch_korbit_fee_promo() -> Optional[dict]:
+    """
+    코빗에서 진행 중인 거래 수수료 프로모션의 실제 적용 수수료율을 조회합니다
+    (수수료 안내 페이지를 Playwright로 렌더링해 파싱). 결과는 1시간 TTL로 캐시됩니다.
+
+    Returns:
+        {"maker_fee_pct": 0.0, "taker_fee_pct": 0.0, "requires_voucher": False,
+         "starts_at": "...", "source_url": "...", "checked_at": "..."}
+        진행 중인 프로모션이 없거나 조회/파싱에 실패하면 None.
+        하드코딩 fallback은 두지 않는다 — 근거를 못 찾으면 호출부가 정적 수수료를 쓴다.
+    """
+    try:
+        cache = _load_cache()
+
+        if _is_fee_promo_cache_valid(cache, "korbit"):
+            entry = cache.get("fee_promo", {}).get("korbit", {})
+            return entry if "taker_fee_pct" in entry else None
+
+        try:
+            promo = _scrape_korbit_fee_promo()
+        except Exception as e:
+            print(f"[korbit] 거래 수수료 프로모션 조회 실패: {e}", file=sys.stderr)
+            promo = None
+
+        entry = {**(promo or {}), "checked_at": datetime.now().isoformat()}
+        fee_promo = cache.get("fee_promo", {})
+        fee_promo["korbit"] = entry
+        cache["fee_promo"] = fee_promo
+        _save_cache(cache)
+
+        return entry if promo else None
+    except Exception as e:
+        print(f"[korbit] 거래 수수료 프로모션 캐시 처리 실패: {e}", file=sys.stderr)
+        return None
+
+
+# ══════════════════════════════════════════════════════════════
+# 업비트 USDT 등 스테이블코인 페어 거래 수수료 프로모션 감지 (1h TTL)
+# ══════════════════════════════════════════════════════════════
+# 코인원/코빗과 달리 이 이벤트는 원화마켓 스테이블코인 페어(USDT/KRW 등)에만 적용되고
+# BTC/KRW에는 적용되지 않는다. 그래서 캐시 키를 exchange가 아닌 "upbit_usdt"로 분리해
+# get_ticker_data()의 BTC 기준 수수료와 절대 섞이지 않도록 한다.
+UPBIT_NOTICE_LIST_URL = "https://www.upbit.com/service_center/notice"
+UPBIT_USDT_PROMO_TITLE_PATTERN = re.compile(r"(스테이블|USDT).*(수수료).*(무료|0%)")
+
+# 상세 페이지는 연장될 때마다 최신 안내가 맨 위에 추가되는 구조라 첫 매치가 최신값이다.
+UPBIT_STABLECOIN_PROMO_PATTERN = re.compile(
+    r"이벤트\s*기간\s*(?:\(변경\))?\s*:\s*.*?~\s*"
+    r"(\d{4})-(\d{2})-(\d{2})\([^)]*\)\s*(\d{2}):(\d{2}):(\d{2})"
+)
+# USDT/KRW 페어가 실제로 0%로 인하 대상에 포함돼 있는지 확인 (제목만으로는 오탐 가능).
+UPBIT_USDT_ZERO_PATTERN = re.compile(r"USDT/KRW\s+[\d.]+%\s*→\s*0(?:\.0+)?%")
+
+
+def _parse_upbit_usdt_fee_promo(text: str) -> Optional[dict]:
+    text = text or ""
+    if not UPBIT_USDT_ZERO_PATTERN.search(text):
+        return None
+    m = UPBIT_STABLECOIN_PROMO_PATTERN.search(text)
+    if not m:
+        return None
+    year, month, day, hour, minute, second = (int(g) for g in m.groups())
+    try:
+        ends_at = datetime(year, month, day, hour, minute, second)
+    except ValueError:
+        return None
+    if datetime.now() > ends_at:
+        return None  # 공지는 있으나 이미 이벤트 기간 종료
+    return {
+        "maker_fee_pct": 0.0,
+        "taker_fee_pct": 0.0,
+        "pairs": ["USDT/KRW"],
+        "ends_at": ends_at.isoformat(),
+    }
+
+
+async def _pw_scrape_upbit_fee_promo(browser) -> Optional[dict]:
+    list_page = await browser.new_page()
+    try:
+        await list_page.goto(UPBIT_NOTICE_LIST_URL, wait_until="domcontentloaded", timeout=20000)
+        await list_page.wait_for_timeout(3000)
+        # "이벤트" 탭 클릭 — 전체 탭은 공지가 너무 많아 페이지 1에 스테이블코인 이벤트가 안 보일 수 있음
+        await list_page.evaluate(
+            """() => {
+                const els = Array.from(document.querySelectorAll('button, a, li, span'));
+                const t = els.find(e => e.textContent.trim() === '이벤트' && e.offsetParent !== null);
+                if (t) t.click();
+            }"""
+        )
+        await list_page.wait_for_timeout(2000)
+        links = await list_page.eval_on_selector_all(
+            "a", "els => els.map(e => ({t: e.innerText.trim(), h: e.href}))"
+        )
+        candidate_url = None
+        for link in links:
+            title = link.get("t", "")
+            if "종료" in title:
+                continue
+            if UPBIT_USDT_PROMO_TITLE_PATTERN.search(title):
+                candidate_url = link.get("h")
+                break
+        if not candidate_url:
+            return None
+
+        detail_page = await browser.new_page()
+        try:
+            await detail_page.goto(candidate_url, wait_until="domcontentloaded", timeout=20000)
+            await detail_page.wait_for_timeout(3000)
+            text = await detail_page.evaluate("() => document.body.innerText")
+            result = _parse_upbit_usdt_fee_promo(text)
+            if result:
+                result["source_url"] = candidate_url
+            return result
+        finally:
+            await detail_page.close()
+    except Exception:
+        return None
+    finally:
+        await list_page.close()
+
+
+def _scrape_upbit_fee_promo() -> Optional[dict]:
+    container: dict = {}
+
+    async def _run_async():
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            container["result"] = None
+            return
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            try:
+                container["result"] = await _pw_scrape_upbit_fee_promo(browser)
+            finally:
+                await browser.close()
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_run_async())
+        except Exception as e:
+            print(f"[upbit] USDT 수수료 프로모션 스크래핑 실패: {e}", file=sys.stderr)
+            container["result"] = None
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=30)
+    return container.get("result")
+
+
+def fetch_upbit_usdt_fee_promo() -> Optional[dict]:
+    """
+    업비트에서 진행 중인 USDT/KRW 등 스테이블코인 페어 한정 거래 수수료 무료 이벤트를
+    조회합니다 (공지사항을 Playwright로 렌더링해 파싱). 결과는 1시간 TTL로 캐시됩니다.
+
+    BTC/KRW에는 적용되지 않는 이벤트이므로 get_ticker_data()가 아니라 USDT 레그를
+    계산하는 호출부(path_helpers.korean_usdt_taker_rate)에서만 사용해야 한다.
+
+    Returns:
+        {"maker_fee_pct": 0.0, "taker_fee_pct": 0.0, "pairs": [...], "ends_at": "...",
+         "source_url": "...", "checked_at": "..."}
+        진행 중인 이벤트가 없거나 조회/파싱에 실패하면 None.
+        하드코딩 fallback은 두지 않는다 — 근거를 못 찾으면 호출부가 정적 수수료를 쓴다.
+    """
+    try:
+        cache = _load_cache()
+
+        if _is_fee_promo_cache_valid(cache, "upbit_usdt"):
+            entry = cache.get("fee_promo", {}).get("upbit_usdt", {})
+            return entry if "taker_fee_pct" in entry else None
+
+        try:
+            promo = _scrape_upbit_fee_promo()
+        except Exception as e:
+            print(f"[upbit] USDT 거래 수수료 프로모션 조회 실패: {e}", file=sys.stderr)
+            promo = None
+
+        entry = {**(promo or {}), "checked_at": datetime.now().isoformat()}
+        fee_promo = cache.get("fee_promo", {})
+        fee_promo["upbit_usdt"] = entry
+        cache["fee_promo"] = fee_promo
+        _save_cache(cache)
+
+        return entry if promo else None
+    except Exception as e:
+        print(f"[upbit] USDT 거래 수수료 프로모션 캐시 처리 실패: {e}", file=sys.stderr)
+        return None
 
 
 def get_scraped_withdrawal(exchange: str, coin: str) -> list:
