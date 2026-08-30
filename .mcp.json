@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "exchange-fee": {
-      "command": "/Users/nsw/Desktop/dev/aicoding-tests/exchange-fee/.venv/bin/python",
-      "args": ["/Users/nsw/Desktop/dev/aicoding-tests/exchange-fee/mcp_server.py"],
+      "command": "/Users/nsw/meeting_room/lab/exchange-fee/.venv/bin/python",
+      "args": ["/Users/nsw/meeting_room/lab/exchange-fee/mcp_server.py"],
       "env": {}
     }
   }
