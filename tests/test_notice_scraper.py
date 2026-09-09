@@ -6,11 +6,13 @@ from unittest.mock import MagicMock, patch
 
 from backend.app.services.notice_scraper import (
     _BINANCE_LOCALE_URL_PREFIX,
+    _MAX_NOTICES,
     _binance_catalog_filter,
     _is_relevant,
     _is_relevant_for_binance,
     _keyword_in_title,
     fetch_binance_notices,
+    fetch_bithumb_notices,
     fetch_notices_for_exchange,
     get_all_notices,
 )
@@ -278,6 +280,130 @@ class TestFetchBinanceNotices:
         with patch('requests.get', return_value=mock):
             result = fetch_binance_notices()
         assert len(result) == 1
+
+
+# ---------------------------------------------------------------------------
+# fetch_bithumb_notices — 공개 API(/v1/notices) 기반
+# ---------------------------------------------------------------------------
+
+def _make_bithumb_response(items: list[dict]) -> MagicMock:
+    mock = MagicMock()
+    mock.raise_for_status.return_value = None
+    mock.json.return_value = items
+    return mock
+
+
+class TestFetchBithumbNotices:
+    """빗썸 공지는 HTML 스크래핑 대신 공개 API 응답을 파싱한다.
+
+    응답은 dict 를 감싸지 않은 최상위 배열이고, 각 항목이
+    categories / title / pc_url / published_at / modified_at 을 가진다.
+    """
+
+    def test_returns_only_relevant_notices(self) -> None:
+        items = [
+            {
+                'categories': ['입출금'],
+                'title': '테더(USDT) Tron 네트워크 출금 일시 중단 안내',
+                'pc_url': 'https://feed.bithumb.com/notice/1654774',
+                'published_at': '2026-09-04 23:34:16',
+                'modified_at': '2026-09-04 23:30:00',
+            },
+            {
+                'categories': ['이벤트'],
+                'title': '클러스터프로토콜(CP) 원화마켓 추가 기념 에어드랍 이벤트',
+                'pc_url': 'https://feed.bithumb.com/notice/1654798',
+                'published_at': '2026-09-08 17:45:00',
+                'modified_at': '2026-09-08 17:43:22',
+            },
+        ]
+        with patch('requests.get', return_value=_make_bithumb_response(items)):
+            result = fetch_bithumb_notices()
+
+        assert len(result) == 1
+        assert result[0]['exchange'] == 'bithumb'
+        assert result[0]['title'] == '테더(USDT) Tron 네트워크 출금 일시 중단 안내'
+        assert result[0]['url'] == 'https://feed.bithumb.com/notice/1654774'
+
+    def test_published_at_converted_from_kst_to_naive_utc(self) -> None:
+        """API 가 주는 시각은 한국 시간이므로 UTC 로 옮겨 naive 로 저장한다.
+
+        이 저장소의 다른 스크래퍼(_parse_iso)와 같은 규약을 지켜야
+        중단 시각과 공지 게시 시각을 같은 기준으로 비교할 수 있다.
+        2026-09-04 23:34:16 KST 는 같은 날 14:34:16 UTC 다.
+        """
+        items = [{
+            'categories': ['입출금'],
+            'title': 'USDT 출금 일시 중단 안내',
+            'pc_url': 'https://feed.bithumb.com/notice/1',
+            'published_at': '2026-09-04 23:34:16',
+        }]
+        with patch('requests.get', return_value=_make_bithumb_response(items)):
+            result = fetch_bithumb_notices()
+
+        assert result[0]['published_at'] == datetime(2026, 9, 4, 14, 34, 16)
+        assert result[0]['published_at'].tzinfo is None
+
+    def test_keeps_notice_when_published_at_missing(self) -> None:
+        """게시 시각을 못 읽어도 공지 자체는 버리지 않는다."""
+        items = [{
+            'categories': ['입출금'],
+            'title': 'BTC 출금 일시 중단 안내',
+            'pc_url': 'https://feed.bithumb.com/notice/2',
+            'published_at': None,
+        }]
+        with patch('requests.get', return_value=_make_bithumb_response(items)):
+            result = fetch_bithumb_notices()
+
+        assert len(result) == 1
+        assert result[0]['published_at'] is None
+
+    def test_skips_item_without_title_or_url(self) -> None:
+        items = [
+            {'categories': ['입출금'], 'title': '', 'pc_url': 'https://feed.bithumb.com/notice/3'},
+            {'categories': ['입출금'], 'title': 'USDT 출금 중단 안내', 'pc_url': None},
+        ]
+        with patch('requests.get', return_value=_make_bithumb_response(items)):
+            result = fetch_bithumb_notices()
+
+        assert result == []
+
+    def test_returns_empty_on_network_exception(self) -> None:
+        with patch('requests.get', side_effect=Exception('connection refused')):
+            result = fetch_bithumb_notices()
+        assert result == []
+
+    def test_returns_empty_on_unexpected_payload_shape(self) -> None:
+        """배열이 아닌 응답(오류 객체 등)이 와도 예외 없이 빈 목록을 준다."""
+        mock = MagicMock()
+        mock.raise_for_status.return_value = None
+        mock.json.return_value = {'error': 'rate limited'}
+        with patch('requests.get', return_value=mock):
+            result = fetch_bithumb_notices()
+        assert result == []
+
+    def test_respects_max_notices_limit(self) -> None:
+        items = [
+            {
+                'categories': ['입출금'],
+                'title': f'USDT 출금 일시 중단 안내 {i}',
+                'pc_url': f'https://feed.bithumb.com/notice/{i}',
+                'published_at': '2026-09-04 12:00:00',
+            }
+            for i in range(20)
+        ]
+        with patch('requests.get', return_value=_make_bithumb_response(items)):
+            result = fetch_bithumb_notices()
+
+        assert len(result) == _MAX_NOTICES
+
+    def test_requests_documented_max_count(self) -> None:
+        """빗썸 API 의 count 는 최대 20 이고, 넘기면 기본값 5 건으로 줄어든다."""
+        with patch('requests.get', return_value=_make_bithumb_response([])) as mock_get:
+            fetch_bithumb_notices()
+
+        called_url = mock_get.call_args[0][0]
+        assert 'count=20' in called_url
 
 
 # ---------------------------------------------------------------------------

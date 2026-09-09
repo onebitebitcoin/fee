@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -40,6 +40,10 @@ _HEADERS = {
 _MAX_NOTICES = 5   # 반환할 최대 건수
 _MAX_FETCH = 30    # 필터링 전 최대 수집 건수 (국내 거래소용)
 _BINANCE_MAX_FETCH = 20  # Binance API pageSize 최대 허용값 (25 이상 400 에러)
+_BITHUMB_MAX_FETCH = 20  # Bithumb 공지 API count 최대 허용값 (초과 시 기본값 5건으로 줄어듦)
+
+# 빗썸 공지 API 는 시간대 표기 없이 한국 시간을 준다.
+_KST = timezone(timedelta(hours=9))
 
 # --- Binance 다국어 설정 ---
 # 'en' → 영어 공지, 'ko' → 한국어 공지
@@ -137,14 +141,20 @@ def _parse_epoch(ts: int | None) -> datetime | None:
         return None
 
 
-def _parse_date_str(s: str | None) -> datetime | None:
-    """YYYY.MM.DD 형식 날짜 문자열 파싱"""
+def _parse_bithumb_datetime(s: str | None) -> datetime | None:
+    """빗썸 공지 API 의 'yyyy-MM-dd HH:mm:ss'(한국 시간)을 naive UTC 로 옮긴다.
+
+    이 모듈은 공지 시각을 시간대 정보 없는 UTC 로 통일해서 다룬다(`_parse_iso` 참고).
+    빗썸 API 는 시간대 표기 없이 한국 시간을 주므로, KST 로 해석한 뒤 UTC 로 변환해야
+    중단 시작 시각과 공지 게시 시각을 같은 기준에서 비교할 수 있다.
+    """
     if not s:
         return None
     try:
-        return datetime.strptime(s.strip(), '%Y.%m.%d')
+        naive_kst = datetime.strptime(s.strip(), '%Y-%m-%d %H:%M:%S')
     except Exception:
         return None
+    return naive_kst.replace(tzinfo=_KST).astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def fetch_upbit_notices() -> list[dict]:
@@ -182,41 +192,46 @@ def fetch_upbit_notices() -> list[dict]:
 
 
 def fetch_bithumb_notices() -> list[dict]:
-    """Bithumb 공지사항 스크래핑 (feed.bithumb.com - SSR 페이지, Scrapling Fetcher 사용)"""
-    exchange = 'bithumb'
-    try:
-        from scrapling.fetchers import Fetcher
-        f = Fetcher()
-        page = f.get('https://feed.bithumb.com/notice')
-        results = []
-        for a in page.css('a[href*="/notice/"]')[:_MAX_FETCH]:
-            href = a.attrib.get('href', '')
-            # 제목: link-title 클래스 스팬
-            title_spans = a.css('span[class*="link-title"]')
-            title = title_spans[0].text.strip() if title_spans else ''
-            # 날짜: link-date 클래스 스팬
-            date_spans = a.css('span[class*="link-date"]')
-            date_str = date_spans[0].text.strip() if date_spans else None
+    """Bithumb 공지사항 조회 (공개 API)
 
-            if not title or len(title) < 3:
+    이전에는 feed.bithumb.com 의 공지 페이지를 HTML 스크래핑했다. 그 방식은 개발용
+    가정 회선에서는 동작했지만 배포 서버의 데이터센터 IP 로는 403 이 돌아와, 운영
+    환경에서 빗썸 공지가 한 건도 수집되지 않았다. 그 결과 출금 중단 행에 붙일
+    관련 공지가 없어 화면에서 사유가 링크로 연결되지 않았다.
+
+    공식 공개 API 는 같은 목록을 JSON 으로 주고 일반 HTTP 요청으로 받을 수 있으며,
+    게시 시각을 초 단위까지 제공한다. 응답은 객체로 감싸지 않은 최상위 배열이다.
+
+    참고: 이 API 는 IP 당 초당 1회로 호출을 제한하고, count 는 최대 20 이다.
+    """
+    exchange = 'bithumb'
+    url = f'https://api.bithumb.com/v1/notices?count={_BITHUMB_MAX_FETCH}'
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list):
+            logger.warning('Bithumb notice API returned unexpected shape: %s', type(data).__name__)
+            return []
+        results = []
+        for item in data:
+            title = (item.get('title') or '').strip()
+            notice_url = item.get('pc_url')
+            if not title or not notice_url:
                 continue
             if not _is_relevant(title):
                 continue
-            full_url = f'https://feed.bithumb.com{href}' if href.startswith('/') else href
             results.append({
                 'exchange': exchange,
                 'title': title,
-                'url': full_url,
-                'published_at': _parse_date_str(date_str),
+                'url': notice_url,
+                'published_at': _parse_bithumb_datetime(item.get('published_at')),
             })
             if len(results) >= _MAX_NOTICES:
                 break
         return results
-    except ImportError:
-        logger.debug('Scrapling not installed, skipping Bithumb notices')
-        return []
     except Exception as e:
-        logger.warning('Bithumb notice scrape failed: %s', e)
+        logger.warning('Bithumb notice fetch failed: %s', e)
         return []
 
 
