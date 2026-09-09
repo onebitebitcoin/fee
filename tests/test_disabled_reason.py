@@ -198,6 +198,73 @@ class TestGetNoticesForDisabledNetworks:
         assert result[KEY][0]['url'] == 'https://x/new'
 
 
+class TestNoticeWindowAroundSuspensionStart:
+    """중단 시작 시각과 동떨어진 공지는 붙이지 않는다.
+
+    같은 네트워크가 과거에도 중단된 적이 있으면 제목이 똑같은 공지가 여러 건 쌓인다.
+    시간 조건이 없으면 몇 달 전 공지가 지금의 중단 사유로 붙어 사실과 어긋난다.
+    """
+
+    def _seed(self, db, notice_published: dt.datetime) -> CrawlRun:
+        now = dt.datetime.now(dt.timezone.utc)
+        run = CrawlRun(trigger='test', status='success', started_at=now, completed_at=now)
+        db.add(run)
+        db.flush()
+        db.add(WithdrawalFeeSnapshot(
+            crawl_run_id=run.id, exchange='bithumb', coin='USDT', network_label='TRC20',
+            enabled=False, source='realtime_api', recorded_at=now,
+        ))
+        db.add(ExchangeNotice(
+            crawl_run_id=run.id, exchange='bithumb',
+            title='테더(USDT) Tron 네트워크 출금 일시 중단 안내',
+            url='https://feed.bithumb.com/notice/x',
+            published_at=notice_published, noticed_at=notice_published,
+        ))
+        db.commit()
+        return run
+
+    def test_keeps_notice_published_just_before_suspension(self):
+        """중단 하루 전 예고 공지는 그 중단을 설명하는 공지가 맞다."""
+        db = _new_session()
+        started = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=4)
+        self._seed(db, started - dt.timedelta(days=1))
+
+        result = get_notices_for_disabled_networks(
+            db, [KEY], disabled_since={KEY: int(started.timestamp())},
+        )
+        assert len(result[KEY]) == 1
+
+    def test_keeps_notice_published_right_after_suspension(self):
+        db = _new_session()
+        started = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=4)
+        self._seed(db, started + dt.timedelta(hours=6))
+
+        result = get_notices_for_disabled_networks(
+            db, [KEY], disabled_since={KEY: int(started.timestamp())},
+        )
+        assert len(result[KEY]) == 1
+
+    def test_drops_notice_from_a_previous_suspension_months_ago(self):
+        """석 달 전 같은 제목의 공지는 지금 중단과 무관하다."""
+        db = _new_session()
+        started = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=4)
+        self._seed(db, started - dt.timedelta(days=90))
+
+        result = get_notices_for_disabled_networks(
+            db, [KEY], disabled_since={KEY: int(started.timestamp())},
+        )
+        assert result[KEY] == []
+
+    def test_without_start_time_keeps_every_matching_notice(self):
+        """중단 시작 시각을 모르면 시간 조건을 걸 근거가 없으므로 그대로 둔다."""
+        db = _new_session()
+        started = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=4)
+        self._seed(db, started - dt.timedelta(days=90))
+
+        result = get_notices_for_disabled_networks(db, [KEY], disabled_since={KEY: None})
+        assert len(result[KEY]) == 1
+
+
 class TestWithdrawalFeesApiExposesReason:
     def test_disabled_row_carries_reason_and_notice(self):
         from fastapi.testclient import TestClient

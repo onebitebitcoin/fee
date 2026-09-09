@@ -411,9 +411,35 @@ def get_withdrawal_disabled_since(
     return result
 
 
+def _notice_within_window(notice: ExchangeNotice, started_ts: int | None) -> bool:
+    """공지가 중단 시작 시각 근처에 게시됐는지 판단한다.
+
+    `started_ts` 가 None 이면(중단 시작을 모르면) 조건을 걸 근거가 없으므로 통과시킨다.
+    공지 시각은 게시일(published_at)을 우선 쓰고, 없으면 수집 시각(noticed_at)으로
+    대신한다. 둘 다 없으면 판단할 수 없으므로 통과시킨다.
+    """
+    if started_ts is None:
+        return True
+    moment = notice.published_at or notice.noticed_at
+    if moment is None:
+        return True
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=dt.timezone.utc)
+    started = dt.datetime.fromtimestamp(started_ts, dt.timezone.utc)
+    return started - _NOTICE_WINDOW_BEFORE <= moment <= started + _NOTICE_WINDOW_AFTER
+
+
+# 중단 시작 시각을 기준으로 공지를 인정할 시간 범위.
+# 거래소는 중단을 며칠 앞두고 예고하기도 하고(이전), 중단 직후에 안내하기도 한다(이후).
+# 이 범위를 벗어난 공지는 같은 네트워크의 '지난번' 중단을 다룬 것으로 본다.
+_NOTICE_WINDOW_BEFORE = dt.timedelta(days=14)
+_NOTICE_WINDOW_AFTER = dt.timedelta(days=2)
+
+
 def get_notices_for_disabled_networks(
     db: Session,
     keys: Iterable[tuple[str, str, str]],
+    disabled_since: dict[tuple[str, str, str], int | None] | None = None,
 ) -> dict[tuple[str, str, str], list[dict]]:
     """출금이 중단된 (exchange, coin, network_label) 별로 그 중단을 설명하는 공지를 찾는다.
 
@@ -426,6 +452,17 @@ def get_notices_for_disabled_networks(
     네트워크의 중단 안내, USDT 페어 이벤트)가 붙는 노이즈를 막기 위해서다. 네트워크
     키워드는 `network_keywords()` 가 별칭까지 넓혀 주므로, 라벨이 'TRC20' 인 행에
     "Tron 네트워크" 라고 적힌 공지도 이어진다.
+
+    `disabled_since` 를 주면 중단 시작 시각 근처(이전 14일 ~ 이후 2일)에 게시된 공지만
+    남긴다. 같은 네트워크가 과거에도 중단된 적이 있으면 제목이 똑같은 공지가 여러 건
+    쌓이는데, 시간 조건이 없으면 몇 달 전 공지가 지금의 중단 사유로 붙어 사실과
+    어긋난다. 시작 시각을 모르는 키(값이 None)는 조건을 걸 근거가 없으므로 그대로 둔다.
+
+    Args:
+        db: 세션.
+        keys: 현재 출금이 중단된 (exchange, coin, network_label) 목록.
+        disabled_since: 키별 중단 시작 unix timestamp. `get_withdrawal_disabled_since`
+            결과에서 뽑아 넘긴다. None 이면 시간 조건 없이 매칭한다.
 
     반환값: `{(exchange, coin, network_label): [{'title', 'url', 'published_at'}, ...]}`
     키별 최신순 최대 3건이며, 관련 공지가 없으면 빈 리스트다.
@@ -454,10 +491,12 @@ def get_notices_for_disabled_networks(
         # coin AND network 에 더해 "중단/재개를 다루는 공지" 조건을 건다.
         # BTC 처럼 네트워크 키워드가 코인 심볼과 겹치는 경우 앞의 두 조건만으로는
         # 프로모션·상장 공지가 통과한다.
+        started_ts = (disabled_since or {}).get(key)
         matched = [
             n for n in notice_rows
             if _notice_matches_change(n.title.lower(), coin, list(net_kws))
             and is_suspension_notice(n.title)
+            and _notice_within_window(n, started_ts)
         ][:3]
         result[key] = [
             {

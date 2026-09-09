@@ -65,10 +65,16 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
     )
     # 중단 사유를 설명하는 공지도 창 제한 없이 찾아 붙인다.
     # (network-changes/recent 의 공지 첨부는 최대 72시간 창에 묶여 장기 중단을 놓친다.)
+    # 중단 시작 시각을 함께 넘겨, 그 시점 근처에 게시된 공지만 붙게 한다
+    # (같은 네트워크의 지난번 중단 공지가 붙는 것을 막는다).
     disabled_notice_map = (
         _status_cache.get_or_compute(
             f'disabled_notices:{latest_run.id}',
-            lambda: repositories.get_notices_for_disabled_networks(db, disabled_keys),
+            lambda: repositories.get_notices_for_disabled_networks(
+                db,
+                disabled_keys,
+                disabled_since={k: v.get('disabled_since') for k, v in disabled_since_map.items()},
+            ),
         )
         if disabled_keys else {}
     )
