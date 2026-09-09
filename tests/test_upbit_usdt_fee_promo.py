@@ -25,8 +25,12 @@ from fee_checker import fetch_upbit_usdt_fee_promo
 
 # 실제 업비트 공지(notice id=644912522, "새롭게 돌아온 스테이블 코인 그룹 페어
 # 거래 수수료 무료 이벤트 안내") 렌더링 결과 발췌 (2026-08-28 확인)
+# 종료일은 실행 시각 기준 미래로 만든다. 고정 날짜를 쓰면 그 날짜가 지나는 순간
+# "진행 중인 이벤트" 라는 픽스처의 전제가 깨져 테스트가 시간에 따라 실패한다.
+ACTIVE_PROMO_END_DATE = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+ACTIVE_PROMO_ENDS_AT = f'{ACTIVE_PROMO_END_DATE}T23:59:59'
 ACTIVE_PROMO_TEXT = (
-    '이벤트 기간 (변경) : ~ 2026-08-30(일) 23:59:59\n'
+    f'이벤트 기간 (변경) : ~ {ACTIVE_PROMO_END_DATE}(일) 23:59:59\n'
     '적용 대상 : 이벤트 기간 동안 업비트 USDT/KRW, USDC/KRW 페어 내 모든 주문(Maker/Taker)의 거래 수수료\n'
     '대상 페어\t거래 수수료\n'
     'USDT/KRW\t0.05% → 0.00%\n'
@@ -67,7 +71,7 @@ class TestParseUpbitUsdtFeePromo:
         assert result['maker_fee_pct'] == 0.0
         assert result['taker_fee_pct'] == 0.0
         assert result['pairs'] == ['USDT/KRW']
-        assert result['ends_at'] == '2026-08-30T23:59:59'
+        assert result['ends_at'] == ACTIVE_PROMO_ENDS_AT
 
     def test_expired_promo_returns_none(self):
         """공지는 있으나 이벤트 기간(종료 시각)이 이미 지났으면 반영하지 않는다"""
