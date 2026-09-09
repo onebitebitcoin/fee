@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { filterDisabledWithdrawals, formatDisabledDuration, formatSuspensionReason } from './disabledNetworks';
+import {
+  filterDisabledWithdrawals,
+  formatDisabledDuration,
+  formatSuspensionReason,
+  resolveDisabledNoticeLink,
+} from './disabledNetworks';
 import type { WithdrawalRow } from '../../types';
 
 function row(p: Partial<WithdrawalRow>): WithdrawalRow {
@@ -132,5 +137,46 @@ describe('formatSuspensionReason', () => {
     expect(formatSuspensionReason(null)).toBeNull();
     expect(formatSuspensionReason(undefined)).toBeNull();
     expect(formatSuspensionReason('   ')).toBeNull();
+  });
+});
+
+describe('resolveDisabledNoticeLink', () => {
+  const notice = { title: '테더(USDT) Tron 네트워크 출금 일시 중단 안내', url: 'https://feed.bithumb.com/notice/1654774' };
+
+  it('사유와 공지가 모두 있으면 사유 문구 자체가 공지 링크가 된다', () => {
+    const result = resolveDisabledNoticeLink('시스템 점검', notice);
+    expect(result).toEqual({
+      label: '사유: 시스템 점검',
+      url: 'https://feed.bithumb.com/notice/1654774',
+      title: '테더(USDT) Tron 네트워크 출금 일시 중단 안내',
+    });
+  });
+
+  it('사유만 있으면 링크 없는 문구로 남는다', () => {
+    const result = resolveDisabledNoticeLink('시스템 점검', null);
+    expect(result).toEqual({ label: '사유: 시스템 점검', url: null, title: null });
+  });
+
+  it('거래소가 사유를 주지 않고 공지만 있으면 공지 링크를 따로 보여준다', () => {
+    const result = resolveDisabledNoticeLink(null, notice);
+    expect(result).toEqual({
+      label: '중단 공지',
+      url: 'https://feed.bithumb.com/notice/1654774',
+      title: '테더(USDT) Tron 네트워크 출금 일시 중단 안내',
+    });
+  });
+
+  it('사유도 공지도 없으면 아무것도 표시하지 않는다', () => {
+    expect(resolveDisabledNoticeLink(null, null)).toBeNull();
+    expect(resolveDisabledNoticeLink(null, undefined)).toBeNull();
+  });
+
+  it('공지에 url이 없으면 링크로 쓰지 않는다', () => {
+    const result = resolveDisabledNoticeLink('시스템 점검', { title: '제목만 있는 공지', url: null });
+    expect(result).toEqual({ label: '사유: 시스템 점검', url: null, title: null });
+  });
+
+  it('url 없는 공지만 있고 사유도 없으면 표시할 것이 없다', () => {
+    expect(resolveDisabledNoticeLink(null, { title: '제목만 있는 공지', url: null })).toBeNull();
   });
 });

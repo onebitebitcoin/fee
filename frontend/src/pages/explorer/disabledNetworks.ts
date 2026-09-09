@@ -109,3 +109,39 @@ export function formatSuspensionReason(reason: string | null | undefined): strin
   if (!trimmed) return null;
   return SUSPENSION_REASON_KO[trimmed.toLowerCase()] ?? trimmed;
 }
+
+/** 중단 사유·공지를 한 덩어리로 표시하기 위한 결과. */
+export type DisabledNoticeLink = {
+  /** 화면에 보일 문구. */
+  label: string;
+  /** 링크 대상. null 이면 클릭할 수 없는 평범한 문구로 둔다. */
+  url: string | null;
+  /** 링크에 달아 줄 공지 제목(툴팁). 링크가 없으면 null. */
+  title: string | null;
+};
+
+/**
+ * 중단 사유와 관련 공지를 하나의 표시 요소로 합친다.
+ *
+ * 사유와 공지를 따로 늘어놓으면 "사유: 시스템 점검"과 "공지" 라는 두 조각이 나란히
+ * 놓여 무엇을 눌러야 할지 알기 어렵다. 사유 문구 자체를 그 사유를 설명하는 공지로
+ * 가는 링크로 만들어, 읽는 대상과 누르는 대상을 일치시킨다.
+ *
+ * 거래소가 사유를 주지 않는 경우(예: 바이낸스)에는 사유 문구가 없으므로 공지 링크를
+ * 따로 남긴다. 반대로 공지를 찾지 못하면 사유는 클릭할 수 없는 문구로 둔다.
+ *
+ * @param reason `formatSuspensionReason()` 을 거친 사유 문구. 없으면 null.
+ * @param notice 이 중단을 설명하는 공지. 없거나 url 이 없으면 링크로 쓰지 않는다.
+ * @returns 표시할 요소. 사유도 공지도 없으면 null.
+ */
+export function resolveDisabledNoticeLink(
+  reason: string | null,
+  notice: { title: string; url: string | null } | null | undefined,
+): DisabledNoticeLink | null {
+  const url = notice?.url ?? null;
+  const title = url ? notice?.title ?? null : null;
+
+  if (reason) return { label: `사유: ${reason}`, url, title };
+  if (url) return { label: '중단 공지', url, title };
+  return null;
+}

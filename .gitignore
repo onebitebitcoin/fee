@@ -8,6 +8,8 @@ frontend/dist/
 *.pyc
 .env
 exchange_fee.db
+app.db
+backend/app.db
 backend/.coverage
 .omx/
 .omc/
