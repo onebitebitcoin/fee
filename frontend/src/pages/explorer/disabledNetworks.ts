@@ -51,3 +51,34 @@ export function filterDisabledWithdrawals(
     a.network_label.localeCompare(b.network_label),
   );
 }
+
+const MINUTE_SEC = 60;
+const HOUR_SEC = 60 * MINUTE_SEC;
+const DAY_SEC = 24 * HOUR_SEC;
+
+/**
+ * 출금 중단이 얼마나 이어지고 있는지를 사람이 읽는 문구로 만든다.
+ *
+ * @param sinceTs 중단이 시작된 시각(unix 초). 백엔드 `disabled_since` 값.
+ * @param nowTs 기준 시각(unix 초). 렌더링 시점을 넘기면 된다.
+ * @param opts.exact `false` 면 보존된 스냅샷 이력의 시작점이라 실제 중단 시작은 그보다
+ *   이를 수 있다. 이 경우 하한값임을 드러내기 위해 "최소" 를 앞에 붙인다.
+ * @returns `3일 4시간째` 같은 문구. `sinceTs` 가 없으면 null.
+ */
+export function formatDisabledDuration(
+  sinceTs: number | null | undefined,
+  nowTs: number,
+  opts?: { exact?: boolean },
+): string | null {
+  if (!sinceTs) return null;
+  const elapsed = Math.max(0, nowTs - sinceTs);
+  const prefix = opts?.exact === false ? '최소 ' : '';
+
+  if (elapsed < MINUTE_SEC) return '방금';
+  if (elapsed < HOUR_SEC) return `${prefix}${Math.floor(elapsed / MINUTE_SEC)}분째`;
+  if (elapsed < DAY_SEC) return `${prefix}${Math.floor(elapsed / HOUR_SEC)}시간째`;
+
+  const days = Math.floor(elapsed / DAY_SEC);
+  const hours = Math.floor((elapsed % DAY_SEC) / HOUR_SEC);
+  return hours === 0 ? `${prefix}${days}일째` : `${prefix}${days}일 ${hours}시간째`;
+}

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app.db import repositories
 from backend.app.db.session import get_db
 from backend.app.domain.market_core import get_withdrawal_source_url
-from backend.app.api.routes.market._shared import _serialize_run, _ts
+from backend.app.api.routes.market._shared import _serialize_run, _status_cache, _ts
 
 router = APIRouter()
 
@@ -50,6 +50,19 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
         return {'last_run': None, 'latest_scraping_time': None, 'items': [], 'errors': []}
     rows = repositories.list_withdrawal_snapshots_for_run(db, latest_run.id)
     errors = repositories.list_crawl_errors_for_run(db, latest_run.id, stage='withdrawal')
+    # 출금 중단 행은 "언제부터 중단됐는지"를 전체 스냅샷 이력에서 역추적해 붙인다.
+    # 크롤 실행 id 를 캐시 키에 넣어 두므로 다음 크롤이 끝나면 자동으로 새로 계산된다.
+    # (exchange/coin 쿼리 필터보다 앞에서 키를 뽑아 캐시 키가 요청 파라미터와 무관하게 유지된다.)
+    disabled_keys = [
+        (row.exchange, row.coin, row.network_label) for row in rows if not row.enabled
+    ]
+    disabled_since_map = (
+        _status_cache.get_or_compute(
+            f'disabled_since:{latest_run.id}',
+            lambda: repositories.get_withdrawal_disabled_since(db, disabled_keys),
+        )
+        if disabled_keys else {}
+    )
     if exchange:
         rows = [row for row in rows if row.exchange == exchange.lower()]
         errors = [row for row in errors if row.exchange == exchange.lower()]
@@ -75,6 +88,13 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'note': row.note,
                 'source_url': get_withdrawal_source_url(row.exchange, row.coin, row.network_label),
                 'recorded_at': _ts(row.recorded_at),
+                # 출금 중단 시작 시각(unix 초). exact=False 면 보존 이력의 시작점이라 하한값이다.
+                'disabled_since': disabled_since_map.get(
+                    (row.exchange, row.coin, row.network_label), {}
+                ).get('disabled_since'),
+                'disabled_since_exact': disabled_since_map.get(
+                    (row.exchange, row.coin, row.network_label), {}
+                ).get('exact', False),
             }
             for row in rows
         ],

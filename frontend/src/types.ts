@@ -42,6 +42,10 @@ export type WithdrawalRow = {
   note?: string | null;
   kyc_status?: KycStatus;
   recorded_at?: number | null;
+  /** 출금 중단이 시작된 시각(unix 초). enabled=false 인 행에만 채워진다. */
+  disabled_since?: number | null;
+  /** true 면 활성→중단 전환을 실제로 관측한 시각, false 면 보존 이력의 시작점(하한값). */
+  disabled_since_exact?: boolean;
 };
 
 export type CrawlErrorRow = {

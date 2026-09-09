@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 from collections import defaultdict
+from collections.abc import Iterable
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, func as sqlfunc, or_, select
+from sqlalchemy import and_, desc, func as sqlfunc, or_, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
@@ -307,6 +308,105 @@ def get_recent_network_changes(db: Session, hours: int = 24) -> list[dict]:
         ]
 
     return changes
+
+
+_CRAWL_SUCCESS_STATUSES = ('success', 'partial_success')
+
+
+def _unix_ts_utc(value: dt.datetime | None) -> int | None:
+    """datetime → unix timestamp(초). tzinfo 가 없는 값은 UTC 로 간주한다.
+
+    DB 에는 항상 UTC 로 기록하지만, 드라이버가 tzinfo 를 복원하는지가 백엔드마다 다르다.
+    PostgreSQL(프로덕션)은 timezone-aware 로 돌려주고 SQLite(개발/테스트)는 naive 로
+    돌려주므로, naive 를 로컬 시간으로 해석하면 개발 환경에서만 9시간 어긋난다.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=dt.timezone.utc)
+    return int(value.timestamp())
+
+
+def get_withdrawal_disabled_since(
+    db: Session,
+    keys: Iterable[tuple[str, str, str]],
+) -> dict[tuple[str, str, str], dict]:
+    """출금이 중단된 (exchange, coin, network_label) 별로 중단이 시작된 시각을 계산한다.
+
+    `get_recent_network_changes` 는 최근 N시간(최대 72시간) 창만 비교하기 때문에,
+    중단이 그보다 오래 이어지면 "언제부터"를 알려주지 못한다. 이 함수는 창 제한 없이
+    보존된 전체 스냅샷 이력을 거슬러 올라가 마지막 중단 구간의 시작점을 찾는다.
+
+    판정 순서:
+      1. 키별로 `enabled=True` 가 마지막으로 관측된 크롤 실행 id 를 구한다.
+      2. 그 실행 이후에 `enabled=False` 가 처음 관측된 크롤의 완료 시각을 중단 시작으로 본다.
+         이 값은 활성에서 비활성으로 넘어간 전환을 실제로 관측한 시점이므로 `exact=True` 다.
+      3. 활성 관측이 한 번도 없으면 보존된 가장 오래된 비활성 관측 시각을 반환하되,
+         그 이전 상태는 알 수 없으므로 `exact=False` 로 표시한다(하한값).
+
+    반환값: `{(exchange, coin, network_label): {'disabled_since': int|None, 'exact': bool}}`
+    `disabled_since` 는 unix timestamp(초)이며, 비활성 관측이 아예 없으면 None 이다.
+    실패한 크롤 실행(status 가 success/partial_success 가 아닌 경우)은 근거에서 제외한다.
+    """
+    key_list = list(dict.fromkeys(keys))
+    if not key_list:
+        return {}
+
+    key_filter = or_(*[
+        and_(
+            WithdrawalFeeSnapshot.exchange == exchange,
+            WithdrawalFeeSnapshot.coin == coin,
+            WithdrawalFeeSnapshot.network_label == network_label,
+        )
+        for exchange, coin, network_label in key_list
+    ])
+    base_conditions = (
+        CrawlRun.status.in_(_CRAWL_SUCCESS_STATUSES),
+        CrawlRun.completed_at.is_not(None),
+    )
+
+    # 1) 키별 '마지막 활성 관측' 크롤 실행 id — 한 번의 집계 쿼리로 모두 구한다.
+    last_enabled_rows = db.execute(
+        select(
+            WithdrawalFeeSnapshot.exchange,
+            WithdrawalFeeSnapshot.coin,
+            WithdrawalFeeSnapshot.network_label,
+            sqlfunc.max(WithdrawalFeeSnapshot.crawl_run_id),
+        )
+        .join(CrawlRun, CrawlRun.id == WithdrawalFeeSnapshot.crawl_run_id)
+        .where(*base_conditions, WithdrawalFeeSnapshot.enabled.is_(True), key_filter)
+        .group_by(
+            WithdrawalFeeSnapshot.exchange,
+            WithdrawalFeeSnapshot.coin,
+            WithdrawalFeeSnapshot.network_label,
+        )
+    ).all()
+    last_enabled_run_id = {(r[0], r[1], r[2]): r[3] for r in last_enabled_rows}
+
+    result: dict[tuple[str, str, str], dict] = {}
+    for key in key_list:
+        exchange, coin, network_label = key
+        boundary_run_id = last_enabled_run_id.get(key)
+        stmt = (
+            select(sqlfunc.min(CrawlRun.completed_at))
+            .select_from(WithdrawalFeeSnapshot)
+            .join(CrawlRun, CrawlRun.id == WithdrawalFeeSnapshot.crawl_run_id)
+            .where(
+                *base_conditions,
+                WithdrawalFeeSnapshot.enabled.is_(False),
+                WithdrawalFeeSnapshot.exchange == exchange,
+                WithdrawalFeeSnapshot.coin == coin,
+                WithdrawalFeeSnapshot.network_label == network_label,
+            )
+        )
+        if boundary_run_id is not None:
+            stmt = stmt.where(WithdrawalFeeSnapshot.crawl_run_id > boundary_run_id)
+        started_at = db.scalar(stmt)
+        result[key] = {
+            'disabled_since': _unix_ts_utc(started_at),
+            'exact': started_at is not None and boundary_run_id is not None,
+        }
+    return result
 
 
 def list_carf_exchanges(db: Session) -> list[CarfExchangeInfo]:

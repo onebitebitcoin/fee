@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterDisabledWithdrawals } from './disabledNetworks';
+import { filterDisabledWithdrawals, formatDisabledDuration } from './disabledNetworks';
 import type { WithdrawalRow } from '../../types';
 
 function row(p: Partial<WithdrawalRow>): WithdrawalRow {
@@ -75,5 +75,42 @@ describe('filterDisabledWithdrawals', () => {
       row({ exchange: 'bitget', coin: 'BTC', network_label: 'Lightning Network', enabled: false }),
     ];
     expect(filterDisabledWithdrawals(rows)).toHaveLength(3);
+  });
+});
+
+describe('formatDisabledDuration', () => {
+  const since = 1_788_000_000;
+  const HOUR = 3600;
+  const DAY = 86_400;
+
+  it('중단 시작 시각이 없으면 null을 반환한다', () => {
+    expect(formatDisabledDuration(null, since + DAY)).toBeNull();
+    expect(formatDisabledDuration(undefined, since + DAY)).toBeNull();
+  });
+
+  it('1시간 미만은 분 단위로 표기한다', () => {
+    expect(formatDisabledDuration(since, since + 25 * 60)).toBe('25분째');
+  });
+
+  it('하루 미만은 시간 단위로 표기한다', () => {
+    expect(formatDisabledDuration(since, since + 5 * HOUR + 40 * 60)).toBe('5시간째');
+  });
+
+  it('하루 이상은 일 + 시간으로 표기한다', () => {
+    expect(formatDisabledDuration(since, since + 3 * DAY + 4 * HOUR)).toBe('3일 4시간째');
+  });
+
+  it('일 단위로 딱 맞으면 시간을 생략한다', () => {
+    expect(formatDisabledDuration(since, since + 12 * DAY)).toBe('12일째');
+  });
+
+  it('1분 미만이거나 시각이 미래면 "방금"으로 표기한다', () => {
+    expect(formatDisabledDuration(since, since + 30)).toBe('방금');
+    expect(formatDisabledDuration(since, since - 100)).toBe('방금');
+  });
+
+  it('전환 시점을 관측하지 못한 경우 하한값임을 "최소"로 알린다', () => {
+    expect(formatDisabledDuration(since, since + 40 * DAY, { exact: false })).toBe('최소 40일째');
+    expect(formatDisabledDuration(since, since + 40 * DAY, { exact: true })).toBe('40일째');
   });
 });

@@ -6,7 +6,7 @@ import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
 import { api } from '../../../lib/api';
-import { filterDisabledWithdrawals } from '../disabledNetworks';
+import { filterDisabledWithdrawals, formatDisabledDuration } from '../disabledNetworks';
 import type { AccessStats, NetworkChange, WithdrawalRow } from '../../../types';
 
 const EXCHANGES = [
@@ -41,6 +41,13 @@ export function InputStep() {
   const [disabledNetworks, setDisabledNetworks] = useState<WithdrawalRow[]>([]);
   const [refreshingDisabled, setRefreshingDisabled] = useState(false);
   const [kimpDetailOpen, setKimpDetailOpen] = useState(false);
+  // 중단 경과 시간 문구를 살아 있게 유지하려면 기준 시각이 흘러가야 한다 (1분 간격).
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     api.getAccessCount().then(setStats).catch(() => {});
@@ -330,6 +337,13 @@ export function InputStep() {
                     {disabledNetworks.map((row, i) => {
                       const change = suspendedByKey.get(`${row.exchange}|${row.coin}|${row.network_label}`);
                       const notice = change?.related_notices?.find(n => n.url);
+                      // 백엔드가 전체 이력을 역추적한 disabled_since 가 우선.
+                      // 없을 때만 최근 24시간 변경 이력(detected_at)으로 보완한다.
+                      const since = row.disabled_since ?? change?.detected_at ?? null;
+                      const sinceExact = row.disabled_since != null
+                        ? row.disabled_since_exact !== false
+                        : true;
+                      const duration = formatDisabledDuration(since, nowSec, { exact: sinceExact });
                       return (
                         <div key={i} className="flex items-start gap-1.5">
                           <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acc-red mt-1.5" />
@@ -341,10 +355,13 @@ export function InputStep() {
                               <span className="text-[10px] text-label-quaternary truncate">{row.network_label}</span>
                               <span className="text-[11px] font-semibold text-acc-red ml-auto flex-shrink-0">출금 중단</span>
                             </div>
-                            {(change?.detected_at || notice) && (
+                            {(since || notice) && (
                               <div className="flex items-center gap-2 mt-0.5">
-                                {change?.detected_at && (
-                                  <span className="text-[10px] text-label-quaternary">{fmtKst(change.detected_at)}부터</span>
+                                {duration && (
+                                  <span className="text-[10px] font-semibold text-label-secondary">{duration}</span>
+                                )}
+                                {since && (
+                                  <span className="text-[10px] text-label-quaternary">{fmtKst(since)}부터</span>
                                 )}
                                 {notice?.url && (
                                   <a
