@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+from backend.app.domain.notice_match import network_keywords
 from backend.app.services import kyc_registry
 from backend.app.services.cache import _TtlCache
 
@@ -47,18 +48,10 @@ def _build_notice_lookup(notice_rows: list) -> dict[str, list[dict]]:
 
 def _find_notice(exchange: str, coin: str, network: str, notice_lookup: dict) -> dict | None:
     notices = notice_lookup.get(exchange, [])
-    n_lower = network.lower()
-    # coin 이름은 너무 광범위 — 네트워크 특화 키워드만 사용
-    if 'trc20' in n_lower:
-        keywords = {'trc20', 'tron'}
-    elif 'erc20' in n_lower:
-        keywords = {'erc20', 'ethereum', 'eth'}
-    elif 'bitcoin' in n_lower or coin.lower() == 'btc':
-        keywords = {'btc', 'bitcoin', '비트코인'}
-    elif 'kaia' in n_lower:
-        keywords = {'kaia', 'klay', 'klaytn'}
-    else:
-        keywords = {n_lower}
+    # coin 이름은 너무 광범위 — 네트워크 특화 키워드만 사용.
+    # 별칭 표는 notice_match(SSoT)가 갖는다. 라벨 표기와 공지 표기가 어긋나는
+    # 문제(예: 라벨 'TRC20' vs 공지 'Tron 네트워크')를 한 곳에서만 관리하기 위해서다.
+    keywords = network_keywords(network, coin) or {network.lower()}
     for notice in notices:
         title = (notice.get('title') or '').lower()
         if any(kw in title for kw in keywords):

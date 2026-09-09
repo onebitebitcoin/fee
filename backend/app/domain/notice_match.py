@@ -92,3 +92,87 @@ def is_relevant_title(title: str, *, include_fee: bool = False) -> bool:
     if include_fee:
         return any(kw.lower() in lower for kw in FEE_KEYWORDS)
     return False
+
+
+# 네트워크 라벨을 공지 제목에서 찾을 때 쓸 별칭.
+#
+# 거래소가 출금 API 에서 쓰는 라벨과 공지 제목에서 쓰는 표기가 어긋나는 경우가 많다.
+# 예를 들어 빗썸은 API 라벨을 'TRC20' 으로 주면서 공지 제목에는 "테더(USDT) Tron
+# 네트워크 출금 일시 중단 안내" 라고 쓴다. 라벨 문자열만으로 매칭하면 정작 그 중단을
+# 설명하는 공지를 놓친다.
+#
+# 키는 라벨(소문자)에 부분 문자열로 포함되는지로 판정하므로, 'Tron (TRC20)'·
+# 'Ethereum (ERC20)' 처럼 라벨에 괄호가 붙은 변형도 같은 별칭으로 이어진다.
+_NETWORK_ALIASES: tuple[tuple[str, frozenset[str]], ...] = (
+    ('trc20', frozenset({'trc20', 'tron', '트론'})),
+    ('tron', frozenset({'trc20', 'tron', '트론'})),
+    ('erc20', frozenset({'erc20', 'ethereum', 'eth', '이더리움'})),
+    ('ethereum', frozenset({'erc20', 'ethereum', 'eth', '이더리움'})),
+    ('bep20', frozenset({'bep20', 'bsc', 'binance smart chain'})),
+    ('kaia', frozenset({'kaia', 'klay', 'klaytn', '클레이튼'})),
+    ('lightning', frozenset({'lightning', '라이트닝'})),
+    ('bitcoin', frozenset({'bitcoin', 'btc', '비트코인'})),
+    ('solana', frozenset({'solana', 'sol', '솔라나'})),
+    ('aptos', frozenset({'aptos', 'apt', '앱토스'})),
+    ('polygon', frozenset({'polygon', 'matic', '폴리곤'})),
+)
+
+# 네트워크 라벨을 토큰으로 쪼갤 때 버릴 일반 명사 — 이 단어들은 어느 공지에나
+# 나타나므로 매칭 근거가 되지 못한다.
+NETWORK_STOPWORDS: frozenset[str] = frozenset({
+    'network', 'chain', 'token', 'protocol', 'mainnet', 'testnet', 'the', 'and',
+    'on-chain', 'onchain',
+})
+
+
+def network_keywords(network_label: str, coin: str | None = None) -> frozenset[str]:
+    """네트워크 라벨을 공지 제목에서 찾기 위한 검색 키워드 집합을 만든다.
+
+    알려진 별칭이 있으면 그 별칭들을 쓰고(라벨 표기와 공지 표기가 다른 문제를 해소),
+    없으면 라벨을 공백/괄호 기준으로 쪼갠 토큰 중 불용어가 아닌 것을 쓴다.
+    BTC 는 라벨이 'Bitcoin (On-chain)' 처럼 다양해서 coin 으로도 한 번 더 받는다.
+
+    Args:
+        network_label: 출금 스냅샷의 network_label (예: 'TRC20', 'Bitcoin (On-chain)').
+        coin: 해당 행의 코인 심볼. BTC 면 비트코인 별칭을 함께 넣는다.
+
+    Returns:
+        소문자 키워드 집합. 비어 있으면 네트워크 조건을 검사할 근거가 없다는 뜻이다.
+    """
+    lower = network_label.lower()
+    for needle, aliases in _NETWORK_ALIASES:
+        if needle in lower:
+            return aliases
+    if (coin or '').upper() == 'BTC':
+        return frozenset({'bitcoin', 'btc', '비트코인'})
+
+    tokens = {
+        t for t in re.split(r'[\s()/,\-]+', lower)
+        if t and t not in NETWORK_STOPWORDS and len(t) >= 3
+    }
+    return frozenset(tokens)
+
+
+# 입출금 중단·재개·점검을 다루는 공지를 가려내는 키워드.
+#
+# 코인 심볼과 네트워크만으로 매칭하면 노이즈가 남는다. 특히 BTC 는 네트워크 이름이
+# 코인 심볼과 사실상 같아서(라벨 'Bitcoin', 심볼 'BTC') coin AND network 조건이
+# 사실상 한 조건으로 무너지고, "Binance Earn Launches BTC Yield..." 같은 프로모션
+# 공지까지 출금 중단 사유로 붙어 버린다. 중단을 실제로 다루는 공지만 남긴다.
+SUSPENSION_KEYWORDS: tuple[str, ...] = (
+    # 한국어
+    '중단', '중지', '재개', '점검', '지연', '일시 정지', '일시정지',
+    # 영어
+    'suspend', 'suspension', 'halt', 'paused', 'pause',
+    'maintenance', 'resume', 'resumption', 'disabled', 'unavailable', 'delay',
+)
+
+
+def is_suspension_notice(title: str) -> bool:
+    """공지가 입출금 중단·재개·점검을 다루는지 판단한다.
+
+    Args:
+        title: 공지 제목(원문).
+    """
+    lower = title.lower()
+    return any(kw in lower for kw in SUSPENSION_KEYWORDS)

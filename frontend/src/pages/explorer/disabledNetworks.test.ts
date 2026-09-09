@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterDisabledWithdrawals, formatDisabledDuration } from './disabledNetworks';
+import { filterDisabledWithdrawals, formatDisabledDuration, formatSuspensionReason } from './disabledNetworks';
 import type { WithdrawalRow } from '../../types';
 
 function row(p: Partial<WithdrawalRow>): WithdrawalRow {
@@ -112,5 +112,25 @@ describe('formatDisabledDuration', () => {
   it('전환 시점을 관측하지 못한 경우 하한값임을 "최소"로 알린다', () => {
     expect(formatDisabledDuration(since, since + 40 * DAY, { exact: false })).toBe('최소 40일째');
     expect(formatDisabledDuration(since, since + 40 * DAY, { exact: true })).toBe('40일째');
+  });
+});
+
+describe('formatSuspensionReason', () => {
+  it('알려진 영문 사유는 한국어로 옮긴다', () => {
+    expect(formatSuspensionReason('System Maintenance')).toBe('시스템 점검');
+  });
+
+  it('대소문자와 앞뒤 공백이 달라도 같은 사유로 본다', () => {
+    expect(formatSuspensionReason('  system maintenance ')).toBe('시스템 점검');
+  });
+
+  it('매핑에 없는 사유는 원문을 그대로 보여준다', () => {
+    expect(formatSuspensionReason('Wallet Upgrade')).toBe('Wallet Upgrade');
+  });
+
+  it('사유가 없으면 null을 반환한다', () => {
+    expect(formatSuspensionReason(null)).toBeNull();
+    expect(formatSuspensionReason(undefined)).toBeNull();
+    expect(formatSuspensionReason('   ')).toBeNull();
   });
 });

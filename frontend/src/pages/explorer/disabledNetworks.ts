@@ -82,3 +82,30 @@ export function formatDisabledDuration(
   const hours = Math.floor((elapsed % DAY_SEC) / HOUR_SEC);
   return hours === 0 ? `${prefix}${days}일째` : `${prefix}${days}일 ${hours}시간째`;
 }
+
+/**
+ * 거래소 API 가 영문으로 주는 중단 사유를 한국어로 옮긴다.
+ *
+ * 거래소가 어떤 문구를 쓸지 전부 알 수 없으므로, 실제로 관측된 값만 매핑해 두고
+ * 나머지는 원문을 그대로 보여준다. 임의로 번역하거나 "점검" 같은 일반 문구로
+ * 뭉뚱그리면 실제 사유와 어긋날 수 있다.
+ */
+const SUSPENSION_REASON_KO: Record<string, string> = {
+  'system maintenance': '시스템 점검',
+  'wallet maintenance': '지갑 점검',
+  'network congestion': '네트워크 혼잡',
+  'network upgrade': '네트워크 업그레이드',
+  'under maintenance': '점검 중',
+};
+
+/**
+ * 중단 사유 표시 문구를 만든다.
+ *
+ * @param reason 백엔드 `suspension_reason` 값. 거래소가 제공하지 않으면 null.
+ * @returns 한국어 문구(매핑에 있을 때) 또는 원문. 사유가 없으면 null.
+ */
+export function formatSuspensionReason(reason: string | null | undefined): string | null {
+  const trimmed = reason?.trim();
+  if (!trimmed) return null;
+  return SUSPENSION_REASON_KO[trimmed.toLowerCase()] ?? trimmed;
+}

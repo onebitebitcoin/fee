@@ -6,7 +6,7 @@ import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
 import { api } from '../../../lib/api';
-import { filterDisabledWithdrawals, formatDisabledDuration } from '../disabledNetworks';
+import { filterDisabledWithdrawals, formatDisabledDuration, formatSuspensionReason } from '../disabledNetworks';
 import type { AccessStats, NetworkChange, WithdrawalRow } from '../../../types';
 
 const EXCHANGES = [
@@ -336,7 +336,10 @@ export function InputStep() {
                   <div className="space-y-2">
                     {disabledNetworks.map((row, i) => {
                       const change = suspendedByKey.get(`${row.exchange}|${row.coin}|${row.network_label}`);
-                      const notice = change?.related_notices?.find(n => n.url);
+                      // 공지는 행에 직접 붙은 것(창 제한 없음)이 우선, 없으면 최근 변경 이력에서 보완.
+                      const notice = row.related_notices?.find(n => n.url)
+                        ?? change?.related_notices?.find(n => n.url);
+                      const reason = formatSuspensionReason(row.suspension_reason);
                       // 백엔드가 전체 이력을 역추적한 disabled_since 가 우선.
                       // 없을 때만 최근 24시간 변경 이력(detected_at)으로 보완한다.
                       const since = row.disabled_since ?? change?.detected_at ?? null;
@@ -355,13 +358,16 @@ export function InputStep() {
                               <span className="text-[10px] text-label-quaternary truncate">{row.network_label}</span>
                               <span className="text-[11px] font-semibold text-acc-red ml-auto flex-shrink-0">출금 중단</span>
                             </div>
-                            {(since || notice) && (
-                              <div className="flex items-center gap-2 mt-0.5">
+                            {(since || notice || reason) && (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                                 {duration && (
                                   <span className="text-[10px] font-semibold text-label-secondary">{duration}</span>
                                 )}
                                 {since && (
                                   <span className="text-[10px] text-label-quaternary">{fmtKst(since)}부터</span>
+                                )}
+                                {reason && (
+                                  <span className="text-[10px] text-label-tertiary">사유: {reason}</span>
                                 )}
                                 {notice?.url && (
                                   <a
@@ -369,6 +375,7 @@ export function InputStep() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-0.5 text-[10px] text-acc-blue hover:underline"
+                                    title={notice.title}
                                   >
                                     공지 <ArrowSquareOut className="w-2.5 h-2.5" />
                                   </a>

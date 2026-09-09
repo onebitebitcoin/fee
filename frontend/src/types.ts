@@ -46,6 +46,12 @@ export type WithdrawalRow = {
   disabled_since?: number | null;
   /** true 면 활성→중단 전환을 실제로 관측한 시각, false 면 보존 이력의 시작점(하한값). */
   disabled_since_exact?: boolean;
+  /** 거래소 API 가 직접 제공하는 중단 사유 (예: 'System Maintenance'). */
+  suspension_reason?: string | null;
+  /** 중단 사유 상세 문구. 거래소가 제공하지 않으면 null. */
+  suspension_message?: string | null;
+  /** 중단을 설명하는 거래소 공지(최신순 최대 3건). */
+  related_notices?: NetworkChangeNotice[];
 };
 
 export type CrawlErrorRow = {

@@ -63,6 +63,15 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
         )
         if disabled_keys else {}
     )
+    # 중단 사유를 설명하는 공지도 창 제한 없이 찾아 붙인다.
+    # (network-changes/recent 의 공지 첨부는 최대 72시간 창에 묶여 장기 중단을 놓친다.)
+    disabled_notice_map = (
+        _status_cache.get_or_compute(
+            f'disabled_notices:{latest_run.id}',
+            lambda: repositories.get_notices_for_disabled_networks(db, disabled_keys),
+        )
+        if disabled_keys else {}
+    )
     if exchange:
         rows = [row for row in rows if row.exchange == exchange.lower()]
         errors = [row for row in errors if row.exchange == exchange.lower()]
@@ -95,6 +104,13 @@ def get_latest_withdrawals(exchange: str | None = None, coin: str | None = None,
                 'disabled_since_exact': disabled_since_map.get(
                     (row.exchange, row.coin, row.network_label), {}
                 ).get('exact', False),
+                # 중단 사유 — 거래소 API 가 직접 제공하는 값(제공하지 않으면 None).
+                'suspension_reason': row.suspension_reason,
+                'suspension_message': row.suspension_message,
+                # 중단을 설명하는 거래소 공지(최신순 최대 3건).
+                'related_notices': disabled_notice_map.get(
+                    (row.exchange, row.coin, row.network_label), []
+                ),
             }
             for row in rows
         ],

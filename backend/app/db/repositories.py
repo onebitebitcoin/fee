@@ -17,7 +17,9 @@ from backend.app.domain.notice_match import (
     FEE_KEYWORDS,
     MAJOR_KEYWORDS,
     is_relevant_title,
+    is_suspension_notice,
     keyword_in_title,
+    network_keywords,
 )
 
 
@@ -406,6 +408,65 @@ def get_withdrawal_disabled_since(
             'disabled_since': _unix_ts_utc(started_at),
             'exact': started_at is not None and boundary_run_id is not None,
         }
+    return result
+
+
+def get_notices_for_disabled_networks(
+    db: Session,
+    keys: Iterable[tuple[str, str, str]],
+) -> dict[tuple[str, str, str], list[dict]]:
+    """출금이 중단된 (exchange, coin, network_label) 별로 그 중단을 설명하는 공지를 찾는다.
+
+    `get_recent_network_changes` 의 공지 첨부는 최근 N시간(최대 72시간) 창 안에서
+    감지된 변경에만 붙는다. 중단이 그보다 오래 이어지면 사유를 설명하는 공지가 DB 에
+    있어도 화면까지 닿지 못하므로, 이 함수는 창 제한 없이 현재 중단 중인 행을 기준으로
+    검색한다.
+
+    매칭은 coin AND network 를 모두 만족해야 한다. coin 만 겹치는 공지(예: 다른
+    네트워크의 중단 안내, USDT 페어 이벤트)가 붙는 노이즈를 막기 위해서다. 네트워크
+    키워드는 `network_keywords()` 가 별칭까지 넓혀 주므로, 라벨이 'TRC20' 인 행에
+    "Tron 네트워크" 라고 적힌 공지도 이어진다.
+
+    반환값: `{(exchange, coin, network_label): [{'title', 'url', 'published_at'}, ...]}`
+    키별 최신순 최대 3건이며, 관련 공지가 없으면 빈 리스트다.
+    """
+    key_list = list(dict.fromkeys(keys))
+    if not key_list:
+        return {}
+
+    result: dict[tuple[str, str, str], list[dict]] = {}
+    for key in key_list:
+        exchange, coin, network_label = key
+        net_kws = network_keywords(network_label, coin)
+        if not net_kws:
+            result[key] = []
+            continue
+
+        # SQL ILIKE 는 coarse 프리필터(네트워크 별칭 OR) — 정밀 필터는 후처리에서.
+        conds = [ExchangeNotice.title.ilike(f'%{kw}%') for kw in net_kws]
+        notice_rows = list(db.scalars(
+            select(ExchangeNotice)
+            .where(ExchangeNotice.exchange == exchange)
+            .where(or_(*conds))
+            .order_by(desc(ExchangeNotice.noticed_at))
+            .limit(30)
+        ))
+        # coin AND network 에 더해 "중단/재개를 다루는 공지" 조건을 건다.
+        # BTC 처럼 네트워크 키워드가 코인 심볼과 겹치는 경우 앞의 두 조건만으로는
+        # 프로모션·상장 공지가 통과한다.
+        matched = [
+            n for n in notice_rows
+            if _notice_matches_change(n.title.lower(), coin, list(net_kws))
+            and is_suspension_notice(n.title)
+        ][:3]
+        result[key] = [
+            {
+                'title': n.title,
+                'url': n.url,
+                'published_at': _unix_ts_utc(n.published_at),
+            }
+            for n in matched
+        ]
     return result
 
 
