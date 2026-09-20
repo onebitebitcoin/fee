@@ -67,7 +67,7 @@ const DEFAULT_KOREAN_NODES: KoreanExchangeNode[] = [
     notes: '',
   },
   {
-    id: 'korbit', name: '코빗',
+    id: 'korbit', name: '디지털엑스',
     takerFeePct: 0.05,
     perTxKrwLimit: null,
     dailyBtcLimitVerified: 10,

@@ -49,10 +49,10 @@ export const DOMESTIC_INFO: Record<string, DomesticInfo> = {
     source_note: '코인원 공개 정보 기준 (추정, 실제 확인 권장)',
   },
   korbit: {
-    bank: '우리은행', carf: 2027, country: '대한민국', url: 'https://korbit.co.kr', lightning: false,
+    bank: '우리은행', carf: 2027, country: '대한민국', url: 'https://digitalx.miraeasset.com', lightning: false,
     krw_per_tx_limit: null, btc_per_tx_max: 5, btc_daily_verified: 10,
-    personal_wallet_req: '코빗 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
-    source_note: '코빗: 1회 KRW 제한 없음으로 추정 (확인 권장)',
+    personal_wallet_req: '디지털엑스 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
+    source_note: '디지털엑스(구 코빗): 1회 KRW 제한 없음으로 추정 (확인 권장)',
   },
   gopax: {
     bank: '전북은행', carf: 2027, country: '대한민국', url: 'https://gopax.co.kr', lightning: false,

@@ -25,7 +25,7 @@ const DOMESTIC: Record<string, GateItem[]> = {
     { label: '고액 출금 자금 출처 증명', desc: '고액 출금 시 자금 출처 서류 제출이 요구될 수 있습니다.', level: 'conditional', condition: '고액 출금 시', source: '특금법 제5조 / 자금세탁방지법' },
   ],
   korbit: [
-    { label: '출금 주소 사전 등록 필수', desc: '100만원 이상 개인지갑 출금 시 주소를 미리 등록해야 합니다. 100만원 미만은 자유 출금 가능합니다.', level: 'required', source: '코빗 고객센터 / 금융정보분석원 가이드라인' },
+    { label: '출금 주소 사전 등록 필수', desc: '100만원 이상 개인지갑 출금 시 주소를 미리 등록해야 합니다. 100만원 미만은 자유 출금 가능합니다.', level: 'required', source: '디지털엑스(구 코빗) 고객센터 / 금융정보분석원 가이드라인' },
     { label: 'KYC 실명 인증 필수', desc: '본인 인증 완료 필요합니다.', level: 'required', source: '특금법 제5조 (고객 확인 의무)' },
     { label: '원화 입금 후 출금 지연', desc: '신규 고객은 첫 원화 입금 후 72시간, 기존 고객은 각 원화 입금 후 24시간 해당 금액 상당의 가상자산 출금이 제한됩니다.', level: 'conditional', condition: '원화 입금 시', source: '금융당국 보이스피싱 방지 지침' },
     { label: '트래블룰', desc: '100만원 이상 출금 시 수신자 정보 제출이 필요합니다.', level: 'conditional', condition: '100만원 이상 출금 시', source: '특금법 제7조 / FATF Recommendation 16' },

@@ -172,8 +172,8 @@ EXCHANGE_PROFILES: dict[str, ExchangeProfile] = {
             krw_daily_basic=5_000_000,
             krw_daily_verified=100_000_000,
             krw_per_tx_limit=None,
-            personal_wallet_req='코빗 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
-            source_note='코빗: 1회 KRW 제한 없음으로 추정 (확인 권장)',
+            personal_wallet_req='디지털엑스 앱 → 출금 → 지갑 추가 (KYC 완료 필요)',
+            source_note='디지털엑스(구 코빗): 1회 KRW 제한 없음으로 추정 (확인 권장)',
         ),
         slippage=SlippageProfile(
             exchange='korbit',
@@ -183,7 +183,7 @@ EXCHANGE_PROFILES: dict[str, ExchangeProfile] = {
         ),
         risk=ExchangeRisk(
             exchange='korbit',
-            display_name='코빗',
+            display_name='디지털엑스',
             risk_level='LOW',
             risk_emoji='🟢',
             market_share_pct=3.2,

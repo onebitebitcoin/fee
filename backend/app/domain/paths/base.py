@@ -17,7 +17,7 @@ _EXCHANGE_KO: dict[str, str] = {
     'binance': '바이낸스', 'okx': 'OKX', 'bybit': '바이빗',
     'bitget': '비트겟', 'kraken': '크라켄', 'coinbase': '코인베이스',
     'gate': '게이트', 'upbit': '업비트', 'bithumb': '빗썸',
-    'coinone': '코인원', 'korbit': '코빗', 'gopax': '고팍스',
+    'coinone': '코인원', 'korbit': '디지털엑스', 'gopax': '고팍스',
 }
 
 

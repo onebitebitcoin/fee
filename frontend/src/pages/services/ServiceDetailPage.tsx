@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowSquareOut, CircleNotch, Lightning, Warning } from '@phosphor-icons/react';
 import { api } from '../../lib/api';
-import { getExchangeDomain, getLightningServiceInfo } from '../../lib/exchangeNames';
+import { fmtExFormer, getExchangeDomain, getLightningServiceInfo } from '../../lib/exchangeNames';
 import { getDomesticGates, getGlobalGates, type GateItem, type GateLevel } from '../../lib/gatemanRegistry';
 import { BoardLayout } from '../board/BoardLayout';
 import { ExFavicon, Chip, SectionLabel } from '../explorer/ui';
@@ -118,7 +118,14 @@ export default function ServiceDetailPage() {
           <ExFavicon id={node.id} size={36} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-label-primary">{node.name}</h1>
+              <h1 className="text-lg font-bold text-label-primary">
+                {node.name}
+                {fmtExFormer(node.id) && (
+                  <span className="ml-1.5 text-xs font-normal text-label-tertiary">
+                    (구 {fmtExFormer(node.id)})
+                  </span>
+                )}
+              </h1>
               <span className="text-[10px] text-label-tertiary bg-fill-secondary px-1.5 py-0.5 rounded-md">
                 {SERVICE_TYPE_LABEL[node.type]}
               </span>

@@ -215,7 +215,7 @@ TRAVEL_RULE_THRESHOLD_KRW = 1_000_000  # 100만원
 KOREA_EXCHANGE_WITHDRAWAL_POLICY: dict[str, str] = {
     'upbit':   '화이트리스트 등록 필요 (업비트앱 → 출금관리 → 외부지갑 등록)',
     'bithumb': '본인 지갑 인증 필요 (빗썸 고객센터 또는 앱 내 지갑 등록)',
-    'korbit':  '개인지갑 사전 등록 필요 (코빗 앱 → 출금 → 지갑 추가)',
+    'korbit':  '개인지갑 사전 등록 필요 (디지털엑스 앱 → 출금 → 지갑 추가)',
     'coinone': '외부 지갑 등록 필요 (코인원 앱 → 자산 → 출금 → 주소록 등록)',
     'gopax':   '본인 지갑 확인 절차 필요 (고팍스 고객센터 확인 권장)',
 }
@@ -322,7 +322,7 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
     ref_price_krw = result.get('global_btc_price_krw_ref', 0)
     usd_krw_rate = promo.get('usd_krw_rate', 0)
     exchange_name_map = {
-        'upbit': '업비트', 'bithumb': '빗썸', 'korbit': '코빗',
+        'upbit': '업비트', 'bithumb': '빗썸', 'korbit': '디지털엑스',
         'coinone': '코인원', 'gopax': '고팍스',
     }
     if kimchi_data and ref_price_krw:
@@ -584,9 +584,9 @@ def _build_telegram_message_all(result: dict, amount_krw: int, mode: str = 'chea
     # 출처 섹션
     lines.append("\n\n📎 <b>수수료 데이터 출처</b>")
     fixed_sources = [
-        ("국내 거래소 매수 수수료", "각 거래소 공식 수수료 (빗썸 0.04% / 업비트 0.05% / 코빗 0.2% / 코인원 0.1%)",
+        ("국내 거래소 매수 수수료", "각 거래소 공식 수수료 (빗썸 0.04% / 업비트 0.05% / 디지털엑스 0.2% / 코인원 0.1%)",
          "각 거래소 공식 홈페이지"),
-        ("국내 USDT 출금 수수료", "실시간 API / 페이지 스크래핑 (TRC20: 빗썸·업비트 0원, 코빗 1 USDT, 코인원 2 USDT)",
+        ("국내 USDT 출금 수수료", "실시간 API / 페이지 스크래핑 (TRC20: 빗썸·업비트 0원, 디지털엑스 1 USDT, 코인원 2 USDT)",
          "각 거래소 수수료 페이지"),
         ("Bybit 출금 수수료", "공식 도움말 공개 수치 (BTC 0.0002 / USDT TRC20 1.0)",
          "https://www.bybit.com/en/help-center/article/Withdrawal-Fees"),

@@ -1,7 +1,7 @@
 const EXCHANGE_NAMES: Record<string, string> = {
   bithumb: '빗썸',
   upbit: '업비트',
-  korbit: '코빗',
+  korbit: '디지털엑스',
   coinone: '코인원',
   gopax: '고팍스',
   binance: '바이낸스',
@@ -23,7 +23,7 @@ const EXCHANGE_NAMES: Record<string, string> = {
 const EXCHANGE_DOMAINS: Record<string, string> = {
   bithumb: 'bithumb.com',
   upbit: 'upbit.com',
-  korbit: 'korbit.co.kr',
+  korbit: 'digitalx.miraeasset.com',
   coinone: 'coinone.co.kr',
   gopax: 'gopax.co.kr',
   binance: 'binance.com',
@@ -92,8 +92,30 @@ const LIGHTNING_SERVICE_INFO: Record<string, LightningServiceInfo> = {
   },
 };
 
+/**
+ * 사명이 바뀐 거래소의 예전 이름.
+ *
+ * 이용자 대부분이 옛 이름으로 기억하고 있어, 검색이 옛 이름으로도 걸리도록 남긴다.
+ * 표시는 새 이름으로 하되 상세 화면에서만 '(구 …)'를 덧붙인다.
+ */
+const EXCHANGE_FORMER_NAMES: Record<string, string> = {
+  // 2026년 미래에셋 인수 후 디지털엑스(Digital X)로 사명 변경. 거래소 id 는 korbit 을 유지한다.
+  korbit: '코빗',
+};
+
 export function fmtEx(name: string): string {
   return EXCHANGE_NAMES[name.toLowerCase()] ?? name;
+}
+
+/** 예전 이름. 사명이 바뀐 적 없으면 null. */
+export function fmtExFormer(id: string): string | null {
+  return EXCHANGE_FORMER_NAMES[id.toLowerCase()] ?? null;
+}
+
+/** 새 이름과 예전 이름을 함께 보여주는 표기 (예: '디지털엑스 (구 코빗)'). */
+export function fmtExWithFormer(id: string): string {
+  const former = fmtExFormer(id);
+  return former ? `${fmtEx(id)} (구 ${former})` : fmtEx(id);
 }
 
 export function getExchangeDomain(id: string): string | null {

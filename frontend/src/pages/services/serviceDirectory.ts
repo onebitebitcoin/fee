@@ -9,7 +9,7 @@ import type {
   KycStatus,
   LightningSwapFeeRow,
 } from '../../types';
-import { fmtEx } from '../../lib/exchangeNames';
+import { fmtEx, fmtExFormer } from '../../lib/exchangeNames';
 import { DOMESTIC_INFO, GLOBAL_INFO } from '../explorer/constants';
 
 export type ServiceType = 'domestic' | 'global' | 'lightning';
@@ -121,6 +121,10 @@ export function filterServiceNodes(
   return nodes.filter(n => {
     if (typeFilter !== 'all' && n.type !== typeFilter) return false;
     if (!q) return true;
-    return n.id.includes(q) || n.name.toLowerCase().includes(q);
+    // 사명이 바뀐 거래소는 이용자 대부분이 옛 이름으로 기억하므로 그쪽으로도 찾을 수 있어야 한다.
+    const former = fmtExFormer(n.id);
+    return n.id.includes(q)
+      || n.name.toLowerCase().includes(q)
+      || (former?.toLowerCase().includes(q) ?? false);
   });
 }

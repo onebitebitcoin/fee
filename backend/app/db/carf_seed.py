@@ -75,8 +75,8 @@ _CARF_EXCHANGES = [
     },
     {
         'id': 'korbit',
-        'name': '코빗',
-        'short_name': '코빗',
+        'name': '디지털엑스',
+        'short_name': '디지털엑스',
         'type': 'korean',
         'registered_country': '대한민국',
         'carf_group': '2027',
