@@ -290,11 +290,21 @@ def _network_names(keys: frozenset[str]) -> str:
     return ', '.join(named + sorted(key for key in keys if key not in _NETWORK_DISPLAY))
 
 
-def usdt_deposit_network_gate(exchange: str, network_label: str) -> dict | None:
+def usdt_deposit_network_gate(
+    exchange: str,
+    network_label: str,
+    live_enabled: bool | None = None,
+) -> dict | None:
     """해외 거래소가 이 네트워크로 보낸 USDT 를 국내 거래소가 받아주는지.
 
-    받아주는 것이 확인되면 None 을 돌려준다. 그 외에는 받지 않는 것이 확인된 경우와
-    확인하지 못한 경우를 나눠 알린다.
+    두 축을 함께 본다. 정적 정책은 '이 거래소가 이 망을 지원하는가'를 답하고,
+    `live_enabled` 는 크롤이 수집한 '지금 열려 있는가'를 답한다. 수집원이 없는 거래소는
+    None 이 들어오고, 그때는 정적 정책만으로 판정한다.
+
+    실시간 값은 정적 목록을 닫기만 하고 열지는 못한다. API 에 보이는 망이라도 우리가 지원을
+    확인하지 못했으면 추천하지 않는다.
+
+    받아주는 것이 확인되면 None 을 돌려준다.
     """
     policy = USDT_DEPOSIT_NETWORK_POLICIES.get(exchange)
     if policy is None:
@@ -311,6 +321,19 @@ def usdt_deposit_network_gate(exchange: str, network_label: str) -> dict | None:
         }
 
     if normalize_usdt_network(network_label) in policy.supported:
+        if live_enabled is False:
+            return {
+                'kind': 'usdt_deposit_network',
+                'level': 'blocked',
+                'label': '거래소 점검으로 입금 중단',
+                'desc': (
+                    f'이 거래소는 평소 {network_label} 네트워크로 USDT 입금을 받지만, '
+                    f'지금은 해당 네트워크를 점검 중이라 입금이 반영되지 않습니다. '
+                    f'점검 중에 보내면 자산이 묶일 수 있으니 다른 네트워크를 쓰거나 재개를 기다리세요.'
+                ),
+                'source': policy.source,
+                'source_url': policy.source_url,
+            }
         return None
 
     supported_text = _network_names(policy.supported)

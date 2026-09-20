@@ -486,6 +486,77 @@ def fetch_bithumb_withdrawal(coin: str) -> list:
     return []
 
 
+_BITHUMB_NETWORK_LABELS = {
+    "Bitcoin": "Bitcoin (On-chain)",
+    "Tron": "TRC20",
+    "Ethereum": "ERC20",
+}
+
+_KORBIT_NETWORK_LABELS = {
+    "TRX": "TRC20",
+    "ETH": "ERC20",
+}
+
+
+def fetch_bithumb_deposit_status(coin: str) -> list:
+    """빗썸이 지금 그 체인으로 입금을 받는지.
+
+    `isDepositAvailable` 을 그대로 쓰지 않고 중단 사유가 비어 있는지도 함께 본다.
+    전수 조사(524개 네트워크 행)에서 사유가 붙은 53개는 플래그가 양방향으로 어긋났고,
+    안내문은 일관되게 입출금이 함께 막혔다고 말한다. 예를 들어 USDT/Aptos 는
+    `isDepositAvailable=true` 인데 안내문이 'we have temporarily disabled withdrawals
+    and deposits' 다. 점검 중인 체인으로 자산을 보내게 두는 것보다 닫는 쪽이 낫다.
+    """
+    r = _get("https://gw.bithumb.com/exchange/v1/coin-inout/info")
+    d = r.json()
+    if d.get("status") != 200:
+        raise ValueError("Bithumb 입출금 API 오류")
+
+    for item in d.get("data", []):
+        if item.get("coinSymbol") != coin:
+            continue
+        result = []
+        for network in item.get("networkInfoList", []):
+            name = network.get("networkName")
+            reason = (network.get("suspensionReason") or "").strip() or None
+            message = (network.get("suspensionMessage") or "").strip() or None
+            result.append({
+                "exchange": "bithumb",
+                "coin": coin,
+                "network_label": _BITHUMB_NETWORK_LABELS.get(name, name),
+                "enabled": bool(network.get("isDepositAvailable", False)) and reason is None,
+                "reason": reason,
+                "message": message,
+            })
+        return result
+    return []
+
+
+def fetch_korbit_deposit_status(coin: str) -> list:
+    """디지털엑스(구 코빗)가 지금 그 체인으로 입금을 받는지.
+
+    `depositStatus` 가 출금 상태와 독립적으로 오고 사유 문구의 모호함이 없어 그대로 쓴다.
+    """
+    r = _get("https://api.korbit.co.kr/v2/currencies")
+    d = r.json()
+    for currency in d.get("data", []):
+        if str(currency.get("name", "")).upper() != coin.upper():
+            continue
+        result = []
+        for network in currency.get("networkList") or []:
+            name = network.get("name")
+            result.append({
+                "exchange": "korbit",
+                "coin": coin,
+                "network_label": _KORBIT_NETWORK_LABELS.get(name, network.get("fullName") or name),
+                "enabled": network.get("depositStatus") == "launched",
+                "reason": None if network.get("depositStatus") == "launched" else network.get("depositStatus"),
+                "message": None,
+            })
+        return result
+    return []
+
+
 def fetch_bybit_withdrawal(coin: str) -> list:
     """Bybit 출금 수수료.
     Bybit v5 /asset/coin/query-info는 API 키 필요 → 공식 페이지 공개 수치 사용.

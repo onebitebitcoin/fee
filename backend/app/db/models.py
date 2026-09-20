@@ -27,6 +27,7 @@ class CrawlRun(Base):
     lightning_swap_fee_snapshots: Mapped[list['LightningSwapFeeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_notices: Mapped[list['ExchangeNotice']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_capability_snapshots: Mapped[list['ExchangeCapabilitySnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
+    deposit_status_snapshots: Mapped[list['DepositStatusSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     exchange_volume_snapshots: Mapped[list['ExchangeVolumeSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
     korea_withdrawal_limit_snapshots: Mapped[list['KoreaWithdrawalLimitSnapshot']] = relationship(back_populates='crawl_run', cascade='all, delete-orphan')
 
@@ -140,6 +141,31 @@ class ExchangeCapabilitySnapshot(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     crawl_run: Mapped['CrawlRun'] = relationship(back_populates='exchange_capability_snapshots')
+
+
+class DepositStatusSnapshot(Base):
+    """국내 거래소가 그 체인으로 입금을 받는지에 대한 스냅샷.
+
+    출금 상태(`WithdrawalFeeSnapshot.enabled`)와 별개로 둔다. 두 값은 실제로 자주 어긋나고
+    (빗썸 USDT/Aptos 는 입금만 열려 있고 출금은 막혀 있다), 거래소가 입금을 받는 망과 출금을
+    지원하는 망의 목록도 다르다(디지털엑스는 USDT 출금 행이 하나뿐인데 입금은 두 망을 받는다).
+    출금 테이블에 컬럼으로 얹으면 붙일 자리가 없는 망이 생긴다.
+    """
+
+    __tablename__ = 'deposit_status_snapshots'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    crawl_run_id: Mapped[int] = mapped_column(ForeignKey('crawl_runs.id', ondelete='CASCADE'), index=True)
+    exchange: Mapped[str] = mapped_column(String(32), index=True)
+    coin: Mapped[str] = mapped_column(String(16), index=True)
+    network_label: Mapped[str] = mapped_column(String(128))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    #: 거래소가 밝힌 중단 사유 원문 ('System Maintenance' 등). 번역하지 않고 그대로 담는다.
+    reason: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    crawl_run: Mapped['CrawlRun'] = relationship(back_populates='deposit_status_snapshots')
 
 
 class KoreaWithdrawalLimitSnapshot(Base):

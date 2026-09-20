@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import logging
 
-from backend.app.db.models import CrawlError, CrawlRun, ExchangeCapabilitySnapshot, ExchangeNotice, KoreaWithdrawalLimitSnapshot, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
+from backend.app.db.models import CrawlError, CrawlRun, DepositStatusSnapshot, ExchangeCapabilitySnapshot, ExchangeNotice, KoreaWithdrawalLimitSnapshot, LightningSwapFeeSnapshot, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.domain.market_core import ALL_EXCHANGES, fetch_usd_krw_rate, get_ticker, get_withdrawal_fees
 from backend.app.domain.market_paths import get_network_status
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
@@ -67,6 +67,7 @@ class CrawlService:
             new_network_rows = repositories.list_network_status_for_run(self.db, crawl_run.id)
             self._fetch_and_save_targeted_notices(crawl_run, prev_network_rows, new_network_rows)
 
+            deposit_count = self._crawl_korea_deposit_status(crawl_run)
             volume_count = self._crawl_exchange_volumes(crawl_run)
             limit_count  = self._crawl_korea_withdrawal_limits(crawl_run)
 
@@ -74,8 +75,8 @@ class CrawlService:
             crawl_run.message = (
                 f'tickers={ticker_count}, withdrawals={withdrawal_count}, '
                 f'networks={network_count}, lightning_swaps={lightning_count}, '
-                f'capabilities={capability_count}, volumes={volume_count}, '
-                f'limits={limit_count}, errors={error_count}'
+                f'capabilities={capability_count}, deposits={deposit_count}, '
+                f'volumes={volume_count}, limits={limit_count}, errors={error_count}'
             )
             _invalidate_market_cache()
         except Exception as exc:
@@ -378,6 +379,41 @@ class CrawlService:
         except Exception as exc:
             logger.warning('Exchange volume crawl failed: %s', exc)
             return 0
+
+    def _crawl_korea_deposit_status(self, crawl_run: CrawlRun) -> int:
+        """국내 거래소가 지금 그 체인으로 입금을 받는지 수집해 저장한다.
+
+        공개 API 로 확인할 수 있는 곳만 담는다. 업비트·코인원·고팍스는 입금 상태를 공개하지
+        않으므로 행이 남지 않고, 경로 계산은 그 경우 정적 정책만 보고 판단한다. 한 거래소가
+        실패해도 나머지는 저장한다 — 이 데이터가 없으면 기존 동작으로 돌아갈 뿐이다.
+        """
+        from fee_checker import fetch_bithumb_deposit_status, fetch_korbit_deposit_status  # noqa: PLC0415
+
+        fetchers = {
+            'bithumb': fetch_bithumb_deposit_status,
+            'korbit': fetch_korbit_deposit_status,
+        }
+        count = 0
+        for exchange, fetcher in fetchers.items():
+            for coin in ('BTC', 'USDT'):
+                try:
+                    rows = fetcher(coin)
+                except Exception as exc:
+                    logger.warning('%s %s deposit status fetch failed: %s', exchange, coin, exc)
+                    self._add_error(crawl_run.id, exchange, coin, 'deposit_status', str(exc))
+                    continue
+                for row in rows:
+                    self.db.add(DepositStatusSnapshot(
+                        crawl_run_id=crawl_run.id,
+                        exchange=row['exchange'],
+                        coin=row['coin'],
+                        network_label=row['network_label'],
+                        enabled=row['enabled'],
+                        reason=row.get('reason'),
+                        message=row.get('message'),
+                    ))
+                    count += 1
+        return count
 
     def _crawl_korea_withdrawal_limits(self, crawl_run: CrawlRun) -> int:
         """국내 거래소 출금 한도를 Playwright로 스크래핑하여 저장한다."""

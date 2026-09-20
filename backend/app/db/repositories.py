@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.models import CrawlRun, NetworkStatusSnapshot, TickerSnapshot, WithdrawalFeeSnapshot
 from backend.app.db.models import CrawlError, LightningSwapFeeSnapshot, AccessLog, ExchangeNotice, ExchangeCapabilitySnapshot
 from backend.app.db.models import CarfExchangeInfo, ExchangeVolumeSnapshot, KoreaWithdrawalLimitSnapshot
+from backend.app.db.models import DepositStatusSnapshot
 from backend.app.db.models import ExchangeCautionInfo
 from backend.app.domain.notice_match import (
     BTC_KEYWORDS,
@@ -82,6 +83,14 @@ def list_lightning_swap_fees_for_run(db: Session, run_id: int) -> list[Lightning
     stmt = select(LightningSwapFeeSnapshot).where(
         LightningSwapFeeSnapshot.crawl_run_id == run_id
     ).order_by(LightningSwapFeeSnapshot.service_name)
+    return list(db.scalars(stmt))
+
+
+def list_deposit_status_for_run(db: Session, run_id: int) -> list[DepositStatusSnapshot]:
+    """국내 거래소 입금 가능 여부 스냅샷. 수집원이 있는 거래소만 행이 있다."""
+    stmt = select(DepositStatusSnapshot).where(
+        DepositStatusSnapshot.crawl_run_id == run_id
+    ).order_by(DepositStatusSnapshot.exchange, DepositStatusSnapshot.coin)
     return list(db.scalars(stmt))
 
 

@@ -111,6 +111,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
     lightning_swap_rows: list | None = None,
     exchange_capability_rows: list | None = None,
     wallet_utxo_count: int = 1,
+    deposit_status_rows: list | None = None,
 ) -> dict:
     global_exchange = global_exchange.lower()
     if global_exchange not in GROUPS['global']:
@@ -196,6 +197,19 @@ def find_cheapest_sell_path_from_snapshot_rows(
         row.exchange: row for row in (exchange_capability_rows or [])
     }
 
+    # 국내 거래소가 지금 그 체인으로 입금을 받는지. 거래소마다 같은 체인을 다르게 표기해서
+    # (빗썸 'TRC20' 대 OKX 'Tron (TRC20)') 정규화 키로 맞춘다. 수집원이 없는 거래소는
+    # 키가 아예 없고, 그때 조회 결과인 None 이 '모름'을 뜻한다.
+    deposit_enabled_by_key: dict[tuple[str, str, str], bool] = {
+        (row.exchange, row.coin, normalize_usdt_network(row.network_label)): row.enabled
+        for row in (deposit_status_rows or [])
+    }
+
+    def _deposit_enabled(korean_exchange: str, coin: str, network_label: str) -> bool | None:
+        return deposit_enabled_by_key.get(
+            (korean_exchange, coin, normalize_usdt_network(network_label))
+        )
+
     paths: list[dict] = []
     disabled_paths: list[dict] = []
     # disabled_paths 중복 제거용 키 세트
@@ -232,7 +246,15 @@ def find_cheapest_sell_path_from_snapshot_rows(
 
         # ----- 경로 1: BTC 직접 (개인지갑 BTC → 온체인 → 국내 BTC 매도) -----
         for row in ctx.withdrawals_by_key.get((exchange, 'BTC'), []):
-            if not row.enabled or row.fee is None:
+            # 이 루프는 국내 거래소가 지원하는 BTC 망 이름을 얻으려고 돈다. 파는 방향에서 이
+            # 구간은 거래소로 보내는 '입금'이라 출금 수수료도, 출금 가능 여부도 쓰지 않는다.
+            # 입금 상태를 모르면(수집원 없음) 예전처럼 망이 있다는 사실만으로 경로를 만든다.
+            btc_deposit_enabled = _deposit_enabled(exchange, 'BTC', row.network_label)
+            if btc_deposit_enabled is False:
+                _add_disabled(
+                    korean_exchange=exchange, transfer_coin='BTC', network=row.network_label,
+                    reason='거래소 점검으로 입금 중단',
+                )
                 continue
             suspension_reason = is_suspended(ctx.maintenance_status, exchange, 'BTC', row.network_label)
             if suspension_reason:
@@ -280,7 +302,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
 
             # 글로벌 거래소가 이 체인으로 출금할 수 있다는 사실과, 국내 거래소가 이 체인으로
             # 입금을 받는다는 사실은 별개다. 받는 쪽이 확인되지 않은 경로는 만들지 않는다.
-            network_gate = usdt_deposit_network_gate(exchange, row.network_label)
+            network_gate = usdt_deposit_network_gate(
+                exchange, row.network_label, _deposit_enabled(exchange, 'USDT', row.network_label),
+            )
             if network_gate is not None:
                 _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=network_gate['label'])
                 continue
@@ -415,7 +439,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
                         continue
 
                     # 스왑을 거쳐도 국내 거래소로 들어오는 마지막 구간은 같은 USDT 입금이다.
-                    network_gate = usdt_deposit_network_gate(exchange, row.network_label)
+                    network_gate = usdt_deposit_network_gate(
+                        exchange, row.network_label, _deposit_enabled(exchange, 'USDT', row.network_label),
+                    )
                     if network_gate is not None:
                         _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=network_gate['label'])
                         continue

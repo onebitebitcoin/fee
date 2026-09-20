@@ -92,6 +92,7 @@ def get_cheapest_path(
             if amount_btc is None:
                 raise HTTPException(status_code=422, detail='sell 모드에는 amount_btc가 필요합니다.')
             exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
+            deposit_status_rows = repositories.list_deposit_status_for_run(db, latest_run.id) if latest_run else []
             payload = find_cheapest_sell_path_from_snapshot_rows(
                 amount_btc=amount_btc,
                 wallet_utxo_count=wallet_utxo_count,
@@ -102,6 +103,7 @@ def get_cheapest_path(
                 network_rows=network_rows,
                 lightning_swap_rows=lightning_swap_rows,
                 exchange_capability_rows=exchange_capability_rows,
+                deposit_status_rows=deposit_status_rows,
             )
         else:
             payload = find_cheapest_path_from_snapshot_rows(
@@ -143,6 +145,7 @@ def _compute_cheapest_all(
     lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
     crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
     exchange_capability_rows = repositories.list_exchange_capabilities_for_run(db, latest_run.id) if latest_run else []
+    deposit_status_rows = repositories.list_deposit_status_for_run(db, latest_run.id) if latest_run else []
     notice_rows = repositories.get_all_notices_by_exchange(db)
     exchange_notices = _build_notice_lookup(notice_rows)
 
@@ -210,6 +213,7 @@ def _compute_cheapest_all(
                     network_rows=network_rows,
                     lightning_swap_rows=lightning_swap_rows,
                     exchange_capability_rows=exchange_capability_rows,
+                    deposit_status_rows=deposit_status_rows,
                 )
             else:
                 payload = find_cheapest_path_from_snapshot_rows(

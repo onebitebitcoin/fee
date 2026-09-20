@@ -379,7 +379,12 @@ def test_업비트_USDT_경유는_바이비트발_입금도_통과한다():
 # 입금 주소를 발급한다는 뜻이 아니다. 신생 체인일수록 출금 수수료가 싸서 수수료만 보면
 # 상위권을 차지하는데, 국내 거래소가 받지 않으면 보낸 자산이 묶인다.
 
-def _sell_with_networks(*network_labels: str, global_exchange: str = 'binance', amount_btc: float = 0.05):
+def _sell_with_networks(
+    *network_labels: str,
+    global_exchange: str = 'binance',
+    amount_btc: float = 0.05,
+    deposit_status_rows=None,
+):
     """글로벌 거래소의 USDT 출금망을 원하는 조합으로 주입한 매도 계산."""
     run = _make_run()
     tickers = [
@@ -399,6 +404,7 @@ def _sell_with_networks(*network_labels: str, global_exchange: str = 'binance', 
     ):
         return find_cheapest_sell_path_from_snapshot_rows(
             amount_btc, global_exchange, run, tickers, withdrawals, [],
+            deposit_status_rows=deposit_status_rows,
         )
 
 
@@ -466,6 +472,99 @@ def test_BTC_경로에는_네트워크_키가_없다():
     btc_paths = [p for p in result['all_paths'] if p['transfer_coin'] == 'BTC']
     assert btc_paths
     assert all(p['network_key'] is None for p in btc_paths)
+
+
+# ── 국내 거래소 입금 상태(실시간) ──────────────────────────────────────────────
+# 정적 정책은 '이 거래소가 이 망을 지원하는가'까지만 안다. 점검으로 지금 닫혀 있는지는
+# 크롤이 수집한 값으로만 알 수 있고, 그 사이에 보내면 자산이 묶인다.
+
+def _deposit_row(exchange: str, coin: str, network_label: str, enabled: bool, reason: str | None = None):
+    return SimpleNamespace(
+        exchange=exchange, coin=coin, network_label=network_label,
+        enabled=enabled, reason=reason, message=None,
+    )
+
+
+def test_점검_중인_입금망은_경로가_만들어지지_않는다():
+    """빗썸 Aptos 처럼 지원 목록에는 있지만 지금 닫힌 망이 이 경우다."""
+    result = _sell_with_networks(
+        'Aptos', 'Tron (TRC20)',
+        deposit_status_rows=[_deposit_row('bithumb', 'USDT', 'Aptos', False, 'System Maintenance')],
+    )
+    assert _usdt_networks_of(result, 'bithumb') == {'Tron (TRC20)'}
+    # 같은 망이라도 상태를 모르는 거래소는 그대로 남는다.
+    assert 'Aptos' in _usdt_networks_of(result, 'upbit')
+
+
+def test_점검_중인_망은_비활성_목록에_사유와_함께_남는다():
+    result = _sell_with_networks(
+        'Aptos',
+        deposit_status_rows=[_deposit_row('bithumb', 'USDT', 'Aptos', False, 'System Maintenance')],
+    )
+    rows = [d for d in result['disabled_paths'] if d['korean_exchange'] == 'bithumb' and d['network'] == 'Aptos']
+    assert len(rows) == 1
+    assert '점검' in rows[0]['reason']
+
+
+def test_입금_상태를_주지_않으면_기존_동작과_같다():
+    """수집원이 없는 거래소는 정적 정책만으로 판정한다."""
+    with_rows = _sell_with_networks('Aptos', 'Tron (TRC20)', deposit_status_rows=[])
+    without = _sell_with_networks('Aptos', 'Tron (TRC20)')
+    assert _usdt_networks_of(with_rows, 'bithumb') == _usdt_networks_of(without, 'bithumb')
+    assert _usdt_networks_of(without, 'bithumb') == {'Aptos', 'Tron (TRC20)'}
+
+
+def test_거래소별_라벨_표기가_달라도_같은_망으로_대조한다():
+    """빗썸은 'TRC20', OKX 는 'Tron (TRC20)' 으로 쓴다. 정규화해서 맞춰야 한다."""
+    result = _sell_with_networks(
+        'Tron (TRC20)',
+        deposit_status_rows=[_deposit_row('bithumb', 'USDT', 'TRC20', False, 'System Maintenance')],
+    )
+    assert _usdt_networks_of(result, 'bithumb') == set()
+
+
+def test_BTC_직접_경로는_출금이_아니라_입금_상태로_판정한다():
+    """파는 방향에서 그 구간은 국내 거래소로 보내는 입금이다.
+
+    국내 거래소의 BTC 출금이 막혀 있어도 입금이 열려 있으면 이 경로는 쓸 수 있다.
+    """
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    # 출금은 막혀 있지만 입금은 열려 있는 상태
+    withdrawals = [_make_withdrawal('bithumb', 'BTC', 'Bitcoin (On-chain)', 0.0005, enabled=False)]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        result = find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers, withdrawals, [],
+            deposit_status_rows=[_deposit_row('bithumb', 'BTC', 'Bitcoin (On-chain)', True)],
+        )
+    btc_paths = [p for p in result['all_paths'] if p['route_variant'] == 'btc_direct']
+    assert btc_paths, '입금이 열려 있는데 출금 플래그 때문에 경로가 사라졌다'
+
+
+def test_BTC_입금이_막히면_직접_경로가_사라진다():
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    withdrawals = [_make_withdrawal('bithumb', 'BTC', 'Bitcoin (On-chain)', 0.0005, enabled=True)]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        result = find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers, withdrawals, [],
+            deposit_status_rows=[_deposit_row('bithumb', 'BTC', 'Bitcoin (On-chain)', False, 'System Maintenance')],
+        )
+    assert [p for p in result['all_paths'] if p['route_variant'] == 'btc_direct'] == []
+    reasons = [d['reason'] for d in result['disabled_paths'] if d['transfer_coin'] == 'BTC']
+    assert any('점검' in r or '입금' in r for r in reasons), reasons
 
 
 def test_라이트닝_경유_경로도_같은_입금망_제약을_받는다():

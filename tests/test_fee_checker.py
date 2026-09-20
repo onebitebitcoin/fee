@@ -962,3 +962,92 @@ class TestFetchBitgetWithdrawal:
 
         result = fee_checker.fetch_bitget_withdrawal("BTC")
         assert result == []
+
+
+class TestFetchKoreaDepositStatus:
+    """국내 거래소가 지금 그 체인으로 입금을 받는지 수집한다.
+
+    출금 가능 여부와 별개의 신호다. 빗썸 USDT/Aptos 처럼 입금은 열려 있다고 표시되면서
+    출금만 막히는 경우도, 그 반대도 실제로 나온다.
+    """
+
+    def test_빗썸은_중단_사유가_있으면_입금_플래그를_믿지_않는다(self, mocker):
+        # 빗썸 실제 응답. 플래그는 입금 가능이라는데 안내문은 입금도 막았다고 한다.
+        # 전수 조사 결과 사유가 붙은 행에서는 플래그가 양방향으로 어긋난다.
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": 200,
+            "data": [{
+                "coinSymbol": "USDT",
+                "networkInfoList": [
+                    {
+                        "networkName": "Tron", "isDepositAvailable": True,
+                        "isWithdrawAvailable": True, "suspensionReason": "", "suspensionMessage": "",
+                    },
+                    {
+                        "networkName": "Aptos", "isDepositAvailable": True,
+                        "isWithdrawAvailable": False,
+                        "suspensionReason": "System Maintenance",
+                        "suspensionMessage": "In order to protect your assets, we have temporarily disabled withdrawals and deposits.",
+                    },
+                    {
+                        "networkName": "Ethereum", "isDepositAvailable": False,
+                        "isWithdrawAvailable": True, "suspensionReason": "Network Issue", "suspensionMessage": "",
+                    },
+                ],
+            }],
+        }
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+
+        rows = fee_checker.fetch_bithumb_deposit_status("USDT")
+        by_label = {r["network_label"]: r for r in rows}
+        assert by_label["TRC20"]["enabled"] is True
+        assert by_label["Aptos"]["enabled"] is False
+        assert by_label["Aptos"]["reason"] == "System Maintenance"
+        assert by_label["ERC20"]["enabled"] is False
+
+    def test_빗썸은_출금_라벨_표기를_그대로_따른다(self, mocker):
+        # 출금 스냅샷과 같은 라벨을 써야 화면에서 같은 망으로 읽힌다.
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": 200,
+            "data": [{
+                "coinSymbol": "BTC",
+                "networkInfoList": [
+                    {"networkName": "Bitcoin", "isDepositAvailable": True, "isWithdrawAvailable": True},
+                ],
+            }],
+        }
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+
+        rows = fee_checker.fetch_bithumb_deposit_status("BTC")
+        assert rows[0]["network_label"] == "Bitcoin (On-chain)"
+        assert rows[0]["exchange"] == "bithumb"
+        assert rows[0]["coin"] == "BTC"
+
+    def test_디지털엑스는_입금_상태가_출금과_독립이다(self, mocker):
+        # 코빗 API 는 depositStatus 를 따로 주고 사유 문구의 모호함이 없다.
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "success": True,
+            "data": [{
+                "name": "usdt",
+                "networkList": [
+                    {"name": "TRX", "fullName": "Tron", "depositStatus": "launched", "withdrawalStatus": "launched"},
+                    {"name": "ETH", "fullName": "Ethereum", "depositStatus": "stopped", "withdrawalStatus": "launched"},
+                ],
+            }],
+        }
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+
+        rows = fee_checker.fetch_korbit_deposit_status("USDT")
+        by_label = {r["network_label"]: r for r in rows}
+        assert by_label["TRC20"]["enabled"] is True
+        assert by_label["ERC20"]["enabled"] is False
+        assert all(r["exchange"] == "korbit" for r in rows)
+
+    def test_해당_코인이_없으면_빈_목록을_준다(self, mocker):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"status": 200, "data": []}
+        mocker.patch("fee_checker._get", return_value=mock_resp)
+        assert fee_checker.fetch_bithumb_deposit_status("USDT") == []

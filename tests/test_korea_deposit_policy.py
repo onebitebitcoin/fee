@@ -195,6 +195,25 @@ class TestUsdtDepositNetworkGate:
     def test_레지스트리에_없는_거래소는_unknown_으로_답한다(self):
         assert usdt_deposit_network_gate('nonexistent', 'Tron (TRC20)')['level'] == 'unknown'
 
+    def test_실시간_값을_주지_않으면_정적_정책만_본다(self):
+        # 수집원이 없는 거래소(업비트·코인원·고팍스)가 이 경우다.
+        assert usdt_deposit_network_gate('bithumb', 'Tron (TRC20)', live_enabled=None) is None
+
+    def test_지원하는_망이어도_지금_닫혀_있으면_막는다(self):
+        # 빗썸 Aptos 가 이 경우다. 지원 목록에는 있지만 점검 중이라 지금 보내면 묶인다.
+        gate = usdt_deposit_network_gate('bithumb', 'Aptos', live_enabled=False)
+        assert gate is not None
+        assert gate['level'] == 'blocked'
+        assert '점검' in gate['label']
+
+    def test_실시간으로_열려_있으면_통과한다(self):
+        assert usdt_deposit_network_gate('bithumb', 'Aptos', live_enabled=True) is None
+
+    def test_실시간_값은_정적_목록을_열지는_못한다(self):
+        # 코인원은 트론만 받는다. API 가 무엇을 말하든 목록 밖을 추천하지 않는다.
+        gate = usdt_deposit_network_gate('coinone', 'Ethereum (ERC20)', live_enabled=True)
+        assert gate['level'] == 'blocked'
+
     def test_허용_목록의_키는_정규화_함수의_출력값이다(self):
         # 정규화 키에 오타가 있으면 실제로 쓸 수 있는 망이 조용히 막힌다.
         for exchange, policy in USDT_DEPOSIT_NETWORK_POLICIES.items():
