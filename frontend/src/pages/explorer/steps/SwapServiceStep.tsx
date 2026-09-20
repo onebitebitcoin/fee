@@ -27,7 +27,7 @@ export function SwapServiceStep() {
                       출금 방식 다시 선택
                     </button>
                   </div>
-                ) : swapServiceOptions.map(({ name, fee_pct, fee_fixed_sat, kyc, btc_received, source_url }, i) => {
+                ) : swapServiceOptions.map(({ name, fee_pct, fee_fixed_sat, kyc, source_url }, i) => {
                   const isSelected = swapSvc === name;
                   const svcInfo = getLightningServiceInfo(name);
                   const domain = getExchangeDomain(name);

@@ -8,13 +8,14 @@ import { buildTimeline } from './timeline';
 /** 마법사 상단 가로 진행 타임라인 — 지금까지 고른 값을 단계 순서대로 보여준다(표시 전용). */
 export function StepTimeline() {
   const {
-    phase, domestic, coin, global, network, btcMethod,
+    phase, mode, domestic, coin, global, network, btcMethod,
     globalExitMethod, destination, swapSvc,
   } = useExplorer();
 
   const steps = buildTimeline(
     { domestic, coin, global, network, btcMethod, globalExitMethod, destination, swapSvc },
     phase,
+    mode,
   );
   if (steps.length < 2) return null;   // 첫 단계에선 타임라인이 의미 없음
 

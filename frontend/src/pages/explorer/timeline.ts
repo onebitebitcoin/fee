@@ -3,6 +3,7 @@
 // 경로 분기(USDT / BTC 경유 / BTC 직접, 라이트닝 종착지 등)는 flow.ts FLOW가 단일 기준이므로
 // 여기서 분기 규칙을 다시 쓰지 않고 flowNext()를 반복 적용해 실제 경로를 얻는다.
 
+import type { PathMode } from '../../types';
 import { fmtEx } from '../../lib/exchangeNames';
 import { flowNext, type CoinType, type Destination, type FlowState, type Phase } from './flow';
 
@@ -10,7 +11,6 @@ export interface TimelineSelection extends FlowState {
   domestic: string | null;
   global: string | null;
   network: string | null;
-  btcMethod: 'onchain' | 'lightning' | null;
 }
 
 export interface TimelineStep {
@@ -34,6 +34,18 @@ const PHASE_LABEL: Partial<Record<Phase, string>> = {
   result: '결과',
 };
 
+// 팔 때는 자금이 개인 지갑에서 거래소로 흐르므로, '출금'이라는 말이 방향을 거꾸로 읽히게 한다.
+// 방향이 뒤바뀌는 단계만 라벨을 덮어쓰고 나머지는 위 기본값을 쓴다.
+const SELL_PHASE_LABEL: Partial<Record<Phase, string>> = {
+  btc_method: '전송 방식',
+  global_exit_method: '전송 방식',
+};
+
+function phaseLabel(phase: Phase, mode: PathMode): string {
+  const override = mode === 'sell' ? SELL_PHASE_LABEL[phase] : undefined;
+  return override ?? PHASE_LABEL[phase] ?? phase;
+}
+
 const COIN_LABEL: Record<CoinType, string> = {
   USDT: 'USDT 경유',
   BTC: 'BTC 직접',
@@ -52,7 +64,7 @@ const DESTINATION_LABEL: Record<Destination, string> = {
 };
 
 /** 현재 phase까지 실제로 거쳐온 단계 목록. FLOW를 따라가므로 분기 규칙 중복이 없다. */
-export function timelinePhases(sel: TimelineSelection, current: Phase): Phase[] {
+export function timelinePhases(sel: TimelineSelection, current: Phase, mode: PathMode = 'buy'): Phase[] {
   if (!PHASE_LABEL[current]) return [];   // input/recommendation 등 마법사 밖
   const out: Phase[] = [];
   let phase: Phase = 'domestic';
@@ -60,7 +72,7 @@ export function timelinePhases(sel: TimelineSelection, current: Phase): Phase[] 
   for (let i = 0; i < 12; i++) {
     out.push(phase);
     if (phase === current || phase === 'result') break;
-    const next = flowNext(phase, sel);
+    const next = flowNext(phase, sel, mode);
     if (next === phase) break;
     phase = next;
   }
@@ -91,12 +103,12 @@ function valueFor(phase: Phase, sel: TimelineSelection): { value: string | null;
 }
 
 /** 타임라인 렌더 데이터. 현재 단계는 'current', 그 이전은 'done'. */
-export function buildTimeline(sel: TimelineSelection, current: Phase): TimelineStep[] {
-  return timelinePhases(sel, current).map(phase => {
+export function buildTimeline(sel: TimelineSelection, current: Phase, mode: PathMode = 'buy'): TimelineStep[] {
+  return timelinePhases(sel, current, mode).map(phase => {
     const { value, iconId } = valueFor(phase, sel);
     return {
       phase,
-      label: PHASE_LABEL[phase] ?? phase,
+      label: phaseLabel(phase, mode),
       value,
       iconId,
       state: phase === current ? 'current' : 'done',

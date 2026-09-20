@@ -6,14 +6,16 @@
 // 변경 시 주의: 이 파일의 로직이 바뀌면 추천 리스트/필터 결과가 달라진다.
 // frontend/src/pages/explorer/__fixtures__ 의 golden 회귀 테스트가 이를 감지한다.
 
-import type { CheapestPathEntry, CheapestPathResponse } from '../../types';
+import type { CheapestPathEntry, CheapestPathResponse, PathMode } from '../../types';
 import type { Destination } from './flow';
+import { isLightningPath, receivedAmount, usesGlobalExchange } from './pathMode';
 
 /** 추천 경로 = 단일 경로 엔트리 + 어느 글로벌 거래소 응답에서 왔는지(_g) */
 export type RecommendedPath = CheapestPathEntry & { _g: string };
 
-/** 추천 리스트 제외 필터 상태 */
+/** 추천 리스트 제외 필터 상태. mode 를 생략하면 살 때(buy)로 본다. */
 export interface RecommendFilterState {
+  mode?: PathMode;
   destinationFilter: Destination;
   excludeExchanges: Set<string>;
   excludeGlobalExchanges: Set<string>;
@@ -59,29 +61,33 @@ export function recommendRouteKey(p: RecommendedPath): string {
  * 출금 중단 네트워크는 수수료를 강제계산(제약 무시)해 수령량이 더 크게 나올 수 있는데,
  * 수령량만으로 대표를 뽑으면 그 거래소의 쓸 수 있는 네트워크가 통째로 가려진다.
  */
-function isBetterRepresentative(candidate: RecommendedPath, current: RecommendedPath): boolean {
+function isBetterRepresentative(
+  candidate: RecommendedPath,
+  current: RecommendedPath,
+  mode: PathMode,
+): boolean {
   const candidateDisabled = !!candidate.disabled;
   const currentDisabled = !!current.disabled;
   if (candidateDisabled !== currentDisabled) return !candidateDisabled;
-  return (candidate.btc_received ?? 0) > (current.btc_received ?? 0);
+  return receivedAmount(candidate, mode) > receivedAmount(current, mode);
 }
 
 /**
  * 평탄화된 경로를 라우트키로 dedup(활성 우선, 동일 상태면 btc_received 큰 쪽 유지) 후
  * 수수료 오름차순 → 동률 시 btc_received 내림차순 정렬한다.
  */
-export function dedupAndSortPaths(allPaths: RecommendedPath[]): RecommendedPath[] {
+export function dedupAndSortPaths(allPaths: RecommendedPath[], mode: PathMode = 'buy'): RecommendedPath[] {
   if (!allPaths.length) return [];
   const best = new Map<string, RecommendedPath>();
   for (const p of allPaths) {
     const key = recommendRouteKey(p);
     const cur = best.get(key);
-    if (!cur || isBetterRepresentative(p, cur)) best.set(key, p);
+    if (!cur || isBetterRepresentative(p, cur, mode)) best.set(key, p);
   }
   return [...best.values()].sort((a, b) => {
     const diff = (a.total_fee_krw ?? 0) - (b.total_fee_krw ?? 0);
     if (diff !== 0) return diff;
-    return (b.btc_received ?? 0) - (a.btc_received ?? 0);
+    return receivedAmount(b, mode) - receivedAmount(a, mode);
   });
 }
 
@@ -91,17 +97,16 @@ export function filterRecommendedPaths(
   state: RecommendFilterState,
 ): RecommendedPath[] {
   const {
-    destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
+    mode = 'buy', destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
     excludeOnchain, excludeLightning, excludeDisabled,
   } = state;
   return paths.filter(p => {
     // 종착지 필터: 개인지갑 모드엔 personal 경로만, 라이트닝 지갑 모드엔 lightning_wallet 경로만.
-    if ((p.destination ?? 'personal') !== destinationFilter) return false;
+    // 팔 때는 종착지가 원화 계좌 하나뿐이라 이 필터를 적용하지 않는다(경로에 destination 필드도 없다).
+    if (mode !== 'sell' && (p.destination ?? 'personal') !== destinationFilter) return false;
     if (excludeExchanges.has(p.korean_exchange)) return false;
-    const isUsdt = p.transfer_coin === 'USDT';
-    const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
-    if ((isUsdt || isViaGlobal) && excludeGlobalExchanges.has(p._g)) return false;
-    if (p.path_type === 'lightning_exit') {
+    if (usesGlobalExchange(p) && excludeGlobalExchanges.has(p._g)) return false;
+    if (isLightningPath(p, mode)) {
       if (excludeLightning) return false;
       const svc = p.lightning_exit_provider;
       if (svc && excludeServices.has(svc)) return false;
