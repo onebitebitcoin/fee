@@ -86,3 +86,28 @@ describe('buildTimeline — 라벨·값·상태', () => {
     expect(steps.find(x => x.phase === 'destination')?.value).toBe('라이트닝 지갑');
   });
 });
+
+describe('팔 때의 타임라인', () => {
+  it('매도 경로를 따라가며 종착지 단계를 건너뛴다', () => {
+    const s = sel({
+      domestic: 'bithumb', coin: 'USDT', global: 'binance', network: 'TRC20',
+      globalExitMethod: 'lightning', swapSvc: 'Strike',
+    });
+    expect(timelinePhases(s, 'result', 'sell')).toEqual([
+      'domestic', 'coin', 'global', 'network', 'global_exit_method', 'swap_service', 'result',
+    ]);
+  });
+
+  it("방향이 뒤집히는 단계는 '출금' 대신 '전송'으로 읽힌다", () => {
+    const s = sel({ domestic: 'bithumb', coin: 'BTC', btcMethod: 'onchain' });
+    const steps = buildTimeline(s, 'btc_method', 'sell');
+    expect(steps.map(x => x.label)).toEqual(['국내 거래소', '이동 방식', '전송 방식']);
+    expect(steps[2].value).toBe('온체인');
+  });
+
+  it('살 때는 같은 단계가 기존 라벨을 유지한다', () => {
+    const s = sel({ domestic: 'bithumb', coin: 'BTC', btcMethod: 'onchain' });
+    const steps = buildTimeline(s, 'btc_method');
+    expect(steps.map(x => x.label)).toEqual(['국내 거래소', '이동 방식', '출금 방식']);
+  });
+});
