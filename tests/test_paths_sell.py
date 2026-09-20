@@ -207,8 +207,12 @@ def test_sell_disabled_paths_deduplication():
             network_rows=[],
         )
 
-    # 같은 (USDT, TRC20, 한도초과) disabled가 여러 한국 거래소마다 반복 추가되지 않아야 함
-    disabled_reasons = [(d['transfer_coin'], d['network'], d['reason']) for d in result['disabled_paths']]
+    # 같은 (거래소, USDT, TRC20, 한도초과) disabled가 반복 추가되지 않아야 함.
+    # 거래소가 키에 들어가는 이유는 입금망 제약처럼 거래소마다 다른 사유가 있기 때문이다.
+    disabled_reasons = [
+        (d['korean_exchange'], d['transfer_coin'], d['network'], d['reason'])
+        for d in result['disabled_paths']
+    ]
     assert len(disabled_reasons) == len(set(disabled_reasons)), f'중복 disabled_paths 존재: {disabled_reasons}'
 
 
@@ -368,3 +372,116 @@ def test_업비트_USDT_경유는_바이비트발_입금도_통과한다():
     paths = _paths_of(result, 'usdt_via_global', 'upbit')
     assert paths
     assert paths[0]['deposit_gates'] == []
+
+
+# ── USDT 입금망 제약 ───────────────────────────────────────────────────────────
+# 해외 거래소가 어떤 체인으로 USDT 를 출금할 수 있다는 사실은, 국내 거래소가 그 체인으로
+# 입금 주소를 발급한다는 뜻이 아니다. 신생 체인일수록 출금 수수료가 싸서 수수료만 보면
+# 상위권을 차지하는데, 국내 거래소가 받지 않으면 보낸 자산이 묶인다.
+
+def _sell_with_networks(*network_labels: str, global_exchange: str = 'binance', amount_btc: float = 0.05):
+    """글로벌 거래소의 USDT 출금망을 원하는 조합으로 주입한 매도 계산."""
+    run = _make_run()
+    tickers = [
+        _make_ticker(global_exchange, 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('upbit', 130_000_000.0, taker_pct=0.05),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+        _make_ticker('coinone', 130_000_000.0, taker_pct=0.1),
+        _make_ticker('korbit', 130_000_000.0, taker_pct=0.2),
+        _make_ticker('gopax', 130_000_000.0, taker_pct=0.2),
+    ]
+    withdrawals = [
+        _make_withdrawal(global_exchange, 'USDT', label, 1.0) for label in network_labels
+    ]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        return find_cheapest_sell_path_from_snapshot_rows(
+            amount_btc, global_exchange, run, tickers, withdrawals, [],
+        )
+
+
+def _usdt_networks_of(result, korean_exchange):
+    return {
+        p['network'] for p in result['all_paths']
+        if p['transfer_coin'] == 'USDT' and p['korean_exchange'] == korean_exchange
+    }
+
+
+def test_빗썸이_받지_않는_체인은_USDT_경로가_만들어지지_않는다():
+    """빗썸 멀티체인 전수 조회에 BERA·XPL·BSC 가 없다."""
+    result = _sell_with_networks('Berachain (USDT0)', 'Plasma', 'BNB Smart Chain (BEP20)')
+    assert _usdt_networks_of(result, 'bithumb') == set()
+
+
+def test_확인된_입금망_경로는_그대로_남는다():
+    """받지 않는 체인을 걷어내면서 쓸 수 있는 체인까지 사라지면 안 된다."""
+    result = _sell_with_networks('Berachain (USDT0)', 'Tron (TRC20)', 'Ethereum (ERC20)')
+    assert _usdt_networks_of(result, 'bithumb') == {'Tron (TRC20)', 'Ethereum (ERC20)'}
+    # 코인원은 트론만 받는다.
+    assert _usdt_networks_of(result, 'coinone') == {'Tron (TRC20)'}
+
+
+def test_받지_않는_체인은_비활성_목록에_사유와_함께_남는다():
+    """경로가 조용히 사라지면 왜 없는지 알 수 없다."""
+    result = _sell_with_networks('Berachain (USDT0)', 'Tron (TRC20)')
+    rows = [
+        d for d in result['disabled_paths']
+        if d['korean_exchange'] == 'bithumb' and d['network'] == 'Berachain (USDT0)'
+    ]
+    assert len(rows) == 1, f'비활성 행이 없다: {result["disabled_paths"]}'
+    assert '입금' in rows[0]['reason']
+
+
+def test_같은_체인이라도_거래소마다_비활성_행이_따로_남는다():
+    """입금망 제약은 거래소마다 다르므로 한 행으로 합치면 나머지 거래소 화면이 비어버린다."""
+    result = _sell_with_networks('Berachain (USDT0)')
+    blocked = {
+        d['korean_exchange'] for d in result['disabled_paths']
+        if d['network'] == 'Berachain (USDT0)'
+    }
+    assert blocked == {'upbit', 'bithumb', 'coinone', 'korbit', 'gopax'}
+
+
+def test_고팍스는_확인하지_못한_체인도_경로에서_빠진다():
+    """고팍스는 트론만 확인됐다. 확인되지 않은 이더리움은 추천하지 않는다."""
+    result = _sell_with_networks('Tron (TRC20)', 'Ethereum (ERC20)')
+    assert _usdt_networks_of(result, 'gopax') == {'Tron (TRC20)'}
+    # 같은 이더리움이라도 코빗은 공식 API 로 확인돼 남는다.
+    assert 'Ethereum (ERC20)' in _usdt_networks_of(result, 'korbit')
+
+
+def test_라이트닝_경유_경로도_같은_입금망_제약을_받는다():
+    """경로 4 는 스왑을 거치지만 국내 거래소로 들어오는 마지막 구간은 똑같은 USDT 입금이다."""
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    withdrawals = [
+        _make_withdrawal('binance', 'USDT', 'Berachain (USDT0)', 1.0),
+        _make_withdrawal('binance', 'USDT', 'Tron (TRC20)', 1.0),
+    ]
+    swap = SimpleNamespace(
+        service_name='Boltz', fee_pct=0.1, fee_fixed_sat=0,
+        min_amount_sat=1_000, max_amount_sat=100_000_000,
+        enabled=True, direction='onchain_to_ln',
+    )
+    cap = SimpleNamespace(
+        exchange='bithumb', supports_lightning_deposit=True, supports_lightning_withdrawal=True,
+    )
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        result = find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers, withdrawals, [],
+            lightning_swap_rows=[swap], exchange_capability_rows=[cap],
+        )
+
+    ln_networks = {
+        p['network'] for p in result['all_paths']
+        if p['route_variant'] == 'lightning_via_global'
+    }
+    assert ln_networks == {'Tron (TRC20)'}, f'라이트닝 경유 경로에 미지원 체인이 남았다: {ln_networks}'

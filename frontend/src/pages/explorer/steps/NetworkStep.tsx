@@ -76,7 +76,11 @@ export function NetworkStep() {
                         {formatReason(reason)}
                       </span>
                     </div>
-                    {notice_title && notice_url ? (
+                    {/* 사유는 위 배지가 이미 말한다. 공지를 찾았을 때만 근거 링크를 덧붙이고,
+                        못 찾았으면 아무 말도 하지 않는다. 예전에는 여기에 '빗썸 API 비활성'이라는
+                        고정 문구를 뒀는데, 거래소와 사유가 무엇이든 같은 문장이 나와 배지와
+                        어긋났다. */}
+                    {notice_title && notice_url && (
                       <a
                         href={notice_url}
                         target="_blank"
@@ -87,8 +91,6 @@ export function NetworkStep() {
                         <p className="text-[10px] text-acc-blue leading-tight">{notice_title}</p>
                         <ArrowSquareOut className="w-2.5 h-2.5 text-acc-blue shrink-0 mt-0.5" />
                       </a>
-                    ) : (
-                      <p className="text-[10px] text-label-tertiary mt-0.5">빗썸 API 비활성</p>
                     )}
                     {dateStr && <p className="text-[9px] text-label-tertiary mt-0.5">{dateStr}</p>}
                   </div>

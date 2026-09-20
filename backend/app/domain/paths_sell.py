@@ -10,6 +10,7 @@ import requests
 from backend.app.domain.korea_deposit_policy import (
     personal_wallet_gate,
     third_party_deposit_gate,
+    usdt_deposit_network_gate,
     vasp_gate,
 )
 from backend.app.domain.market_core import GROUPS, TRADING_FEES, get_withdrawal_source_url
@@ -197,9 +198,11 @@ def find_cheapest_sell_path_from_snapshot_rows(
     _disabled_keys: set[tuple] = set()
 
     def _add_disabled(*, korean_exchange: str, transfer_coin: str, network: str, reason: str) -> None:
-        # USDT 출금 등 글로벌 거래소 기반 disabled는 korean_exchange와 무관하게 동일 row이므로
-        # (coin, network, reason) 기준으로 중복 제거한다.
-        key = (transfer_coin, network, reason)
+        # 국내 거래소를 키에 포함한다. 출금 정지처럼 글로벌 거래소에서 비롯된 사유는 국내
+        # 거래소와 무관하지만, 입금망 제약은 거래소마다 다르기 때문이다. 거래소를 빼면 먼저
+        # 기록된 거래소의 행 하나만 남고, 화면이 korean_exchange 로 걸러 읽으므로 나머지
+        # 거래소에서는 그 네트워크가 사유 없이 사라진다.
+        key = (korean_exchange, transfer_coin, network, reason)
         if key not in _disabled_keys:
             _disabled_keys.add(key)
             disabled_paths.append({
@@ -269,6 +272,13 @@ def find_cheapest_sell_path_from_snapshot_rows(
             suspension_reason = is_suspended(ctx.maintenance_status, global_exchange, 'USDT', row.network_label)
             if suspension_reason:
                 _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=suspension_reason)
+                continue
+
+            # 글로벌 거래소가 이 체인으로 출금할 수 있다는 사실과, 국내 거래소가 이 체인으로
+            # 입금을 받는다는 사실은 별개다. 받는 쪽이 확인되지 않은 경로는 만들지 않는다.
+            network_gate = usdt_deposit_network_gate(exchange, row.network_label)
+            if network_gate is not None:
+                _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=network_gate['label'])
                 continue
 
             btc_at_global = amount_btc - wallet_network_fee_btc
@@ -398,6 +408,12 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 for row in ctx.withdrawals_by_key.get((global_exchange, 'USDT'), []):
                     suspension_reason = is_suspended(ctx.maintenance_status, global_exchange, 'USDT', row.network_label)
                     if suspension_reason:
+                        continue
+
+                    # 스왑을 거쳐도 국내 거래소로 들어오는 마지막 구간은 같은 USDT 입금이다.
+                    network_gate = usdt_deposit_network_gate(exchange, row.network_label)
+                    if network_gate is not None:
+                        _add_disabled(korean_exchange=exchange, transfer_coin='USDT', network=row.network_label, reason=network_gate['label'])
                         continue
 
                     btc_at_global = btc_at_korean  # 스왑 후 BTC → 글로벌로 전송

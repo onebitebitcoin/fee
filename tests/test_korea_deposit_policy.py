@@ -8,11 +8,14 @@ import pytest
 
 from backend.app.domain.korea_deposit_policy import (
     PERSONAL_WALLET_POLICIES,
+    USDT_DEPOSIT_NETWORK_POLICIES,
     VASP_DEPOSIT_POLICIES,
     personal_wallet_gate,
     third_party_deposit_gate,
+    usdt_deposit_network_gate,
     vasp_gate,
 )
+from backend.app.domain.path_helpers import normalize_usdt_network
 
 KOREA_EXCHANGES = ('upbit', 'bithumb', 'coinone', 'korbit', 'gopax')
 OVER_THRESHOLD = 5_500_000
@@ -119,6 +122,79 @@ class TestVaspGate:
             assert policy.auto_deposit, exchange
             assert policy.source, exchange
             assert policy.source_url.startswith('https://'), exchange
+
+
+class TestUsdtDepositNetworkGate:
+    """국내 거래소가 어느 체인으로 USDT 입금을 받는지 판정한다.
+
+    해외 거래소가 그 네트워크로 출금할 수 있다는 사실은 국내 거래소가 그 네트워크로
+    입금을 받는다는 뜻이 아니다. 둘을 구분하지 않으면 실행할 수 없는 경로를 추천하게 된다.
+    """
+
+    @pytest.mark.parametrize('exchange,label', [
+        ('bithumb', 'Tron (TRC20)'),
+        ('bithumb', 'Ethereum (ERC20)'),
+        ('bithumb', 'Kaia'),
+        ('bithumb', 'Aptos'),
+        ('upbit', 'Tron (TRC20)'),
+        ('upbit', 'Ethereum (ERC20)'),
+        ('korbit', 'Tron (TRC20)'),
+        ('korbit', 'Ethereum (ERC20)'),
+        ('coinone', 'Tron (TRC20)'),
+        ('gopax', 'Tron (TRC20)'),
+    ])
+    def test_확인된_입금망은_관문이_없다(self, exchange, label):
+        assert usdt_deposit_network_gate(exchange, label) is None
+
+    @pytest.mark.parametrize('label', ('Berachain (USDT0)', 'Plasma', 'BNB Smart Chain (BEP20)'))
+    def test_빗썸이_받지_않는_체인은_blocked_다(self, label):
+        # 빗썸 멀티체인 API 전수 조회에 BERA·XPL·BSC 가 없다.
+        gate = usdt_deposit_network_gate('bithumb', label)
+        assert gate is not None
+        assert gate['kind'] == 'usdt_deposit_network'
+        assert gate['level'] == 'blocked'
+
+    @pytest.mark.parametrize('exchange', ('upbit', 'bithumb', 'coinone', 'korbit'))
+    @pytest.mark.parametrize('label', ('Berachain (USDT0)', 'Plasma', 'BNB Smart Chain (BEP20)'))
+    def test_전수_출처가_있는_거래소는_목록_밖을_blocked_로_단정한다(self, exchange, label):
+        # 업비트는 공지 누적이라 전수가 아니지만, 세 체인은 어느 공지에도 없어 unknown 으로 남는다.
+        level = usdt_deposit_network_gate(exchange, label)['level']
+        expected = 'blocked' if USDT_DEPOSIT_NETWORK_POLICIES[exchange].exhaustive else 'unknown'
+        assert level == expected
+
+    def test_고팍스는_트론_외에는_확인하지_못해_unknown_이다(self):
+        # 고팍스 자산 API 는 자산당 네트워크를 하나만 표현해 전수 열거로 볼 수 없다.
+        gate = usdt_deposit_network_gate('gopax', 'Ethereum (ERC20)')
+        assert gate['level'] == 'unknown'
+        assert USDT_DEPOSIT_NETWORK_POLICIES['gopax'].exhaustive is False
+
+    def test_안내_문구는_받아주는_망을_알려준다(self):
+        # 막혔다는 사실만으로는 대신 무엇을 써야 할지 알 수 없다.
+        gate = usdt_deposit_network_gate('bithumb', 'Plasma')
+        assert 'Tron' in gate['desc']
+        assert USDT_DEPOSIT_NETWORK_POLICIES['bithumb'].checked_on in gate['desc']
+
+    def test_같은_망의_라벨_변형은_모두_통과한다(self):
+        # 거래소마다 같은 체인을 다르게 표기한다. 정규화를 거치므로 표기 차이는 판정에 영향이 없다.
+        for label in ('Tron (TRC20)', 'TRC20', 'Tron', 'tron (trc20)'):
+            assert usdt_deposit_network_gate('coinone', label) is None, label
+
+    def test_레지스트리에_없는_거래소는_unknown_으로_답한다(self):
+        assert usdt_deposit_network_gate('nonexistent', 'Tron (TRC20)')['level'] == 'unknown'
+
+    def test_허용_목록의_키는_정규화_함수의_출력값이다(self):
+        # 정규화 키에 오타가 있으면 실제로 쓸 수 있는 망이 조용히 막힌다.
+        for exchange, policy in USDT_DEPOSIT_NETWORK_POLICIES.items():
+            for key in policy.supported:
+                assert normalize_usdt_network(key) == key, f'{exchange}: {key}'
+
+    def test_모든_국내_거래소에_정책과_근거가_있다(self):
+        assert set(USDT_DEPOSIT_NETWORK_POLICIES) == set(KOREA_EXCHANGES)
+        for exchange, policy in USDT_DEPOSIT_NETWORK_POLICIES.items():
+            assert policy.supported, exchange
+            assert policy.source, exchange
+            assert policy.source_url.startswith('https://'), exchange
+            assert policy.checked_on, exchange
 
 
 class TestThirdPartyGate:

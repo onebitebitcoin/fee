@@ -8,6 +8,12 @@
 
 두 규칙을 각각 `PERSONAL_WALLET_POLICIES` 와 `VASP_DEPOSIT_POLICIES` 에 담는다.
 
+입금이 성립하려면 여기에 축이 하나 더 맞아야 한다. 위 두 규칙이 '누가 보내는가'를 따진다면,
+`USDT_DEPOSIT_NETWORK_POLICIES` 는 '어느 체인으로 오는가'를 따진다. 해외 거래소가 어떤
+네트워크로 USDT 를 출금할 수 있다는 사실은 국내 거래소가 그 네트워크로 입금 주소를 발급한다는
+뜻이 아니다. 두 축은 서로를 보증하지 않으므로 함께 확인해야 한다. 예를 들어 OKX 는 빗썸의
+입금 허용 목록에 있지만, OKX 가 출금을 지원하는 Berachain 은 빗썸이 받는 체인이 아니다.
+
 원칙: 근거를 확인하지 못한 값은 채우지 않는다. 추정치를 넣으면 실행 가능성을 잘못 보장하게
 되고, 그 피해는 자산이 묶이는 형태로 나타난다.
 
@@ -22,6 +28,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from backend.app.domain.path_helpers import normalize_usdt_network
 
 # 입금 제약의 심각도. 기존 게이트맨 레지스트리의 level 값과 같은 어휘를 쓴다.
 #   blocked  — 현재 수단으로는 입금이 사실상 불가능하다
@@ -46,6 +54,23 @@ class PersonalWalletDepositPolicy:
     bitcoin_capable_wallets: tuple[str, ...]
     #: 등록하지 않은 지갑에서 입금했을 때 실제로 벌어지는 일
     unregistered_outcome: str
+    source: str
+    source_url: str
+
+
+@dataclass(frozen=True)
+class UsdtDepositNetworkPolicy:
+    """국내 거래소가 USDT 입금을 받아주는 네트워크."""
+
+    exchange: str
+    #: `normalize_usdt_network()` 와 같은 어휘로 쓴 정규화 키 집합.
+    supported: frozenset[str]
+    #: 출처가 이 거래소의 USDT 입금망을 빠짐없이 열거하는가.
+    #: 참이면 목록 밖을 '받지 않는다'고 단정하고, 거짓이면 '확인하지 못했다'고 말한다.
+    #: 두 경우 모두 경로에서 빠지지만, 이용자에게 전하는 문장이 달라야 한다.
+    exhaustive: bool
+    #: 출처를 확인한 날짜. 거래소가 망을 추가하면 이 값이 낡았는지 판단하는 기준이 된다.
+    checked_on: str
     source: str
     source_url: str
 
@@ -191,6 +216,128 @@ VASP_DEPOSIT_POLICIES: dict[str, VaspDepositPolicy] = {
         source_url='https://streami.atlassian.net/wiki/spaces/GHC/pages/1061093511',
     ),
 }
+
+
+# ── USDT 입금 네트워크 ──────────────────────────────────────────────────────────
+#
+# 국내 거래소가 USDT 입금 주소를 발급하는 체인은 소수다. 반면 해외 거래소는 출금 지원 체인을
+# 빠르게 늘려서, 신생 체인일수록 출금 수수료가 싸다. 그래서 수수료만 보고 경로를 고르면
+# 국내 거래소가 받지 않는 체인이 가장 싼 경로로 올라온다.
+#
+# 다섯 곳 중 넷은 지원 망을 빠짐없이 밝히는 출처를 확보했고, 고팍스와 업비트는 그러지 못했다.
+# 그 차이를 `exhaustive` 로 남긴다. 확인한 만큼만 단정하기 위해서다.
+
+_NETWORK_DISPLAY: dict[str, str] = {
+    'trc20': 'Tron (TRC20)',
+    'erc20': 'Ethereum (ERC20)',
+    'kaia': 'Kaia',
+    'aptos': 'Aptos',
+}
+
+USDT_DEPOSIT_NETWORK_POLICIES: dict[str, UsdtDepositNetworkPolicy] = {
+    'upbit': UsdtDepositNetworkPolicy(
+        exchange='upbit',
+        supported=frozenset({'trc20', 'erc20', 'aptos', 'kaia'}),
+        # 네 망 각각은 공지로 확인되지만, 한 문서가 '현재 지원 망 전부'를 밝히는 형태가 아니라
+        # 추가 공지를 누적해 만든 목록이다. 전수 열거로 볼 근거가 없어 거짓으로 둔다.
+        exhaustive=False,
+        checked_on='2026-09-20',
+        source='업비트 공지 — 테더(USDT) 입출금 네트워크 안내 (4273 / 5242 / 5455)',
+        source_url='https://www.upbit.com/service_center/notice?id=5455',
+    ),
+    'bithumb': UsdtDepositNetworkPolicy(
+        exchange='bithumb',
+        supported=frozenset({'trc20', 'erc20', 'kaia', 'aptos'}),
+        exhaustive=True,
+        checked_on='2026-09-20',
+        source='빗썸 멀티체인 입출금 현황 API (자산·네트워크 전수)',
+        source_url='https://www.bithumb.com/react/info/inout-condition',
+    ),
+    'coinone': UsdtDepositNetworkPolicy(
+        exchange='coinone',
+        supported=frozenset({'trc20'}),
+        exhaustive=True,
+        checked_on='2026-09-20',
+        source='코인원 고객센터 — 지원 중인 가상자산 종류 및 네트워크 유형 (문서 기준일 2026-09-10)',
+        source_url='https://support.coinone.co.kr/support/solutions/articles/31000163237',
+    ),
+    'korbit': UsdtDepositNetworkPolicy(
+        exchange='korbit',
+        supported=frozenset({'trc20', 'erc20'}),
+        exhaustive=True,
+        checked_on='2026-09-20',
+        source='디지털엑스(구 코빗) 통화 목록 API — networkList[].depositStatus 전수',
+        source_url='https://api.korbit.co.kr/v2/currencies',
+    ),
+    'gopax': UsdtDepositNetworkPolicy(
+        exchange='gopax',
+        supported=frozenset({'trc20'}),
+        # 자산 API 가 자산당 네트워크를 하나만 표현하는 스키마라, 트론만 받는 것인지
+        # 대표 망만 노출한 것인지 응답만으로는 구분할 수 없다.
+        exhaustive=False,
+        checked_on='2026-09-20',
+        source='고팍스 자산 API — USDT networkName',
+        source_url='https://api.gopax.co.kr/assets',
+    ),
+}
+
+
+def _network_names(keys: frozenset[str]) -> str:
+    """정규화 키를 사람이 읽는 표기로 옮긴다. 순서는 표시용 사전의 등재 순서를 따른다."""
+    named = [label for key, label in _NETWORK_DISPLAY.items() if key in keys]
+    return ', '.join(named + sorted(key for key in keys if key not in _NETWORK_DISPLAY))
+
+
+def usdt_deposit_network_gate(exchange: str, network_label: str) -> dict | None:
+    """해외 거래소가 이 네트워크로 보낸 USDT 를 국내 거래소가 받아주는지.
+
+    받아주는 것이 확인되면 None 을 돌려준다. 그 외에는 받지 않는 것이 확인된 경우와
+    확인하지 못한 경우를 나눠 알린다.
+    """
+    policy = USDT_DEPOSIT_NETWORK_POLICIES.get(exchange)
+    if policy is None:
+        return {
+            'kind': 'usdt_deposit_network',
+            'level': 'unknown',
+            'label': 'USDT 입금망 확인 필요',
+            'desc': (
+                '이 거래소가 USDT 입금을 어느 네트워크로 받는지 확인하지 못했습니다. '
+                '보내기 전에 거래소의 입금 주소 발급 화면에서 해당 네트워크를 선택할 수 있는지 확인하세요.'
+            ),
+            'source': None,
+            'source_url': None,
+        }
+
+    if normalize_usdt_network(network_label) in policy.supported:
+        return None
+
+    supported_text = _network_names(policy.supported)
+    if policy.exhaustive:
+        return {
+            'kind': 'usdt_deposit_network',
+            'level': 'blocked',
+            'label': 'USDT 입금 미지원 네트워크',
+            'desc': (
+                f'이 거래소는 {network_label} 네트워크로 USDT 입금을 받지 않습니다. '
+                f'받아주는 네트워크는 {supported_text}입니다({policy.checked_on} 확인). '
+                f'지원하지 않는 네트워크로 보내면 입금이 반영되지 않고 자산을 잃을 수 있습니다.'
+            ),
+            'source': policy.source,
+            'source_url': policy.source_url,
+        }
+
+    return {
+        'kind': 'usdt_deposit_network',
+        'level': 'unknown',
+        'label': 'USDT 입금망 확인 필요',
+        'desc': (
+            f'이 거래소가 {network_label} 네트워크로 USDT 입금을 받는지 확인하지 못했습니다. '
+            f'입금이 확인된 네트워크는 {supported_text}입니다({policy.checked_on} 확인). '
+            f'다른 네트워크로 보내려면 거래소의 입금 주소 발급 화면에서 먼저 확인하세요.'
+        ),
+        'source': policy.source,
+        'source_url': policy.source_url,
+    }
 
 
 def _fmt_krw(value: int) -> str:
