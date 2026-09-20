@@ -8,8 +8,11 @@
 
 두 규칙을 각각 `PERSONAL_WALLET_POLICIES` 와 `VASP_DEPOSIT_POLICIES` 에 담는다.
 
-원칙: 근거를 확인하지 못한 값은 채우지 않고 None 으로 둔다. 화면도 '확인 필요'로 표시한다.
-추정치를 넣으면 실행 가능성을 잘못 보장하게 되고, 그 피해는 자산이 묶이는 형태로 나타난다.
+원칙: 근거를 확인하지 못한 값은 채우지 않는다. 추정치를 넣으면 실행 가능성을 잘못 보장하게
+되고, 그 피해는 자산이 묶이는 형태로 나타난다.
+
+주의(거래소 개편): 코빗은 미래에셋에 인수되어 '디지털엑스(Digital X)'로 사명이 바뀌었다.
+이 코드베이스는 거래소 id 로 여전히 `korbit` 을 쓰므로, 출처 표기만 새 이름을 따른다.
 
 주의(2026년 규제 변화): FIU 특정금융정보법 시행령 개정안이 2026-08-11 국무회의를 통과해
 트래블룰의 100만원 기준금액이 폐지되고 모든 이전거래에 적용된다. 개인지갑 거래는 송·수신인이
@@ -22,7 +25,7 @@ from dataclasses import dataclass
 
 # 입금 제약의 심각도. 기존 게이트맨 레지스트리의 level 값과 같은 어휘를 쓴다.
 #   blocked  — 현재 수단으로는 입금이 사실상 불가능하다
-#   required — 사전 절차를 마쳐야 입금이 반영된다
+#   required — 사전 절차(지갑 등록·인증)를 마쳐야 반영된다
 #   review   — 입금은 되지만 증빙 심사를 거친다
 #   unknown  — 공식 근거를 확보하지 못했다
 DepositGateLevel = str
@@ -35,10 +38,12 @@ class PersonalWalletDepositPolicy:
     exchange: str
     #: 이 금액 이상부터 등록·인증이 필요하다. None 이면 금액과 무관하게 필요하다.
     threshold_krw: int | None
-    #: 거래소가 등록을 받아주는 개인지갑 목록(표시용). 빈 튜플이면 목록을 확인하지 못한 것이다.
+    #: 거래소가 등록을 받아주는 개인지갑 전체 목록(표시용).
     registrable_wallets: tuple[str, ...]
-    #: 비트코인 온체인 지갑을 등록할 수 있는지. None 이면 확인하지 못했다.
-    supports_bitcoin_wallet: bool | None
+    #: 위 목록 중 비트코인을 담을 수 있는 지갑. 비어 있으면 BTC 를 보낼 수단이 없다는 뜻이다.
+    #: 다만 거래소가 그 지갑의 '비트코인 네트워크 주소'까지 등록받는지는 별도 확인이 필요하다
+    #: (업비트가 메타마스크를 ETH·ERC-20 계열로만 지원했던 전례가 있다).
+    bitcoin_capable_wallets: tuple[str, ...]
     #: 등록하지 않은 지갑에서 입금했을 때 실제로 벌어지는 일
     unregistered_outcome: str
     source: str
@@ -50,100 +55,141 @@ class VaspDepositPolicy:
     """해외 거래소에서 국내 거래소로 입금할 때의 규칙."""
 
     exchange: str
-    #: 입금을 받아주는 해외 거래소 id 집합. None 이면 공식 목록을 확보하지 못했다.
-    deposit_allowed: frozenset[str] | None
+    #: 트래블룰 솔루션·본인 계정 확인으로 연동되어 입금이 자동 반영되는 해외 거래소.
+    auto_deposit: frozenset[str]
+    #: 목록에는 있으나 지갑 주소 등록이나 증빙 심사를 거쳐야 하는 해외 거래소
+    #: (이른바 화이트리스트 구분. 등록 안내가 출금 기준으로 쓰여 있어 입금은 심사로 본다).
+    review_required: frozenset[str]
+    #: 이 금액 미만이면 목록과 무관하게 입금된다. None 이면 금액과 무관하게 목록을 따른다.
+    threshold_krw: int | None
     source: str
     source_url: str
 
 
 # ── 개인 지갑 입금 ──────────────────────────────────────────────────────────────
 #
-# 확인된 등록 가능 지갑이 모두 EVM·알트체인 계열이라는 점이 핵심이다. 비트코인 온체인 지갑
-# (Sparrow, Electrum, Unisat, Xverse, Ledger 의 BTC 계정 등)은 어느 거래소 목록에도 없다.
-# 그래서 개인 지갑의 BTC 를 국내 거래소로 곧장 보내는 경로는 기준 금액을 넘는 순간 막힌다.
+# 거래소마다 등록을 받아주는 지갑 목록이 다르다. 업비트만 EVM·알트체인 계열로만 이뤄져 있어
+# 비트코인을 보낼 수단 자체가 없고, 나머지 네 곳은 렛저 나노·디센트·트러스트월렛·삼성 블록체인
+# 월렛처럼 비트코인을 담는 지갑을 목록에 두고 있다.
 
 PERSONAL_WALLET_POLICIES: dict[str, PersonalWalletDepositPolicy] = {
     'upbit': PersonalWalletDepositPolicy(
         exchange='upbit',
         threshold_krw=1_000_000,
         registrable_wallets=('메타마스크', '카이아', '팬텀', '폴카닷', '케플러'),
-        supports_bitcoin_wallet=False,
+        # 다섯 지갑 모두 비트코인 온체인 주소를 만들지 못한다.
+        bitcoin_capable_wallets=(),
         unregistered_outcome='입금이 보류되고, 해당 지갑을 등록해야 그때 반영됩니다.',
         source='업비트 고객센터 — 트래블룰 알아보기 / 디지털 자산 입출금 방식 안내',
         source_url='https://support.upbit.com/hc/ko/articles/4498679629337',
     ),
     'bithumb': PersonalWalletDepositPolicy(
         exchange='bithumb',
-        # 2024-01-01 부터 금액과 무관하게 모든 입금이 신청 대상이다.
-        threshold_krw=None,
-        registrable_wallets=('메타마스크', '카카오 클립', '부리또 월렛', '도시볼트'),
-        supports_bitcoin_wallet=False,
+        threshold_krw=1_000_000,
+        registrable_wallets=('메타마스크', '클립', '트러스트월렛', '아임토큰', 'OKX 월렛'),
+        bitcoin_capable_wallets=('트러스트월렛', 'OKX 월렛'),
         unregistered_outcome='입금 신청과 증빙 심사를 거쳐야 하고 최대 7일이 걸리며, 거절되면 반환 신청으로 돌려받습니다.',
-        source='빗썸 공지 — 가상자산 입금 방식 변경 안내 (2023-11-27 시행)',
-        source_url='https://feed.bithumb.com/notice',
+        source='빗썸 고객센터 — 빗썸 입출금 가능한 가상자산 거래소 목록 (2026-04-30 기준)',
+        source_url='https://support.bithumb.com/hc/ko/articles/52814710561945',
     ),
     'coinone': PersonalWalletDepositPolicy(
         exchange='coinone',
         threshold_krw=1_000_000,
-        registrable_wallets=('메타마스크', '팬텀', '카이아 월렛', '기린 월렛'),
-        # 렛저 하드웨어 지갑은 신분증과 실물을 함께 촬영하는 방식으로 등록을 받는다는 안내가 있으나,
-        # 그 안내가 출금 주소록 맥락이라 비트코인 입금에도 그대로 적용되는지 확인하지 못했다.
-        supports_bitcoin_wallet=None,
+        registrable_wallets=(
+            '메타마스크', '팬텀', '카이아 월렛', '카카오클립', '밀크', '디센트',
+            '삼성 블록체인 월렛', '렛저', '기린 월렛', '디앱 포털 월렛', '케플러 월렛',
+        ),
+        bitcoin_capable_wallets=('렛저', '디센트', '삼성 블록체인 월렛'),
         unregistered_outcome="출처가 불분명한 지갑에서 들어온 입금은 '입금반영불가'로 처리됩니다.",
-        source='코인원 고객센터 — 가상자산 주소록 본인인증 / 미신고거래소 입·출금 제한 안내',
-        source_url='https://support.coinone.co.kr/support/solutions/articles/31000163028',
+        source='코인원 고객센터 — 출금 가능 가상자산 사업자 리스트 (2026-08-06 기준)',
+        source_url='https://support.coinone.co.kr/support/solutions/articles/31000167814',
     ),
     'korbit': PersonalWalletDepositPolicy(
         exchange='korbit',
         threshold_krw=1_000_000,
-        registrable_wallets=('카카오클립', '카이카스', '메타마스크'),
-        supports_bitcoin_wallet=None,
-        unregistered_outcome='증빙센터에서 지갑 주소 등록 심사를 마쳐야 반영됩니다.',
-        source='코빗 고객센터 — 증빙센터 지갑주소 등록',
-        source_url='https://www.korbit.co.kr/faq/list',
+        registrable_wallets=(
+            '디센트', '렛저 나노', '마이이더월렛', '메타마스크', '삼성 블록체인 월렛',
+            '원포켓', '엑스플라 볼트', '카이아', '클립', '케플러', '트러스트월렛', '티월렛', '팬텀',
+        ),
+        bitcoin_capable_wallets=('렛저 나노', '디센트', '삼성 블록체인 월렛', '트러스트월렛'),
+        unregistered_outcome='지갑 주소 등록 심사를 마쳐야 반영됩니다.',
+        source='디지털엑스(구 코빗) 고객센터 — 입출금 가능 거래소/개인지갑 리스트',
+        source_url='https://lightning.digitalx.miraeasset.com/faq/list/?category=2vEUaayuGZrWE0NLPdI834',
     ),
     'gopax': PersonalWalletDepositPolicy(
         exchange='gopax',
-        # 입금 시점의 원화 환산가가 100만원을 넘으면 자동 반영을 막는다.
         threshold_krw=1_000_000,
-        registrable_wallets=(),
-        supports_bitcoin_wallet=None,
-        unregistered_outcome='자동 반영이 제한되고 증빙서류 제출과 심사를 거쳐야 반영됩니다.',
-        source='고팍스 고객지원 — 가상자산 입금 반영중 (트래블룰 미적용 사업자·개인지갑)',
-        source_url='https://streami.atlassian.net/wiki/spaces/GHC/pages/1059684527',
+        registrable_wallets=(
+            '메타마스크', '마이이더월렛', '카이아 월렛', '렛저 나노', '아임토큰', '트러스트월렛',
+            '디센트', '삼성 블록체인 월렛', '밀로월렛', '팬텀', '로아 월렛', '클링 월렛',
+            '갤럭시아 월렛', '글루와 월렛', '클립', '레지스 월렛', 'BZPAY 월렛', '케플러 월렛',
+        ),
+        bitcoin_capable_wallets=('렛저 나노', '트러스트월렛', '디센트', '삼성 블록체인 월렛'),
+        unregistered_outcome='자동 반영되지 않고 증빙서류 제출과 심사를 거쳐야 반영됩니다.',
+        source='고팍스 고객지원 — 개인지갑주소 등록 (2026-04-29 기준)',
+        source_url='https://streami.atlassian.net/wiki/spaces/GHC/pages/1148125310',
     ),
 }
 
 
 # ── 해외 거래소 입금 ────────────────────────────────────────────────────────────
 #
-# 업비트만 공식 리스트를 확보했다. 나머지 네 곳은 목록을 찾지 못했으므로 None 으로 두고
-# 화면에서 '확인 필요'로 알린다. 허용으로 가정하면 막히는 경로를 뚫린 것처럼 보여주게 된다.
+# 트래블룰 솔루션(CODE·VerifyVASP·VerifyNAME)이나 본인 계정 확인으로 연동된 거래소는 입금이
+# 자동 반영된다. '화이트리스트'·'지갑 주소 등록' 구분은 안내가 출금 기준으로 쓰여 있어, 입금
+# 방향은 증빙·심사를 거치는 것으로 본다. 목록에 아예 없으면 기준 금액 이상에서 막힌다.
 
 VASP_DEPOSIT_POLICIES: dict[str, VaspDepositPolicy] = {
     'upbit': VaspDepositPolicy(
         exchange='upbit',
-        # 2026-08-27 기준 업비트 입출금 지원 사업자 리스트.
-        # 코인베이스·크라켄은 입금만 지원하는데, 매도 방향은 입금이라 문제되지 않는다.
-        deposit_allowed=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate', 'coinbase', 'kraken'}),
+        # 2026-08-27 기준 입출금 지원 사업자 리스트.
+        # 코인베이스·크라켄은 '입금만' 지원인데, 파는 방향은 입금이라 그대로 자동 반영된다.
+        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate', 'coinbase', 'kraken'}),
+        review_required=frozenset(),
+        threshold_krw=1_000_000,
         source='업비트 고객센터 — 입출금 지원 가상자산사업자 리스트 (2026-08-27 기준)',
         source_url='https://www.upbit.com/service_center/guide',
     ),
     'bithumb': VaspDepositPolicy(
         exchange='bithumb',
-        deposit_allowed=None,
-        source='빗썸 입출금 가능 거래소 목록 — 입금 방향 기준 확인 필요',
+        # 트래블룰 솔루션: 비트겟·바이비트·OKX 등 / 본인 계정 확인 서비스: 바이낸스
+        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget'}),
+        # 화이트리스트 구분: 크라켄·코인베이스
+        review_required=frozenset({'kraken', 'coinbase'}),
+        # Gate 는 2026-04-30 목록 어디에도 없다 → '그 외 VASP'로 100만원 미만만 가능
+        threshold_krw=1_000_000,
+        source='빗썸 고객센터 — 빗썸 입출금 가능한 가상자산 거래소 목록 (2026-04-30 기준)',
         source_url='https://support.bithumb.com/hc/ko/articles/52814710561945',
     ),
-    'coinone': VaspDepositPolicy(exchange='coinone', deposit_allowed=None,
-                                 source='코인원 출금 가능 사업자 리스트 — 입금 방향 기준 확인 필요',
-                                 source_url='https://support.coinone.co.kr/support/solutions/articles/31000167814'),
-    'korbit': VaspDepositPolicy(exchange='korbit', deposit_allowed=None,
-                                source='코빗 증빙센터 거래소 리스트 — 입금 방향 기준 확인 필요',
-                                source_url='https://www.korbit.co.kr/faq/list'),
-    'gopax': VaspDepositPolicy(exchange='gopax', deposit_allowed=None,
-                               source='고팍스 트래블룰 입금 가능 거래소 — 확인 필요',
-                               source_url='https://streami.atlassian.net/wiki/spaces/GHC/pages/1059684527'),
+    'coinone': VaspDepositPolicy(
+        exchange='coinone',
+        # CODE 연동: 비트겟·바이비트·OKX·게이트 / CODE ID Connect: 바이낸스
+        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate'}),
+        # 외부지갑 출금주소 등록(화이트리스팅) 가능 해외거래소: 크라켄·코인베이스
+        review_required=frozenset({'kraken', 'coinbase'}),
+        threshold_krw=1_000_000,
+        source='코인원 고객센터 — 출금 가능 가상자산 사업자 리스트 (2026-07-20 / 08-06 기준)',
+        source_url='https://support.coinone.co.kr/support/solutions/articles/31000167814',
+    ),
+    'korbit': VaspDepositPolicy(
+        exchange='korbit',
+        # 트래블룰 솔루션: 게이트·바이비트·비트겟·OKX 등 / 본인 계정 확인: 바이낸스
+        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate'}),
+        # 지갑 주소 등록 구분: 코인베이스·크라켄
+        review_required=frozenset({'kraken', 'coinbase'}),
+        threshold_krw=1_000_000,
+        source='디지털엑스(구 코빗) 고객센터 — 입출금 가능 거래소/개인지갑 리스트',
+        source_url='https://lightning.digitalx.miraeasset.com/faq/list/?category=2vEUaayuGZrWE0NLPdI834',
+    ),
+    'gopax': VaspDepositPolicy(
+        exchange='gopax',
+        # VerifyNAME: 바이낸스·비트겟·OKX / CODE: 게이트.
+        # 바이비트·크라켄·코인베이스는 목록에 없어 기준 금액 이상에서 막힌다.
+        auto_deposit=frozenset({'binance', 'okx', 'bitget', 'gate'}),
+        review_required=frozenset(),
+        threshold_krw=1_000_000,
+        source='고팍스 고객지원 — 입출금 가능 가상자산사업자 리스트 (2026-09-16 기준)',
+        source_url='https://streami.atlassian.net/wiki/spaces/GHC/pages/1061093511',
+    ),
 }
 
 
@@ -179,22 +225,22 @@ def personal_wallet_gate(exchange: str, amount_krw: float) -> dict | None:
     if policy.threshold_krw is not None and amount_krw < policy.threshold_krw:
         return None
 
-    wallets = ', '.join(policy.registrable_wallets) if policy.registrable_wallets else None
     threshold_text = (
         f'{_fmt_krw(policy.threshold_krw)} 이상 입금은'
         if policy.threshold_krw is not None
         else '금액과 무관하게 모든 입금은'
     )
 
-    # 비트코인 온체인 지갑을 등록할 수 없다면 이 경로는 절차를 밟아도 뚫리지 않는다.
-    if policy.supports_bitcoin_wallet is False:
+    # 등록 가능한 지갑 중 비트코인을 담을 수 있는 게 하나도 없으면 절차를 밟아도 뚫리지 않는다.
+    if not policy.bitcoin_capable_wallets:
+        wallets = ', '.join(policy.registrable_wallets)
         return {
             'kind': 'personal_wallet',
             'level': 'blocked',
             'label': '비트코인 개인지갑 입금 불가',
             'desc': (
                 f'{threshold_text} 등록·인증된 개인지갑에서만 받습니다. '
-                f'등록할 수 있는 지갑은 {wallets}인데 모두 비트코인 온체인 지갑이 아니어서, '
+                f'등록할 수 있는 지갑은 {wallets}인데 모두 비트코인 온체인 주소를 만들지 못해, '
                 f'개인 지갑의 BTC 를 이 거래소로 곧장 보낼 수 없습니다. '
                 f'미등록 지갑에서 보내면 {policy.unregistered_outcome}'
             ),
@@ -202,27 +248,16 @@ def personal_wallet_gate(exchange: str, amount_krw: float) -> dict | None:
             'source_url': policy.source_url,
         }
 
-    if policy.supports_bitcoin_wallet is None:
-        return {
-            'kind': 'personal_wallet',
-            'level': 'unknown',
-            'label': '비트코인 지갑 등록 가능 여부 확인 필요',
-            'desc': (
-                f'{threshold_text} 등록·인증된 개인지갑에서만 받습니다. '
-                + (f'확인된 등록 가능 지갑은 {wallets}입니다. ' if wallets else '')
-                + f'비트코인 온체인 지갑을 등록할 수 있는지는 확인하지 못했습니다. '
-                f'미등록 지갑에서 보내면 {policy.unregistered_outcome}'
-            ),
-            'source': policy.source,
-            'source_url': policy.source_url,
-        }
-
+    btc_wallets = ', '.join(policy.bitcoin_capable_wallets)
     return {
         'kind': 'personal_wallet',
         'level': 'required',
         'label': '입금 지갑 사전 등록 필요',
         'desc': (
             f'{threshold_text} 등록·인증된 개인지갑에서만 받습니다. '
+            f'등록 가능한 지갑 중 비트코인을 담을 수 있는 것은 {btc_wallets}입니다. '
+            f'다만 거래소가 이 지갑들의 비트코인 네트워크 주소까지 등록받는지는 확인하지 못했으니, '
+            f'보내기 전에 등록이 되는지 먼저 확인하세요. '
             f'미등록 지갑에서 보내면 {policy.unregistered_outcome}'
         ),
         'source': policy.source,
@@ -230,10 +265,10 @@ def personal_wallet_gate(exchange: str, amount_krw: float) -> dict | None:
     }
 
 
-def vasp_gate(exchange: str, global_exchange: str) -> dict | None:
+def vasp_gate(exchange: str, global_exchange: str, amount_krw: float) -> dict | None:
     """해외 거래소에서 이 국내 거래소로 입금할 때 걸리는 관문."""
     policy = VASP_DEPOSIT_POLICIES.get(exchange)
-    if policy is None or policy.deposit_allowed is None:
+    if policy is None:
         return {
             'kind': 'vasp',
             'level': 'unknown',
@@ -242,20 +277,43 @@ def vasp_gate(exchange: str, global_exchange: str) -> dict | None:
                 '이 국내 거래소가 해당 해외 거래소발 입금을 받는지 공식 목록으로 확인하지 못했습니다. '
                 '목록에 없는 거래소에서 보내면 입금이 보류되거나 반환될 수 있으니 거래소 공지를 확인하세요.'
             ),
-            'source': policy.source if policy else None,
-            'source_url': policy.source_url if policy else None,
+            'source': None,
+            'source_url': None,
         }
 
-    if global_exchange in policy.deposit_allowed:
+    # 기준 금액 미만이면 목록과 무관하게 입금된다.
+    if policy.threshold_krw is not None and amount_krw < policy.threshold_krw:
         return None
+
+    if global_exchange in policy.auto_deposit:
+        return None
+
+    threshold_text = (
+        f'{_fmt_krw(policy.threshold_krw)} 이상 입금은'
+        if policy.threshold_krw is not None
+        else '모든 입금은'
+    )
+
+    if global_exchange in policy.review_required:
+        return {
+            'kind': 'vasp',
+            'level': 'review',
+            'label': '입금 증빙 심사 필요',
+            'desc': (
+                f'이 해외 거래소는 트래블룰 연동이 아니라 지갑 주소 등록 대상입니다. '
+                f'{threshold_text} 본인 계정임을 증빙해 심사를 통과해야 반영됩니다.'
+            ),
+            'source': policy.source,
+            'source_url': policy.source_url,
+        }
 
     return {
         'kind': 'vasp',
         'level': 'blocked',
         'label': '입금 미지원 해외 거래소',
         'desc': (
-            '이 해외 거래소는 해당 국내 거래소의 입금 지원 목록에 없습니다. '
-            '보내면 입금이 반영되지 않고 반환 절차를 거쳐야 합니다.'
+            f'이 해외 거래소는 해당 국내 거래소의 입금 지원 목록에 없습니다. '
+            f'{threshold_text} 반영되지 않고 반환 절차를 거쳐야 합니다.'
         ),
         'source': policy.source,
         'source_url': policy.source_url,

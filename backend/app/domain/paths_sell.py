@@ -312,7 +312,8 @@ def find_cheapest_sell_path_from_snapshot_rows(
             paths.append(build_entry(
                 route_variant='usdt_via_global',
                 # 국내 거래소로 들어오는 마지막 구간의 송신인이 해외 거래소다.
-                deposit_gates=[vasp_gate(exchange, global_exchange)],
+                # 기준 금액은 입금되는 USDT 의 원화 환산가로 따진다.
+                deposit_gates=[vasp_gate(exchange, global_exchange, usdt_at_korean * ctx.usd_krw_rate)],
                 korean_exchange=exchange,
                 transfer_coin='USDT',
                 domestic_withdrawal_network=row.network_label,
@@ -439,7 +440,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     paths.append(build_entry(
                         route_variant='lightning_via_global',
                         # 스왑을 거치지만 국내 거래소로 들어오는 마지막 구간은 해외 거래소발이다.
-                        deposit_gates=[vasp_gate(exchange, global_exchange)],
+                        deposit_gates=[vasp_gate(exchange, global_exchange, usdt_at_korean * ctx.usd_krw_rate)],
                         korean_exchange=exchange,
                         transfer_coin='USDT',
                         domestic_withdrawal_network=row.network_label,
