@@ -273,7 +273,8 @@ def korea_sell_leg(
         label,
         sell_fee_krw,
         rate_pct=korean_taker * 100,
-        amount_text=f'{round(amount_asset, 8)} {source_asset}',
+        # 파는 수량이 아니라 떼이는 수량을 적는다. 화면이 '수수료 N' 으로 찍기 때문이다.
+        amount_text=f'{round(amount_asset * korean_taker, 8)} {source_asset}',
         is_fixed=False,
         note=note,
     )
@@ -296,7 +297,9 @@ def global_sell_leg(
         '해외 BTC 매도 수수료',
         fee_krw,
         rate_pct=global_taker * 100,
-        amount_text=f'{round(gross_usdt, 8)} USDT',
+        # 결과 화면이 이 값을 '수수료 N' 으로 찍는다. 매도 총액을 넣으면 0.05 BTC 를 파는데
+        # 수수료가 4,047 USDT 라고 읽힌다. 비율은 rate_pct 가 따로 말한다.
+        amount_text=f'{round(global_sell_fee_usdt, 8)} USDT',
         is_fixed=False,
     )
     return Leg(amount_out=usdt_out, fee_krw=fee_krw, components=[comp])

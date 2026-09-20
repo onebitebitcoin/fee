@@ -263,7 +263,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 total_fee_krw=total_fee_krw,
                 breakdown_components=[
                     fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
-                    fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_after_network, 8)} BTC', note=voucher_note),
+                    fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_after_network * korean_taker, 8)} BTC', note=voucher_note),
                 ],
             ))
 
@@ -334,9 +334,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 total_fee_krw=total_fee_krw,
                 breakdown_components=[
                     fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
-                    fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=ctx.global_taker * 100, amount_text=f'{round(gross_usdt, 8)} USDT'),
+                    fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=ctx.global_taker * 100, amount_text=f'{round(gross_usdt - usdt_after_global_sell, 8)} USDT'),
                     fee_component('USDT 전송 수수료', usdt_transfer_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label)),
-                    fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw, rate_pct=korean_taker_usdt * 100, amount_text=f'{round(usdt_at_korean, 8)} USDT', note=usdt_voucher_note),
+                    fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw, rate_pct=korean_taker_usdt * 100, amount_text=f'{round(usdt_at_korean * korean_taker_usdt, 8)} USDT', note=usdt_voucher_note),
                 ],
             ))
 
@@ -400,7 +400,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     breakdown_components=[
                         fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                         fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(swap_fee_btc, 8)} BTC'),
-                        fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_at_korean, 8)} BTC', note=voucher_note),
+                        fee_component('국내 BTC 매도 수수료', korean_sell_fee_krw, rate_pct=korean_taker * 100, amount_text=f'{round(btc_at_korean * korean_taker, 8)} BTC', note=voucher_note),
                     ],
                 ))
 
@@ -468,9 +468,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
                         breakdown_components=[
                             fee_component('개인지갑 BTC 네트워크 수수료', wallet_network_fee_krw, amount_text=wallet_fee_amount_text, source_url=wallet_fee_estimate['source_url']),
                             fee_component(f'라이트닝 스왑 수수료 ({swap.service_name})', swap_fee_krw, rate_pct=swap.fee_pct, amount_text=f'{round(swap_fee_btc, 8)} BTC'),
-                            fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=ctx.global_taker * 100, amount_text=f'{round(gross_usdt, 8)} USDT'),
+                            fee_component('해외 BTC 매도 수수료', global_sell_fee_krw, rate_pct=ctx.global_taker * 100, amount_text=f'{round(gross_usdt - usdt_after_global_sell, 8)} USDT'),
                             fee_component('USDT 전송 수수료', usdt_transfer_fee_krw, amount_text=f'{row.fee} USDT', source_url=get_withdrawal_source_url(global_exchange, 'USDT', row.network_label)),
-                            fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw_ln, rate_pct=korean_taker_usdt * 100, amount_text=f'{round(usdt_at_korean, 8)} USDT', note=usdt_voucher_note),
+                            fee_component('국내 KRW 전환 수수료', korean_sell_fee_krw_ln, rate_pct=korean_taker_usdt * 100, amount_text=f'{round(usdt_at_korean * korean_taker_usdt, 8)} USDT', note=usdt_voucher_note),
                         ],
                     ))
 

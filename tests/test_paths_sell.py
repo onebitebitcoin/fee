@@ -485,3 +485,48 @@ def test_라이트닝_경유_경로도_같은_입금망_제약을_받는다():
         if p['route_variant'] == 'lightning_via_global'
     }
     assert ln_networks == {'Tron (TRC20)'}, f'라이트닝 경유 경로에 미지원 체인이 남았다: {ln_networks}'
+
+
+# ── 수수료 내역 표기 ───────────────────────────────────────────────────────────
+# 결과 화면은 `amount_text` 를 '수수료 N' 으로 찍는다. 비율 수수료 항목에 매도 총액을 담으면
+# 0.05 BTC 매도에 수수료가 4,047 USDT 라고 읽히게 된다.
+
+def _component(path, label):
+    return next(c for c in path['breakdown']['components'] if c['label'] == label)
+
+
+def test_해외_매도_수수료의_표기는_총액이_아니라_수수료다():
+    result = _sell_with_networks('Tron (TRC20)')
+    path = next(p for p in result['all_paths'] if p['route_variant'] == 'usdt_via_global')
+    comp = _component(path, '해외 BTC 매도 수수료')
+    fee_usdt = float(comp['amount_text'].split()[0])
+    # 총액의 taker 비율(0.1%)만큼이어야 한다. 총액 자체(수천 USDT)가 오면 안 된다.
+    assert comp['rate_pct'] == 0.1
+    assert fee_usdt < 50, f'총액이 수수료 자리에 들어 있다: {comp["amount_text"]}'
+
+
+def test_국내_전환_수수료의_표기도_수수료다():
+    result = _sell_with_networks('Tron (TRC20)')
+    path = next(p for p in result['all_paths'] if p['route_variant'] == 'usdt_via_global')
+    comp = _component(path, '국내 KRW 전환 수수료')
+    fee_usdt = float(comp['amount_text'].split()[0])
+    assert fee_usdt < 50, f'총액이 수수료 자리에 들어 있다: {comp["amount_text"]}'
+
+
+def test_국내_BTC_매도_수수료의_표기도_수수료다():
+    result = _sell_with_gates()
+    path = next(p for p in result['all_paths'] if p['route_variant'] == 'btc_direct')
+    comp = _component(path, '국내 BTC 매도 수수료')
+    fee_btc = float(comp['amount_text'].split()[0])
+    # 0.05 BTC 를 팔 때 수수료가 0.05 BTC 일 수는 없다.
+    assert fee_btc < 0.001, f'매도 수량이 수수료 자리에 들어 있다: {comp["amount_text"]}'
+
+
+def test_수수료_표기와_원화_금액이_서로_맞는다():
+    """표기된 코인 수수료를 원화로 환산하면 amount_krw 와 맞아야 한다."""
+    result = _sell_with_networks('Tron (TRC20)')
+    path = next(p for p in result['all_paths'] if p['route_variant'] == 'usdt_via_global')
+    comp = _component(path, '해외 BTC 매도 수수료')
+    fee_usdt = float(comp['amount_text'].split()[0])
+    # _make_run() 의 usd_krw_rate 는 1400
+    assert abs(fee_usdt * 1400 - comp['amount_krw']) < 2, (comp['amount_text'], comp['amount_krw'])
