@@ -452,6 +452,22 @@ def test_고팍스는_확인하지_못한_체인도_경로에서_빠진다():
     assert 'Ethereum (ERC20)' in _usdt_networks_of(result, 'korbit')
 
 
+def test_USDT_경로는_정규화된_네트워크_키를_함께_준다():
+    """해외 거래소마다 같은 체인을 다르게 표기하므로, 화면이 망 단위로 거를 때 쓸 키를 백엔드가 만든다."""
+    result = _sell_with_networks('Tron (TRC20)', 'TRC20', 'Ethereum (ERC20)')
+    pairs = {(p['network'], p['network_key']) for p in result['all_paths'] if p['transfer_coin'] == 'USDT'}
+    assert ('Tron (TRC20)', 'trc20') in pairs
+    assert ('TRC20', 'trc20') in pairs
+    assert ('Ethereum (ERC20)', 'erc20') in pairs
+
+
+def test_BTC_경로에는_네트워크_키가_없다():
+    result = _sell_with_gates()
+    btc_paths = [p for p in result['all_paths'] if p['transfer_coin'] == 'BTC']
+    assert btc_paths
+    assert all(p['network_key'] is None for p in btc_paths)
+
+
 def test_라이트닝_경유_경로도_같은_입금망_제약을_받는다():
     """경로 4 는 스왑을 거치지만 국내 거래소로 들어오는 마지막 구간은 똑같은 USDT 입금이다."""
     run = _make_run()

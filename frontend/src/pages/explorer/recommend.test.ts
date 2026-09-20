@@ -16,6 +16,7 @@ import type { CheapestPathResponse } from '../../types';
 import type { Destination } from './flow';
 import {
   flattenPaths, dedupAndSortPaths, filterRecommendedPaths, recommendRouteKey,
+  excludeUsdtNetworks, usdtNetworkKeys,
   type RecommendFilterState, type RecommendedPath,
 } from './recommend';
 
@@ -107,6 +108,65 @@ describe('recommend: dedup은 활성 경로를 우선한다', () => {
     expect(out).toHaveLength(1);
     expect(out[0].disabled).toBe(true);
     expect(out[0].network).toBe('Aptos');
+  });
+});
+
+describe('recommend: 팔 때 USDT 입금망 제외', () => {
+  // dedup 이 USDT 경로에서 네트워크를 키에서 빼기 때문에 (국내, 해외) 조합당 가장 싼 망 하나만
+  // 남는다. 그래서 망 제외는 dedup 뒤가 아니라 앞에서 걸어야 대표가 다음 망으로 넘어간다.
+  const mk = (over: Partial<RecommendedPath>): RecommendedPath => ({
+    korean_exchange: 'bithumb',
+    transfer_coin: 'USDT',
+    network: 'Aptos',
+    network_key: 'aptos',
+    global_exit_mode: 'onchain',
+    total_fee_krw: 8000,
+    krw_received: 5_500_000,
+    _g: 'okx',
+    ...over,
+  } as RecommendedPath);
+
+  it('제외한 망을 빼면 dedup 대표가 다음으로 싼 망으로 바뀐다', () => {
+    const paths = [
+      mk({ network: 'Aptos', network_key: 'aptos', total_fee_krw: 8000, krw_received: 5_500_000 }),
+      mk({ network: 'Tron (TRC20)', network_key: 'trc20', total_fee_krw: 9300, krw_received: 5_498_700 }),
+    ];
+    const before = dedupAndSortPaths(paths, 'sell');
+    expect(before[0].network_key).toBe('aptos');
+    const after = dedupAndSortPaths(excludeUsdtNetworks(paths, new Set(['aptos'])), 'sell');
+    expect(after).toHaveLength(1);
+    expect(after[0].network_key).toBe('trc20');
+  });
+
+  it('표기가 달라도 같은 정규화 키면 함께 빠진다', () => {
+    const paths = [
+      mk({ network: 'Tron (TRC20)', network_key: 'trc20', _g: 'okx' }),
+      mk({ network: 'TRC20', network_key: 'trc20', _g: 'bitget' }),
+      mk({ network: 'Ethereum (ERC20)', network_key: 'erc20', _g: 'okx' }),
+    ];
+    const out = excludeUsdtNetworks(paths, new Set(['trc20']));
+    expect(out.map(p => p.network_key)).toEqual(['erc20']);
+  });
+
+  it('BTC 경로는 망 제외의 영향을 받지 않는다', () => {
+    const btc = mk({ transfer_coin: 'BTC', network: 'Bitcoin', network_key: null });
+    const out = excludeUsdtNetworks([btc, mk({})], new Set(['aptos']));
+    expect(out).toEqual([btc]);
+  });
+
+  it('제외 집합이 비어 있으면 입력을 그대로 돌려준다', () => {
+    const paths = [mk({})];
+    expect(excludeUsdtNetworks(paths, new Set())).toBe(paths);
+  });
+
+  it('칩 목록은 USDT 경로의 정규화 키를 중복 없이 정렬해 준다', () => {
+    const paths = [
+      mk({ network_key: 'trc20' }),
+      mk({ network_key: 'aptos' }),
+      mk({ network_key: 'trc20', _g: 'bitget' }),
+      mk({ transfer_coin: 'BTC', network: 'Bitcoin', network_key: null }),
+    ];
+    expect(usdtNetworkKeys(paths)).toEqual(['aptos', 'trc20']);
   });
 });
 

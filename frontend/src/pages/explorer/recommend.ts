@@ -91,6 +91,38 @@ export function dedupAndSortPaths(allPaths: RecommendedPath[], mode: PathMode = 
   });
 }
 
+/**
+ * 팔 때 USDT 입금망 제외. `excluded` 는 `network_key`(trc20/erc20/aptos 등) 집합이다.
+ *
+ * 다른 제외 필터와 달리 dedup **앞**에서 적용해야 한다. `recommendRouteKey` 가 USDT 경로에서
+ * 네트워크를 키에서 빼기 때문에 (국내, 해외) 조합당 가장 싼 망 하나만 대표로 남는데, dedup 뒤에서
+ * 그 대표를 빼면 조합 자체가 사라지고 다음 망으로 넘어가지 않는다.
+ */
+export function excludeUsdtNetworks<T extends CheapestPathEntry>(
+  paths: T[],
+  excluded: ReadonlySet<string>,
+): T[] {
+  if (!excluded.size) return paths;
+  return paths.filter(p => p.transfer_coin !== 'USDT' || !p.network_key || !excluded.has(p.network_key));
+}
+
+/** 팔 때 망 제외 칩에 쓸 정규화 키 목록. dedup 전 전체 경로에서 뽑아야 제외한 망의 칩이 사라지지 않는다. */
+export function usdtNetworkKeys(paths: CheapestPathEntry[]): string[] {
+  const keys = new Set<string>();
+  for (const p of paths) {
+    if (p.transfer_coin === 'USDT' && p.network_key) keys.add(p.network_key);
+  }
+  return [...keys].sort();
+}
+
+/** 정규화 키의 표시명. 목록에 없는 키는 그대로 보여준다. */
+export const USDT_NETWORK_LABEL: Record<string, string> = {
+  trc20: 'Tron (TRC20)',
+  erc20: 'Ethereum (ERC20)',
+  aptos: 'Aptos',
+  kaia: 'Kaia',
+};
+
 /** dedup·정렬된 추천 경로에 제외 필터를 적용한 표시용 목록. */
 export function filterRecommendedPaths(
   paths: RecommendedPath[],

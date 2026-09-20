@@ -146,6 +146,8 @@ export type CheapestPathEntry = {
   korean_exchange: string;
   transfer_coin: string;
   network: string;
+  /** USDT 경로의 정규화된 네트워크 키(trc20/erc20/aptos 등). 표기가 달라도 같은 체인이면 같은 값. 팔 때만 내려온다. */
+  network_key?: string | null;
   domestic_withdrawal_network: string;
   global_exit_mode: 'onchain' | 'lightning';
   global_exit_network: string;

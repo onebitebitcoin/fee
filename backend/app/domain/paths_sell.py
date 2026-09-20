@@ -27,6 +27,7 @@ from backend.app.domain.path_helpers import (
     fee_component,
     is_suspended,
     korean_usdt_taker_rate,
+    normalize_usdt_network,
 )
 from backend.app.domain.paths_context import SnapshotContext, build_snapshot_context
 from backend.app.domain.paths_buy import _build_available_filters
@@ -142,6 +143,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
             'korean_exchange': korean_exchange,
             'transfer_coin': transfer_coin,
             'network': domestic_withdrawal_network,
+            # 해외 거래소마다 같은 체인을 다르게 표기한다('Tron (TRC20)'/'TRC20'). 화면이 망 단위로
+            # 묶거나 거를 때 표기 차이에 흔들리지 않도록 정규화 키를 함께 준다.
+            'network_key': normalize_usdt_network(domestic_withdrawal_network) if transfer_coin == 'USDT' else None,
             'domestic_withdrawal_network': domestic_withdrawal_network,
             'global_exit_mode': global_exit_mode,
             'global_exit_network': global_exit_network,

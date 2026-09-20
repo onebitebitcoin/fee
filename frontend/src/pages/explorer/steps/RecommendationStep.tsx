@@ -11,6 +11,7 @@ import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
 import type { CheapestPathEntry, PathMode } from '../../../types';
 import { isLightningPath } from '../pathMode';
+import { usdtNetworkKeys, USDT_NETWORK_LABEL } from '../recommend';
 import { activeGates, gateSeverity, isPathDemoted, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
 const PAGE_SIZE = 15;
@@ -18,14 +19,26 @@ const PAGE_SIZE = 15;
 type PresetKey = 'no_disabled' | 'no_kyc_lightning' | 'no_lightning' |
   'bithumb_binance' | 'bithumb_okx' | 'upbit_binance' | 'upbit_okx';
 
-const PRESETS: { key: PresetKey; label: string }[] = [
-  { key: 'no_kyc_lightning', label: 'KYC 라이트닝 제외' },
-  { key: 'no_lightning',    label: '라이트닝 제외' },
-  { key: 'bithumb_binance', label: '빗썸 → 바이낸스' },
-  { key: 'bithumb_okx',    label: '빗썸 → OKX' },
-  { key: 'upbit_binance',  label: '업비트 → 바이낸스' },
-  { key: 'upbit_okx',      label: '업비트 → OKX' },
+// 거래소 짝 프리셋은 자금이 흐르는 순서대로 읽힌다. 살 때는 국내 거래소에서 해외 거래소로
+// 나가고, 팔 때는 해외 거래소에서 국내 거래소로 들어오므로 화살표 방향이 뒤집힌다.
+const PRESET_PAIRS: { key: PresetKey; korean: string; global: string }[] = [
+  { key: 'bithumb_binance', korean: '빗썸', global: '바이낸스' },
+  { key: 'bithumb_okx',    korean: '빗썸', global: 'OKX' },
+  { key: 'upbit_binance',  korean: '업비트', global: '바이낸스' },
+  { key: 'upbit_okx',      korean: '업비트', global: 'OKX' },
 ];
+
+function presetsFor(mode: PathMode): { key: PresetKey; label: string }[] {
+  const pairs = PRESET_PAIRS.map(({ key, korean, global }) => ({
+    key,
+    label: mode === 'sell' ? `${global} → ${korean}` : `${korean} → ${global}`,
+  }));
+  return [
+    { key: 'no_kyc_lightning', label: 'KYC 라이트닝 제외' },
+    { key: 'no_lightning',    label: '라이트닝 제외' },
+    ...pairs,
+  ];
+}
 
 /**
  * 팔 때의 경로 요약. 자금이 개인 지갑에서 거래소로 흐르므로 정거장 순서가 살 때와 반대다.
@@ -120,6 +133,7 @@ export function RecommendationStep() {
   const {
     mode, amountBtc, walletRegistered,
     amountKrw,
+    allPaths,
     allRecommendedPaths,
     topRecommendedPaths,
     handleSelectRecommendedPath,
@@ -130,8 +144,11 @@ export function RecommendationStep() {
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
     excludeDisabled,        setExcludeDisabled,
+    excludeNetworks,        setExcludeNetworks,
     destinationFilter,      setDestinationFilter,
   } = useExplorer();
+
+  const presets = useMemo(() => presetsFor(mode), [mode]);
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -162,6 +179,11 @@ export function RecommendationStep() {
       .map(p => p.lightning_exit_provider!))],
     [allRecommendedPaths],
   );
+  // 팔 때 USDT 입금망 칩. dedup 전 전체 경로에서 뽑아야 제외한 망의 칩이 사라지지 않는다.
+  const availableNetworkKeys = useMemo(() =>
+    mode === 'sell' ? usdtNetworkKeys(allPaths) : [],
+    [allPaths, mode],
+  );
   const hasLightningPaths = allRecommendedPaths.some(p => isLightningPath(p, mode));
   const hasOnchainPaths   = allRecommendedPaths.some(p => !isLightningPath(p, mode));
   const hasDisabledPaths  = allRecommendedPaths.some(p => p.disabled);
@@ -169,7 +191,7 @@ export function RecommendationStep() {
   const hasLightningWalletPaths = allRecommendedPaths.some(p => p.destination === 'lightning_wallet');
 
   const activeFilterCount =
-    excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size +
+    excludeExchanges.size + excludeGlobalExchanges.size + excludeServices.size + excludeNetworks.size +
     (excludeOnchain ? 1 : 0) + (excludeLightning ? 1 : 0) + (excludeDisabled ? 1 : 0);
 
   function toggleExchange(id: string) {
@@ -199,10 +221,20 @@ export function RecommendationStep() {
     setVisibleCount(PAGE_SIZE);
   }
 
+  function toggleNetwork(key: string) {
+    setExcludeNetworks(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+    setVisibleCount(PAGE_SIZE);
+  }
+
   function clearFilters() {
     setExcludeExchanges(new Set());
     setExcludeGlobalExchanges(new Set());
     setExcludeServices(new Set());
+    setExcludeNetworks(new Set());
     setExcludeOnchain(false);
     setExcludeLightning(false);
     setExcludeDisabled(false);
@@ -251,6 +283,7 @@ export function RecommendationStep() {
     setExcludeExchanges(new Set());
     setExcludeGlobalExchanges(new Set());
     setExcludeServices(new Set());
+    setExcludeNetworks(new Set());
     setExcludeOnchain(false);
     setExcludeLightning(false);
     setExcludeDisabled(false);
@@ -330,7 +363,7 @@ export function RecommendationStep() {
               <div>
                 <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">빠른 필터</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {PRESETS.map(({ key, label }) => {
+                  {presets.map(({ key, label }) => {
                     const active = isPresetActive(key);
                     return (
                       <button
@@ -382,10 +415,12 @@ export function RecommendationStep() {
                 </div>
               )}
 
-              {/* 출금 방식 */}
+              {/* 출금/전송 방식. 팔 때는 국내 거래소에서 나가는 게 아니라 내 지갑에서 보내는 방식이다. */}
               {(hasOnchainPaths || hasLightningPaths) && (
                 <div>
-                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">출금 방식 제외</p>
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">
+                    {mode === 'sell' ? '전송 방식 제외' : '출금 방식 제외'}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {hasOnchainPaths && (
                       <ToggleChip label="온체인" active={excludeOnchain} onClick={() => { setExcludeOnchain(o => !o); setVisibleCount(PAGE_SIZE); }} />
@@ -414,6 +449,19 @@ export function RecommendationStep() {
                   <div className="flex flex-wrap gap-1.5">
                     {availableGlobalExchanges.map(id => (
                       <ToggleChip key={id} label={fmtEx(id)} active={excludeGlobalExchanges.has(id)} onClick={() => toggleGlobalExchange(id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* USDT 입금망 (팔 때). 목록에는 조합당 가장 싼 망만 보이므로, 쓰기 꺼려지는 망을 빼면
+                  다음으로 싼 망이 그 자리에 올라온다. */}
+              {availableNetworkKeys.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">USDT 입금망 제외</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableNetworkKeys.map(key => (
+                      <ToggleChip key={key} label={USDT_NETWORK_LABEL[key] ?? key} active={excludeNetworks.has(key)} onClick={() => toggleNetwork(key)} />
                     ))}
                   </div>
                 </div>

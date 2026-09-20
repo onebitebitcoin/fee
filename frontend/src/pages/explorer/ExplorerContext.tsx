@@ -12,7 +12,7 @@ import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev } from './flow';
 import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO } from './constants';
-import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
+import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths, excludeUsdtNetworks } from './recommend';
 import { isLightningPath } from './pathMode';
 import { sortByDepositGate } from './depositGate';
 import { useExchangeMetadata } from './useExchangeMetadata';
@@ -84,6 +84,8 @@ function useExplorerValue() {
   const [excludeOnchain,         setExcludeOnchain]         = useState(false);
   const [excludeLightning,       setExcludeLightning]       = useState(false);
   const [excludeDisabled,        setExcludeDisabled]        = useState(false);
+  // 팔 때 USDT 입금망 제외 (network_key 집합). 살 때는 경로에 network_key 가 없어 적용되지 않는다.
+  const [excludeNetworks,        setExcludeNetworks]        = useState<Set<string>>(new Set());
   // 종착지 필터 (추천 리스트): 개인 온체인 지갑(기본) / 라이트닝 지갑
   const [destinationFilter,      setDestinationFilter]      = useState<Destination>('personal');
 
@@ -251,17 +253,22 @@ function useExplorerValue() {
   const allRecommendedPaths = useMemo(() => dedupAndSortPaths(allPaths, mode), [allPaths, mode]);
 
   // 필터 적용 결과 (화면 표시용)
-  // 수수료 정렬 → 제외 필터 → 입금 관문 정렬 순서로 적용한다.
+  // 망 제외 → 수수료 정렬(dedup) → 제외 필터 → 입금 관문 정렬 순서로 적용한다.
+  // 망 제외만 dedup 앞에 있는 이유는 dedup 이 (국내, 해외) 조합당 가장 싼 망 하나만 남기기 때문이다.
+  // 뒤에서 빼면 조합이 통째로 사라지고, 앞에서 빼야 다음으로 싼 망이 대표로 올라온다.
   // 관문 정렬을 마지막에 두어야 수수료 순서를 유지한 채 실행 불가능한 경로만 아래로 내려간다.
-  const topRecommendedPaths = useMemo(() =>
-    sortByDepositGate(
-      filterRecommendedPaths(allRecommendedPaths, {
+  const topRecommendedPaths = useMemo(() => {
+    const listed = mode === 'sell' && excludeNetworks.size
+      ? dedupAndSortPaths(excludeUsdtNetworks(allPaths, excludeNetworks), mode)
+      : allRecommendedPaths;
+    return sortByDepositGate(
+      filterRecommendedPaths(listed, {
         mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
         excludeOnchain, excludeLightning, excludeDisabled,
       }),
       walletRegistered,
-    ),
-    [allRecommendedPaths, mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled, walletRegistered]);
+    );
+  }, [allPaths, allRecommendedPaths, mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled, excludeNetworks, walletRegistered]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => computeSnapshotKimp(allData), [allData]);
@@ -612,7 +619,7 @@ function useExplorerValue() {
     setBtcMethod(null); setGlobalExitMethod(null); setShowAltPaths(false);
     setFailedGlobalExchanges([]);
     setExcludeExchanges(new Set()); setExcludeGlobalExchanges(new Set()); setExcludeServices(new Set());
-    setExcludeOnchain(false); setExcludeLightning(false); setDestinationFilter('personal');
+    setExcludeOnchain(false); setExcludeLightning(false); setExcludeNetworks(new Set()); setDestinationFilter('personal');
   }
 
   return {
@@ -670,6 +677,7 @@ function useExplorerValue() {
     excludeOnchain,         setExcludeOnchain,
     excludeLightning,       setExcludeLightning,
     excludeDisabled,        setExcludeDisabled,
+    excludeNetworks,        setExcludeNetworks,
     destinationFilter,      setDestinationFilter,
     snapshotKimp,
     domesticBtcKrw,
