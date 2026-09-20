@@ -7,7 +7,7 @@ import { createContext, useContext, useState, useMemo, useEffect, useRef } from 
 import type { ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
-import type { CheapestPathEntry, CheapestPathResponse, TickerRow } from '../../types';
+import type { CheapestPathEntry, CheapestPathResponse, PathMode, TickerRow } from '../../types';
 import type { Phase, CoinType, Destination, FlowState } from './flow';
 import { phaseIdx, flowNext, flowPrev } from './flow';
 import type { AllData, GlobalExchange } from './constants';
@@ -34,8 +34,16 @@ import {
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
+  // 탐색 방향. 'buy' = 원화로 비트코인을 사서 개인 지갑으로 받기,
+  // 'sell' = 개인 지갑의 비트코인을 거래소에 팔아 원화로 받기.
+  const [mode, setModeState]      = useState<PathMode>('buy');
   const [amount, setAmount]       = useState('100');
   const [unit, setUnit]           = useState<'만원' | '억원'>('만원');
+  // 매도 입력 — 파는 수량과, 그 수량을 만들려고 개인 지갑에서 합칠 UTXO 개수.
+  // UTXO 개수가 늘면 트랜잭션 크기가 커져 온체인 채굴 수수료가 비례해 올라간다.
+  const [amountBtcInput, setAmountBtcInput] = useState('0.05');
+  const [btcUnit, setBtcUnit]     = useState<'BTC' | 'sats'>('BTC');
+  const [walletUtxoCount, setWalletUtxoCount] = useState(1);
   const [allData, setAllData]     = useState<AllData | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [dir, setDir]             = useState<1 | -1>(1);
@@ -85,7 +93,8 @@ function useExplorerValue() {
   const fromRecommendation   = useRef(false);
 
   const _prefetchCache = useRef<{
-    amount: number;
+    // 조회 키(모드 + 금액/수량). 모드가 다르면 응답 구조도 달라지므로 금액만으로는 식별할 수 없다.
+    key: string;
     byGlobal: Record<string, CheapestPathResponse>;
     tickers: TickerRow[];
     latestRunAt: number | null;
@@ -104,6 +113,50 @@ function useExplorerValue() {
   }
 
   const amountKrw = parseFloat(amount || '0') * (unit === '만원' ? 10_000 : 100_000_000);
+  const amountBtc = parseFloat(amountBtcInput || '0') / (btcUnit === 'BTC' ? 1 : SATS_PER_BTC);
+
+  // 경로 조회의 최소 입력 조건. 매수는 1만원, 매도는 1,000 sats 미만이면 조회하지 않는다.
+  // (1,000 sats 아래로는 개인 지갑의 온체인 수수료가 원금을 넘어서 경로 비교 자체가 의미 없다.)
+  const MIN_AMOUNT_KRW = 10_000;
+  const MIN_AMOUNT_BTC = 1_000 / SATS_PER_BTC;
+  const inputReady = mode === 'sell' ? amountBtc >= MIN_AMOUNT_BTC : amountKrw >= MIN_AMOUNT_KRW;
+
+  // 조회 키 — 프리페치 캐시 키와 API 파라미터의 단일 기준.
+  // 모드가 다르면 응답 구조도 달라지므로 캐시가 섞이지 않도록 모드를 키에 포함한다.
+  const pathQuery = useMemo(
+    () => mode === 'sell'
+      ? { mode, amountBtc, walletUtxoCount } as const
+      : { mode, amountKrw } as const,
+    [mode, amountBtc, walletUtxoCount, amountKrw],
+  );
+  const pathQueryKey = mode === 'sell' ? `sell:${amountBtc}:${walletUtxoCount}` : `buy:${amountKrw}`;
+
+  // 모드에 따라 <html data-theme> 를 갱신한다. 팔레트 변수는 index.css 의
+  // `:root[data-theme="sell"]` 블록에 있고, 이 속성 하나로 화면 전체 색이 바뀐다.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (mode === 'sell') root.setAttribute('data-theme', 'sell');
+    else root.removeAttribute('data-theme');
+  }, [mode]);
+
+  /**
+   * 탐색 방향 전환. 매수와 매도는 응답 구조도 선택지도 다르므로
+   * 이미 받아둔 경로 데이터와 진행 중인 선택을 모두 버리고 첫 화면 상태로 되돌린다.
+   * 남겨두면 이전 모드의 경로가 새 모드의 추천 목록에 섞여 보인다.
+   */
+  function setMode(next: PathMode) {
+    if (next === mode) return;
+    setModeState(next);
+    setAllData(null);
+    setError(null);
+    setLoadingDone(false);
+    setIsSearching(false);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null);
+    setSwapSvc(null); setDestination(null); setBtcMethod(null); setGlobalExitMethod(null);
+    setShowAltPaths(false);
+    setFailedGlobalExchanges([]);
+    _prefetchCache.current = null;
+  }
 
   // BTC 시세 30초 폴링 — phase 무관하게 항상 실행
   useEffect(() => {
@@ -137,12 +190,12 @@ function useExplorerValue() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [phase]);
 
-  // 금액 입력 후 500ms 디바운스로 백그라운드 프리페치 — 버튼 클릭 시 즉시 응답
+  // 금액/수량 입력 후 500ms 디바운스로 백그라운드 프리페치 — 버튼 클릭 시 즉시 응답
   useEffect(() => {
-    if (!amountKrw || amountKrw < 10_000) return;
+    if (!inputReady) return;
     const PREFETCH_TTL = 55_000;
     if (
-      _prefetchCache.current?.amount === amountKrw &&
+      _prefetchCache.current?.key === pathQueryKey &&
       Date.now() - _prefetchCache.current.fetchedAt < PREFETCH_TTL
     ) return;
     if (_isPrefetching.current) return;
@@ -154,7 +207,7 @@ function useExplorerValue() {
         const [tickerRes, kimpRes, allRes] = await Promise.all([
           api.getTickers().catch(() => null),
           api.getLiveKimp().catch(() => null),
-          api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch(() => null),
+          api.getCheapestPathAll(pathQuery).catch(() => null),
         ]);
         if (!allRes) return;
         const byGlobal: Record<string, CheapestPathResponse> = {};
@@ -164,7 +217,7 @@ function useExplorerValue() {
         }
         if (Object.keys(byGlobal).length === 0) return;
         _prefetchCache.current = {
-          amount: amountKrw,
+          key: pathQueryKey,
           byGlobal,
           tickers: tickerRes?.items ?? [],
           latestRunAt: Object.values(byGlobal)[0]?.last_run?.completed_at ?? null,
@@ -179,7 +232,7 @@ function useExplorerValue() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [amountKrw]);
+  }, [pathQueryKey, inputReady, pathQuery]);
 
   // ── Derived options ──────────────────────────────────────────────────────────
 
@@ -284,7 +337,7 @@ function useExplorerValue() {
     // 프리페치 캐시 히트 → 즉시 네비게이션 (로딩 없음)
     const PREFETCH_TTL = 55_000;
     const cached = _prefetchCache.current;
-    if (cached?.amount === amountKrw && Date.now() - cached.fetchedAt < PREFETCH_TTL) {
+    if (cached?.key === pathQueryKey && Date.now() - cached.fetchedAt < PREFETCH_TTL) {
       setAllData({ byGlobal: cached.byGlobal, tickers: cached.tickers, latestRunAt: cached.latestRunAt });
       if (cached.kimp) { setLiveKimp(cached.kimp); setLiveKimpTotal(cached.kimpTotal); setKimpFetchedAt(cached.kimpFetchedAt); setUsdtPremium(cached.usdtPremium); }
       setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
@@ -331,7 +384,7 @@ function useExplorerValue() {
 
       // 단일 배치 호출로 7개 글로벌 거래소를 한 번에 조회
       const allRes = await withTimeout(
-        api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch((err: unknown) => {
+        api.getCheapestPathAll(pathQuery).catch((err: unknown) => {
           console.error('[cheapest-all] 네트워크 오류:', err);
           return null;
         }),
@@ -348,7 +401,7 @@ function useExplorerValue() {
         });
         await new Promise(res => setTimeout(res, 2000));
         const retryRes = await withTimeout(
-          api.getCheapestPathAll({ mode: 'buy', amountKrw }).catch((err: unknown) => {
+          api.getCheapestPathAll(pathQuery).catch((err: unknown) => {
             console.error('[cheapest-all] 재시도 네트워크 오류:', err);
             return null;
           }),
@@ -523,8 +576,12 @@ function useExplorerValue() {
   return {
     // ── 원시 상태 + setter ──
     phase, setPhase,
+    mode, setMode,
     amount, setAmount,
     unit, setUnit,
+    amountBtcInput, setAmountBtcInput,
+    btcUnit, setBtcUnit,
+    walletUtxoCount, setWalletUtxoCount,
     allData,
     error,
     dir,
@@ -555,6 +612,8 @@ function useExplorerValue() {
     isSearching,
     failedGlobalExchanges,
     amountKrw,
+    amountBtc,
+    inputReady,
     stepEndRef,
     scrollToStepEnd,
     // ── 파생 데이터 ──

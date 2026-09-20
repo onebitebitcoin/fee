@@ -12,7 +12,22 @@ import {
   formatSuspensionReason,
   resolveDisabledNoticeLink,
 } from '../disabledNetworks';
-import type { AccessStats, NetworkChange, WithdrawalRow } from '../../../types';
+import type { AccessStats, NetworkChange, PathMode, WithdrawalRow } from '../../../types';
+
+// 탐색 방향 — 첫 화면 세그먼트의 표시 순서이자 단일 기준
+const MODE_OPTIONS: { value: PathMode; label: string }[] = [
+  { value: 'buy',  label: '살 때' },
+  { value: 'sell', label: '팔 때' },
+];
+
+const MODE_DESC: Record<PathMode, string> = {
+  buy:  '국내 거래소에서 원화로 비트코인을 사서 개인 지갑으로 받을 때 드는 수수료를 비교합니다.',
+  sell: '개인 지갑의 비트코인을 거래소로 보내 원화로 받을 때 드는 수수료를 비교합니다.',
+};
+
+// 개인 지갑에서 합칠 UTXO 개수의 상한. 이보다 많은 조각을 한 번에 쓰는 경우는 드물고,
+// 입력값이 커질수록 수수료 추정이 실제와 멀어져 비교 기준으로서 쓸모가 떨어진다.
+const MAX_WALLET_UTXO = 20;
 
 const EXCHANGES = [
   'upbit', 'bithumb', 'coinone', 'korbit', 'gopax',
@@ -79,9 +94,19 @@ export function InputStep() {
   }
 
   const {
-    amount, setAmount, unit, setUnit, amountKrw, allData, error, btcPrice, btcPriceLoading, usdtPremium,
+    mode, setMode,
+    amount, setAmount, unit, setUnit, amountKrw,
+    amountBtcInput, setAmountBtcInput, btcUnit, setBtcUnit,
+    walletUtxoCount, setWalletUtxoCount, amountBtc, inputReady,
+    allData, error, btcPrice, btcPriceLoading, usdtPremium,
     handleSearch, isSearching,
   } = useExplorer();
+
+  // 매도 입력의 원화 환산. 파는 곳이 국내 거래소이므로 국내 시세(업비트)를 기준으로 삼고,
+  // 국내 시세를 아직 못 받았으면 글로벌 시세로 대신하지 않고 null 로 남겨 표시를 보류한다.
+  const sellKrwEstimate = btcPrice?.upbitKrw != null && amountBtc > 0
+    ? Math.round(amountBtc * btcPrice.upbitKrw)
+    : null;
 
   // 비트코인 자체 프리미엄(USDT 환산) — 분해 보조값
   const kimp = btcPrice?.kimchiPremium;
@@ -217,51 +242,158 @@ export function InputStep() {
                 </>
               )}
 
-              {/* Hero amount input */}
+              {/* Hero: 방향 선택 + 금액/수량 입력 */}
               <div className="ios-card rounded-3xl p-6">
-                <p className="text-xs font-semibold text-label-tertiary uppercase tracking-wider mb-5">
-                  구매 금액
+                {/* 방향 전환 — 매수/매도 */}
+                <div className="seg-ctrl grid grid-cols-2 mb-5">
+                  {MODE_OPTIONS.map(({ value, label }) => (
+                    <motion.button
+                      key={value}
+                      onClick={() => setMode(value)}
+                      disabled={isSearching}
+                      className={`relative py-2 text-sm font-bold rounded-[8px] transition-colors disabled:opacity-40 ${
+                        mode === value ? 'text-label-primary' : 'text-label-tertiary'
+                      }`}
+                    >
+                      {mode === value && (
+                        <motion.div
+                          layoutId="mode-seg-active"
+                          className="absolute inset-0 bg-sys-card rounded-[8px] shadow-card"
+                          transition={SPRING_FAST}
+                        />
+                      )}
+                      <span className="relative z-10">{label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-label-tertiary mb-5 leading-relaxed">
+                  {MODE_DESC[mode]}
                 </p>
 
-                <div className="flex items-baseline gap-2">
-                  <span className="text-acc-brand text-3xl font-semibold">₩</span>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    disabled={isSearching}
-                    className="flex-1 min-w-0 bg-transparent text-5xl font-bold text-label-primary outline-none
-                      [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-                      tracking-tight disabled:opacity-40"
-                    placeholder="100"
-                    min="1"
-                  />
-                  {/* Unit toggle */}
-                  <div className="seg-ctrl inline-flex flex-shrink-0">
-                    {(['만원', '억원'] as const).map(u => (
-                      <motion.button
-                        key={u}
-                        onClick={() => setUnit(u)}
-                        disabled={isSearching}
-                        className={`relative px-4 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
-                          unit === u ? 'text-label-primary' : 'text-label-secondary'
-                        }`}
-                      >
-                        {unit === u && (
-                          <motion.div
-                            layoutId="seg-active"
-                            className="absolute inset-0 bg-fill-primary rounded-[8px]"
-                            transition={SPRING_FAST}
-                          />
-                        )}
-                        <span className="relative z-10">{u}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-sm text-label-tertiary mt-2 num">
-                  = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
+                <p className="text-xs font-semibold text-label-tertiary uppercase tracking-wider mb-5">
+                  {mode === 'sell' ? '판매 수량' : '구매 금액'}
                 </p>
+
+                {mode === 'sell' ? (
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-acc-brand text-3xl font-semibold">₿</span>
+                      <input
+                        type="number"
+                        value={amountBtcInput}
+                        onChange={e => setAmountBtcInput(e.target.value)}
+                        disabled={isSearching}
+                        className="flex-1 min-w-0 bg-transparent text-5xl font-bold text-label-primary outline-none
+                          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                          tracking-tight disabled:opacity-40"
+                        placeholder={btcUnit === 'BTC' ? '0.05' : '5000000'}
+                        min="0"
+                        step={btcUnit === 'BTC' ? '0.001' : '1000'}
+                      />
+                      <div className="seg-ctrl inline-flex flex-shrink-0">
+                        {(['BTC', 'sats'] as const).map(u => (
+                          <motion.button
+                            key={u}
+                            onClick={() => setBtcUnit(u)}
+                            disabled={isSearching}
+                            className={`relative px-3.5 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
+                              btcUnit === u ? 'text-label-primary' : 'text-label-secondary'
+                            }`}
+                          >
+                            {btcUnit === u && (
+                              <motion.div
+                                layoutId="btc-unit-active"
+                                className="absolute inset-0 bg-fill-primary rounded-[8px]"
+                                transition={SPRING_FAST}
+                              />
+                            )}
+                            <span className="relative z-10">{u}</span>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* 원화 환산 — 국내 시세를 못 받아왔으면 추정치를 지어내지 않고 상태를 그대로 알린다 */}
+                    <p className="text-sm text-label-tertiary mt-2 num">
+                      {sellKrwEstimate != null
+                        ? `≈ ₩${sellKrwEstimate.toLocaleString('ko-KR')} (수수료 차감 전)`
+                        : '국내 시세를 불러오는 중입니다'}
+                    </p>
+
+                    <div className="sep my-5" />
+
+                    {/* UTXO 개수 — 개인 지갑에서 보낼 때의 온체인 수수료를 좌우하는 입력값 */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-label-secondary">지갑 UTXO 개수</p>
+                        <p className="text-[10px] text-label-tertiary mt-0.5 leading-relaxed">
+                          이 금액을 만들려고 지갑에서 합치는 잔액 조각의 수입니다.
+                          조각이 많을수록 트랜잭션이 커져 채굴 수수료가 올라갑니다.
+                        </p>
+                      </div>
+                      <div className="seg-ctrl inline-flex items-center flex-shrink-0">
+                        <button
+                          onClick={() => setWalletUtxoCount(Math.max(1, walletUtxoCount - 1))}
+                          disabled={isSearching || walletUtxoCount <= 1}
+                          className="w-8 h-8 rounded-[8px] text-label-secondary hover:text-label-primary disabled:opacity-30 transition-colors"
+                          aria-label="UTXO 개수 줄이기"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center text-sm font-bold text-label-primary num">{walletUtxoCount}</span>
+                        <button
+                          onClick={() => setWalletUtxoCount(Math.min(MAX_WALLET_UTXO, walletUtxoCount + 1))}
+                          disabled={isSearching || walletUtxoCount >= MAX_WALLET_UTXO}
+                          className="w-8 h-8 rounded-[8px] text-label-secondary hover:text-label-primary disabled:opacity-30 transition-colors"
+                          aria-label="UTXO 개수 늘리기"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-acc-brand text-3xl font-semibold">₩</span>
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        disabled={isSearching}
+                        className="flex-1 min-w-0 bg-transparent text-5xl font-bold text-label-primary outline-none
+                          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                          tracking-tight disabled:opacity-40"
+                        placeholder="100"
+                        min="1"
+                      />
+                      {/* Unit toggle */}
+                      <div className="seg-ctrl inline-flex flex-shrink-0">
+                        {(['만원', '억원'] as const).map(u => (
+                          <motion.button
+                            key={u}
+                            onClick={() => setUnit(u)}
+                            disabled={isSearching}
+                            className={`relative px-4 py-1.5 text-xs font-semibold rounded-[8px] transition-colors ${
+                              unit === u ? 'text-label-primary' : 'text-label-secondary'
+                            }`}
+                          >
+                            {unit === u && (
+                              <motion.div
+                                layoutId="seg-active"
+                                className="absolute inset-0 bg-fill-primary rounded-[8px]"
+                                transition={SPRING_FAST}
+                              />
+                            )}
+                            <span className="relative z-10">{u}</span>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-label-tertiary mt-2 num">
+                      = ₩{(amountKrw || 0).toLocaleString('ko-KR')}
+                    </p>
+                  </>
+                )}
               </div>
 
               {error && (
@@ -276,15 +408,15 @@ export function InputStep() {
               <div className="flex gap-2">
                 <motion.button
                   onClick={() => handleSearch('recommendation')}
-                  disabled={isSearching || !amountKrw || amountKrw < 10_000}
-                  whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
-                  whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                  disabled={isSearching || !inputReady}
+                  whileHover={!isSearching && inputReady ? { scale: 1.015, y: -1 } : {}}
+                  whileTap={!isSearching && inputReady ? { scale: 0.975 } : {}}
                   transition={SPRING_FAST}
                   className={[
                     'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                     isSearching
                       ? 'bg-acc-brand/70 text-white cursor-not-allowed'
-                      : amountKrw >= 10_000
+                      : inputReady
                         ? 'bg-acc-brand text-white shadow-glow-brand btn-pulse cursor-pointer'
                         : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                   ].join(' ')}
@@ -306,15 +438,15 @@ export function InputStep() {
 
                 <motion.button
                   onClick={() => handleSearch('domestic')}
-                  disabled={isSearching || !amountKrw || amountKrw < 10_000}
-                  whileHover={!isSearching && amountKrw >= 10_000 ? { scale: 1.015, y: -1 } : {}}
-                  whileTap={!isSearching && amountKrw >= 10_000 ? { scale: 0.975 } : {}}
+                  disabled={isSearching || !inputReady}
+                  whileHover={!isSearching && inputReady ? { scale: 1.015, y: -1 } : {}}
+                  whileTap={!isSearching && inputReady ? { scale: 0.975 } : {}}
                   transition={SPRING_FAST}
                   className={[
                     'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                     isSearching
                       ? 'bg-fill-secondary text-label-disabled cursor-not-allowed'
-                      : amountKrw >= 10_000
+                      : inputReady
                         ? 'border border-acc-brand text-acc-brand hover:bg-acc-brand/10 cursor-pointer'
                         : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                   ].join(' ')}
