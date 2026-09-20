@@ -9,7 +9,8 @@ import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { fmtKst } from '../constants';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
-import type { CheapestPathEntry } from '../../../types';
+import type { CheapestPathEntry, PathMode } from '../../../types';
+import { isLightningPath } from '../pathMode';
 
 const PAGE_SIZE = 15;
 
@@ -25,7 +26,38 @@ const PRESETS: { key: PresetKey; label: string }[] = [
   { key: 'upbit_okx',      label: '업비트 → OKX' },
 ];
 
-function routeText(p: CheapestPathEntry & { _g: string }): string {
+/**
+ * 팔 때의 경로 요약. 자금이 개인 지갑에서 거래소로 흐르므로 정거장 순서가 살 때와 반대다.
+ * 예) 내 지갑 › BTC › 빗썸 › 원화
+ */
+function sellRouteText(p: CheapestPathEntry & { _g: string }): string {
+  const isUsdt = p.transfer_coin === 'USDT';
+  const isLightning = p.global_exit_mode === 'lightning';
+  const provider = p.lightning_exit_provider;
+  const parts: string[] = ['내 지갑'];
+
+  // 라이트닝 경로도 지갑에서 스왑 서비스까지는 온체인 비트코인으로 보낸다
+  if (isLightning) {
+    parts.push('BTC');
+    parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'LN 스왑');
+    parts.push('라이트닝');
+  } else {
+    parts.push('BTC');
+  }
+
+  if (isUsdt) {
+    parts.push(fmtEx(p._g));
+    parts.push('USDT');
+    if (p.network) parts.push(formatNetworkLabel(p.network));
+  }
+
+  parts.push(fmtEx(p.korean_exchange));
+  parts.push('원화');
+  return parts.join(' › ');
+}
+
+function routeText(p: CheapestPathEntry & { _g: string }, mode: PathMode = 'buy'): string {
+  if (mode === 'sell') return sellRouteText(p);
   const isUsdt = p.transfer_coin === 'USDT';
   const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
   const isLightning = p.path_type === 'lightning_exit';
@@ -85,6 +117,7 @@ function ToggleChip({
 export function RecommendationStep() {
   const navigate = useNavigate();
   const {
+    mode, amountBtc,
     amountKrw,
     allRecommendedPaths,
     topRecommendedPaths,
@@ -128,8 +161,8 @@ export function RecommendationStep() {
       .map(p => p.lightning_exit_provider!))],
     [allRecommendedPaths],
   );
-  const hasLightningPaths = allRecommendedPaths.some(p => p.path_type === 'lightning_exit');
-  const hasOnchainPaths   = allRecommendedPaths.some(p => p.path_type !== 'lightning_exit');
+  const hasLightningPaths = allRecommendedPaths.some(p => isLightningPath(p, mode));
+  const hasOnchainPaths   = allRecommendedPaths.some(p => !isLightningPath(p, mode));
   const hasDisabledPaths  = allRecommendedPaths.some(p => p.disabled);
   // 종착지 토글: 라이트닝 지갑 종착 경로가 존재할 때만 노출
   const hasLightningWalletPaths = allRecommendedPaths.some(p => p.destination === 'lightning_wallet');
@@ -255,7 +288,9 @@ export function RecommendationStep() {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs text-label-tertiary uppercase tracking-wider mb-1">
-            ₩{amountKrw.toLocaleString('ko-KR')} 기준
+            {mode === 'sell'
+              ? `${amountBtc} BTC 판매 기준`
+              : `₩${amountKrw.toLocaleString('ko-KR')} 기준`}
           </p>
           <h1 className="text-2xl font-bold text-label-primary tracking-tight">추천 경로</h1>
           <p className="text-sm text-label-secondary mt-1">수수료가 가장 낮은 경로 순으로 보여드려요</p>
@@ -447,7 +482,7 @@ export function RecommendationStep() {
                       'text-[12px] font-medium whitespace-nowrap',
                       p.disabled ? 'text-label-quaternary' : 'text-label-primary',
                     ].join(' ')}>
-                      {routeText(p)}
+                      {routeText(p, mode)}
                     </p>
                     {i === firstEnabledIdx && (
                       <span className="text-[9px] font-bold bg-acc-green/15 text-acc-green px-1.5 py-0.5 rounded-full flex-shrink-0">최저</span>

@@ -7,13 +7,16 @@ import { useExplorer } from '../ExplorerContext';
 
 export function SwapServiceStep() {
   const {
+    mode,
     swapSvc, setSwapSvc, scrollToStepEnd, swapServiceOptions, handleBack, handleNext,
   } = useExplorer();
   return (
     <>
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">스왑 서비스</h1>
-                <p className="text-sm text-label-secondary mt-1">라이트닝 → 온체인 변환 서비스를 선택해요</p>
+                <p className="text-sm text-label-secondary mt-1">
+                  {mode === 'sell' ? '온체인 → 라이트닝 변환 서비스를 선택해요' : '라이트닝 → 온체인 변환 서비스를 선택해요'}
+                </p>
               </div>
               <div className="space-y-2.5">
                 {swapServiceOptions.length === 0 ? (

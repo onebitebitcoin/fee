@@ -66,7 +66,7 @@ function useExplorerValue() {
   const [btcPriceLoading, setBtcPriceLoading] = useState(true); // 최초 kimp/live fetch 진행 여부 (첫 페이지 로딩 표시용)
   const [btcMethod, setBtcMethod]         = useState<'onchain' | 'lightning' | null>(null);
   const [globalExitMethod, setGlobalExitMethod] = useState<'onchain' | 'lightning' | 'none' | null>(null);
-  const [displaySats, setDisplaySats]   = useState(0);
+  const [displayReceived, setDisplayReceived] = useState(0);
   const [showAltPaths, setShowAltPaths] = useState(false);
 
   // 거래소 메타데이터(게이트맨/유의/CARF/출금한도) — 마운트 1회 fetch, 탐색 상태와 결합 없음
@@ -311,29 +311,37 @@ function useExplorerValue() {
     () => computeAltPaths(allRecommendedPaths, resultPath),
     [allRecommendedPaths, resultPath]);
 
+  // 결과 화면의 수령량 카운트업.
+  // 살 때는 지갑에 도착하는 사토시, 팔 때는 계좌에 입금되는 원화를 센다.
+  // 단위가 다르므로 화면(ResultStep)이 모드에 맞는 표기를 붙인다.
+  const receivedTarget = resultPath
+    ? (mode === 'sell'
+        ? Math.round(resultPath.krw_received ?? 0)
+        : Math.round((resultPath.btc_received ?? 0) * SATS_PER_BTC))
+    : 0;
+
   useEffect(() => {
     if (phase !== 'result') return;
     if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current);
-    if (!resultPath?.btc_received) { setDisplaySats(0); return; }
-    const target = Math.round(resultPath.btc_received * SATS_PER_BTC);
-    setDisplaySats(0);
+    if (!receivedTarget) { setDisplayReceived(0); return; }
+    setDisplayReceived(0);
     const duration = 1500;
     const startTime = Date.now();
     const tick = () => {
       const elapsed = Date.now() - startTime;
       const t = Math.min(elapsed / duration, 1);
       const eased = 1 - (1 - t) ** 4;
-      setDisplaySats(Math.round(target * eased));
+      setDisplayReceived(Math.round(receivedTarget * eased));
       if (t < 1) satRafRef.current = requestAnimationFrame(tick);
     };
     satRafRef.current = requestAnimationFrame(tick);
     return () => { if (satRafRef.current != null) cancelAnimationFrame(satRafRef.current); };
-  }, [phase, resultPath?.btc_received]);
+  }, [phase, receivedTarget]);
 
   // ── API ──────────────────────────────────────────────────────────────────────
 
   async function handleSearch(dest: 'recommendation' | 'domestic' = 'recommendation') {
-    if (!amountKrw || amountKrw < 10_000) return;
+    if (!inputReady) return;
 
     // 프리페치 캐시 히트 → 즉시 네비게이션 (로딩 없음)
     const PREFETCH_TTL = 55_000;
@@ -626,7 +634,7 @@ function useExplorerValue() {
     btcMethod, setBtcMethod,
     globalExitMethod, setGlobalExitMethod,
     liveRegistry,
-    displaySats,
+    displayReceived,
     showAltPaths, setShowAltPaths,
     withdrawalLimits,
     cautionMap,

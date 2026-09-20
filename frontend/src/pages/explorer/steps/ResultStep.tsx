@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle, ArrowSquareOut, Ticket } from '@phosphor-icons/react';
@@ -10,14 +11,56 @@ import { SPRING_SLOW, fmtAmountText } from '../constants';
 import { ExFavicon, SectionLabel, Chip } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 import { buildReportQuery } from '../../board/reportTemplate';
+import { usesGlobalExchange } from '../pathMode';
+
+/** 경로 다이어그램의 한 칸 — 아이콘과 이름을 가진 정거장. */
+type RouteNode = { key: string; icon: ReactNode; label: string };
+
+/**
+ * 자금이 거쳐가는 정거장과 그 사이에서 실제로 움직이는 자산을 순서대로 그린다.
+ * 노드 n개 사이에 엣지 n-1개가 들어간다. 방향(살 때/팔 때)은 호출부가 배열 순서로 정하므로
+ * 이 컴포넌트는 방향을 알지 못한다.
+ */
+function RouteDiagram({ nodes, edges }: { nodes: RouteNode[]; edges: string[] }) {
+  return (
+    <div className="ios-card rounded-2xl p-4">
+      <div className="flex items-center gap-1 flex-wrap">
+        {nodes.map((n, i) => (
+          <Fragment key={n.key}>
+            <div className="flex flex-col items-center">
+              {n.icon}
+              <p className="text-[10px] text-label-secondary mt-1">{n.label}</p>
+            </div>
+            {i < edges.length && (
+              <div className="flex flex-col items-center px-1">
+                <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
+                <p className="text-[9px] text-label-tertiary mt-1">{edges[i]}</p>
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 원화 계좌 정거장 아이콘 — 팔 때의 종착지. */
+function KrwIcon() {
+  return (
+    <div className="w-6 h-6 rounded-full bg-acc-brand/15 flex items-center justify-center">
+      <span className="text-[11px] font-bold text-acc-brand">₩</span>
+    </div>
+  );
+}
 
 export function ResultStep() {
   const navigate = useNavigate();
   const {
-    amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, usdtPremium, forexUsdKrw, displaySats,
+    amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, usdtPremium, forexUsdKrw, displayReceived,
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
-    globalExitMethod, allData,
+    globalExitMethod, allData, mode, amountBtc,
   } = useExplorer();
+  const isSell = mode === 'sell';
   const [showAltPaths, setShowAltPaths] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   // 수수료 내역: 항목별 '자세히' 펼침 (인덱스 집합). 금액은 항상 노출.
@@ -37,9 +80,72 @@ export function ResultStep() {
   // - USDT 경로는 항상 글로벌 경유 (buy 모드에선 route_variant 미설정이라 transfer_coin으로 판별).
   // - btc_via_global은 transfer_coin='BTC'이지만 글로벌 경유 → route_variant로 판별.
   // route_variant 부재 시 fail-closed(false) → BTC 직접 경로에 엉뚱한 거래소가 표시되지 않도록.
-  const usesGlobal =
-    resultPath.transfer_coin === 'USDT' ||
-    (resultPath.route_variant?.endsWith('via_global') ?? false);
+  const usesGlobal = usesGlobalExchange(resultPath);
+
+  // 경로 다이어그램의 정거장과 구간 자산.
+  // 살 때는 국내 거래소에서 출발해 개인 지갑에서 끝나고, 팔 때는 그 반대로 개인 지갑에서
+  // 출발해 원화 계좌에서 끝난다. 방향이 뒤집히면 읽는 사람이 자금 흐름을 거꾸로 이해하므로
+  // 두 모드의 순서를 각각 세워둔다.
+  const routeDiagram = (() => {
+    const nodes: RouteNode[] = [];
+    const edges: string[] = [];
+    const koreanNode: RouteNode = {
+      key: 'korean',
+      icon: <ExFavicon id={resultPath.korean_exchange} size={24} />,
+      label: fmtEx(resultPath.korean_exchange),
+    };
+    const globalNode: RouteNode | null = global
+      ? { key: 'global', icon: <ExFavicon id={global} size={24} />, label: fmtEx(global) }
+      : null;
+    const swapNode: RouteNode | null = swapSvc
+      ? { key: 'swap', icon: <ExFavicon id={swapSvc} size={24} />, label: fmtEx(swapSvc) }
+      : null;
+    const walletNode: RouteNode = {
+      key: 'wallet',
+      icon: <NetworkIcon network="bitcoin" size={24} />,
+      label: isLnWallet ? '라이트닝 지갑' : '내 지갑',
+    };
+
+    if (isSell) {
+      const viaLightning = resultPath.global_exit_mode === 'lightning';
+      nodes.push({ ...walletNode, label: '내 지갑' });
+      // 라이트닝 경로도 지갑에서 스왑 서비스까지는 온체인 비트코인으로 보낸다.
+      if (viaLightning && swapNode) {
+        edges.push('비트코인');
+        nodes.push(swapNode);
+      }
+      edges.push(viaLightning ? '비트코인 라이트닝' : '비트코인');
+      if (usesGlobal && globalNode) {
+        nodes.push(globalNode);
+        edges.push(resultPath.transfer_coin);
+      }
+      nodes.push(koreanNode);
+      edges.push('원화');
+      nodes.push({ key: 'krw', icon: <KrwIcon />, label: '내 계좌' });
+      return { nodes, edges };
+    }
+
+    nodes.push(koreanNode);
+    edges.push(
+      resultPath.transfer_coin === 'BTC'
+        ? (!usesGlobal && isLnWallet ? '비트코인 라이트닝' : '비트코인')
+        : resultPath.transfer_coin,
+    );
+    if (usesGlobal && globalNode) {
+      nodes.push(globalNode);
+      // 글로벌 출금 레그 = global_exit_mode 기준 (라이트닝이면 스왑 서비스로도 LN 진입)
+      if (!isHoldOnGlobal) edges.push(resultPath.global_exit_mode === 'lightning' ? '비트코인 라이트닝' : '비트코인');
+    }
+    // 스왑 서비스 (개인지갑 종착, 제3자 LN→온체인 스왑)
+    if (swapNode && !isLnWallet) {
+      nodes.push(swapNode);
+      edges.push('비트코인');
+    }
+    // 종착지: 라이트닝 지갑 / 개인 지갑 (출금하지 않음 선택 시 숨김)
+    if (!isHoldOnGlobal) nodes.push(walletNode);
+    return { nodes, edges };
+  })();
+
   return (
     <>
               {isDisabled && (() => {
@@ -120,10 +226,14 @@ export function ResultStep() {
                 )}
                 <p className="text-xs text-label-tertiary uppercase tracking-wider mb-2 relative z-10">예상 수령</p>
                 <p className={`text-5xl font-bold num leading-none relative z-10 ${isDisabled ? 'text-label-tertiary' : 'text-label-primary'}`}>
-                  {formatNumber(displaySats)}
+                  {isSell && '₩'}{formatNumber(displayReceived)}
                 </p>
-                <p className="text-sm text-label-tertiary mt-1 num relative z-10">sats</p>
-                <p className="text-[10px] text-label-quaternary mt-1 relative z-10">1 비트코인 = 100,000,000 sats</p>
+                <p className="text-sm text-label-tertiary mt-1 num relative z-10">{isSell ? '원' : 'sats'}</p>
+                <p className="text-[10px] text-label-quaternary mt-1 relative z-10">
+                  {isSell
+                    ? `${amountBtc} BTC 판매 · 수수료를 뺀 실수령액`
+                    : '1 비트코인 = 100,000,000 sats'}
+                </p>
                 <div className="sep mt-5 mb-4 relative z-10" />
 
                 {(() => {
@@ -271,62 +381,10 @@ export function ResultStep() {
               {/* Route path visualization */}
               <div>
                 <SectionLabel>이동 경로</SectionLabel>
-                <div className="ios-card rounded-2xl p-4">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {/* 국내 거래소 */}
-                    <div className="flex flex-col items-center">
-                      <ExFavicon id={resultPath.korean_exchange} size={24} />
-                      <p className="text-[10px] text-label-secondary mt-1">{fmtEx(resultPath.korean_exchange)}</p>
-                    </div>
-                    <div className="flex flex-col items-center px-1">
-                      <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                      <p className="text-[9px] text-label-tertiary mt-1">
-                        {resultPath.transfer_coin === 'BTC'
-                          ? (!usesGlobal && isLnWallet ? '비트코인 라이트닝' : '비트코인')
-                          : resultPath.transfer_coin}
-                      </p>
-                    </div>
-                    {/* 해외 거래소 (글로벌 경유 경로만) */}
-                    {usesGlobal && global && (
-                      <>
-                        <div className="flex flex-col items-center">
-                          <ExFavicon id={global} size={24} />
-                          <p className="text-[10px] text-label-secondary mt-1">{fmtEx(global)}</p>
-                        </div>
-                        {!isHoldOnGlobal && (
-                          <div className="flex flex-col items-center px-1">
-                            <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                            <p className="text-[9px] text-label-tertiary mt-1">
-                              {/* 글로벌 출금 레그 = global_exit_mode 기준 (라이트닝이면 스왑 서비스로도 LN 진입) */}
-                              {resultPath.global_exit_mode === 'lightning' ? '비트코인 라이트닝' : '비트코인'}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {/* 스왑 서비스 (개인지갑 종착, 제3자 LN→온체인 스왑) */}
-                    {swapSvc && !isLnWallet && (
-                      <>
-                        <div className="flex flex-col items-center">
-                          <ExFavicon id={swapSvc} size={24} />
-                          <p className="text-[10px] text-label-secondary mt-1">{fmtEx(swapSvc)}</p>
-                        </div>
-                        <div className="flex flex-col items-center px-1">
-                          <ArrowRight className="w-3.5 h-3.5 text-label-tertiary" />
-                          {/* 스왑 출력 = 온체인 BTC (LN→온체인 변환 후 개인지갑 수신) */}
-                          <p className="text-[9px] text-label-tertiary mt-1">비트코인</p>
-                        </div>
-                      </>
-                    )}
-                    {/* 종착지: 라이트닝 지갑 / 개인 지갑 (출금하지 않음 선택 시 숨김) */}
-                    {!isHoldOnGlobal && (
-                      <div className="flex flex-col items-center">
-                        <NetworkIcon network="bitcoin" size={24} />
-                        <p className="text-[10px] text-label-secondary mt-1">{isLnWallet ? '라이트닝 지갑' : '내 지갑'}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <RouteDiagram
+                  nodes={routeDiagram.nodes}
+                  edges={routeDiagram.edges}
+                />
               </div>
 
               {/* Fee breakdown — 각 항목 금액은 항상 노출, 항목별 '자세히'로 세부 펼침 */}

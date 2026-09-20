@@ -12,6 +12,7 @@ function formatReason(reason: string | null | undefined): string {
 
 export function NetworkStep() {
   const {
+    mode,
     network, setNetwork, setSwapSvc, stepEndRef, scrollToStepEnd, networkOptions,
     disabledNetworkOptions, domestic, handleBack, handleNext,
   } = useExplorer();
@@ -20,7 +21,9 @@ export function NetworkStep() {
     <>
       <div>
         <h1 className="text-2xl font-bold text-label-primary tracking-tight">네트워크</h1>
-        <p className="text-sm text-label-secondary mt-1">출금 네트워크를 선택해요</p>
+        <p className="text-sm text-label-secondary mt-1">
+          {mode === 'sell' ? 'USDT를 국내로 보낼 네트워크를 선택해요' : '출금 네트워크를 선택해요'}
+        </p>
       </div>
       <div className="space-y-2.5">
         {networkOptions.map(({ network: n, best }, i) => (

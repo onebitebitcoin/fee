@@ -11,6 +11,7 @@ export function DomesticStep() {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const {
+    mode,
     allData, domestic, setDomestic, setCoin, setGlobal, setNetwork, liveKimp, liveKimpTotal, usdtPremium,
     btcPrice, withdrawalLimits, stepEndRef,
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
@@ -20,7 +21,9 @@ export function DomesticStep() {
     <>
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">국내 거래소</h1>
-                <p className="text-sm text-label-secondary mt-1">출발 거래소를 선택해요</p>
+                <p className="text-sm text-label-secondary mt-1">
+                  {mode === 'sell' ? '원화를 받을 거래소를 선택해요' : '출발 거래소를 선택해요'}
+                </p>
               </div>
               <div className="space-y-2.5">
                 {domesticOptions.map(({ exchange, best }, i) => {

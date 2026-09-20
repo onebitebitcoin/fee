@@ -12,6 +12,7 @@ export function GlobalStep() {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const {
+    mode,
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
     scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
     cautionMap, carfMap, failedGlobalExchanges,
@@ -32,7 +33,9 @@ export function GlobalStep() {
                   <Globe className="w-4 h-4 text-label-secondary" />
                 </div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">해외 거래소</h1>
-                <p className="text-sm text-label-secondary mt-1">경유할 해외 거래소를 선택해요</p>
+                <p className="text-sm text-label-secondary mt-1">
+                  {mode === 'sell' ? '비트코인을 팔아 USDT로 바꿀 거래소를 선택해요' : '경유할 해외 거래소를 선택해요'}
+                </p>
               </div>
               <div className="space-y-2.5">
                 {globalOptions.map(({ exchange, best }, i) => {
