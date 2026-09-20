@@ -127,7 +127,7 @@ export function GlobalStep() {
                               </div>
                               {(() => {
                                 const lnOk = globalSupportsLightning(global);
-                                return <div><span className="text-label-tertiary">라이트닝 출금</span><p className={`font-medium mt-0.5 ${lnOk ? 'text-acc-amber' : 'text-label-secondary'}`}>{lnOk ? '지원' : '미지원'}</p></div>;
+                                return <div><span className="text-label-tertiary">라이트닝 출금</span><p className={`font-medium mt-0.5 ${lnOk ? 'text-acc-brand' : 'text-label-secondary'}`}>{lnOk ? '지원' : '미지원'}</p></div>;
                               })()}
                               {info.fatca && <div><span className="text-label-tertiary">규제</span><p className="font-medium text-acc-red mt-0.5">FATCA</p></div>}
                               <div><span className="text-label-tertiary">24H 거래량 (참고)</span>
@@ -135,10 +135,10 @@ export function GlobalStep() {
                               </div>
                             </div>
                             {info.vol24hB < 20 && (
-                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
-                                <Warning className="w-3.5 h-3.5 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
+                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-brand/8 border border-acc-brand/15">
+                                <Warning className="w-3.5 h-3.5 text-acc-brand mt-0.5 flex-shrink-0" weight="fill" />
                                 <p className="text-[11px] text-label-secondary leading-relaxed">
-                                  <span className="font-semibold text-acc-amber">슬리피지 주의</span> — 24시간 거래량이 낮아 유동성이 부족합니다. 비트코인 매수 시 실제 체결가가 호가보다 불리할 수 있으며, 특히 거래 규모가 클수록 영향이 커집니다.
+                                  <span className="font-semibold text-acc-brand">슬리피지 주의</span> — 24시간 거래량이 낮아 유동성이 부족합니다. 비트코인 매수 시 실제 체결가가 호가보다 불리할 수 있으며, 특히 거래 규모가 클수록 영향이 커집니다.
                                 </p>
                               </div>
                             )}
@@ -187,7 +187,7 @@ export function GlobalStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('global')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

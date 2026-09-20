@@ -9,7 +9,7 @@ type RegistryData = { domestic: Record<string, GateItem[]>; global: Record<strin
 
 const LEVEL_CFG = {
   required:    { badge: 'bg-acc-red/10 text-acc-red',       label: '필수' },
-  conditional: { badge: 'bg-acc-amber/10 text-acc-amber',   label: '조건부' },
+  conditional: { badge: 'bg-acc-brand/10 text-acc-brand',   label: '조건부' },
   info:        { badge: 'bg-acc-blue/10 text-acc-blue',     label: '참고' },
 };
 
@@ -24,14 +24,14 @@ function GateItemRow({ item, onDelete, onChange }: {
         <input
           value={item.label}
           onChange={e => onChange({ label: e.target.value })}
-          className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-acc-amber/50"
+          className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-acc-brand/50"
           placeholder="라벨"
         />
         <textarea
           value={item.desc}
           onChange={e => onChange({ desc: e.target.value })}
           rows={2}
-          className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-2.5 py-1.5 text-[11px] text-label-secondary outline-none focus:border-acc-amber/50 resize-none"
+          className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-2.5 py-1.5 text-[11px] text-label-secondary outline-none focus:border-acc-brand/50 resize-none"
           placeholder="설명"
         />
         <div className="flex gap-2 items-center flex-wrap">
@@ -47,7 +47,7 @@ function GateItemRow({ item, onDelete, onChange }: {
           <input
             value={item.condition ?? ''}
             onChange={e => onChange({ condition: e.target.value || null })}
-            className="flex-1 bg-white border border-[rgba(160,100,40,0.20)] rounded-lg px-2 py-0.5 text-[10px] outline-none focus:border-acc-amber/50"
+            className="flex-1 bg-white border border-[rgba(160,100,40,0.20)] rounded-lg px-2 py-0.5 text-[10px] outline-none focus:border-acc-brand/50"
             placeholder="조건 (선택)"
           />
           <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${LEVEL_CFG[item.level].badge}`}>
@@ -81,7 +81,7 @@ function ExchangeGateEditor({ label, gates, onChange }: {
         <span className="text-xs font-semibold text-label-primary">{label}</span>
         <button
           onClick={addGate}
-          className="text-[10px] text-acc-amber hover:text-acc-orange flex items-center gap-1 transition-colors"
+          className="text-[10px] text-acc-brand hover:text-acc-orange flex items-center gap-1 transition-colors"
         >
           <Check className="w-3 h-3" /> 항목 추가
         </button>
@@ -162,7 +162,7 @@ export function GatemanRegistryPanel() {
               <p>최근 업데이트: <span className="text-label-primary font-medium">{fmtDate(meta.updated_at)}</span></p>
               <p>출처: <span className={
                 meta.updated_source === 'crawl'  ? 'text-acc-blue' :
-                meta.updated_source === 'manual' ? 'text-acc-amber' :
+                meta.updated_source === 'manual' ? 'text-acc-brand' :
                 'text-label-tertiary'
               }>{meta.updated_source}</span></p>
             </>
@@ -185,7 +185,7 @@ export function GatemanRegistryPanel() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-acc-amber text-white font-semibold shadow-glow-sm hover:bg-acc-orange transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-acc-brand text-white font-semibold shadow-glow-sm hover:bg-acc-orange transition-colors disabled:opacity-40"
           >
             <FloppyDisk className="w-3.5 h-3.5" />
             {saving ? '저장 중...' : '저장'}

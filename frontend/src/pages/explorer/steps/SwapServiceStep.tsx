@@ -22,7 +22,7 @@ export function SwapServiceStep() {
                     <p className="text-xs text-label-tertiary">현재 라이트닝 스왑 서비스 데이터를 불러오지 못했습니다. 다시 시도하거나 온체인 출금을 선택해주세요.</p>
                     <button
                       onClick={handleBack}
-                      className="mt-2 text-xs text-acc-amber font-semibold underline underline-offset-2"
+                      className="mt-2 text-xs text-acc-brand font-semibold underline underline-offset-2"
                     >
                       출금 방식 다시 선택
                     </button>
@@ -54,19 +54,19 @@ export function SwapServiceStep() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-label-quaternary hover:text-acc-amber transition-colors"
+                                  className="text-label-quaternary hover:text-acc-brand transition-colors"
                                 >
                                   <ArrowSquareOut className="w-3.5 h-3.5" />
                                 </a>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-[10px] text-acc-amber font-semibold">{fee_pct.toFixed(2)}% 변동</span>
+                              <span className="text-[10px] text-acc-brand font-semibold">{fee_pct.toFixed(2)}% 변동</span>
                               {fee_fixed_sat > 0 && (
                                 <span className="text-[10px] text-acc-blue font-semibold">+ {fee_fixed_sat.toLocaleString()} sats 고정</span>
                               )}
                               {kyc
-                                ? <span className="text-[10px] bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full">인증 필요</span>
+                                ? <span className="text-[10px] bg-acc-brand/10 text-acc-brand px-1.5 py-0.5 rounded-full">인증 필요</span>
                                 : <span className="text-[10px] bg-acc-green/10 text-acc-green px-1.5 py-0.5 rounded-full">인증 불필요</span>
                               }
                             </div>
@@ -77,7 +77,7 @@ export function SwapServiceStep() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             transition={SPRING_FAST}
-                            className="mt-3 pt-3 border-t border-[rgba(180,110,50,0.12)] space-y-2.5 overflow-hidden"
+                            className="mt-3 pt-3 border-t border-line-strong space-y-2.5 overflow-hidden"
                           >
                             {svcInfo && (
                               <p className="text-[11px] text-label-secondary leading-relaxed">{svcInfo.description}</p>
@@ -95,7 +95,7 @@ export function SwapServiceStep() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 text-[11px] text-acc-amber font-medium hover:underline underline-offset-2"
+                                className="inline-flex items-center gap-1 text-[11px] text-acc-brand font-medium hover:underline underline-offset-2"
                               >
                                 <Globe className="w-3 h-3" />
                                 {domain ?? websiteUrl}
@@ -114,7 +114,7 @@ export function SwapServiceStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('swap_service')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
                   결과 보기 <ArrowRight className="w-4 h-4" />
                 </motion.button>

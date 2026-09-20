@@ -11,15 +11,15 @@ import type { ServiceNode } from './serviceDirectory';
 import { SERVICE_TYPE_LABEL } from './serviceDirectory';
 import { useServiceNodes } from './useServiceNodes';
 
-const KYC_META: Record<string, { text: string; color: 'red' | 'green' | 'amber'; desc: string }> = {
+const KYC_META: Record<string, { text: string; color: 'red' | 'green' | 'brand'; desc: string }> = {
   kyc: { text: 'KYC 필요', color: 'red', desc: '본인 인증(신원 확인)이 필요한 서비스입니다.' },
   non_kyc: { text: 'KYC 불필요', color: 'green', desc: '본인 인증 없이 사용할 수 있습니다.' },
-  mixed: { text: 'KYC 조건부', color: 'amber', desc: '조건(금액·기능)에 따라 본인 인증이 필요할 수 있습니다.' },
+  mixed: { text: 'KYC 조건부', color: 'brand', desc: '조건(금액·기능)에 따라 본인 인증이 필요할 수 있습니다.' },
 };
 
-const GATE_LEVEL_META: Record<GateLevel, { label: string; color: 'red' | 'amber' | 'blue' }> = {
+const GATE_LEVEL_META: Record<GateLevel, { label: string; color: 'red' | 'brand' | 'blue' }> = {
   required: { label: '필수', color: 'red' },
-  conditional: { label: '조건부', color: 'amber' },
+  conditional: { label: '조건부', color: 'brand' },
   info: { label: '참고', color: 'blue' },
 };
 
@@ -91,7 +91,7 @@ export default function ServiceDetailPage() {
           <p className="text-sm text-label-secondary">{error ?? '서비스를 찾을 수 없어요'}</p>
           <button
             onClick={() => navigate('/services')}
-            className="text-xs font-semibold text-acc-amber"
+            className="text-xs font-semibold text-acc-brand"
           >
             서비스 목록으로
           </button>
@@ -213,7 +213,7 @@ export default function ServiceDetailPage() {
           )
         ) : (
           <div className="flex items-center gap-2">
-            <Lightning className={`w-4 h-4 ${node.lightning ? 'text-acc-amber' : 'text-label-quaternary'}`} weight="fill" />
+            <Lightning className={`w-4 h-4 ${node.lightning ? 'text-acc-brand' : 'text-label-quaternary'}`} weight="fill" />
             <p className="text-xs text-label-secondary">
               {node.lightning ? '라이트닝 출금을 지원합니다' : '라이트닝 출금을 지원하지 않습니다'}
             </p>

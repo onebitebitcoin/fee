@@ -46,7 +46,7 @@ function CommentItem({ comment, onChanged }: { comment: BoardComment; onChanged:
         <span className="text-[10px] text-label-quaternary">{fmtKst(comment.created_at)}</span>
         {mode === 'view' && (
           <div className="ml-auto flex items-center gap-1">
-            <button onClick={() => { setMode('edit'); setContent(comment.content); }} className="text-[11px] text-label-tertiary hover:text-acc-amber transition-colors">수정</button>
+            <button onClick={() => { setMode('edit'); setContent(comment.content); }} className="text-[11px] text-label-tertiary hover:text-acc-brand transition-colors">수정</button>
             <span className="text-label-quaternary text-[10px]">·</span>
             <button onClick={() => setMode('delete')} className="text-[11px] text-label-tertiary hover:text-acc-red transition-colors">삭제</button>
           </div>
@@ -64,7 +64,7 @@ function CommentItem({ comment, onChanged }: { comment: BoardComment; onChanged:
           <div className="flex gap-2">
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="비밀번호"
               className="flex-1 bg-fill-tertiary rounded-xl px-3 py-2 text-sm outline-none" />
-            <button onClick={submitEdit} disabled={busy} className="px-4 rounded-xl text-xs font-semibold bg-acc-amber text-white disabled:opacity-50">저장</button>
+            <button onClick={submitEdit} disabled={busy} className="px-4 rounded-xl text-xs font-semibold bg-acc-brand text-white disabled:opacity-50">저장</button>
             <button onClick={() => { setMode('view'); setError(null); setPassword(''); }} className="px-3 rounded-xl text-xs font-semibold bg-fill-secondary text-label-secondary">취소</button>
           </div>
         </div>
@@ -224,7 +224,7 @@ export function BoardDetailPage() {
                 className="flex-1 min-w-0 bg-fill-tertiary rounded-xl px-3 py-2 text-sm outline-none placeholder:text-label-quaternary" />
               <input type="password" value={cPassword} onChange={e => setCPassword(e.target.value)} placeholder="비밀번호" maxLength={128}
                 className="flex-1 min-w-0 bg-fill-tertiary rounded-xl px-3 py-2 text-sm outline-none placeholder:text-label-quaternary" />
-              <button onClick={submitComment} disabled={cBusy} className="px-4 rounded-xl text-xs font-semibold bg-acc-amber text-white hover:bg-acc-orange transition-colors disabled:opacity-50">등록</button>
+              <button onClick={submitComment} disabled={cBusy} className="px-4 rounded-xl text-xs font-semibold bg-acc-brand text-white hover:bg-acc-orange transition-colors disabled:opacity-50">등록</button>
             </div>
             {cError && <p className="text-[11px] text-acc-red flex items-center gap-1"><Warning className="w-3 h-3" />{cError}</p>}
           </div>

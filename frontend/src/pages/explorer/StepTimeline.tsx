@@ -33,7 +33,7 @@ export function StepTimeline() {
                 aria-current={isCurrent ? 'step' : undefined}
                 className={[
                   'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl whitespace-nowrap',
-                  isCurrent ? 'bg-acc-amber/15 ring-1 ring-acc-amber/40' : 'bg-fill-secondary',
+                  isCurrent ? 'bg-acc-brand/15 ring-1 ring-acc-brand/40' : 'bg-fill-secondary',
                 ].join(' ')}
               >
                 {s.state === 'done' && (
@@ -41,7 +41,7 @@ export function StepTimeline() {
                 )}
                 {s.iconId && <ExFavicon id={s.iconId} size={14} />}
                 <span className="flex flex-col items-start leading-tight">
-                  <span className={`text-[9px] ${isCurrent ? 'text-acc-amber' : 'text-label-quaternary'}`}>
+                  <span className={`text-[9px] ${isCurrent ? 'text-acc-brand' : 'text-label-quaternary'}`}>
                     {s.label}
                   </span>
                   <span className={`text-[11px] font-semibold ${isCurrent ? 'text-label-primary' : 'text-label-secondary'}`}>

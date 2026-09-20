@@ -101,7 +101,7 @@ export function ResultStep() {
                 className="rounded-3xl text-center relative overflow-hidden"
                 style={isDisabled
                   ? { background: 'linear-gradient(145deg, rgba(120,120,130,0.12) 0%, rgba(100,100,110,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(150,150,160,0.25)' }
-                  : { background: 'linear-gradient(145deg, rgba(232,133,90,0.10) 0%, rgba(240,160,60,0.06) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid rgba(200,120,60,0.18)' }
+                  : { background: 'linear-gradient(145deg, var(--hero-grad-from) 0%, var(--hero-grad-mid) 50%, rgba(255,255,255,0) 100%)', border: '0.5px solid var(--hero-grad-border)' }
                 }
               >
                 {isDisabled && <div className="caution-tape-band w-full h-9" />}
@@ -110,7 +110,7 @@ export function ResultStep() {
                   <motion.div
                     animate={{ opacity: [0.3, 0.7, 0.3] }}
                     transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                    className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-amber/10 blur-2xl pointer-events-none"
+                    className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-acc-brand/10 blur-2xl pointer-events-none"
                   />
                 )}
                 {isDisabled && (
@@ -218,7 +218,7 @@ export function ResultStep() {
                                 {isUsdtPath && exchangeRateDiff != null && (() => {
                                   const showRateDiff = Math.abs(exchangeRateDiff) > 50;
                                   return (
-                                    <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1.5">
+                                    <div className="mt-2 pt-2 border-t border-line space-y-1.5">
                                       <div className="flex justify-between items-center text-[10px]">
                                         <span className="text-label-tertiary">거래소·출금 수수료 <span className="text-[9px] opacity-70">(원달러 환산)</span></span>
                                         <span className="num text-acc-red">-{formatFeeKrw(resultPath.total_fee_krw)}</span>
@@ -246,7 +246,7 @@ export function ResultStep() {
                                               {displayForex ? `₩${formatNumber(Math.round(displayForex))}` : '-'}
                                             </span>
                                           </div>
-                                          <div className="flex justify-between text-[9px] pt-0.5 border-t border-[rgba(180,110,50,0.06)]">
+                                          <div className="flex justify-between text-[9px] pt-0.5 border-t border-line-soft">
                                             <span className="text-label-tertiary">원달러 프리미엄</span>
                                             <span className={`num font-semibold ${usdtPremiumPct > 0 ? 'text-acc-red' : 'text-acc-green'}`}>
                                               {usdtPremiumPct > 0 ? '+' : ''}{usdtPremiumPct.toFixed(2)}%
@@ -335,9 +335,9 @@ export function ResultStep() {
                   <SectionLabel>수수료 내역</SectionLabel>
                   <p className="text-[10px] text-label-tertiary mb-2 -mt-1">
                     <span className="inline-flex items-center gap-1 mr-2"><span className="bg-acc-blue/10 text-acc-blue px-1.5 py-0.5 rounded-full text-[9px] font-semibold">고정 수수료</span>이동 금액과 무관</span>
-                    <span className="inline-flex items-center gap-1"><span className="bg-acc-amber/10 text-acc-amber px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>거래·이동 금액 × 비율</span>
+                    <span className="inline-flex items-center gap-1"><span className="bg-acc-brand/10 text-acc-brand px-1.5 py-0.5 rounded-full text-[9px] font-semibold">비율 수수료</span>거래·이동 금액 × 비율</span>
                   </p>
-                  <div className="ios-card rounded-2xl divide-y divide-[rgba(180,110,50,0.08)]">
+                  <div className="ios-card rounded-2xl divide-y divide-line">
                     {resultPath.breakdown.components.map((c, i) => {
                       const hasDetail =
                         (c.move_amount != null && !!c.move_coin) ||
@@ -357,7 +357,7 @@ export function ResultStep() {
                                     className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-help ${
                                       c.is_fixed
                                         ? 'bg-acc-blue/10 text-acc-blue'
-                                        : 'bg-acc-amber/10 text-acc-amber'
+                                        : 'bg-acc-brand/10 text-acc-brand'
                                     }`}>
                                     {c.is_fixed ? '고정 수수료' : '비율 수수료'}
                                   </span>
@@ -375,7 +375,7 @@ export function ResultStep() {
                               {hasDetail && (
                                 <button
                                   onClick={() => toggleFee(i)}
-                                  className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-acc-amber hover:opacity-80 transition-opacity cursor-pointer"
+                                  className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-acc-brand hover:opacity-80 transition-opacity cursor-pointer"
                                 >
                                   자세히
                                   <CaretDown className={`w-2.5 h-2.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} weight="bold" />
@@ -401,7 +401,7 @@ export function ResultStep() {
                                 transition={{ duration: 0.2 }}
                                 className="overflow-hidden"
                               >
-                                <div className="mt-2 pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-1">
+                                <div className="mt-2 pt-2 border-t border-line space-y-1">
                                   {c.move_amount != null && c.move_coin && (
                                     <p className="text-[10px] text-label-secondary num">
                                       이동 {c.move_coin === 'BTC' ? c.move_amount.toFixed(8) : c.move_amount.toFixed(2)} {c.move_coin}
@@ -450,8 +450,8 @@ export function ResultStep() {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5">
-                {resultPath.domestic_kyc_status === 'kyc' && <Chip color="amber">국내 인증 필요</Chip>}
-                {usesGlobal && resultPath.global_kyc_status === 'kyc'   && <Chip color="amber">해외 인증 필요</Chip>}
+                {resultPath.domestic_kyc_status === 'kyc' && <Chip color="brand">국내 인증 필요</Chip>}
+                {usesGlobal && resultPath.global_kyc_status === 'kyc'   && <Chip color="brand">해외 인증 필요</Chip>}
                 {usesGlobal && resultPath.global_kyc_status === 'non_kyc' && <Chip color="green">해외 인증 불필요</Chip>}
                 {resultPath.global_exit_mode === 'lightning' && <Chip color="blue">라이트닝 출금</Chip>}
               </div>
@@ -527,7 +527,7 @@ export function ResultStep() {
                         return (
                           <div
                             key={p.path_id ?? i}
-                            className={`ios-card rounded-2xl px-4 py-3 ${isCurrent ? 'ring-1 ring-acc-amber/40' : ''}`}
+                            className={`ios-card rounded-2xl px-4 py-3 ${isCurrent ? 'ring-1 ring-acc-brand/40' : ''}`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -568,7 +568,7 @@ export function ResultStep() {
                               </div>
                             </div>
                             <div className="mt-1.5 flex items-center gap-3 text-[10px]">
-                              {isCurrent && <span className="text-acc-amber font-semibold">현재 선택</span>}
+                              {isCurrent && <span className="text-acc-brand font-semibold">현재 선택</span>}
                               {!isCurrent && pathSavings > 100 && (
                                 <span className="text-acc-green font-semibold num">{formatFeeKrw(pathSavings)} 절약</span>
                               )}

@@ -91,7 +91,7 @@ export function InputStep() {
   const showBreakdown = kimpTotal != null && (kimp != null || usdtPremium != null);
   const premColor = (v: number | null | undefined) =>
     v == null ? 'text-label-tertiary'
-      : v > 2 ? 'text-acc-red' : v > 0 ? 'text-acc-amber' : 'text-acc-green';
+      : v > 2 ? 'text-acc-red' : v > 0 ? 'text-acc-brand' : 'text-acc-green';
   const heroColor = premColor(heroPrem);
   const kimpColor = premColor(kimp);
   const usdtColor = usdtPremium == null
@@ -133,7 +133,7 @@ export function InputStep() {
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                     >
-                      <CircleNotch className="w-5 h-5 text-acc-amber" weight="bold" />
+                      <CircleNotch className="w-5 h-5 text-acc-brand" weight="bold" />
                     </motion.div>
                     <p className="text-[11px] text-label-tertiary">실시간 시세·김치 프리미엄 불러오는 중…</p>
                   </div>
@@ -178,7 +178,7 @@ export function InputStep() {
                       {showBreakdown && magSum > 0 && (
                         <button
                           onClick={() => setKimpDetailOpen(o => !o)}
-                          className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] font-medium text-acc-amber hover:opacity-80 transition-opacity"
+                          className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] font-medium text-acc-brand hover:opacity-80 transition-opacity"
                         >
                           자세히
                           <CaretDown className={`w-2.5 h-2.5 transition-transform ${kimpDetailOpen ? 'rotate-180' : ''}`} weight="bold" />
@@ -192,13 +192,13 @@ export function InputStep() {
                           </p>
                           {/* 스택 막대 */}
                           <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-fill-tertiary">
-                            <div className="h-full bg-acc-amber" style={{ width: `${btcShare}%` }} />
+                            <div className="h-full bg-acc-brand" style={{ width: `${btcShare}%` }} />
                             <div className="h-full bg-acc-blue" style={{ width: `${fxShare}%` }} />
                           </div>
                           {/* 범례 */}
                           <div className="mt-2 space-y-1">
                             <div className="flex items-center gap-1.5 text-[10px]">
-                              <span className="w-2 h-2 rounded-full bg-acc-amber flex-shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-acc-brand flex-shrink-0" />
                               <span className="text-label-secondary">거래소 BTC 가격차</span>
                               <span className="font-semibold text-label-primary num ml-auto">{btcShare.toFixed(0)}%</span>
                               <span className={`num ${kimpColor}`}>{fmtPct(kimp)}</span>
@@ -224,7 +224,7 @@ export function InputStep() {
                 </p>
 
                 <div className="flex items-baseline gap-2">
-                  <span className="text-acc-amber text-3xl font-semibold">₩</span>
+                  <span className="text-acc-brand text-3xl font-semibold">₩</span>
                   <input
                     type="number"
                     value={amount}
@@ -283,9 +283,9 @@ export function InputStep() {
                   className={[
                     'flex-1 py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                     isSearching
-                      ? 'bg-acc-amber/70 text-white cursor-not-allowed'
+                      ? 'bg-acc-brand/70 text-white cursor-not-allowed'
                       : amountKrw >= 10_000
-                        ? 'bg-acc-amber text-white shadow-glow-amber btn-pulse cursor-pointer'
+                        ? 'bg-acc-brand text-white shadow-glow-brand btn-pulse cursor-pointer'
                         : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                   ].join(' ')}
                 >
@@ -315,7 +315,7 @@ export function InputStep() {
                     isSearching
                       ? 'bg-fill-secondary text-label-disabled cursor-not-allowed'
                       : amountKrw >= 10_000
-                        ? 'border border-acc-amber text-acc-amber hover:bg-acc-amber/10 cursor-pointer'
+                        ? 'border border-acc-brand text-acc-brand hover:bg-acc-brand/10 cursor-pointer'
                         : 'bg-fill-secondary text-label-disabled cursor-not-allowed',
                   ].join(' ')}
                 >

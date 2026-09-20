@@ -49,7 +49,7 @@ export function CautionPanel({ group, exchanges }: {
                 onChange={e => setCautionMap(m => ({ ...m, [ex.id]: { ...cur, reason: e.target.value } }))}
                 disabled={!cur.caution}
                 placeholder={cur.caution ? '유의 이유 입력...' : '유의 해제 상태'}
-                className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-3 py-1.5 text-xs outline-none focus:border-acc-amber/50 disabled:bg-fill-tertiary disabled:text-label-disabled"
+                className="w-full bg-white border border-[rgba(160,100,40,0.20)] rounded-xl px-3 py-1.5 text-xs outline-none focus:border-acc-brand/50 disabled:bg-fill-tertiary disabled:text-label-disabled"
               />
             </div>
             <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pt-0.5">
@@ -71,7 +71,7 @@ export function CautionPanel({ group, exchanges }: {
                     ? 'text-acc-green'
                     : msg[ex.id] === '저장 실패'
                     ? 'text-acc-red'
-                    : 'text-acc-amber hover:text-acc-orange'
+                    : 'text-acc-brand hover:text-acc-orange'
                 }`}
               >
                 {saving[ex.id] ? '...' : msg[ex.id] ?? '저장'}

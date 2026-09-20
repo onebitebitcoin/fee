@@ -66,7 +66,7 @@ export function DomesticStep() {
                           </div>
                           <div className="col-span-2">
                             <p className="text-[9px] text-label-tertiary uppercase tracking-wide">김치 프리미엄</p>
-                            <p className={`text-sm font-bold num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>
+                            <p className={`text-sm font-bold num mt-0.5 ${kimp == null ? 'text-label-tertiary' : kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-brand' : 'text-acc-green'}`}>
                               {kimp != null ? `${kimp >= 0 ? '+' : ''}${kimp.toFixed(2)}%` : '–'}
                             </p>
                           </div>
@@ -119,16 +119,16 @@ export function DomesticStep() {
                               <div><span className="text-label-tertiary">소재 국가</span><p className="font-medium text-label-primary mt-0.5">{info?.country ?? '대한민국'}</p></div>
                               <div><span className="text-label-tertiary">CARF 시행</span><p className="font-medium text-label-primary mt-0.5">{carfMap[domestic] ?? info?.carf ?? 2027}년</p></div>
                               <div><span className="text-label-tertiary">연계 은행</span><p className="font-medium text-label-primary mt-0.5">{info?.bank ?? '–'}</p></div>
-                              <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-amber' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
+                              <div><span className="text-label-tertiary">라이트닝 지원</span><p className={`font-medium mt-0.5 ${info?.lightning ? 'text-acc-brand' : 'text-label-secondary'}`}>{info?.lightning ? '지원' : '미지원'}</p></div>
                               {vol != null && <div><span className="text-label-tertiary">24시간 비트코인 거래량</span><p className="font-medium text-label-primary mt-0.5 num">{(vol / 1_0000_0000).toFixed(1)}억원</p></div>}
                               {kimp != null && (
                                 <div className="col-span-2">
                                   <span className="text-label-tertiary">김치 프리미엄 <span className="text-[9px]">(총)</span></span>
-                                  <p className={`font-bold mt-0.5 num text-sm ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
+                                  <p className={`font-bold mt-0.5 num text-sm ${kimp > 2 ? 'text-acc-red' : kimp > 0 ? 'text-acc-brand' : 'text-acc-green'}`}>{kimp >= 0 ? '+' : ''}{kimp.toFixed(2)}%</p>
                                   {(kimpBtc != null || usdtPremium != null) && (
                                     <div className="flex items-center gap-2 mt-0.5 text-[10px] text-label-tertiary">
                                       {kimpBtc != null && (
-                                        <span>BTC 자체 <span className={`num font-semibold ${kimpBtc > 2 ? 'text-acc-red' : kimpBtc > 0 ? 'text-acc-amber' : 'text-acc-green'}`}>{kimpBtc >= 0 ? '+' : ''}{kimpBtc.toFixed(2)}%</span></span>
+                                        <span>BTC 자체 <span className={`num font-semibold ${kimpBtc > 2 ? 'text-acc-red' : kimpBtc > 0 ? 'text-acc-brand' : 'text-acc-green'}`}>{kimpBtc >= 0 ? '+' : ''}{kimpBtc.toFixed(2)}%</span></span>
                                       )}
                                       {kimpBtc != null && usdtPremium != null && <span className="opacity-50">·</span>}
                                       {usdtPremium != null && (
@@ -140,13 +140,13 @@ export function DomesticStep() {
                               )}
                             </div>
                             {info && (
-                              <div className="pt-2 border-t border-[rgba(180,110,50,0.08)] space-y-2">
+                              <div className="pt-2 border-t border-line space-y-2">
                                 <div className="flex items-center justify-between">
                                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-label-tertiary">온체인 출금 한도</p>
                                   {mergedLimits.source === 'playwright' ? (
                                     <span className="text-[9px] text-acc-green font-medium">최신 데이터</span>
                                   ) : (
-                                    <span className="text-[9px] text-acc-amber font-medium">데이터 조회 불가</span>
+                                    <span className="text-[9px] text-acc-brand font-medium">데이터 조회 불가</span>
                                   )}
                                 </div>
                                 {mergedLimits.source === 'playwright' ? (
@@ -188,17 +188,17 @@ export function DomesticStep() {
                                 <p className="text-[10px] text-label-tertiary">{info.personal_wallet_req}</p>
                                 {info.source_note.startsWith('⚠️') && (
                                   <div className="flex items-start gap-1.5">
-                                    <Warning className="w-3 h-3 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
-                                    <p className="text-[10px] text-acc-amber">{info.source_note.replace('⚠️ ', '')}</p>
+                                    <Warning className="w-3 h-3 text-acc-brand mt-0.5 flex-shrink-0" weight="fill" />
+                                    <p className="text-[10px] text-acc-brand">{info.source_note.replace('⚠️ ', '')}</p>
                                   </div>
                                 )}
                               </div>
                             )}
                             {vol != null && vol < 500_0000_0000 && (
-                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
-                                <Warning className="w-3.5 h-3.5 text-acc-amber mt-0.5 flex-shrink-0" weight="fill" />
+                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-acc-brand/8 border border-acc-brand/15">
+                                <Warning className="w-3.5 h-3.5 text-acc-brand mt-0.5 flex-shrink-0" weight="fill" />
                                 <p className="text-[11px] text-label-secondary leading-relaxed">
-                                  <span className="font-semibold text-acc-amber">슬리피지 주의</span> — 거래량이 적어 호가창이 얇습니다. 대규모 매수·매도 시 실제 체결가가 표시가보다 불리할 수 있습니다.
+                                  <span className="font-semibold text-acc-brand">슬리피지 주의</span> — 거래량이 적어 호가창이 얇습니다. 대규모 매수·매도 시 실제 체결가가 표시가보다 불리할 수 있습니다.
                                 </p>
                               </div>
                             )}
@@ -249,7 +249,7 @@ export function DomesticStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('domestic')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

@@ -32,14 +32,14 @@ export function EditCell({
     return (
       <button
         onClick={() => setEditing(true)}
-        className="flex items-center gap-1 text-left hover:text-acc-amber transition-colors group"
+        className="flex items-center gap-1 text-left hover:text-acc-brand transition-colors group"
       >
         <span>
           {value === null
             ? <span className="text-label-disabled italic">없음</span>
             : String(value)}
         </span>
-        <PencilSimple className="w-3 h-3 text-label-disabled group-hover:text-acc-amber flex-shrink-0" />
+        <PencilSimple className="w-3 h-3 text-label-disabled group-hover:text-acc-brand flex-shrink-0" />
       </button>
     );
   }
@@ -50,7 +50,7 @@ export function EditCell({
         autoFocus type={type} value={draft}
         onChange={e => setDraft(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') cancel(); }}
-        className="w-full bg-white border border-[rgba(160,100,40,0.25)] rounded-lg px-1.5 py-0.5 text-xs outline-none focus:border-acc-amber/50"
+        className="w-full bg-white border border-[rgba(160,100,40,0.25)] rounded-lg px-1.5 py-0.5 text-xs outline-none focus:border-acc-brand/50"
       />
       <button onClick={commit} className="text-acc-green"><Check className="w-3.5 h-3.5" /></button>
       <button onClick={cancel} className="text-acc-red"><X className="w-3.5 h-3.5" /></button>

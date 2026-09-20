@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { categoryMeta, CATEGORY_META } from './categoryStyle';
 
 describe('categoryStyle', () => {
-  it('공지는 amber, 제보는 blue 색상 클래스를 가진다', () => {
-    expect(CATEGORY_META.notice.badgeClass).toContain('acc-amber');
-    expect(CATEGORY_META.notice.rowClass).toContain('acc-amber');
+  it('공지는 브랜드 액센트, 제보는 blue 색상 클래스를 가진다', () => {
+    expect(CATEGORY_META.notice.badgeClass).toContain('acc-brand');
+    expect(CATEGORY_META.notice.rowClass).toContain('acc-brand');
     expect(CATEGORY_META.report.badgeClass).toContain('acc-blue');
   });
 

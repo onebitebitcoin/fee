@@ -81,7 +81,7 @@ export function ExchangeTabContent({
           <div className="px-4 py-3 border-b border-sys-separator">
             <p className="text-xs font-semibold text-label-primary">출금 수수료 (현재값 · 출처)</p>
             <p className="text-[11px] text-label-tertiary mt-0.5">
-              실시간 API / 스크래핑 / <span className="text-acc-amber font-semibold">정적</span> 등록값 구분.
+              실시간 API / 스크래핑 / <span className="text-acc-brand font-semibold">정적</span> 등록값 구분.
               정적은 공개 API 미제공 항목으로 코드 상수로 관리됩니다.
             </p>
           </div>

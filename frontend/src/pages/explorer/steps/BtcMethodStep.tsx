@@ -44,10 +44,10 @@ export function BtcMethodStep() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-acc-amber/8 border border-acc-amber/15">
-                <span className="text-acc-amber mt-0.5 flex-shrink-0 text-sm">⚡</span>
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-acc-brand/8 border border-acc-brand/15">
+                <span className="text-acc-brand mt-0.5 flex-shrink-0 text-sm">⚡</span>
                 <p className="text-[11px] text-label-secondary leading-relaxed">
-                  <span className="font-semibold text-acc-amber">라이트닝 출금 불가</span> — 국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다. 라이트닝 경로를 원하신다면 코인 선택 단계에서 <span className="font-medium text-label-primary">비트코인 → 해외거래소 경유</span>를 선택하세요.
+                  <span className="font-semibold text-acc-brand">라이트닝 출금 불가</span> — 국내 거래소(업비트, 빗썸 등)는 라이트닝 직접 출금을 지원하지 않습니다. 라이트닝 경로를 원하신다면 코인 선택 단계에서 <span className="font-medium text-label-primary">비트코인 → 해외거래소 경유</span>를 선택하세요.
                 </p>
               </div>
 
@@ -68,7 +68,7 @@ export function BtcMethodStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('btc_method')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-acc-amber text-white shadow-glow-amber cursor-pointer"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-acc-brand text-white shadow-glow-brand cursor-pointer"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

@@ -139,9 +139,9 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Chip({ color, children }: { color: 'amber' | 'blue' | 'green' | 'red' | 'neutral'; children: React.ReactNode }) {
+export function Chip({ color, children }: { color: 'brand' | 'blue' | 'green' | 'red' | 'neutral'; children: React.ReactNode }) {
   const cls = {
-    amber:   'bg-acc-amber/15 text-acc-amber',
+    brand:   'bg-acc-brand/15 text-acc-brand',
     blue:    'bg-acc-blue/15 text-acc-blue',
     green:   'bg-acc-green/15 text-acc-green',
     red:     'bg-acc-red/15 text-acc-red',
@@ -172,7 +172,7 @@ export function OptionCard({
       className={[
         'w-full text-left p-4 rounded-2xl border transition-colors duration-150 relative overflow-hidden',
         selected
-          ? 'bg-acc-amber/8 border-acc-amber/40 shadow-card-focus'
+          ? 'bg-acc-brand/8 border-acc-brand/40 shadow-card-focus'
           : 'ios-card border-transparent hover:border-white/12',
         disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
       ].join(' ')}
@@ -181,14 +181,14 @@ export function OptionCard({
         <>
           <motion.div
             layoutId="selection-glow"
-            className="absolute inset-0 rounded-2xl bg-acc-amber/5 pointer-events-none"
+            className="absolute inset-0 rounded-2xl bg-acc-brand/5 pointer-events-none"
           />
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="absolute top-3 right-3"
           >
-            <CheckCircle weight="fill" className="w-4 h-4 text-acc-amber" />
+            <CheckCircle weight="fill" className="w-4 h-4 text-acc-brand" />
           </motion.div>
         </>
       )}
@@ -226,10 +226,10 @@ export function LoadingScreen({
         {(st === 'loading' || st === 'retrying') && (
           <div className="flex items-center gap-1">
             {st === 'retrying' && (
-              <span className="text-[10px] text-acc-amber">재시도</span>
+              <span className="text-[10px] text-acc-brand">재시도</span>
             )}
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-              <CircleNotch className={`w-3.5 h-3.5 ${st === 'retrying' ? 'text-acc-amber' : 'text-label-tertiary'}`} />
+              <CircleNotch className={`w-3.5 h-3.5 ${st === 'retrying' ? 'text-acc-brand' : 'text-label-tertiary'}`} />
             </motion.div>
           </div>
         )}
@@ -255,9 +255,9 @@ export function LoadingScreen({
         <motion.div
           animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
-          className="w-14 h-14 rounded-full bg-acc-amber/15 flex items-center justify-center"
+          className="w-14 h-14 rounded-full bg-acc-brand/15 flex items-center justify-center"
         >
-          <Coin weight="fill" className="w-7 h-7 text-acc-amber" />
+          <Coin weight="fill" className="w-7 h-7 text-acc-brand" />
         </motion.div>
       )}
 
@@ -296,7 +296,7 @@ export function LoadingScreen({
         <div className="w-48 h-1.5 bg-fill-secondary rounded-full overflow-hidden">
           {total > 0 ? (
             <motion.div
-              className="h-full bg-acc-amber rounded-full"
+              className="h-full bg-acc-brand rounded-full"
               initial={{ width: '4%' }}
               animate={{ width: `${Math.max(4, Math.round((doneCount / total) * 100))}%` }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
@@ -314,7 +314,7 @@ export function LoadingScreen({
 
 const GATE_CFG = {
   required:    { borderCls: 'border-acc-red',   label: '필수',   textCls: 'text-acc-red' },
-  conditional: { borderCls: 'border-acc-amber', label: '조건부', textCls: 'text-acc-amber' },
+  conditional: { borderCls: 'border-acc-brand', label: '조건부', textCls: 'text-acc-brand' },
   info:        { borderCls: 'border-acc-blue',  label: '참고',   textCls: 'text-acc-blue' },
 };
 
@@ -336,7 +336,7 @@ export function GatemanPanel({
         return (
           <div key={i} className="flex gap-2.5 items-start">
             <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-              g.level === 'required' ? 'bg-acc-red' : g.level === 'conditional' ? 'bg-acc-amber' : 'bg-acc-blue'
+              g.level === 'required' ? 'bg-acc-red' : g.level === 'conditional' ? 'bg-acc-brand' : 'bg-acc-blue'
             }`} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">

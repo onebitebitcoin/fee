@@ -9,7 +9,7 @@ const STATUS_CLS: Record<string, string> = {
   pass:    'bg-acc-green/10 text-acc-green',
   error:   'bg-acc-red/10 text-acc-red',
   missing: 'bg-fill-secondary text-label-tertiary',
-  running: 'bg-acc-amber/10 text-acc-amber',
+  running: 'bg-acc-brand/10 text-acc-brand',
 };
 const STATUS_LABEL: Record<string, string> = {
   pass: 'PASS', error: 'FAIL', missing: '없음', running: '실행 중',
@@ -92,7 +92,7 @@ export function CrawlStatusPanel() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 flex-wrap">
             {isRunning && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-acc-amber bg-acc-amber/10 px-2.5 py-1 rounded-full">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-acc-brand bg-acc-brand/10 px-2.5 py-1 rounded-full">
                 <Lightning className="w-3 h-3 animate-pulse" weight="fill" />
                 크롤링 실행 중
               </span>
@@ -102,7 +102,7 @@ export function CrawlStatusPanel() {
                 run.status === 'success'
                   ? 'bg-acc-green/10 text-acc-green'
                   : run.status === 'partial_success'
-                    ? 'bg-acc-amber/10 text-acc-amber'
+                    ? 'bg-acc-brand/10 text-acc-brand'
                     : 'bg-acc-red/10 text-acc-red'
               }`}>
                 {run.status === 'success' ? '완료' : run.status === 'partial_success' ? '일부 완료' : '실패'}
@@ -130,7 +130,7 @@ export function CrawlStatusPanel() {
             <button
               onClick={handleTrigger}
               disabled={triggering || isRunning}
-              className="flex items-center gap-1.5 text-xs text-white bg-acc-amber hover:bg-acc-orange disabled:opacity-40 px-2.5 py-1.5 rounded-xl font-semibold transition-colors shadow-glow-sm"
+              className="flex items-center gap-1.5 text-xs text-white bg-acc-brand hover:bg-acc-orange disabled:opacity-40 px-2.5 py-1.5 rounded-xl font-semibold transition-colors shadow-glow-sm"
             >
               <Lightning className="w-3.5 h-3.5" weight="fill" />
               {triggering ? '트리거 중...' : '크롤 실행'}
@@ -156,9 +156,9 @@ export function CrawlStatusPanel() {
       {error && <p className="text-acc-red text-xs px-1">{error}</p>}
 
       {data && data.data_gaps.length > 0 && (
-        <div className="ios-card rounded-xl px-4 py-3 border border-acc-amber/30 bg-acc-amber/5">
+        <div className="ios-card rounded-xl px-4 py-3 border border-acc-brand/30 bg-acc-brand/5">
           <div className="flex items-center gap-1.5 mb-2">
-            <WarningCircle className="w-4 h-4 text-acc-amber" weight="fill" />
+            <WarningCircle className="w-4 h-4 text-acc-brand" weight="fill" />
             <span className="text-sm font-semibold text-label-primary">조치 필요 · 데이터 갭 {data.data_gaps.length}건</span>
           </div>
           <p className="text-[11px] text-label-secondary mb-2 leading-snug">
@@ -171,7 +171,7 @@ export function CrawlStatusPanel() {
                   {g.exchange} · {g.coin}
                   {g.network_label && <span className="text-label-tertiary"> ({g.network_label})</span>}
                 </span>
-                <span className="text-[11px] text-acc-amber flex-shrink-0">{g.issue}</span>
+                <span className="text-[11px] text-acc-brand flex-shrink-0">{g.issue}</span>
               </div>
             ))}
           </div>

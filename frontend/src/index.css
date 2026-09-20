@@ -2,13 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── 팔레트 ─────────────────────────────────────────────────────────────────────
+   `:root` 는 살 때(매수) 모드의 웜 크림 팔레트이고, `:root[data-theme="sell"]` 은
+   팔 때(매도) 모드의 라이트 퍼플 팔레트다. `data-theme` 속성은 ExplorerContext 가
+   <html> 요소에 붙인다.
+
+   Tailwind 토큰(tailwind.config.js)이 여기 정의된 변수만 가리키므로, 색을 바꾸려면
+   이 블록만 고치면 된다. `--acc-brand` / `--fill-rgb` 는 Tailwind 투명도 수정자
+   (`bg-acc-brand/15`)를 받으려고 채널 삼원색 형식으로 둔다.
+
+   `--acc-green` / `--acc-red` / `--acc-blue` 는 성공·위험·정보를 뜻하는 의미색이라
+   모드가 바뀌어도 같은 값을 유지한다. 모드에 따라 초록이 달라지면 같은 의미의 배지가
+   화면마다 다른 색으로 보이기 때문이다.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sys-bg:        #EEE8DC;
+  --sys-elevated:  #E6DFD1;
+  --sys-card:      #F5F0E8;
+  --sys-separator: rgba(160,100,40,0.12);
+  --sys-overlay:   rgba(26,10,2,0.45);
+
+  --label-primary:    #1A0A02;
+  --label-secondary:  rgba(26,10,2,0.68);
+  --label-tertiary:   rgba(26,10,2,0.50);
+  --label-quaternary: rgba(26,10,2,0.35);
+  --label-disabled:   rgba(26,10,2,0.22);
+
+  --acc-brand:  232 133 90;   /* 코랄 앰버 — 살 때 시그니처 */
+  --acc-orange: 240 160 48;
+  --acc-green:  42 157 111;
+  --acc-red:    224 82 82;
+  --acc-blue:   74 143 217;
+  --acc-purple: 155 110 200;
+
+  --fill-rgb: 200 120 60;
+
+  --line-soft:   rgba(180,110,50,0.06);
+  --line:        rgba(180,110,50,0.08);
+  --line-strong: rgba(180,110,50,0.12);
+
+  --shadow-card:       rgba(180,100,40,0.08);
+  --shadow-float:      rgba(180,100,40,0.14);
+  --shadow-float-ring: rgba(180,110,50,0.10);
+
+  --header-bg:     rgba(232,226,214,0.88);
+  --header-border: rgba(200,140,80,0.15);
+
+  --card-shadow-near: rgba(140,80,20,0.08);
+  --card-shadow-far:  rgba(140,80,20,0.12);
+  --card-border:      rgba(160,110,50,0.20);
+  --card-inset:       rgba(255,240,210,0.6);
+
+  --dot:             rgba(200,130,60,0.04);
+  --scrollbar:       rgba(180,110,50,0.20);
+  --scrollbar-hover: rgba(180,110,50,0.35);
+  --sep:             rgba(180,110,50,0.10);
+
+  /* 앰비언트 광원 — 화면 네 곳에서 번지는 빛 */
+  --ambient-1: rgba(210,130,50,0.18);
+  --ambient-2: rgba(200,110,70,0.10);
+  --ambient-3: rgba(210,150,70,0.09);
+  --ambient-4: rgba(230,180,110,0.08);
+
+  /* 결과 화면 최적 경로 카드 그라디언트 */
+  --hero-grad-from:   rgba(232,133,90,0.10);
+  --hero-grad-mid:    rgba(240,160,60,0.06);
+  --hero-grad-border: rgba(200,120,60,0.18);
+}
+
+:root[data-theme="sell"] {
+  --sys-bg:        #EFEAF7;
+  --sys-elevated:  #E5DEF3;
+  --sys-card:      #F8F5FD;
+  --sys-separator: rgba(105,75,165,0.14);
+  --sys-overlay:   rgba(18,8,40,0.45);
+
+  --label-primary:    #150A2B;
+  --label-secondary:  rgba(21,10,43,0.68);
+  --label-tertiary:   rgba(21,10,43,0.50);
+  --label-quaternary: rgba(21,10,43,0.35);
+  --label-disabled:   rgba(21,10,43,0.22);
+
+  --acc-brand:  126 98 206;   /* 미디엄 바이올렛 — 팔 때 시그니처. 흰 글씨 대비 4.6:1 */
+  --acc-orange: 158 130 235;
+  /* 의미색(green/red/blue)과 acc-purple 은 :root 값을 그대로 물려받는다 */
+
+  --fill-rgb: 125 95 200;
+
+  --line-soft:   rgba(110,80,175,0.07);
+  --line:        rgba(110,80,175,0.10);
+  --line-strong: rgba(110,80,175,0.14);
+
+  --shadow-card:       rgba(85,55,155,0.09);
+  --shadow-float:      rgba(85,55,155,0.15);
+  --shadow-float-ring: rgba(110,80,175,0.10);
+
+  --header-bg:     rgba(233,227,246,0.88);
+  --header-border: rgba(130,100,200,0.16);
+
+  --card-shadow-near: rgba(80,50,150,0.08);
+  --card-shadow-far:  rgba(80,50,150,0.12);
+  --card-border:      rgba(115,85,180,0.20);
+  --card-inset:       rgba(250,246,255,0.7);
+
+  --dot:             rgba(125,95,200,0.05);
+  --scrollbar:       rgba(120,90,190,0.22);
+  --scrollbar-hover: rgba(120,90,190,0.38);
+  --sep:             rgba(110,80,175,0.12);
+
+  --ambient-1: rgba(140,105,220,0.18);
+  --ambient-2: rgba(120,90,205,0.11);
+  --ambient-3: rgba(165,130,235,0.10);
+  --ambient-4: rgba(190,165,240,0.09);
+
+  --hero-grad-from:   rgba(126,98,206,0.12);
+  --hero-grad-mid:    rgba(158,130,235,0.07);
+  --hero-grad-border: rgba(125,95,200,0.20);
+}
+
 html, body {
-  background: #EEE8DC;
-  color: #1A0A02;
+  background: var(--sys-bg);
+  color: var(--label-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
   overscroll-behavior: none;
+  /* 모드 전환이 끊기지 않고 번지도록 배경·글자색만 짧게 보간한다 */
+  transition: background-color 420ms ease, color 420ms ease;
+}
+
+/* 모드 전환 시 색이 뒤바뀌는 순간을 부드럽게 넘긴다.
+   `prefers-reduced-motion` 을 켠 사용자에게는 보간을 걸지 않는다. */
+@media (prefers-reduced-motion: reduce) {
+  html, body, body::before, .glass-header, .ios-card { transition: none !important; }
 }
 
 /* ── Her OS ambient light — softer, deeper ── */
@@ -17,10 +143,10 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 90% 60% at 50% -5%,  rgba(210,130,50,0.18) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 10% 40%,  rgba(200,110,70,0.10) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 35% at 90% 70%,  rgba(210,150,70,0.09) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 50% at 50% 110%, rgba(230,180,110,0.08) 0%, transparent 50%);
+    radial-gradient(ellipse 90% 60% at 50% -5%,  var(--ambient-1) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 10% 40%,  var(--ambient-2) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 35% at 90% 70%,  var(--ambient-3) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 50% at 50% 110%, var(--ambient-4) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
   animation: ambient-breathe 6s ease-in-out infinite;
@@ -33,29 +159,31 @@ body::before {
 
 #root { position: relative; z-index: 1; }
 
-/* ── Her OS glass header — warm frosted ── */
+/* ── Her OS glass header — frosted ── */
 .glass-header {
-  background: rgba(232, 226, 214, 0.88);
+  background: var(--header-bg);
   backdrop-filter: saturate(200%) blur(24px);
   -webkit-backdrop-filter: saturate(200%) blur(24px);
-  border-bottom: 0.5px solid rgba(200, 140, 80, 0.15);
+  border-bottom: 0.5px solid var(--header-border);
   box-shadow: 0 1px 0 rgba(255,255,255,0.6);
+  transition: background-color 420ms ease, border-color 420ms ease;
 }
 
-/* ── iOS-style card — warm parchment ── */
+/* ── iOS-style card ── */
 .ios-card {
-  background: #F5F0E8;
-  border: 0.5px solid rgba(160,110,50,0.20);
+  background: var(--sys-card);
+  border: 0.5px solid var(--card-border);
   box-shadow:
-    0 2px 20px rgba(140,80,20,0.12),
-    0 1px 4px  rgba(140,80,20,0.08),
-    0 0 0 0.5px rgba(255,240,210,0.6) inset;
+    0 2px 20px var(--card-shadow-far),
+    0 1px 4px  var(--card-shadow-near),
+    0 0 0 0.5px var(--card-inset) inset;
+  transition: background-color 420ms ease, border-color 420ms ease;
 }
 
 /* ── Luminous selection ring ── */
 .selection-ring {
-  box-shadow: 0 0 0 2.5px rgba(232,133,90,0.5), 0 4px 24px rgba(232,133,90,0.15);
-  border-color: rgba(232,133,90,0.45) !important;
+  box-shadow: 0 0 0 2.5px rgb(var(--acc-brand) / 0.5), 0 4px 24px rgb(var(--acc-brand) / 0.15);
+  border-color: rgb(var(--acc-brand) / 0.45) !important;
 }
 
 /* ── Mono numbers ── */
@@ -64,16 +192,16 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Warm separator ── */
+/* ── Separator ── */
 .sep {
-  background: rgba(180,110,50,0.10);
+  background: var(--sep);
   height: 0.5px;
 }
 
 /* ── CTA pulse ── */
 @keyframes pulse-cta {
-  0%, 100% { box-shadow: 0 4px 20px rgba(232,133,90,0.3), 0 0 0 0 rgba(232,133,90,0); }
-  50%       { box-shadow: 0 4px 20px rgba(232,133,90,0.4), 0 0 0 10px rgba(232,133,90,0.12); }
+  0%, 100% { box-shadow: 0 4px 20px rgb(var(--acc-brand) / 0.3), 0 0 0 0 rgb(var(--acc-brand) / 0); }
+  50%       { box-shadow: 0 4px 20px rgb(var(--acc-brand) / 0.4), 0 0 0 10px rgb(var(--acc-brand) / 0.12); }
 }
 .btn-pulse { animation: pulse-cta 2.8s ease-in-out infinite; }
 
@@ -86,14 +214,14 @@ body::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(232,133,90,0.55) 50%, transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--acc-brand) / 0.55) 50%, transparent);
   animation: scan-line 1.6s cubic-bezier(0.4,0,0.6,1) infinite;
   border-radius: inherit;
 }
 
 /* ── Segmented control ── */
 .seg-ctrl {
-  background: rgba(200,120,60,0.09);
+  background: rgb(var(--fill-rgb) / 0.09);
   border-radius: 10px;
   padding: 2px;
 }
@@ -117,18 +245,18 @@ body::before {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(180,110,50,0.2); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(180,110,50,0.35); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 /* ── Focus ── */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(232,133,90,0.45);
+  box-shadow: 0 0 0 3px rgb(var(--acc-brand) / 0.45);
 }
 
-/* ── Warm dot pattern (subtle) ── */
+/* ── Dot pattern (subtle) ── */
 body {
-  background-image: radial-gradient(circle, rgba(200,130,60,0.04) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 

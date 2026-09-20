@@ -88,8 +88,8 @@ export function GlobalExitMethodStep() {
               {globalExitMethod === 'lightning' && (
                 <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                   <p className="font-semibold text-label-primary">라이트닝 출금 흐름</p>
-                  <p className="text-label-secondary">개인지갑 종착: 해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → 스왑 서비스 → <span className="text-label-primary font-medium">온체인 비트코인 수령</span></p>
-                  <p className="text-label-secondary">라이트닝 지갑 종착: 해외 거래소 → <span className="text-acc-amber font-medium">라이트닝 출금</span> → <span className="text-label-primary font-medium">라이트닝 지갑 수령</span> (스왑 없음)</p>
+                  <p className="text-label-secondary">개인지갑 종착: 해외 거래소 → <span className="text-acc-brand font-medium">라이트닝 출금</span> → 스왑 서비스 → <span className="text-label-primary font-medium">온체인 비트코인 수령</span></p>
+                  <p className="text-label-secondary">라이트닝 지갑 종착: 해외 거래소 → <span className="text-acc-brand font-medium">라이트닝 출금</span> → <span className="text-label-primary font-medium">라이트닝 지갑 수령</span> (스왑 없음)</p>
                 </div>
               )}
               {globalExitMethod && (
@@ -97,7 +97,7 @@ export function GlobalExitMethodStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('global_exit_method')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

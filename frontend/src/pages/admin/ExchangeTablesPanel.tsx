@@ -4,7 +4,7 @@ import type { GateLevel, GateItem } from '../../lib/gatemanRegistry';
 
 const LEVEL_CFG: Record<GateLevel, { badge: string; label: string }> = {
   required:    { badge: 'bg-acc-red/10 text-acc-red',     label: '필수' },
-  conditional: { badge: 'bg-acc-amber/10 text-acc-amber', label: '조건부' },
+  conditional: { badge: 'bg-acc-brand/10 text-acc-brand', label: '조건부' },
   info:        { badge: 'bg-acc-blue/10 text-acc-blue',   label: '참고' },
 };
 
@@ -138,7 +138,7 @@ export function GlobalExchangeCards({
 export function EdgePropertiesSection() {
   const sourceCls = (s: string) =>
     s === '크롤링'      ? 'bg-acc-blue/10 text-acc-blue'   :
-    s === '어드민 설정' ? 'bg-acc-amber/10 text-acc-amber' :
+    s === '어드민 설정' ? 'bg-acc-brand/10 text-acc-brand' :
                           'bg-fill-secondary text-label-tertiary';
 
   const sections = [
@@ -152,7 +152,7 @@ export function EdgePropertiesSection() {
       ],
     },
     {
-      title: '국내 BTC 출금 엣지 (개인 지갑)', color: 'amber',
+      title: '국내 BTC 출금 엣지 (개인 지갑)', color: 'brand',
       props: [
         { name: 'fee',           desc: '출금 수수료 (BTC)',     source: '크롤링' },
         { name: 'network',       desc: '비트코인, 라이트닝 등', source: '크롤링' },
@@ -180,7 +180,7 @@ export function EdgePropertiesSection() {
 
   const dotCls = (c: string) =>
     c === 'blue'  ? 'bg-acc-blue'  :
-    c === 'amber' ? 'bg-acc-amber' :
+    c === 'brand' ? 'bg-acc-brand' :
     c === 'green' ? 'bg-acc-green' : 'bg-label-disabled';
 
   return (
@@ -196,7 +196,7 @@ export function EdgePropertiesSection() {
             {sec.props.map(p => (
               <div key={p.name} className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[11px] font-mono text-acc-amber block">{p.name}</span>
+                  <span className="text-[11px] font-mono text-acc-brand block">{p.name}</span>
                   <span className="text-[11px] text-label-secondary">{p.desc}</span>
                 </div>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${sourceCls(p.source)}`}>

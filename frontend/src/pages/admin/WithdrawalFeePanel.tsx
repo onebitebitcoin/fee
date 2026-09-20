@@ -4,8 +4,8 @@ import type { WithdrawalRow } from '../../types';
 
 const WD_SOURCE_META: Record<string, { label: string; cls: string }> = {
   realtime_api:    { label: '실시간 API', cls: 'bg-acc-green/10 text-acc-green' },
-  static:          { label: '정적',       cls: 'bg-acc-amber/15 text-acc-amber' },
-  static_fallback: { label: '정적',       cls: 'bg-acc-amber/15 text-acc-amber' },
+  static:          { label: '정적',       cls: 'bg-acc-brand/15 text-acc-brand' },
+  static_fallback: { label: '정적',       cls: 'bg-acc-brand/15 text-acc-brand' },
   scraped_page:    { label: '스크래핑',   cls: 'bg-acc-blue/10 text-acc-blue' },
   playwright:      { label: '스크래핑',   cls: 'bg-acc-blue/10 text-acc-blue' },
 };

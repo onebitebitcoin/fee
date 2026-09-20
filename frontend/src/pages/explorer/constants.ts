@@ -86,7 +86,7 @@ export const GLOBAL_INFO: Record<string, GlobalInfo> = {
 export const RISK_LABEL: Record<string, string> = { low: '낮음', med: '중간', high: '높음' };
 export const RISK_COLOR: Record<string, string> = {
   low:  'text-acc-green bg-acc-green/10',
-  med:  'text-acc-amber bg-acc-amber/10',
+  med:  'text-acc-brand bg-acc-brand/10',
   high: 'text-acc-red bg-acc-red/10',
 };
 

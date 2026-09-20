@@ -76,7 +76,7 @@ export function NoticesPanel() {
               <div key={n.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   {n.url
-                    ? <a href={n.url} target="_blank" rel="noreferrer" className="text-xs text-acc-amber hover:underline truncate block">{n.title}</a>
+                    ? <a href={n.url} target="_blank" rel="noreferrer" className="text-xs text-acc-brand hover:underline truncate block">{n.title}</a>
                     : <p className="text-xs text-label-primary truncate">{n.title}</p>
                   }
                 </div>

@@ -1,6 +1,6 @@
 import type { BoardCategory } from '../../types';
 
-// 카테고리별 라벨/뱃지/행 배경 색상 (공지=amber, 제보=blue, 일반=중립)
+// 카테고리별 라벨/뱃지/행 배경 색상 (공지=브랜드 액센트, 제보=blue, 일반=중립)
 export const CATEGORY_META: Record<BoardCategory, {
   label: string;
   badgeClass: string;
@@ -8,8 +8,8 @@ export const CATEGORY_META: Record<BoardCategory, {
 }> = {
   notice: {
     label: '공지',
-    badgeClass: 'bg-acc-amber/15 text-acc-amber',
-    rowClass: 'bg-acc-amber/5 border-acc-amber/30',
+    badgeClass: 'bg-acc-brand/15 text-acc-brand',
+    rowClass: 'bg-acc-brand/5 border-acc-brand/30',
   },
   report: {
     label: '제보',

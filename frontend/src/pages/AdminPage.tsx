@@ -51,8 +51,8 @@ export function AdminPage() {
         <div className="w-full max-w-sm">
           <div className="ios-card rounded-3xl p-8">
             <div className="flex flex-col items-center gap-3 mb-7">
-              <div className="w-12 h-12 rounded-2xl bg-acc-amber/15 flex items-center justify-center">
-                <LockKey className="w-6 h-6 text-acc-amber" weight="fill" />
+              <div className="w-12 h-12 rounded-2xl bg-acc-brand/15 flex items-center justify-center">
+                <LockKey className="w-6 h-6 text-acc-brand" weight="fill" />
               </div>
               <div className="text-center">
                 <p className="font-bold text-label-primary">관리자 설정</p>
@@ -64,12 +64,12 @@ export function AdminPage() {
               onChange={e => { setPwInput(e.target.value); setPwError(false); }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm outline-none text-center tracking-widest ${
-                pwError ? 'border-acc-red' : 'border-[rgba(160,100,40,0.20)] focus:border-acc-amber/50'
+                pwError ? 'border-acc-red' : 'border-[rgba(160,100,40,0.20)] focus:border-acc-brand/50'
               }`}
               placeholder="••••" maxLength={8}
             />
             {pwError && <p className="text-xs text-acc-red mt-1.5 text-center">비밀번호가 틀렸습니다</p>}
-            <button onClick={handleLogin} className="w-full mt-4 bg-acc-amber text-white font-semibold text-sm py-3 rounded-2xl hover:bg-acc-orange transition-colors shadow-glow-amber">
+            <button onClick={handleLogin} className="w-full mt-4 bg-acc-brand text-white font-semibold text-sm py-3 rounded-2xl hover:bg-acc-orange transition-colors shadow-glow-brand">
               로그인
             </button>
             <button onClick={() => navigate('/')} className="w-full mt-2 text-xs text-label-tertiary hover:text-label-secondary transition-colors py-2">
@@ -100,7 +100,7 @@ export function AdminPage() {
             <button onClick={() => navigate('/')} className="p-1.5 rounded-xl hover:bg-fill-primary transition-colors mr-1">
               <ArrowLeft className="w-4 h-4 text-label-secondary" />
             </button>
-            <LockKey className="w-4 h-4 text-acc-amber" weight="fill" />
+            <LockKey className="w-4 h-4 text-acc-brand" weight="fill" />
             <span className="font-bold text-sm text-label-primary tracking-tight">관리자 설정</span>
           </div>
           <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export function AdminPage() {
               <span className="hidden sm:inline">초기화</span>
             </button>
             <button onClick={handleSave} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition-colors ${
-              saved ? 'bg-acc-green/15 text-acc-green' : 'bg-acc-amber text-white shadow-glow-sm hover:bg-acc-orange'
+              saved ? 'bg-acc-green/15 text-acc-green' : 'bg-acc-brand text-white shadow-glow-sm hover:bg-acc-orange'
             }`}>
               <FloppyDisk className="w-3.5 h-3.5" />
               <span>{saved ? '저장됨' : '저장'}</span>
@@ -121,7 +121,7 @@ export function AdminPage() {
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  tab === t.id ? 'border-acc-amber text-acc-amber' : 'border-transparent text-label-tertiary hover:text-label-secondary'
+                  tab === t.id ? 'border-acc-brand text-acc-brand' : 'border-transparent text-label-tertiary hover:text-label-secondary'
                 }`}
               >{t.label}</button>
             ))}

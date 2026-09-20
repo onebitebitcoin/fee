@@ -265,14 +265,14 @@ export function RecommendationStep() {
           className={[
             'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer mt-1 flex-shrink-0',
             filterOpen || activeFilterCount > 0
-              ? 'bg-acc-amber/15 text-acc-amber'
+              ? 'bg-acc-brand/15 text-acc-brand'
               : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
           ].join(' ')}
         >
           <Funnel className="w-3.5 h-3.5" weight={activeFilterCount > 0 ? 'fill' : 'regular'} />
           필터
           {activeFilterCount > 0 && (
-            <span className="bg-acc-amber text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+            <span className="bg-acc-brand text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
               {activeFilterCount}
             </span>
           )}
@@ -303,7 +303,7 @@ export function RecommendationStep() {
                         className={[
                           'px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap',
                           active
-                            ? 'bg-acc-amber/15 text-acc-amber'
+                            ? 'bg-acc-brand/15 text-acc-brand'
                             : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
                         ].join(' ')}
                       >
@@ -325,7 +325,7 @@ export function RecommendationStep() {
                         className={[
                           'flex-1 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer',
                           destinationFilter === d
-                            ? 'bg-acc-amber/15 text-acc-amber'
+                            ? 'bg-acc-brand/15 text-acc-brand'
                             : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
                         ].join(' ')}
                       >
@@ -434,7 +434,7 @@ export function RecommendationStep() {
                   'text-xs font-bold self-center',
                   p.disabled
                     ? 'text-label-quaternary'
-                    : i === firstEnabledIdx ? 'text-acc-amber' : i === firstEnabledIdx + 1 ? 'text-label-secondary' : i === firstEnabledIdx + 2 ? 'text-label-tertiary' : 'text-label-quaternary',
+                    : i === firstEnabledIdx ? 'text-acc-brand' : i === firstEnabledIdx + 1 ? 'text-label-secondary' : i === firstEnabledIdx + 2 ? 'text-label-tertiary' : 'text-label-quaternary',
                 ].join(' ')}>
                   {p.disabled
                     ? <Wrench weight="regular" className="w-3 h-3 text-label-quaternary" />
@@ -474,7 +474,7 @@ export function RecommendationStep() {
           {topRecommendedPaths.length === 0 && (
             <div className="px-4 py-6 text-center">
               <p className="text-sm text-label-tertiary">필터 조건에 맞는 경로가 없어요</p>
-              <button onClick={clearFilters} className="mt-2 text-xs text-acc-amber cursor-pointer">필터 초기화</button>
+              <button onClick={clearFilters} className="mt-2 text-xs text-acc-brand cursor-pointer">필터 초기화</button>
             </div>
           )}
         </div>

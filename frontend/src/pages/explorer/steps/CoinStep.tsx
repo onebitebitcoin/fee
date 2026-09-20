@@ -70,8 +70,8 @@ export function CoinStep() {
                             <p className="text-xs text-label-secondary mt-1 leading-relaxed">{meta.desc}</p>
                             {meta.caution && (
                               <div className="flex items-start gap-1.5 mt-2">
-                                <Warning className="w-3 h-3 text-acc-amber flex-shrink-0 mt-0.5" weight="fill" />
-                                <p className="text-[11px] text-acc-amber leading-relaxed">{meta.caution}</p>
+                                <Warning className="w-3 h-3 text-acc-brand flex-shrink-0 mt-0.5" weight="fill" />
+                                <p className="text-[11px] text-acc-brand leading-relaxed">{meta.caution}</p>
                               </div>
                             )}
                           </div>
@@ -86,7 +86,7 @@ export function CoinStep() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={SPRING_FAST}
                   onClick={() => handleNext('coin')}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-amber text-white shadow-glow-amber cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
                   다음 <ArrowRight className="w-4 h-4" />
                 </motion.button>

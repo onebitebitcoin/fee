@@ -5,7 +5,7 @@ import { SectionLabel } from './adminHelpers';
 
 const SEVERITY_CFG = {
   ok:      { icon: CheckCircle, cls: 'text-acc-green',  bg: 'bg-acc-green/10',  label: 'OK' },
-  warning: { icon: Warning,     cls: 'text-acc-amber',  bg: 'bg-acc-amber/10',  label: '경고' },
+  warning: { icon: Warning,     cls: 'text-acc-brand',  bg: 'bg-acc-brand/10',  label: '경고' },
   error:   { icon: XCircle,     cls: 'text-acc-red',    bg: 'bg-acc-red/10',    label: '오류' },
 };
 
@@ -15,7 +15,7 @@ function ResultRow({ result }: { result: InspectResult }) {
   const Icon = cfg.icon;
 
   return (
-    <div className={`rounded-xl border ${result.severity === 'error' ? 'border-acc-red/20' : result.severity === 'warning' ? 'border-acc-amber/20' : 'border-sys-separator'}`}>
+    <div className={`rounded-xl border ${result.severity === 'error' ? 'border-acc-red/20' : result.severity === 'warning' ? 'border-acc-brand/20' : 'border-sys-separator'}`}>
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left"
@@ -79,7 +79,7 @@ export function RouteInspectorPanel() {
         <button
           onClick={handleRun}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-acc-amber text-white font-semibold hover:bg-acc-orange transition-colors disabled:opacity-40"
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-acc-brand text-white font-semibold hover:bg-acc-orange transition-colors disabled:opacity-40"
         >
           <ArrowsClockwise className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           {loading ? '검사 중...' : '경로 검사 실행'}
@@ -94,7 +94,7 @@ export function RouteInspectorPanel() {
           <div className="flex items-center gap-4 text-sm">
             <span className="text-label-tertiary text-xs">전체 {summary.total}개</span>
             <span className="text-acc-green font-semibold text-xs">OK {summary.ok}</span>
-            {summary.warnings > 0 && <span className="text-acc-amber font-semibold text-xs">경고 {summary.warnings}</span>}
+            {summary.warnings > 0 && <span className="text-acc-brand font-semibold text-xs">경고 {summary.warnings}</span>}
             {summary.errors > 0 && <span className="text-acc-red font-semibold text-xs">오류 {summary.errors}</span>}
           </div>
         </div>

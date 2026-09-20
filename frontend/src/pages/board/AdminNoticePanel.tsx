@@ -81,7 +81,7 @@ export function AdminNoticePanel() {
       {/* 작성/수정 폼 */}
       <div className="ios-card rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Megaphone className="w-4 h-4 text-acc-amber" weight="fill" />
+          <Megaphone className="w-4 h-4 text-acc-brand" weight="fill" />
           <span className="font-bold text-sm text-label-primary">
             {editingId != null ? '공지 수정' : '새 공지 작성'}
           </span>
@@ -110,7 +110,7 @@ export function AdminNoticePanel() {
         <button
           onClick={submit}
           disabled={busy}
-          className="flex items-center gap-1.5 bg-acc-amber text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-acc-orange transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 bg-acc-brand text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-acc-orange transition-colors disabled:opacity-50"
         >
           <FloppyDisk className="w-4 h-4" />
           {editingId != null ? '수정 저장' : '공지 등록'}
@@ -134,7 +134,7 @@ export function AdminNoticePanel() {
                   <p className="text-sm font-semibold text-label-primary truncate">{n.title}</p>
                   <p className="text-[11px] text-label-tertiary">{fmtKst(n.created_at)}</p>
                 </div>
-                <button onClick={() => startEdit(n)} className="p-1.5 rounded-lg hover:bg-fill-primary text-label-tertiary hover:text-acc-amber transition-colors" title="수정">
+                <button onClick={() => startEdit(n)} className="p-1.5 rounded-lg hover:bg-fill-primary text-label-tertiary hover:text-acc-brand transition-colors" title="수정">
                   <PencilSimple className="w-4 h-4" />
                 </button>
                 <button onClick={() => remove(n.id)} className="p-1.5 rounded-lg hover:bg-fill-primary text-label-tertiary hover:text-acc-red transition-colors" title="삭제">

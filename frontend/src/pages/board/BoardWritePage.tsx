@@ -158,7 +158,7 @@ export function BoardWritePage() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm bg-acc-amber text-white hover:bg-acc-orange transition-colors disabled:opacity-50"
+              className="flex-1 py-3 rounded-2xl font-bold text-sm bg-acc-brand text-white hover:bg-acc-orange transition-colors disabled:opacity-50"
             >
               {submitting ? '저장 중…' : isEdit ? '수정' : '등록'}
             </button>

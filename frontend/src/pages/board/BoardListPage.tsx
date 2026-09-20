@@ -25,7 +25,7 @@ function PostRow({ post, onClick }: { post: BoardPostBrief; onClick: () => void 
           {post.title}
         </span>
         {post.comment_count > 0 && (
-          <span className="flex-shrink-0 flex items-center gap-0.5 text-[11px] font-semibold text-acc-amber">
+          <span className="flex-shrink-0 flex items-center gap-0.5 text-[11px] font-semibold text-acc-brand">
             <ChatCircle className="w-3 h-3" weight="fill" />
             {post.comment_count}
           </span>
@@ -85,7 +85,7 @@ export function BoardListPage() {
       right={
         <button
           onClick={() => navigate('/board/new')}
-          className="flex items-center gap-1 bg-acc-amber text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-acc-orange transition-colors"
+          className="flex items-center gap-1 bg-acc-brand text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-acc-orange transition-colors"
         >
           <PencilSimple className="w-3.5 h-3.5" weight="bold" />
           글쓰기
@@ -111,7 +111,7 @@ export function BoardListPage() {
       {q && (
         <p className="text-[11px] text-label-tertiary px-1">
           "{q}" 검색 결과 {data?.total ?? 0}건 ·{' '}
-          <button onClick={() => setSearchParams(new URLSearchParams())} className="text-acc-amber font-semibold">전체보기</button>
+          <button onClick={() => setSearchParams(new URLSearchParams())} className="text-acc-brand font-semibold">전체보기</button>
         </p>
       )}
 
@@ -150,7 +150,7 @@ export function BoardListPage() {
               key={p}
               onClick={() => goPage(p)}
               className={`min-w-8 h-8 px-2 rounded-xl text-xs font-semibold transition-colors ${
-                p === page ? 'bg-acc-amber text-white' : 'text-label-secondary hover:bg-fill-primary'
+                p === page ? 'bg-acc-brand text-white' : 'text-label-secondary hover:bg-fill-primary'
               }`}
             >
               {p}

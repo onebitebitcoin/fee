@@ -17,10 +17,10 @@ const TYPE_FILTERS: { key: ServiceTypeFilter; label: string }[] = [
   { key: 'lightning', label: '라이트닝' },
 ];
 
-const KYC_LABEL: Record<string, { text: string; color: 'red' | 'green' | 'amber' }> = {
+const KYC_LABEL: Record<string, { text: string; color: 'red' | 'green' | 'brand' }> = {
   kyc: { text: 'KYC 필요', color: 'red' },
   non_kyc: { text: 'KYC 불필요', color: 'green' },
-  mixed: { text: 'KYC 조건부', color: 'amber' },
+  mixed: { text: 'KYC 조건부', color: 'brand' },
 };
 
 export default function ServicesPage() {
@@ -55,7 +55,7 @@ export default function ServicesPage() {
               className={[
                 'shrink-0 text-xs font-medium px-3 py-1.5 rounded-full transition-colors',
                 typeFilter === f.key
-                  ? 'bg-acc-amber text-white'
+                  ? 'bg-acc-brand text-white'
                   : 'bg-fill-secondary text-label-secondary hover:bg-fill-primary',
               ].join(' ')}
             >
