@@ -166,13 +166,15 @@ PERSONAL_WALLET_POLICIES: dict[str, PersonalWalletDepositPolicy] = {
 VASP_DEPOSIT_POLICIES: dict[str, VaspDepositPolicy] = {
     'upbit': VaspDepositPolicy(
         exchange='upbit',
-        # 2026-08-27 기준 입출금 지원 사업자 리스트.
-        # 코인베이스·크라켄은 '입금만' 지원인데, 파는 방향은 입금이라 그대로 자동 반영된다.
-        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate', 'coinbase', 'kraken'}),
-        review_required=frozenset(),
+        # '계정주 확인 연동 가상자산사업자' — 두 계정의 계정주가 같으면 그대로 반영된다.
+        auto_deposit=frozenset({'binance', 'okx', 'bybit', 'bitget', 'gate'}),
+        # '위험평가 통과 해외 가상자산사업자' — 문서가 입금 방식을 '수동 입금 반영(입금 출처 증빙
+        # 승인 후 반영)'으로 밝히고 있어 심사 대상이다. 이전에는 이 둘을 '입금만 지원되니 파는
+        # 방향은 자동 반영'으로 보아 auto_deposit 에 넣었는데, 등급 자체가 다른 것이었다.
+        review_required=frozenset({'kraken', 'coinbase'}),
         threshold_krw=1_000_000,
-        source='업비트 고객센터 — 입출금 지원 가상자산사업자 리스트 (2026-08-27 기준)',
-        source_url='https://www.upbit.com/service_center/guide',
+        source='업비트 고객센터 — 입출금 가능 가상자산사업자(VASP) 추가 리스트 (목록 기준일 2026-09-16)',
+        source_url='https://support.upbit.com/hc/ko/articles/5048002559897',
     ),
     'bithumb': VaspDepositPolicy(
         exchange='bithumb',

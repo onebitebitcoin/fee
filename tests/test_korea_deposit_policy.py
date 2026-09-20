@@ -85,9 +85,22 @@ class TestVaspGate:
     def test_OKX_와_비트겟도_다섯_곳_모두_자동_입금이다(self, exchange, global_exchange):
         assert vasp_gate(exchange, global_exchange, OVER_THRESHOLD) is None
 
-    def test_업비트는_일곱_곳_전부_자동_입금이다(self):
-        for g in ('binance', 'okx', 'bybit', 'bitget', 'gate', 'coinbase', 'kraken'):
+    def test_업비트의_계정주_확인_연동_다섯_곳은_자동_입금이다(self):
+        for g in ('binance', 'okx', 'bybit', 'bitget', 'gate'):
             assert vasp_gate('upbit', g, OVER_THRESHOLD) is None, g
+
+    @pytest.mark.parametrize('global_exchange', ('kraken', 'coinbase'))
+    def test_업비트도_크라켄_코인베이스는_증빙_심사_대상이다(self, global_exchange):
+        # 업비트 VASP 리스트에서 이 둘은 '위험평가 통과 해외 가상자산사업자' 등급이고,
+        # 입금 방식이 '수동 입금 반영(입금 출처 증빙 승인 후 반영)'으로 명시돼 있다.
+        # '입금만 지원되니 자동 반영'으로 본 이전 판단이 틀렸다.
+        assert vasp_gate('upbit', global_exchange, OVER_THRESHOLD)['level'] == 'review'
+
+    def test_네_거래소_모두_크라켄_코인베이스를_심사_대상으로_둔다(self):
+        # 고팍스만 이 둘을 목록에 두지 않아 blocked 다. 나머지 넷은 판정이 같아야 한다.
+        for exchange in ('upbit', 'bithumb', 'coinone', 'korbit'):
+            for g in ('kraken', 'coinbase'):
+                assert VASP_DEPOSIT_POLICIES[exchange].review_required >= {g}, (exchange, g)
 
     def test_빗썸은_게이트를_목록에_두지_않아_blocked_다(self):
         # 2026-04-30 기준 빗썸 입출금 가능 목록 어디에도 Gate 가 없다.
