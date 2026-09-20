@@ -7,6 +7,11 @@ import time
 
 import requests
 
+from backend.app.domain.korea_deposit_policy import (
+    personal_wallet_gate,
+    third_party_deposit_gate,
+    vasp_gate,
+)
 from backend.app.domain.market_core import GROUPS, TRADING_FEES, get_withdrawal_source_url
 from backend.app.domain.path_graph import (
     Blocked,
@@ -127,6 +132,7 @@ def find_cheapest_sell_path_from_snapshot_rows(
         krw_received: int,
         total_fee_krw: int,
         breakdown_components: list[dict],
+        deposit_gates: list[dict],
     ) -> dict:
         gross_krw = krw_received + total_fee_krw
         fee_pct = round(total_fee_krw / gross_krw * 100, 4) if gross_krw > 0 else 0
@@ -151,6 +157,9 @@ def find_cheapest_sell_path_from_snapshot_rows(
             'krw_received': krw_received,
             'total_fee_krw': total_fee_krw,
             'fee_pct': fee_pct,
+            # 국내 거래소가 이 입금을 받아주는지에 걸리는 관문.
+            # 수수료로는 드러나지 않지만 경로를 실제로 실행할 수 있는지를 가른다.
+            'deposit_gates': [g for g in deposit_gates if g is not None],
             'breakdown': {
                 'components': breakdown_components,
                 'total_fee_krw': total_fee_krw,
@@ -235,8 +244,12 @@ def find_cheapest_sell_path_from_snapshot_rows(
             krw_received = sell.amount_out
             korean_sell_fee_krw = sell.fee_krw
             total_fee_krw = wallet_network_fee_krw + korean_sell_fee_krw
+            # 국내 거래소가 받는 쪽이고 보내는 쪽이 개인 지갑이다.
+            # 기준 금액은 '입금되는 금액'으로 따지므로 매도 후 원화가 아니라 입금 시점 평가액을 쓴다.
+            deposit_value_krw = btc_after_network * korean_btc_price_krw
             paths.append(build_entry(
                 route_variant='btc_direct',
+                deposit_gates=[personal_wallet_gate(exchange, deposit_value_krw)],
                 korean_exchange=exchange,
                 transfer_coin='BTC',
                 domestic_withdrawal_network=row.network_label,
@@ -298,6 +311,8 @@ def find_cheapest_sell_path_from_snapshot_rows(
             gross_usdt = btc_at_global * ctx.global_btc_price_usd
             paths.append(build_entry(
                 route_variant='usdt_via_global',
+                # 국내 거래소로 들어오는 마지막 구간의 송신인이 해외 거래소다.
+                deposit_gates=[vasp_gate(exchange, global_exchange)],
                 korean_exchange=exchange,
                 transfer_coin='USDT',
                 domestic_withdrawal_network=row.network_label,
@@ -361,6 +376,8 @@ def find_cheapest_sell_path_from_snapshot_rows(
                 swap_fee_btc = btc_after_network - btc_at_korean
                 paths.append(build_entry(
                     route_variant='lightning_direct',
+                    # 라이트닝 스왑 서비스가 국내 거래소로 보내므로 송신인이 회원 본인이 아니다.
+                    deposit_gates=[third_party_deposit_gate(exchange)],
                     korean_exchange=exchange,
                     transfer_coin='BTC',
                     domestic_withdrawal_network='Lightning Network',
@@ -421,6 +438,8 @@ def find_cheapest_sell_path_from_snapshot_rows(
                     gross_usdt = btc_at_global * ctx.global_btc_price_usd
                     paths.append(build_entry(
                         route_variant='lightning_via_global',
+                        # 스왑을 거치지만 국내 거래소로 들어오는 마지막 구간은 해외 거래소발이다.
+                        deposit_gates=[vasp_gate(exchange, global_exchange)],
                         korean_exchange=exchange,
                         transfer_coin='USDT',
                         domestic_withdrawal_network=row.network_label,

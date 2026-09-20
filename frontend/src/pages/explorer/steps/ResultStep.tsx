@@ -12,6 +12,7 @@ import { ExFavicon, SectionLabel, Chip } from '../ui';
 import { useExplorer } from '../ExplorerContext';
 import { buildReportQuery } from '../../board/reportTemplate';
 import { usesGlobalExchange } from '../pathMode';
+import { activeGates, gateSeverity, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
 /** 경로 다이어그램의 한 칸 — 아이콘과 이름을 가진 정거장. */
 type RouteNode = { key: string; icon: ReactNode; label: string };
@@ -58,7 +59,7 @@ export function ResultStep() {
   const {
     amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, usdtPremium, forexUsdKrw, displayReceived,
     snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
-    globalExitMethod, allData, mode, amountBtc,
+    globalExitMethod, allData, mode, amountBtc, walletRegistered,
   } = useExplorer();
   const isSell = mode === 'sell';
   const [showAltPaths, setShowAltPaths] = useState(false);
@@ -386,6 +387,52 @@ export function ResultStep() {
                   edges={routeDiagram.edges}
                 />
               </div>
+
+              {/* 입금 관문 — 수수료에는 드러나지 않지만 경로를 실행할 수 있는지를 가른다 */}
+              {(() => {
+                const gates = activeGates(resultPath, walletRegistered);
+                if (!gates.length) return null;
+                const worst = gateSeverity(gates)!;
+                return (
+                  <div>
+                    <SectionLabel>입금 조건</SectionLabel>
+                    <div className="ios-card rounded-2xl divide-y divide-line">
+                      {gates.map((g, i) => (
+                        <div key={i} className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${GATE_BADGE_CLASS[g.level]}`}>
+                              {GATE_BADGE[g.level]}
+                            </span>
+                            <p className="text-[12px] font-bold text-label-primary">{g.label}</p>
+                          </div>
+                          <p className="text-[11px] text-label-secondary leading-relaxed">{g.desc}</p>
+                          {g.source && (
+                            g.source_url ? (
+                              <a
+                                href={g.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-acc-blue hover:underline"
+                              >
+                                {g.source}
+                                <ArrowSquareOut className="w-2.5 h-2.5" />
+                              </a>
+                            ) : (
+                              <p className="mt-1.5 text-[10px] text-label-quaternary">{g.source}</p>
+                            )
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {worst === 'blocked' && (
+                      <p className="text-[10px] text-acc-red mt-2 leading-relaxed">
+                        이 경로는 수수료가 낮더라도 지금 수단으로는 입금이 반영되지 않습니다.
+                        해외 거래소를 경유하는 경로를 확인해 보세요.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Fee breakdown — 각 항목 금액은 항상 노출, 항목별 '자세히'로 세부 펼침 */}
               {resultPath.breakdown?.components && resultPath.breakdown.components.length > 0 && (

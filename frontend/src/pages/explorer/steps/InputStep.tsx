@@ -98,6 +98,7 @@ export function InputStep() {
     amount, setAmount, unit, setUnit, amountKrw,
     amountBtcInput, setAmountBtcInput, btcUnit, setBtcUnit,
     walletUtxoCount, setWalletUtxoCount, amountBtc, inputReady,
+    walletRegistered, setWalletRegistered,
     allData, error, btcPrice, btcPriceLoading, usdtPremium,
     handleSearch, isSearching,
   } = useExplorer();
@@ -348,6 +349,34 @@ export function InputStep() {
                         >
                           +
                         </button>
+                      </div>
+                    </div>
+
+                    <div className="sep my-5" />
+
+                    {/* 입금 사전 조건 — 국내 거래소는 입금 출처를 확인하지 못하면 입금을 보류한다 */}
+                    <div>
+                      <p className="text-xs font-semibold text-label-secondary">보낼 지갑을 거래소에 등록해 두셨나요?</p>
+                      <p className="text-[10px] text-label-tertiary mt-0.5 leading-relaxed">
+                        국내 거래소는 등록·인증된 지갑에서 온 입금만 바로 반영합니다.
+                        등록하지 않은 지갑에서 보내면 입금이 보류되거나 증빙 심사를 거칩니다.
+                      </p>
+                      <div className="seg-ctrl grid grid-cols-2 mt-2.5">
+                        {([
+                          { value: false, label: '아직 안 했어요' },
+                          { value: true,  label: '등록했어요' },
+                        ] as const).map(({ value, label }) => (
+                          <button
+                            key={String(value)}
+                            onClick={() => setWalletRegistered(value)}
+                            disabled={isSearching}
+                            className={`relative py-1.5 text-xs font-semibold rounded-[8px] transition-colors disabled:opacity-40 ${
+                              walletRegistered === value ? 'text-label-primary bg-sys-card shadow-card' : 'text-label-tertiary'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </>

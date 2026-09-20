@@ -14,6 +14,7 @@ import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO } from './constants';
 import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths } from './recommend';
 import { isLightningPath } from './pathMode';
+import { sortByDepositGate } from './depositGate';
 import { useExchangeMetadata } from './useExchangeMetadata';
 import {
   computeSnapshotKimp,
@@ -45,6 +46,10 @@ function useExplorerValue() {
   const [amountBtcInput, setAmountBtcInput] = useState('0.05');
   const [btcUnit, setBtcUnit]     = useState<'BTC' | 'sats'>('BTC');
   const [walletUtxoCount, setWalletUtxoCount] = useState(1);
+  // 사용자가 선언하는 사전 조건 — 보낼 지갑을 입금할 거래소에 이미 등록해 두었는지.
+  // 등록으로 풀리는 관문(required)만 통과 처리하고, 구조적으로 막힌 관문(blocked)과
+  // 확인하지 못한 관문(unknown)은 선언과 무관하게 남는다.
+  const [walletRegistered, setWalletRegistered] = useState(false);
   const [allData, setAllData]     = useState<AllData | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [dir, setDir]             = useState<1 | -1>(1);
@@ -246,12 +251,17 @@ function useExplorerValue() {
   const allRecommendedPaths = useMemo(() => dedupAndSortPaths(allPaths, mode), [allPaths, mode]);
 
   // 필터 적용 결과 (화면 표시용)
+  // 수수료 정렬 → 제외 필터 → 입금 관문 정렬 순서로 적용한다.
+  // 관문 정렬을 마지막에 두어야 수수료 순서를 유지한 채 실행 불가능한 경로만 아래로 내려간다.
   const topRecommendedPaths = useMemo(() =>
-    filterRecommendedPaths(allRecommendedPaths, {
-      mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
-      excludeOnchain, excludeLightning, excludeDisabled,
-    }),
-    [allRecommendedPaths, mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled]);
+    sortByDepositGate(
+      filterRecommendedPaths(allRecommendedPaths, {
+        mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices,
+        excludeOnchain, excludeLightning, excludeDisabled,
+      }),
+      walletRegistered,
+    ),
+    [allRecommendedPaths, mode, destinationFilter, excludeExchanges, excludeGlobalExchanges, excludeServices, excludeOnchain, excludeLightning, excludeDisabled, walletRegistered]);
 
   // liveKimp 가져오기 실패 시의 fallback. 티커 스냅샷의 usd_krw_rate(포렉스 환율) 기준으로 계산한다.
   const snapshotKimp = useMemo(() => computeSnapshotKimp(allData), [allData]);
@@ -614,6 +624,7 @@ function useExplorerValue() {
     amountBtcInput, setAmountBtcInput,
     btcUnit, setBtcUnit,
     walletUtxoCount, setWalletUtxoCount,
+    walletRegistered, setWalletRegistered,
     allData,
     error,
     dir,

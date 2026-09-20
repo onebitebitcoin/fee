@@ -11,6 +11,7 @@ import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
 import type { CheapestPathEntry, PathMode } from '../../../types';
 import { isLightningPath } from '../pathMode';
+import { activeGates, gateSeverity, isPathDemoted, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
 const PAGE_SIZE = 15;
 
@@ -117,7 +118,7 @@ function ToggleChip({
 export function RecommendationStep() {
   const navigate = useNavigate();
   const {
-    mode, amountBtc,
+    mode, amountBtc, walletRegistered,
     amountKrw,
     allRecommendedPaths,
     topRecommendedPaths,
@@ -450,7 +451,11 @@ export function RecommendationStep() {
 
         <div>
           {(() => {
-            const firstEnabledIdx = visible.findIndex(p => !p.disabled);
+            // '최저' 배지는 실제로 실행할 수 있는 경로에만 붙인다.
+            // 입금이 막힌 경로에 최저 배지를 달면 못 쓰는 경로를 권하는 셈이 된다.
+            const firstEnabledIdx = visible.findIndex(
+              p => !p.disabled && gateSeverity(activeGates(p, walletRegistered)) !== 'blocked',
+            );
             const cheapestFee = firstEnabledIdx >= 0 ? visible[firstEnabledIdx].total_fee_krw : null;
             return visible.map((p, i) => (
               <motion.button
@@ -487,7 +492,19 @@ export function RecommendationStep() {
                     {i === firstEnabledIdx && (
                       <span className="text-[9px] font-bold bg-acc-green/15 text-acc-green px-1.5 py-0.5 rounded-full flex-shrink-0">최저</span>
                     )}
-                    {!p.disabled && i > firstEnabledIdx && cheapestFee != null && (
+                    {(() => {
+                      const level = gateSeverity(activeGates(p, walletRegistered));
+                      if (!level) return null;
+                      return (
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${GATE_BADGE_CLASS[level]}`}>
+                          {GATE_BADGE[level]}
+                        </span>
+                      );
+                    })()}
+                    {/* 최저 대비 차액. 관문 때문에 아래로 내려간 경로는 수수료 순서가 아니므로
+                        차액을 붙이면 음수가 '+'로 찍혀 더 싼 것처럼 읽힌다. 그래서 생략한다. */}
+                    {!p.disabled && i > firstEnabledIdx && cheapestFee != null
+                      && !isPathDemoted(p, walletRegistered) && (
                       <span className="text-[9px] text-label-quaternary num flex-shrink-0">
                         +{formatFeeKrw(p.total_fee_krw - cheapestFee)}
                       </span>

@@ -258,3 +258,92 @@ def test_coinone_sell_fee_carries_voucher_note():
     assert all('바우처' in note for note in coinone_notes), f'코인원 note 누락: {coinone_notes}'
     # 다른 거래소에는 붙지 않아야 한다
     assert _sell_notes('upbit') == [None] * len(_sell_notes('upbit'))
+
+
+# ── 입금 관문 (deposit_gates) ──────────────────────────────────────────────────
+# 매도 경로의 마지막 구간은 '무언가 → 국내 거래소 입금'이다. 수수료로는 드러나지 않지만
+# 거래소가 그 입금을 받아주는지가 경로의 실행 가능성을 가른다.
+
+def _sell_with_gates(amount_btc: float = 0.05):
+    """국내 BTC 매도(경로 1)와 USDT 경유(경로 2)가 모두 나오는 최소 입력."""
+    run = _make_run()
+    global_ticker = _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1)
+    upbit_ticker = _make_ticker('upbit', 130_000_000.0, taker_pct=0.05)
+    bithumb_ticker = _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04)
+    coinone_ticker = _make_ticker('coinone', 130_000_000.0, taker_pct=0.1)
+    withdrawals = [
+        _make_withdrawal('upbit', 'BTC', 'Bitcoin', 0.0009),
+        _make_withdrawal('bithumb', 'BTC', 'Bitcoin', 0.0005),
+        _make_withdrawal('coinone', 'BTC', 'Bitcoin', 0.0009),
+        _make_withdrawal('binance', 'USDT', 'Tron (TRC20)', 1.0),
+    ]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        return find_cheapest_sell_path_from_snapshot_rows(
+            amount_btc,
+            'binance',
+            run,
+            [global_ticker, upbit_ticker, bithumb_ticker, coinone_ticker],
+            withdrawals,
+            [],
+        )
+
+
+def _paths_of(result, variant, korean_exchange):
+    return [
+        p for p in result['all_paths']
+        if p['route_variant'] == variant and p['korean_exchange'] == korean_exchange
+    ]
+
+
+def test_모든_매도_경로가_deposit_gates_필드를_갖는다():
+    result = _sell_with_gates()
+    assert result.get('all_paths'), '경로가 계산되지 않았다'
+    for p in result['all_paths']:
+        assert 'deposit_gates' in p, p['path_id']
+        assert isinstance(p['deposit_gates'], list)
+
+
+def test_업비트_BTC_직접_입금은_blocked_로_표시된다():
+    """업비트가 등록을 받는 개인지갑에 비트코인 온체인 지갑이 없어 이 경로는 뚫리지 않는다."""
+    result = _sell_with_gates()
+    paths = _paths_of(result, 'btc_direct', 'upbit')
+    assert paths, 'btc_direct/upbit 경로가 없다'
+    gates = paths[0]['deposit_gates']
+    assert [g['level'] for g in gates] == ['blocked']
+    assert gates[0]['kind'] == 'personal_wallet'
+
+
+def test_코인원_BTC_직접_입금은_확인_필요로_남는다():
+    """비트코인 지갑 등록 가능 여부를 확인하지 못했으므로 blocked 로 단정하지 않는다."""
+    result = _sell_with_gates()
+    paths = _paths_of(result, 'btc_direct', 'coinone')
+    assert paths
+    assert [g['level'] for g in paths[0]['deposit_gates']] == ['unknown']
+
+
+def test_소액_BTC_직접_입금은_관문이_없다():
+    """업비트는 100만원 미만 입금을 별도 검증 없이 받는다."""
+    # 0.005 BTC × 1.3억 = 65만원 → 기준 금액 미만
+    result = _sell_with_gates(amount_btc=0.005)
+    paths = _paths_of(result, 'btc_direct', 'upbit')
+    assert paths
+    assert paths[0]['deposit_gates'] == []
+
+
+def test_업비트_USDT_경유는_바이낸스발_입금이_허용되어_관문이_없다():
+    result = _sell_with_gates()
+    paths = _paths_of(result, 'usdt_via_global', 'upbit')
+    assert paths
+    assert paths[0]['deposit_gates'] == []
+
+
+def test_빗썸_USDT_경유는_공식_목록_미확보로_확인_필요다():
+    result = _sell_with_gates()
+    paths = _paths_of(result, 'usdt_via_global', 'bithumb')
+    assert paths
+    gates = paths[0]['deposit_gates']
+    assert [g['level'] for g in gates] == ['unknown']
+    assert gates[0]['kind'] == 'vasp'

@@ -94,6 +94,29 @@ export type CheapestPathFeeComponent = {
   note?: string | null;
 };
 
+/**
+ * 입금 관문의 심각도.
+ *  blocked  — 지금 수단으로는 입금이 사실상 불가능하다
+ *  required — 사전 절차(지갑 등록·인증)를 마쳐야 반영된다
+ *  review   — 입금은 되지만 증빙 심사를 거친다
+ *  unknown  — 공식 근거를 확보하지 못해 확인이 필요하다
+ */
+export type DepositGateLevel = 'blocked' | 'required' | 'review' | 'unknown';
+
+/**
+ * 국내 거래소가 이 입금을 받아주는지에 걸리는 관문 (팔 때만 채워진다).
+ * 수수료에는 드러나지 않지만 경로를 실제로 실행할 수 있는지를 가른다.
+ */
+export type DepositGate = {
+  /** 국내 거래소로 보내는 쪽이 누구인지 — 개인 지갑 / 해외 거래소 / 제3자 스왑 서비스 */
+  kind: 'personal_wallet' | 'vasp' | 'third_party';
+  level: DepositGateLevel;
+  label: string;
+  desc: string;
+  source?: string | null;
+  source_url?: string | null;
+};
+
 export type CheapestPathBreakdown = {
   components: CheapestPathFeeComponent[];
   total_fee_krw: number;
@@ -146,6 +169,8 @@ export type CheapestPathEntry = {
   global_kyc_status?: KycStatus;
   exit_service_kyc_status?: KycStatus;
   wallet_kyc_status?: KycStatus;
+  /** 팔 때: 국내 거래소 입금 관문. 빈 배열이면 확인된 제약이 없다. */
+  deposit_gates?: DepositGate[];
   disabled?: boolean;
   disabled_reason?: string | null;
   suspension_message?: string | null;
