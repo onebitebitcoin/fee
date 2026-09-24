@@ -16,6 +16,7 @@ import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths, excludeUsdtNet
 import { isLightningPath } from './pathMode';
 import { sortByDepositGate } from './depositGate';
 import { useExchangeMetadata } from './useExchangeMetadata';
+import { loadSavedMode, saveMode, applyModeTheme } from './modeStorage';
 import {
   computeSnapshotKimp,
   computeDomesticBtcKrw,
@@ -38,7 +39,8 @@ function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
   // 탐색 방향. 'buy' = 원화로 비트코인을 사서 개인 지갑으로 받기,
   // 'sell' = 개인 지갑의 비트코인을 거래소에 팔아 원화로 받기.
-  const [mode, setModeState]      = useState<PathMode>('buy');
+  // 초기값은 마지막으로 고른 방향이다. 다른 화면에서 홈으로 돌아와도 테마가 유지된다.
+  const [mode, setModeState]      = useState<PathMode>(() => loadSavedMode());
   const [amount, setAmount]       = useState('100');
   const [unit, setUnit]           = useState<'만원' | '억원'>('만원');
   // 매도 입력 — 파는 수량과, 그 수량을 만들려고 개인 지갑에서 합칠 UTXO 개수.
@@ -139,13 +141,8 @@ function useExplorerValue() {
   );
   const pathQueryKey = mode === 'sell' ? `sell:${amountBtc}:${walletUtxoCount}` : `buy:${amountKrw}`;
 
-  // 모드에 따라 <html data-theme> 를 갱신한다. 팔레트 변수는 index.css 의
-  // `:root[data-theme="sell"]` 블록에 있고, 이 속성 하나로 화면 전체 색이 바뀐다.
-  useEffect(() => {
-    const root = document.documentElement;
-    if (mode === 'sell') root.setAttribute('data-theme', 'sell');
-    else root.removeAttribute('data-theme');
-  }, [mode]);
+  // 모드에 따라 <html data-theme> 를 갱신한다(팔레트 전환).
+  useEffect(() => { applyModeTheme(mode); }, [mode]);
 
   /**
    * 탐색 방향 전환. 매수와 매도는 응답 구조도 선택지도 다르므로
@@ -155,6 +152,7 @@ function useExplorerValue() {
   function setMode(next: PathMode) {
     if (next === mode) return;
     setModeState(next);
+    saveMode(next);
     setAllData(null);
     setError(null);
     setLoadingDone(false);
