@@ -104,6 +104,8 @@ def get_cheapest_path(
                 lightning_swap_rows=lightning_swap_rows,
                 exchange_capability_rows=exchange_capability_rows,
                 deposit_status_rows=deposit_status_rows,
+                # 국내에서 USDT 를 원화로 바꾸는 구간은 포렉스가 아니라 국내 USDT 시세로 계산한다.
+                usdt_krw_rate=_current_usdt_krw_rate(),
             )
         else:
             payload = find_cheapest_path_from_snapshot_rows(
@@ -155,7 +157,7 @@ def _compute_cheapest_all(
     ]
 
     global_exchanges = list(GROUPS['global'])
-    # USDT 매수 leg를 김프 평가와 동일한 한국 USDT/KRW 환율로 계산 (환율 차이 아티팩트 제거)
+    # USDT 매수·매도 leg를 김프 평가와 동일한 한국 USDT/KRW 환율로 계산 (환율 차이 아티팩트 제거)
     usdt_krw_rate = _current_usdt_krw_rate()
 
     by_global: dict[str, object] = {}
@@ -214,6 +216,7 @@ def _compute_cheapest_all(
                     lightning_swap_rows=lightning_swap_rows,
                     exchange_capability_rows=exchange_capability_rows,
                     deposit_status_rows=deposit_status_rows,
+                    usdt_krw_rate=usdt_krw_rate,
                 )
             else:
                 payload = find_cheapest_path_from_snapshot_rows(

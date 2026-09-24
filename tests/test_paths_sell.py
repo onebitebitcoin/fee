@@ -583,8 +583,9 @@ def test_라이트닝_경유_경로도_같은_입금망_제약을_받는다():
         min_amount_sat=1_000, max_amount_sat=100_000_000,
         enabled=True, direction='onchain_to_ln',
     )
+    # 경로 4 에서 라이트닝을 받는 쪽은 해외 거래소다.
     cap = SimpleNamespace(
-        exchange='bithumb', supports_lightning_deposit=True, supports_lightning_withdrawal=True,
+        exchange='binance', supports_lightning_deposit=True, supports_lightning_withdrawal=True,
     )
     with patch(
         'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
@@ -645,3 +646,137 @@ def test_수수료_표기와_원화_금액이_서로_맞는다():
     fee_usdt = float(comp['amount_text'].split()[0])
     # _make_run() 의 usd_krw_rate 는 1400
     assert abs(fee_usdt * 1400 - comp['amount_krw']) < 2, (comp['amount_text'], comp['amount_krw'])
+
+
+# ── 라이트닝 수신 주체 ─────────────────────────────────────────────────────────
+# 경로 3(lightning_direct)은 라이트닝을 국내 거래소가 받고, 경로 4(lightning_via_global)는
+# 해외 거래소가 받는다. 라이트닝 입금 지원 여부는 받는 쪽 거래소를 기준으로 따져야 한다.
+
+def _sell_with_lightning(caps: dict[str, bool], *, usdt_krw_rate: float | None = None):
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    withdrawals = [
+        _make_withdrawal('bithumb', 'BTC', 'Bitcoin (On-chain)', 0.0002),
+        _make_withdrawal('binance', 'USDT', 'Tron (TRC20)', 1.0),
+    ]
+    swap = SimpleNamespace(
+        service_name='Boltz', fee_pct=0.1, fee_fixed_sat=0,
+        min_amount_sat=1_000, max_amount_sat=100_000_000,
+        enabled=True, direction='onchain_to_ln',
+    )
+    cap_rows = [
+        SimpleNamespace(exchange=ex, supports_lightning_deposit=v, supports_lightning_withdrawal=v)
+        for ex, v in caps.items()
+    ]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        return find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers, withdrawals, [],
+            lightning_swap_rows=[swap], exchange_capability_rows=cap_rows,
+            usdt_krw_rate=usdt_krw_rate,
+        )
+
+
+def _variants(result):
+    return {p['route_variant'] for p in result['all_paths']}
+
+
+def test_해외_거래소가_라이트닝을_받으면_국내가_못_받아도_경유_경로가_생긴다():
+    """실제 스냅샷은 국내 5곳이 모두 라이트닝 입금 미지원이고 바이낸스·OKX 는 지원한다."""
+    result = _sell_with_lightning({'bithumb': False, 'binance': True})
+    variants = _variants(result)
+    assert 'lightning_via_global' in variants
+    assert 'lightning_direct' not in variants
+
+
+def test_해외_거래소가_라이트닝을_받지_않으면_경유_경로가_없다():
+    result = _sell_with_lightning({'bithumb': True, 'binance': False})
+    variants = _variants(result)
+    assert 'lightning_direct' in variants
+    assert 'lightning_via_global' not in variants
+
+
+# ── USDT → 원화 전환 시세 ──────────────────────────────────────────────────────
+# 국내 거래소에서 USDT 를 팔면 받는 값은 그 거래소의 USDT/KRW 시세다. 포렉스 환율로 계산하면
+# 테더 프리미엄만큼 USDT 경유 경로가 BTC 직접 경로보다 싸거나 비싸게 잘못 보인다.
+
+def test_USDT_원화_전환은_국내_USDT_시세로_계산한다():
+    result = _sell_with_networks('Tron (TRC20)')
+    base = next(p for p in result['all_paths']
+                if p['route_variant'] == 'usdt_via_global' and p['korean_exchange'] == 'bithumb')
+
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        result = find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers,
+            [_make_withdrawal('binance', 'USDT', 'Tron (TRC20)', 1.0)], [],
+            usdt_krw_rate=1450.0,
+        )
+    premium = next(p for p in result['all_paths'] if p['route_variant'] == 'usdt_via_global')
+
+    # 같은 USDT 수량을 1400 대신 1450 에 판다.
+    ratio = premium['krw_received'] / base['krw_received']
+    assert abs(ratio - 1450 / 1400) < 1e-4, ratio
+    assert result['usdt_krw_rate'] == 1450.0
+
+
+# ── 수수료 합계의 정합성 ───────────────────────────────────────────────────────
+# 총 수수료는 '보낸 BTC 를 그 경로의 최종 매도 시세로 평가한 값'과 실수령액의 차이여야 한다.
+# 지갑 수수료를 해외 시세로 평가하면 국내에서 파는 경로의 수수료율이 김프만큼 틀어진다.
+
+def test_실수령액과_총수수료의_합은_보낸_BTC_의_평가액과_같다():
+    usdt_rate = 1450.0
+    result = _sell_with_lightning({'bithumb': True, 'binance': True}, usdt_krw_rate=usdt_rate)
+    basis = {
+        'btc_direct': 130_000_000.0,
+        'lightning_direct': 130_000_000.0,
+        'usdt_via_global': 90_000.0 * usdt_rate,
+        'lightning_via_global': 90_000.0 * usdt_rate,
+    }
+    assert set(basis) <= _variants(result)
+    for p in result['all_paths']:
+        expected = 0.05 * basis[p['route_variant']]
+        got = p['krw_received'] + p['total_fee_krw']
+        assert abs(got - expected) < 5, (p['route_variant'], got, expected)
+        component_sum = sum(c['amount_krw'] for c in p['breakdown']['components'])
+        assert abs(component_sum - p['total_fee_krw']) < 5, (p['route_variant'], component_sum)
+
+
+# ── BTC 직접 경로의 망 ─────────────────────────────────────────────────────────
+
+def test_비트코인_온체인이_아닌_망으로는_BTC_직접_경로를_만들지_않는다():
+    """개인 비트코인 지갑은 BEP20 같은 래핑 BTC 주소로 보낼 수 없다."""
+    run = _make_run()
+    tickers = [
+        _make_ticker('binance', 90_000.0, currency='USD', taker_pct=0.1),
+        _make_ticker('bithumb', 130_000_000.0, taker_pct=0.04),
+    ]
+    withdrawals = [
+        _make_withdrawal('bithumb', 'BTC', 'Bitcoin (On-chain)', 0.0002),
+        _make_withdrawal('bithumb', 'BTC', 'BNB Smart Chain (BEP20)', 0.00001),
+        _make_withdrawal('bithumb', 'BTC', 'Lightning Network', 0.0),
+    ]
+    with patch(
+        'backend.app.domain.paths_sell._estimate_wallet_btc_network_fee',
+        return_value=_mock_wallet_fee(),
+    ):
+        result = find_cheapest_sell_path_from_snapshot_rows(
+            0.05, 'binance', run, tickers, withdrawals, [],
+            deposit_status_rows=[_deposit_row('bithumb', 'BTC', 'Lightning Network', False, 'x')],
+        )
+    networks = {p['network'] for p in result['all_paths'] if p['route_variant'] == 'btc_direct'}
+    assert networks == {'Bitcoin (On-chain)'}
+    # 애초에 후보가 아닌 망은 비활성 목록에도 올리지 않는다.
+    assert all(d['network'] != 'Lightning Network' for d in result['disabled_paths'])

@@ -135,6 +135,9 @@ def test_sell_lightning_strike_included_when_lightning_deposit_supported(mocker)
         'fee_btc': 0.00001,
     })
 
+    # 국내 USDT 시세 실시간 조회를 막는다. None 이면 스냅샷 포렉스 환율로 계산한다.
+    mocker.patch('backend.app.api.routes.market.path_finder._current_usdt_krw_rate', return_value=None)
+
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
     response = client.get('/api/v1/market/path-finder/cheapest?mode=sell&amount_btc=0.01&global_exchange=binance')
@@ -246,6 +249,9 @@ def test_sell_lightning_strike_excluded_without_lightning_deposit(mocker):
         'fee_sats': 1000,
         'fee_btc': 0.00001,
     })
+
+    # 국내 USDT 시세 실시간 조회를 막는다. None 이면 스냅샷 포렉스 환율로 계산한다.
+    mocker.patch('backend.app.api.routes.market.path_finder._current_usdt_krw_rate', return_value=None)
 
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
