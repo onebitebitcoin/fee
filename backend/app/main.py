@@ -67,27 +67,36 @@ def _warm_withdrawal_cache() -> None:
         logger.warning('Withdrawal cache warmup failed: %s', exc)
 
 
-async def _auto_crawl_loop() -> None:
-    """서버 시작 직후 즉시 크롤링 후, 설정된 주기(crawl_interval_minutes)마다 반복한다."""
+def _run_scheduled_crawl() -> None:
+    """크롤링 1회 + 캐시 워밍. 동기 블로킹 작업(약 80초)이라 반드시 워커 스레드에서 호출한다."""
     from backend.app.db.session import SessionLocal
     from backend.app.services.crawl_service import CrawlService
 
+    with SessionLocal() as db:
+        result = CrawlService(db).run_full_crawl(trigger='scheduled')
+        logger.info('Scheduled crawl completed: id=%s status=%s', result.id, result.status)
+        # 크롤 성공 직후 인기 금액 cheapest-all 결과를 선제 캐싱(콜드스타트/만료 미스 제거)
+        if result.status in ('success', 'partial_success'):
+            try:
+                from backend.app.api.routes.market import warm_cheapest_path_cache
+                warmed = warm_cheapest_path_cache(db)
+                logger.info('cheapest-all 캐시 워밍 완료: %s개 프리셋', warmed)
+            except Exception as exc:
+                logger.warning('cheapest-all 캐시 워밍 실패: %s', exc)
+
+
+async def _auto_crawl_loop() -> None:
+    """서버 시작 직후 즉시 크롤링 후, 설정된 주기(crawl_interval_minutes)마다 반복한다.
+
+    크롤링을 이벤트 루프 위에서 직접 돌리면 그동안 단일 워커 uvicorn 이 모든 요청을
+    처리하지 못해 서비스 전체가 멈춘다(Cloudflare 522/524). 그래서 스레드로 넘긴다.
+    """
     settings = get_settings()
     interval_seconds = settings.crawl_interval_minutes * 60
 
     while True:
         try:
-            with SessionLocal() as db:
-                result = CrawlService(db).run_full_crawl(trigger='scheduled')
-                logger.info('Scheduled crawl completed: id=%s status=%s', result.id, result.status)
-                # 크롤 성공 직후 인기 금액 cheapest-all 결과를 선제 캐싱(콜드스타트/만료 미스 제거)
-                if result.status in ('success', 'partial_success'):
-                    try:
-                        from backend.app.api.routes.market import warm_cheapest_path_cache
-                        warmed = warm_cheapest_path_cache(db)
-                        logger.info('cheapest-all 캐시 워밍 완료: %s개 프리셋', warmed)
-                    except Exception as exc:
-                        logger.warning('cheapest-all 캐시 워밍 실패: %s', exc)
+            await asyncio.to_thread(_run_scheduled_crawl)
         except Exception as exc:
             logger.warning('Scheduled crawl failed: %s', exc)
         await asyncio.sleep(interval_seconds)
