@@ -9,7 +9,7 @@ import { api } from '../../lib/api';
 import { SATS_PER_BTC } from '../../lib/formatBtc';
 import type { CheapestPathEntry, CheapestPathResponse, PathMode, TickerRow } from '../../types';
 import type { Phase, CoinType, Destination, FlowState } from './flow';
-import { phaseIdx, flowNext, flowPrev } from './flow';
+import { phaseIdx, flowNext, flowPrev, flowStart, sellPhasesAfter } from './flow';
 import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, DOMESTIC_INFO } from './constants';
 import { flattenPaths, dedupAndSortPaths, filterRecommendedPaths, excludeUsdtNetworks } from './recommend';
@@ -34,6 +34,17 @@ import {
   computeResultPath,
   computeAltPaths,
 } from './derivations';
+import {
+  sellCoinOptions,
+  sellDisabledNetworkOptions,
+  sellDomesticOptions,
+  sellGlobalOptions,
+  sellHasLightning,
+  sellNetworkOptions,
+  sellResultPath,
+  sellSwapServiceOptions,
+  type SellSelection,
+} from './sellWizard';
 
 function useExplorerValue() {
   const [phase, setPhase]         = useState<Phase>('input');
@@ -189,12 +200,12 @@ function useExplorerValue() {
   }, []);
 
   useEffect(() => {
-    const cur = phaseIdx(phase);
-    const prev = phaseIdx(prevPhase.current);
+    const cur = phaseIdx(phase, mode);
+    const prev = phaseIdx(prevPhase.current, mode);
     setDir(cur >= prev ? 1 : -1);
     prevPhase.current = phase;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [phase]);
+  }, [phase, mode]);
 
   // 금액/수량 입력 후 500ms 디바운스로 백그라운드 프리페치 — 버튼 클릭 시 즉시 응답
   useEffect(() => {
@@ -276,51 +287,64 @@ function useExplorerValue() {
   // 한국 거래소 24h 거래량 맵 — KRW 단위 (BTC 거래량 × BTC/KRW 기준가)
   const koreaVolumeMap = useMemo(() => computeKoreaVolumeMap(allData), [allData]);
 
-  const domesticOptions = useMemo(
-    () => computeDomesticOptions(allData, koreaVolumeMap),
-    [allData, koreaVolumeMap]);
+  // 팔 때는 단계가 자금 흐름 순서(전송 방식 → 스왑 → 매도 경로 → 해외 거래소 → 네트워크 → 국내 거래소)라
+  // 국내 거래소를 먼저 고르는 살 때의 파생 함수를 쓸 수 없다. 선택지는 sellWizard.ts 가 계산한다.
+  const isSell = mode === 'sell';
+  const sellSel: SellSelection = useMemo(
+    () => ({ sendMethod: btcMethod, swapSvc, coin, global, network, domestic }),
+    [btcMethod, swapSvc, coin, global, network, domestic]);
 
-  const coinOptions = useMemo(() => computeCoinOptions(allData, domestic, mode), [allData, domestic, mode]);
+  const domesticOptions = useMemo(
+    () => isSell
+      ? sellDomesticOptions(allData, sellSel, koreaVolumeMap)
+      : computeDomesticOptions(allData, koreaVolumeMap),
+    [isSell, allData, sellSel, koreaVolumeMap]);
+
+  const coinOptions = useMemo(
+    () => isSell ? sellCoinOptions(allData, sellSel) : computeCoinOptions(allData, domestic, mode),
+    [isSell, allData, sellSel, domestic, mode]);
 
   const globalOptions = useMemo(
-    () => computeGlobalOptions(allData, domestic, coin, mode),
-    [allData, domestic, coin, mode]);
+    () => isSell ? sellGlobalOptions(allData, sellSel) : computeGlobalOptions(allData, domestic, coin, mode),
+    [isSell, allData, sellSel, domestic, coin, mode]);
 
   const networkOptions = useMemo(
-    () => computeNetworkOptions(allData, domestic, coin, global, mode),
-    [allData, domestic, coin, global, mode]);
+    () => isSell ? sellNetworkOptions(allData, sellSel) : computeNetworkOptions(allData, domestic, coin, global, mode),
+    [isSell, allData, sellSel, domestic, coin, global, mode]);
 
   const disabledNetworkOptions = useMemo(
-    () => computeDisabledNetworkOptions(allData, domestic, coin, global),
-    [allData, domestic, coin, global]);
+    () => isSell ? sellDisabledNetworkOptions(allData, sellSel) : computeDisabledNetworkOptions(allData, domestic, coin, global),
+    [isSell, allData, sellSel, domestic, coin, global]);
 
-  // Lightning exit paths available for current global exchange selection (before network is chosen)
+  // 라이트닝 선택 가능 여부. 살 때는 해외 거래소 선택 기준, 팔 때는 첫 단계라 전체 경로 기준이다.
   const hasLightningPaths = useMemo(
-    () => computeHasLightningPaths(allData, domestic, global, coin, network, mode),
-    [allData, domestic, global, coin, network, mode]);
+    () => isSell ? sellHasLightning(allData) : computeHasLightningPaths(allData, domestic, global, coin, network),
+    [isSell, allData, domestic, global, coin, network]);
 
   // 글로벌 거래소가 라이트닝 출금을 지원하는지: 실제 경로 존재 → 정적 메타데이터 폴백
   const globalSupportsLightning = (g: string | null): boolean =>
     computeGlobalSupportsLightning(allData, g, mode);
 
-  // 현재 선택(국내/코인/글로벌/네트워크) 기준의 lightning_exit 경로 집합 — 종착지 단계·스왑 단계가 공유
+  // 살 때: 현재 선택(국내/코인/글로벌/네트워크) 기준의 lightning_exit 경로 집합 — 종착지 단계·스왑 단계가 공유
   const currentLightningPaths = useMemo(
-    () => computeCurrentLightningPaths(allData, domestic, coin, global, network, globalExitMethod, mode),
-    [allData, domestic, coin, global, network, globalExitMethod, mode]);
+    () => computeCurrentLightningPaths(allData, domestic, coin, global, network, globalExitMethod),
+    [allData, domestic, coin, global, network, globalExitMethod]);
 
   // 종착지 단계 가용성: 라이트닝 지갑(직접출금) / 개인지갑(스왑 경유) 경로 존재 여부
   const lightningExitInfo = useMemo(
     () => computeLightningExitInfo(currentLightningPaths),
     [currentLightningPaths]);
 
-  // Available lightning swap services (개인지갑 종착, network/destination step → swap_service step)
+  // 스왑 서비스 목록. 팔 때는 거래소를 고르기 전 단계라 모든 라이트닝 매도 경로에서 모은다.
   const swapServiceOptions = useMemo(
-    () => computeSwapServiceOptions(currentLightningPaths, mode),
-    [currentLightningPaths, mode]);
+    () => isSell ? sellSwapServiceOptions(allData) : computeSwapServiceOptions(currentLightningPaths, mode),
+    [isSell, allData, currentLightningPaths, mode]);
 
   const resultPath = useMemo(
-    () => computeResultPath(allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination, btcMethod, mode),
-    [allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination, btcMethod, mode]);
+    () => isSell
+      ? sellResultPath(allData, sellSel)
+      : computeResultPath(allData, domestic, coin, global, network, swapSvc, globalExitMethod, destination),
+    [isSell, allData, sellSel, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
 
   const altPaths = useMemo(
     () => computeAltPaths(allRecommendedPaths, resultPath),
@@ -355,8 +379,10 @@ function useExplorerValue() {
 
   // ── API ──────────────────────────────────────────────────────────────────────
 
-  async function handleSearch(dest: 'recommendation' | 'domestic' = 'recommendation') {
+  // dest: 'recommendation' = 추천 경로 목록, 'wizard' = 마법사 첫 단계(방향마다 다르다)
+  async function handleSearch(dest: 'recommendation' | 'wizard' = 'recommendation') {
     if (!inputReady) return;
+    const target: Phase = dest === 'wizard' ? flowStart(mode) : 'recommendation';
 
     // 프리페치 캐시 히트 → 즉시 네비게이션 (로딩 없음)
     const PREFETCH_TTL = 55_000;
@@ -364,20 +390,20 @@ function useExplorerValue() {
     if (cached?.key === pathQueryKey && Date.now() - cached.fetchedAt < PREFETCH_TTL) {
       setAllData({ byGlobal: cached.byGlobal, tickers: cached.tickers, latestRunAt: cached.latestRunAt });
       if (cached.kimp) { setLiveKimp(cached.kimp); setLiveKimpTotal(cached.kimpTotal); setKimpFetchedAt(cached.kimpFetchedAt); setUsdtPremium(cached.usdtPremium); }
-      setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
+      setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setBtcMethod(null); setGlobalExitMethod(null); setDestination(null);
       setFailedGlobalExchanges([]);
       setError(null);
       setLoadingDone(true);
       setIsSearching(false);
-      history.pushState({ phase: dest }, '');
-      setPhase(dest);
+      history.pushState({ phase: target }, '');
+      setPhase(target);
       return;
     }
 
     setIsSearching(true);
     setLoadingDone(false);
     setAllData(null); setError(null); setLiveKimp(null); setLiveKimpTotal(null); setKimpFetchedAt(null);
-    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setGlobalExitMethod(null); setDestination(null);
+    setDomestic(null); setCoin(null); setGlobal(null); setNetwork(null); setSwapSvc(null); setBtcMethod(null); setGlobalExitMethod(null); setDestination(null);
     setFailedGlobalExchanges([]);
 
     const DOMESTIC_EXCHANGES = Object.keys(DOMESTIC_INFO);
@@ -475,8 +501,8 @@ function useExplorerValue() {
       });
       setLoadingDone(true);
       setIsSearching(false);
-      history.pushState({ phase: dest }, '');
-      setPhase(dest);
+      history.pushState({ phase: target }, '');
+      setPhase(target);
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류 발생');
       setIsSearching(false);
@@ -503,14 +529,14 @@ function useExplorerValue() {
       } else if (phase === 'recommendation') {
         setDir(-1);
         setPhase('input');
-      } else if (phase === 'domestic') {
+      } else if (phase === flowStart(mode)) {
         setDir(-1);
         setPhase('recommendation');
       }
     };
     window.addEventListener('popstate', onPopstate);
     return () => window.removeEventListener('popstate', onPopstate);
-  }, [phase, coin, globalExitMethod, destination, swapSvc]);
+  }, [phase, mode, coin, btcMethod, globalExitMethod, destination, swapSvc]);
 
   function handleBack() {
     if (phase === 'result' && fromRecommendation.current) {
@@ -523,16 +549,27 @@ function useExplorerValue() {
       history.back();
     } else if (phase === 'recommendation') {
       reset();
-    } else if (phase === 'domestic') {
+    } else if (phase === flowStart(mode)) {
       history.pushState({ phase: 'recommendation' }, '');
       setDir(-1);
       setPhase('recommendation');
     }
   }
 
-  function handleGoToDomestic() {
-    history.pushState({ phase: 'domestic' }, '');
-    setPhase('domestic');
+  /**
+   * 팔 때 어떤 단계의 선택을 바꾸면, 그 뒤 단계의 선택은 앞의 조건으로 걸러진 것이라 더 이상 유효하지 않다.
+   * sellPhasesAfter() 가 정한 뒤쪽 선택을 모두 비운다. 살 때는 각 단계가 자기 방식으로 비운다.
+   */
+  function clearSellSelectionsAfter(from: Phase) {
+    const clearers: Partial<Record<Phase, () => void>> = {
+      btc_method: () => setBtcMethod(null),
+      swap_service: () => setSwapSvc(null),
+      coin: () => setCoin(null),
+      global: () => setGlobal(null),
+      network: () => setNetwork(null),
+      domestic: () => setDomestic(null),
+    };
+    sellPhasesAfter(from).forEach(p => clearers[p]?.());
   }
 
   function handleSelectRecommendedPath(p: CheapestPathEntry & { _g: string }) {
@@ -542,19 +579,14 @@ function useExplorerValue() {
 
     if (mode === 'sell') {
       // 팔 때는 코인 선택지가 BTC 직접 / USDT 경유 둘뿐이고, 종착지 단계가 없다.
-      // '지갑에서 보내는 방식'은 BTC 직접이면 btcMethod, USDT 경유면 globalExitMethod 가 쥔다.
+      // '지갑에서 보내는 방식'은 경로 종류와 무관하게 btcMethod 가 쥔다.
       const sendMethod = isLightningPath(p, 'sell') ? 'lightning' : 'onchain';
       setCoin(isUsdt ? 'USDT' : 'BTC');
       setGlobal(isUsdt ? (p._g as GlobalExchange) : null);
       setDestination(null);
       setSwapSvc(sendMethod === 'lightning' ? (p.lightning_exit_provider ?? null) : null);
-      if (isUsdt) {
-        setGlobalExitMethod(sendMethod);
-        setBtcMethod(null);
-      } else {
-        setBtcMethod(sendMethod);
-        setGlobalExitMethod(null);
-      }
+      setBtcMethod(sendMethod);
+      setGlobalExitMethod(null);
       setNetwork(p.network);
       fromRecommendation.current = true;
       history.pushState({ phase: 'result' }, '');
@@ -598,11 +630,11 @@ function useExplorerValue() {
 
   function handleNext(from: Phase) {
     const s: FlowState = { coin, btcMethod, globalExitMethod, destination, swapSvc };
-    // side effects before transition
-    if (from === 'btc_method' && coin === 'BTC') {
+    // side effects before transition (살 때만 — 팔 때의 BTC 직접 경로는 네트워크를 고르지 않는다)
+    if (mode === 'buy' && from === 'btc_method' && coin === 'BTC') {
       setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
     }
-    if (from === 'global_exit_method' && coin === 'BTC_GLOBAL' && globalExitMethod === 'onchain') {
+    if (mode === 'buy' && from === 'global_exit_method' && coin === 'BTC_GLOBAL' && globalExitMethod === 'onchain') {
       setNetwork(networkOptions[0]?.network ?? 'Bitcoin');
     }
     const next = flowNext(from, s, mode);
@@ -694,7 +726,7 @@ function useExplorerValue() {
     // ── 핸들러 ──
     handleSearch,
     handleBack,
-    handleGoToDomestic,
+    clearSellSelectionsAfter,
     handleSelectRecommendedPath,
     handleNext,
     reset,

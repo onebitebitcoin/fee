@@ -6,9 +6,11 @@
 // 탐색 방향(mode)에 따라 그래프가 갈린다.
 //  - 살 때(buy):  국내 거래소에서 사서 → 개인 지갑으로 받는다. 종착지가 지갑이라
 //                 라이트닝 출금 뒤 '어떤 지갑으로 받을지'(destination)를 고르는 단계가 있다.
-//  - 팔 때(sell): 개인 지갑에서 보내 → 국내 거래소에서 원화로 받는다. 종착지가 원화
-//                 계좌로 고정이라 destination 단계가 없다. 출발점이 이미 개인 지갑이므로
-//                 국내 BTC 를 해외로 옮기는 BTC_GLOBAL 경로도 존재하지 않는다.
+//  - 팔 때(sell): 개인 지갑에서 보내 → 국내 거래소에서 원화로 받는다. 단계도 자금이
+//                 움직이는 순서를 따른다. 지갑에서 보내는 방식을 먼저 고르고, 해외 거래소를
+//                 거친다면 그 거래소와 USDT 네트워크를 고른 뒤, 원화를 받을 국내 거래소를
+//                 마지막에 고른다. 종착지가 원화 계좌로 고정이라 destination 단계가 없고,
+//                 출발점이 이미 개인 지갑이므로 BTC_GLOBAL 경로도 존재하지 않는다.
 
 import type { PathMode } from '../../types';
 
@@ -27,12 +29,36 @@ export const PHASES: Phase[] = [
   'global', 'network', 'global_exit_method', 'destination', 'swap_service', 'result',
 ];
 
-export const phaseIdx = (p: Phase) => PHASES.indexOf(p);
+// 팔 때의 선형 순서. 선택을 바꿨을 때 뒤쪽 선택을 비우는 기준으로도 쓴다.
+export const SELL_PHASES: Phase[] = [
+  'input', 'recommendation', 'btc_method', 'swap_service', 'coin',
+  'global', 'network', 'domestic', 'result',
+];
+
+export const phaseIdx = (p: Phase, mode: PathMode = 'buy') =>
+  (mode === 'sell' ? SELL_PHASES : PHASES).indexOf(p);
+
+/**
+ * 팔 때 phase 에서 선택을 바꾸면 비워야 하는 뒤쪽 선택 단계들.
+ * 뒤 단계의 선택지는 앞 단계의 선택으로 걸러진 것이라 앞이 바뀌면 더 이상 유효하지 않다.
+ * 선택값이 없는 단계(input/recommendation/result)는 넣지 않는다.
+ */
+export function sellPhasesAfter(phase: Phase): Phase[] {
+  const idx = SELL_PHASES.indexOf(phase);
+  if (idx < 0) return [];
+  return SELL_PHASES.slice(idx + 1).filter(p => p !== 'result');
+}
+
+/** 마법사의 첫 단계. '내 경로 찾기'로 들어오면 이 단계부터 시작한다. */
+export function flowStart(mode: PathMode): Phase {
+  return mode === 'sell' ? 'btc_method' : 'domestic';
+}
 
 // FLOW 분기에 필요한 최소 상태
 export type FlowState = {
   coin: CoinType | null;
-  // 살 때는 '국내 거래소에서 지갑으로 보내는 방식', 팔 때는 '지갑에서 국내 거래소로 보내는 방식'
+  // 살 때는 '국내 거래소에서 지갑으로 보내는 방식', 팔 때는 '개인 지갑에서 첫 거래소로 보내는 방식'
+  // (팔 때는 경로 종류와 무관하게 이 값 하나가 전송 방식을 쥐고, globalExitMethod 는 쓰지 않는다)
   btcMethod: 'onchain' | 'lightning' | null;
   globalExitMethod: 'onchain' | 'lightning' | 'none' | null;
   destination: Destination | null;
@@ -53,19 +79,19 @@ export const BUY_FLOW: FlowGraph = [
   { id: 'result',             next: ()  => 'result' },
 ];
 
-// 팔 때의 그래프. 라이트닝을 고르면 개인 지갑의 온체인 BTC 를 라이트닝으로 바꿔줄
-// 스왑 서비스를 골라야 하므로, BTC 직접 경로와 USDT 경유 경로 모두 swap_service 로 이어진다.
-// 두 경로가 같은 단계로 합류하지만, 분기 조건이 서로 배타적이라(코인 선택 시 btcMethod 를
-// 비우고, USDT 경로에서는 btcMethod 가 null) 역방향 탐색에서 충돌하지 않는다.
+// 팔 때의 그래프. 전송 방식이 라이트닝이면 개인 지갑의 온체인 BTC 를 라이트닝으로 바꿔줄
+// 스왑 서비스를 바로 다음에 고른다. 그다음 매도 경로(국내 직접 / 해외 경유)를 고르고,
+// 해외 경유라면 해외 거래소와 USDT 네트워크를 거쳐 국내 거래소에서 끝난다.
+// coin 으로 들어오는 단계가 둘(btc_method, swap_service)이지만 btc_method 가 앞에 있고
+// 라이트닝일 때는 btc_method 가 coin 을 가리키지 않으므로 역방향 탐색이 충돌하지 않는다.
 export const SELL_FLOW: FlowGraph = [
-  { id: 'domestic',           next: ()  => 'coin' },
-  { id: 'coin',               next: (s) => s.coin === 'USDT' ? 'global' : 'btc_method' },
-  { id: 'btc_method',         next: (s) => s.btcMethod === 'lightning' ? 'swap_service' : 'result' },
-  { id: 'global',             next: ()  => 'network' },
-  { id: 'network',            next: ()  => 'global_exit_method' },
-  { id: 'global_exit_method', next: (s) => s.globalExitMethod === 'lightning' ? 'swap_service' : 'result' },
-  { id: 'swap_service',       next: ()  => 'result' },
-  { id: 'result',             next: ()  => 'result' },
+  { id: 'btc_method',   next: (s) => s.btcMethod === 'lightning' ? 'swap_service' : 'coin' },
+  { id: 'swap_service', next: ()  => 'coin' },
+  { id: 'coin',         next: (s) => s.coin === 'USDT' ? 'global' : 'domestic' },
+  { id: 'global',       next: ()  => 'network' },
+  { id: 'network',      next: ()  => 'domestic' },
+  { id: 'domestic',     next: ()  => 'result' },
+  { id: 'result',       next: ()  => 'result' },
 ];
 
 export function flowFor(mode: PathMode): FlowGraph {

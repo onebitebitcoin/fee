@@ -14,7 +14,7 @@ export function NetworkStep() {
   const {
     mode,
     network, setNetwork, setSwapSvc, stepEndRef, scrollToStepEnd, networkOptions,
-    disabledNetworkOptions, domestic, handleBack, handleNext,
+    disabledNetworkOptions, domestic, handleBack, handleNext, clearSellSelectionsAfter,
   } = useExplorer();
 
   return (
@@ -32,7 +32,13 @@ export function NetworkStep() {
             transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
             <OptionCard
               selected={network === n}
-              onClick={() => { setNetwork(n); setSwapSvc(null); scrollToStepEnd(); }}
+              onClick={() => {
+                setNetwork(n);
+                // 팔 때는 스왑 서비스를 이미 앞에서 골랐으므로 남기고, 뒤에 오는 국내 거래소만 비운다.
+                if (mode === 'sell') clearSellSelectionsAfter('network');
+                else setSwapSvc(null);
+                scrollToStepEnd();
+              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-3">

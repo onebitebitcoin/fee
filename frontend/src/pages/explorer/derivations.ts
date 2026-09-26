@@ -1,5 +1,7 @@
 // ── ExplorerContext 순수 파생 로직 ────────────────────────────────────────────
 // allData + 선택값(domestic/coin/global/network 등)만으로 결정되는 순수 함수 모음.
+// 마법사 선택지는 국내 거래소를 먼저 고르는 살 때 순서를 전제로 한다.
+// 팔 때는 단계 순서가 반대라 선택지 계산을 sellWizard.ts 가 따로 맡는다.
 // ExplorerContext가 useMemo로 호출한다(deps는 context가 관리). 부수효과·React 의존 없음 → 단위 테스트 가능.
 
 import type { CheapestPathEntry, DisabledCheapestPathEntry, PathMode } from '../../types';
@@ -73,14 +75,10 @@ export function computeCoinOptions(
   const paths = (anyData?.all_paths ?? []).filter(p => p.korean_exchange === domestic);
   const opts: { coin: CoinType; best: CheapestPathEntry }[] = [];
   const u  = bestByFee(paths.filter(p => p.transfer_coin === 'USDT'), mode);
+  const bg = bestByFee(paths.filter(p => p.route_variant === 'btc_via_global'), mode);
   const b  = bestByFee(paths.filter(p => p.transfer_coin === 'BTC' && p.route_variant !== 'btc_via_global'), mode);
   if (u)  opts.push({ coin: 'USDT', best: u });
-  // 팔 때는 출발점이 이미 개인 지갑이라 '국내 BTC 를 해외 거래소로 옮기는' 경로가 없다.
-  // 백엔드도 btc_via_global 을 매도 응답에 담지 않으므로 선택지에서 제외한다.
-  if (mode !== 'sell') {
-    const bg = bestByFee(paths.filter(p => p.route_variant === 'btc_via_global'), mode);
-    if (bg) opts.push({ coin: 'BTC_GLOBAL', best: bg });
-  }
+  if (bg) opts.push({ coin: 'BTC_GLOBAL', best: bg });
   if (b)  opts.push({ coin: 'BTC', best: b });
   return opts;
 }
@@ -202,29 +200,8 @@ export function computeHasLightningPaths(
   global: GlobalExchange | null,
   coin: CoinType | null,
   network: string | null,
-  mode: PathMode = 'buy',
 ): boolean {
-  if (!allData || !domestic) return false;
-  if (mode === 'sell') {
-    // 팔 때의 라이트닝은 개인 지갑의 온체인 BTC 를 스왑해 거래소로 '입금'하는 경로다.
-    // 살 때와 달리 BTC 직접 경로에도 라이트닝 변형(lightning_direct)이 있어
-    // 해외 거래소를 거치지 않는 경우까지 확인해야 한다.
-    if (coin === 'BTC') {
-      return (Object.values(allData.byGlobal)[0]?.all_paths ?? []).some(p =>
-        p.korean_exchange === domestic &&
-        p.transfer_coin === 'BTC' &&
-        isLightningPath(p, 'sell'),
-      );
-    }
-    if (!global) return false;
-    return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
-      p.korean_exchange === domestic &&
-      p.transfer_coin === 'USDT' &&
-      (network ? p.network === network : true) &&
-      isLightningPath(p, 'sell'),
-    );
-  }
-  if (!global) return false;
+  if (!allData || !domestic || !global) return false;
   if (coin === 'USDT') {
     return (allData.byGlobal[global]?.all_paths ?? []).some(p =>
       p.korean_exchange === domestic &&
@@ -263,23 +240,8 @@ export function computeCurrentLightningPaths(
   global: GlobalExchange | null,
   network: string | null,
   globalExitMethod: 'onchain' | 'lightning' | 'none' | null,
-  mode: PathMode = 'buy',
 ): CheapestPathEntry[] {
   if (!allData || !domestic) return [];
-  if (mode === 'sell') {
-    // 팔 때의 BTC 직접 경로는 해외 거래소를 거치지 않고, 국내 입금망이 거래소당 하나뿐이라
-    // 네트워크 선택 단계를 지나지 않는다. 그래서 network 가 비어 있어도 경로를 추린다.
-    const basePaths = coin === 'BTC'
-      ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'BTC' &&
-          (network ? p.network === network : true))
-      : global
-        ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-            p.korean_exchange === domestic && p.transfer_coin === 'USDT' &&
-            (network ? p.network === network : true))
-        : [];
-    return basePaths.filter(p => isLightningPath(p, 'sell') && p.lightning_exit_provider);
-  }
   const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
   if (!isBtcGlobalLightning && !network) return [];
   const basePaths = coin === 'BTC'
@@ -359,10 +321,7 @@ export function computeResultPath(
   swapSvc: string | null,
   globalExitMethod: 'onchain' | 'lightning' | 'none' | null,
   destination: Destination | null,
-  btcMethod: 'onchain' | 'lightning' | null = null,
-  mode: PathMode = 'buy',
 ): CheapestPathEntry | null {
-  if (mode === 'sell') return computeSellResultPath(allData, domestic, coin, global, network, swapSvc, globalExitMethod, btcMethod);
   const isBtcGlobalLightning = coin === 'BTC_GLOBAL' && globalExitMethod === 'lightning';
   const isNone = globalExitMethod === 'none';
   if (!allData || !domestic || !coin || (!isBtcGlobalLightning && !isNone && !network)) return null;
@@ -395,51 +354,6 @@ export function computeResultPath(
     if (filtered.length > 0) return bestByFee(filtered, 'buy');
   }
   return bestByFee(basePaths, 'buy');
-}
-
-/**
- * 팔 때의 결과 경로. 매수와 분기 구조가 달라 별도 함수로 둔다.
- *
- * '지갑에서 보내는 방식'을 어느 상태가 들고 있는지가 경로 종류에 따라 갈린다.
- * BTC 직접 경로는 btc_method 단계에서 고르므로 `btcMethod`가, USDT 경유 경로는
- * global_exit_method 단계에서 고르므로 `globalExitMethod`가 그 값을 쥔다.
- *
- * BTC 직접 경로는 국내 거래소의 BTC 입금망이 거래소당 사실상 하나뿐이라 네트워크
- * 선택 단계를 지나지 않는다. 그래서 network 가 비어 있어도 경로를 추린다.
- */
-function computeSellResultPath(
-  allData: AllData | null,
-  domestic: string | null,
-  coin: CoinType | null,
-  global: GlobalExchange | null,
-  network: string | null,
-  swapSvc: string | null,
-  globalExitMethod: 'onchain' | 'lightning' | 'none' | null,
-  btcMethod: 'onchain' | 'lightning' | null,
-): CheapestPathEntry | null {
-  if (!allData || !domestic || !coin) return null;
-  const sendMethod = coin === 'BTC'
-    ? btcMethod
-    : (globalExitMethod === 'none' ? null : globalExitMethod);
-
-  let basePaths = coin === 'BTC'
-    ? (Object.values(allData.byGlobal)[0]?.all_paths ?? []).filter(p =>
-        p.korean_exchange === domestic && p.transfer_coin === 'BTC' &&
-        (network ? p.network === network : true))
-    : global
-      ? (allData.byGlobal[global]?.all_paths ?? []).filter(p =>
-          p.korean_exchange === domestic && p.transfer_coin === 'USDT' &&
-          (network ? p.network === network : true))
-      : [];
-
-  if (sendMethod === 'onchain')        basePaths = basePaths.filter(p => !isLightningPath(p, 'sell'));
-  else if (sendMethod === 'lightning') basePaths = basePaths.filter(p => isLightningPath(p, 'sell'));
-
-  if (swapSvc) {
-    const filtered = basePaths.filter(p => p.lightning_exit_provider === swapSvc);
-    if (filtered.length > 0) return bestByFee(filtered, 'sell');
-  }
-  return bestByFee(basePaths, 'sell');
 }
 
 /** 대안 경로 — 결과 경로와 동일 종착지의 상위 3개. */

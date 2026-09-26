@@ -14,7 +14,7 @@ export function GlobalStep() {
   const {
     mode,
     domestic, global, setGlobal, setNetwork, setGlobalExitMethod, liveRegistry, stepEndRef,
-    scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext,
+    scrollToStepEnd, globalOptions, globalSupportsLightning, handleBack, handleNext, clearSellSelectionsAfter,
     cautionMap, carfMap, failedGlobalExchanges,
   } = useExplorer();
 
@@ -28,8 +28,13 @@ export function GlobalStep() {
     <>
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <ExFavicon id={domestic!} size={14} />
-                  <ArrowRight className="w-3 h-3 text-label-tertiary" />
+                  {/* 팔 때는 국내 거래소를 마지막에 고르므로 아직 출발 거래소 표시가 없다 */}
+                  {mode !== 'sell' && domestic && (
+                    <>
+                      <ExFavicon id={domestic} size={14} />
+                      <ArrowRight className="w-3 h-3 text-label-tertiary" />
+                    </>
+                  )}
                   <Globe className="w-4 h-4 text-label-secondary" />
                 </div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">해외 거래소</h1>
@@ -48,7 +53,12 @@ export function GlobalStep() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.04 }}>
                       <OptionCard
                         selected={global === exchange}
-                        onClick={() => { setGlobal(exchange as GlobalExchange); setNetwork(null); setGlobalExitMethod(null); setShowChecklist(false); setShowInfo(false); scrollToStepEnd(); }}
+                        onClick={() => {
+                          setGlobal(exchange as GlobalExchange);
+                          if (mode === 'sell') clearSellSelectionsAfter('global');
+                          else { setNetwork(null); setGlobalExitMethod(null); }
+                          setShowChecklist(false); setShowInfo(false); scrollToStepEnd();
+                        }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">

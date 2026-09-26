@@ -5,7 +5,7 @@
 
 import type { PathMode } from '../../types';
 import { fmtEx } from '../../lib/exchangeNames';
-import { flowNext, type CoinType, type Destination, type FlowState, type Phase } from './flow';
+import { flowNext, flowStart, type CoinType, type Destination, type FlowState, type Phase } from './flow';
 
 export interface TimelineSelection extends FlowState {
   domestic: string | null;
@@ -35,10 +35,10 @@ const PHASE_LABEL: Partial<Record<Phase, string>> = {
 };
 
 // 팔 때는 자금이 개인 지갑에서 거래소로 흐르므로, '출금'이라는 말이 방향을 거꾸로 읽히게 한다.
-// 방향이 뒤바뀌는 단계만 라벨을 덮어쓰고 나머지는 위 기본값을 쓴다.
+// 뜻이 달라지는 단계만 라벨을 덮어쓰고 나머지는 위 기본값을 쓴다.
 const SELL_PHASE_LABEL: Partial<Record<Phase, string>> = {
   btc_method: '전송 방식',
-  global_exit_method: '전송 방식',
+  coin: '매도 경로',
 };
 
 function phaseLabel(phase: Phase, mode: PathMode): string {
@@ -49,6 +49,13 @@ function phaseLabel(phase: Phase, mode: PathMode): string {
 const COIN_LABEL: Record<CoinType, string> = {
   USDT: 'USDT 경유',
   BTC: 'BTC 직접',
+  BTC_GLOBAL: 'BTC 경유',
+};
+
+// 팔 때의 매도 경로 선택값. BTC_GLOBAL 은 팔 때 존재하지 않지만 타입을 채우려고 둔다.
+const SELL_COIN_LABEL: Record<CoinType, string> = {
+  USDT: '해외 경유',
+  BTC: '국내 직접',
   BTC_GLOBAL: 'BTC 경유',
 };
 
@@ -67,7 +74,7 @@ const DESTINATION_LABEL: Record<Destination, string> = {
 export function timelinePhases(sel: TimelineSelection, current: Phase, mode: PathMode = 'buy'): Phase[] {
   if (!PHASE_LABEL[current]) return [];   // input/recommendation 등 마법사 밖
   const out: Phase[] = [];
-  let phase: Phase = 'domestic';
+  let phase: Phase = flowStart(mode);
   // FLOW 길이보다 넉넉한 상한 — 분기 오류로 인한 무한 루프 방지
   for (let i = 0; i < 12; i++) {
     out.push(phase);
@@ -79,12 +86,12 @@ export function timelinePhases(sel: TimelineSelection, current: Phase, mode: Pat
   return out;
 }
 
-function valueFor(phase: Phase, sel: TimelineSelection): { value: string | null; iconId: string | null } {
+function valueFor(phase: Phase, sel: TimelineSelection, mode: PathMode): { value: string | null; iconId: string | null } {
   switch (phase) {
     case 'domestic':
       return { value: sel.domestic ? fmtEx(sel.domestic) : null, iconId: sel.domestic };
     case 'coin':
-      return { value: sel.coin ? COIN_LABEL[sel.coin] : null, iconId: null };
+      return { value: sel.coin ? (mode === 'sell' ? SELL_COIN_LABEL : COIN_LABEL)[sel.coin] : null, iconId: null };
     case 'btc_method':
       return { value: sel.btcMethod ? EXIT_LABEL[sel.btcMethod] ?? sel.btcMethod : null, iconId: null };
     case 'global':
@@ -105,7 +112,7 @@ function valueFor(phase: Phase, sel: TimelineSelection): { value: string | null;
 /** 타임라인 렌더 데이터. 현재 단계는 'current', 그 이전은 'done'. */
 export function buildTimeline(sel: TimelineSelection, current: Phase, mode: PathMode = 'buy'): TimelineStep[] {
   return timelinePhases(sel, current, mode).map(phase => {
-    const { value, iconId } = valueFor(phase, sel);
+    const { value, iconId } = valueFor(phase, sel, mode);
     return {
       phase,
       label: phaseLabel(phase, mode),

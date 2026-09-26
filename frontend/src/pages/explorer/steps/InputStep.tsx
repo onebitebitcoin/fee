@@ -466,7 +466,7 @@ export function InputStep() {
                 </motion.button>
 
                 <motion.button
-                  onClick={() => handleSearch('domestic')}
+                  onClick={() => handleSearch('wizard')}
                   disabled={isSearching || !inputReady}
                   whileHover={!isSearching && inputReady ? { scale: 1.015, y: -1 } : {}}
                   whileTap={!isSearching && inputReady ? { scale: 0.975 } : {}}

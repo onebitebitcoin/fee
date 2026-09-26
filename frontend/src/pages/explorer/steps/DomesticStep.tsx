@@ -40,7 +40,12 @@ export function DomesticStep() {
                     >
                       <OptionCard
                         selected={domestic === exchange}
-                        onClick={() => { setDomestic(exchange); setCoin(null); setGlobal(null); setNetwork(null); setShowChecklist(false); setShowInfo(false); scrollToStepEnd(); }}
+                        onClick={() => {
+                          setDomestic(exchange);
+                          // 팔 때는 국내 거래소가 마지막 선택이라 앞에서 고른 값을 그대로 둔다.
+                          if (mode !== 'sell') { setCoin(null); setGlobal(null); setNetwork(null); }
+                          setShowChecklist(false); setShowInfo(false); scrollToStepEnd();
+                        }}
                       >
                         <div className="flex items-center gap-2.5 mb-2.5">
                           <ExFavicon id={exchange} size={22} />
@@ -254,7 +259,7 @@ export function DomesticStep() {
                   onClick={() => handleNext('domestic')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
-                  다음 <ArrowRight className="w-4 h-4" />
+                  {mode === 'sell' ? '결과 보기' : '다음'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">

@@ -9,25 +9,27 @@ export function SwapServiceStep() {
   const {
     mode,
     swapSvc, setSwapSvc, scrollToStepEnd, swapServiceOptions, handleBack, handleNext,
+    clearSellSelectionsAfter,
   } = useExplorer();
+  const isSell = mode === 'sell';
   return (
     <>
               <div>
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">스왑 서비스</h1>
                 <p className="text-sm text-label-secondary mt-1">
-                  {mode === 'sell' ? '온체인 → 라이트닝 변환 서비스를 선택해요' : '라이트닝 → 온체인 변환 서비스를 선택해요'}
+                  {isSell ? '온체인 → 라이트닝 변환 서비스를 선택해요' : '라이트닝 → 온체인 변환 서비스를 선택해요'}
                 </p>
               </div>
               <div className="space-y-2.5">
                 {swapServiceOptions.length === 0 ? (
                   <div className="ios-card rounded-2xl p-5 text-center space-y-2">
                     <p className="text-sm font-semibold text-label-secondary">사용 가능한 스왑 서비스 없음</p>
-                    <p className="text-xs text-label-tertiary">현재 라이트닝 스왑 서비스 데이터를 불러오지 못했습니다. 다시 시도하거나 온체인 출금을 선택해주세요.</p>
+                    <p className="text-xs text-label-tertiary">현재 라이트닝 스왑 서비스 데이터를 불러오지 못했습니다. 다시 시도하거나 {isSell ? '온체인 전송' : '온체인 출금'}을 선택해주세요.</p>
                     <button
                       onClick={handleBack}
                       className="mt-2 text-xs text-acc-brand font-semibold underline underline-offset-2"
                     >
-                      출금 방식 다시 선택
+                      {isSell ? '전송 방식 다시 선택' : '출금 방식 다시 선택'}
                     </button>
                   </div>
                 ) : swapServiceOptions.map(({ name, fee_pct, fee_fixed_sat, kyc, source_url }, i) => {
@@ -41,7 +43,7 @@ export function SwapServiceStep() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                       <OptionCard
                         selected={isSelected}
-                        onClick={() => { setSwapSvc(name); scrollToStepEnd(); }}
+                        onClick={() => { setSwapSvc(name); if (isSell) clearSellSelectionsAfter('swap_service'); scrollToStepEnd(); }}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -119,7 +121,7 @@ export function SwapServiceStep() {
                   onClick={() => handleNext('swap_service')}
                   className="w-full py-3.5 rounded-2xl font-bold text-sm bg-acc-brand text-white shadow-glow-brand cursor-pointer flex items-center justify-center gap-2"
                 >
-                  결과 보기 <ArrowRight className="w-4 h-4" />
+                  {isSell ? '다음' : '결과 보기'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
               )}
               <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors flex items-center justify-center gap-1.5">

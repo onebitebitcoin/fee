@@ -53,21 +53,38 @@ export function CoinStep() {
     mode,
     domestic, coin, setCoin, setGlobal, setNetwork, setBtcMethod,
     setGlobalExitMethod, setSwapSvc, stepEndRef, scrollToStepEnd,
-    coinOptions, handleBack, handleNext,
+    coinOptions, handleBack, handleNext, clearSellSelectionsAfter,
   } = useExplorer();
-  const meta = mode === 'sell' ? SELL_COIN_META : COIN_META;
+  const isSell = mode === 'sell';
+  const meta = isSell ? SELL_COIN_META : COIN_META;
+
+  // 팔 때는 전송 방식·스왑 서비스를 이미 골랐으므로 그 값은 남기고 뒤쪽 선택만 비운다.
+  function choose(c: CoinType) {
+    setCoin(c);
+    if (isSell) {
+      clearSellSelectionsAfter('coin');
+    } else {
+      setGlobal(null); setNetwork(null); setBtcMethod(null);
+      setGlobalExitMethod(null); setSwapSvc(null);
+    }
+    scrollToStepEnd();
+  }
 
   return (
     <>
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <ExFavicon id={domestic!} size={16} />
-                  <p className="text-xs text-label-secondary">{fmtEx(domestic!)}</p>
-                </div>
+                {!isSell && domestic && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <ExFavicon id={domestic} size={16} />
+                    <p className="text-xs text-label-secondary">{fmtEx(domestic)}</p>
+                  </div>
+                )}
                 <h1 className="text-2xl font-bold text-label-primary tracking-tight">
-                  {mode === 'sell' ? '거래소로 보내는 방식' : '국내 거래소 출금 방식'}
+                  {isSell ? '매도 경로' : '국내 거래소 출금 방식'}
                 </h1>
-                <p className="text-sm text-label-secondary mt-1">어떤 방식으로 이동할까요?</p>
+                <p className="text-sm text-label-secondary mt-1">
+                  {isSell ? '어디에서 비트코인을 팔까요?' : '어떤 방식으로 이동할까요?'}
+                </p>
               </div>
               <div className="space-y-2.5">
                 {coinOptions.map(({ coin: c }, i) => {
@@ -78,10 +95,7 @@ export function CoinStep() {
                       transition={{ ...SPRING_SLOW, delay: i * 0.06 }}>
                       <OptionCard
                         selected={coin === c}
-                        onClick={() => {
-                          setCoin(c); setGlobal(null); setNetwork(null); setBtcMethod(null);
-                          setGlobalExitMethod(null); setSwapSvc(null); scrollToStepEnd();
-                        }}
+                        onClick={() => choose(c)}
                       >
                         <div className="flex items-start gap-3">
                           <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">

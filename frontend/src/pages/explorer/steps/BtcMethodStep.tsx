@@ -8,13 +8,20 @@ import { useExplorer } from '../ExplorerContext';
 export function BtcMethodStep() {
   const {
     mode, btcMethod, setBtcMethod, liveRegistry, stepEndRef, scrollToStepEnd, handleBack,
-    handleNext, hasLightningPaths,
+    handleNext, hasLightningPaths, clearSellSelectionsAfter,
   } = useExplorer();
   const isSell = mode === 'sell';
 
+  // 팔 때는 이 단계가 마법사의 첫 단계라, 방식을 바꾸면 뒤에서 고른 값이 모두 무효가 된다.
+  function choose(method: 'onchain' | 'lightning') {
+    setBtcMethod(method);
+    if (isSell) clearSellSelectionsAfter('btc_method');
+    scrollToStepEnd();
+  }
+
   // 라이트닝 가용성의 근거가 방향마다 다르다.
   // 살 때는 국내 거래소가 라이트닝 '출금'을 지원하지 않아 언제나 불가다.
-  // 팔 때는 국내 거래소의 라이트닝 '입금' 지원 여부에 달려 있어, 실제 경로 존재로 판단한다.
+  // 팔 때는 라이트닝 입금을 받는 거래소(국내 또는 해외)로 가는 경로가 실제로 있는지로 판단한다.
   const lnAvailable = isSell ? hasLightningPaths : false;
 
   return (
@@ -28,7 +35,7 @@ export function BtcMethodStep() {
                 </p>
               </div>
               <div className="space-y-2.5">
-                <OptionCard selected={btcMethod === 'onchain'} onClick={() => { setBtcMethod('onchain'); scrollToStepEnd(); }}>
+                <OptionCard selected={btcMethod === 'onchain'} onClick={() => choose('onchain')}>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-fill-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-xs font-bold text-label-secondary">1</span>
@@ -41,7 +48,7 @@ export function BtcMethodStep() {
                 </OptionCard>
                 <OptionCard
                   selected={btcMethod === 'lightning'}
-                  onClick={() => { if (lnAvailable) { setBtcMethod('lightning'); scrollToStepEnd(); } }}
+                  onClick={() => { if (lnAvailable) choose('lightning'); }}
                   disabled={!lnAvailable}
                 >
                   <div className="flex items-start gap-3">
@@ -52,12 +59,12 @@ export function BtcMethodStep() {
                       <div className="flex items-center gap-2">
                         <p className={`text-sm font-bold ${lnAvailable ? 'text-label-primary' : 'text-label-disabled'}`}>라이트닝</p>
                         {!lnAvailable && (
-                          <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">국내 거래소 미지원</span>
+                          <span className="text-[10px] font-semibold bg-fill-secondary text-label-tertiary px-1.5 py-0.5 rounded-md">{isSell ? '지원 경로 없음' : '국내 거래소 미지원'}</span>
                         )}
                       </div>
                       <p className={`text-xs mt-0.5 ${lnAvailable ? 'text-label-secondary' : 'text-label-disabled'}`}>
                         {isSell
-                          ? '즉시 결제 · 수수료 저렴 · 국내 거래소가 라이트닝 입금을 받아야 쓸 수 있음'
+                          ? '즉시 결제 · 스왑 서비스로 라이트닝으로 바꾼 뒤 거래소로 입금'
                           : '즉시 결제 · 수수료 저렴 · 국내 거래소에서 직접 출금 불가'}
                       </p>
                     </div>
@@ -71,7 +78,7 @@ export function BtcMethodStep() {
                   <p className="text-[11px] text-label-secondary leading-relaxed">
                     {isSell ? (
                       <>
-                        <span className="font-semibold text-acc-brand">라이트닝 입금 불가</span> — 국내 거래소(업비트, 빗썸 등)는 라이트닝 입금을 받지 않습니다. 라이트닝으로 보내려면 이전 단계에서 <span className="font-medium text-label-primary">해외 거래소에서 매도</span>를 선택하세요.
+                        <span className="font-semibold text-acc-brand">라이트닝 입금 불가</span> — 지금 조회된 경로 중에 라이트닝 입금을 받는 거래소로 가는 경로가 없습니다. <span className="font-medium text-label-primary">온체인 전송</span>을 선택하세요.
                       </>
                     ) : (
                       <>

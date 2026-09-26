@@ -88,21 +88,24 @@ describe('buildTimeline — 라벨·값·상태', () => {
 });
 
 describe('팔 때의 타임라인', () => {
-  it('매도 경로를 따라가며 종착지 단계를 건너뛴다', () => {
+  it('자금 흐름 순서로 따라가며 국내 거래소에서 끝난다', () => {
     const s = sel({
-      domestic: 'bithumb', coin: 'USDT', global: 'binance', network: 'TRC20',
-      globalExitMethod: 'lightning', swapSvc: 'Strike',
+      btcMethod: 'lightning', swapSvc: 'Strike', coin: 'USDT', global: 'binance', network: 'TRC20',
+      domestic: 'bithumb',
     });
     expect(timelinePhases(s, 'result', 'sell')).toEqual([
-      'domestic', 'coin', 'global', 'network', 'global_exit_method', 'swap_service', 'result',
+      'btc_method', 'swap_service', 'coin', 'global', 'network', 'domestic', 'result',
     ]);
   });
 
-  it("방향이 뒤집히는 단계는 '출금' 대신 '전송'으로 읽힌다", () => {
-    const s = sel({ domestic: 'bithumb', coin: 'BTC', btcMethod: 'onchain' });
-    const steps = buildTimeline(s, 'btc_method', 'sell');
-    expect(steps.map(x => x.label)).toEqual(['국내 거래소', '이동 방식', '전송 방식']);
-    expect(steps[2].value).toBe('온체인');
+  it("전송 방식·매도 경로는 팔 때의 라벨과 값으로 읽힌다", () => {
+    const s = sel({ btcMethod: 'onchain', coin: 'BTC', domestic: 'bithumb' });
+    const steps = buildTimeline(s, 'domestic', 'sell');
+    expect(steps.map(x => [x.label, x.value])).toEqual([
+      ['전송 방식', '온체인'],
+      ['매도 경로', '국내 직접'],
+      ['국내 거래소', '빗썸'],
+    ]);
   });
 
   it('살 때는 같은 단계가 기존 라벨을 유지한다', () => {
