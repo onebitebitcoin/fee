@@ -12,6 +12,7 @@ import { useExplorer } from '../ExplorerContext';
 import type { CheapestPathEntry, PathMode } from '../../../types';
 import { isLightningPath } from '../pathMode';
 import { usdtNetworkKeys, USDT_NETWORK_LABEL } from '../recommend';
+import { sellRouteText } from '../sellRouteText';
 import { activeGates, gateSeverity, isPathDemoted, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
 const PAGE_SIZE = 15;
@@ -38,36 +39,6 @@ function presetsFor(mode: PathMode): { key: PresetKey; label: string }[] {
     { key: 'no_lightning',    label: '라이트닝 제외' },
     ...pairs,
   ];
-}
-
-/**
- * 팔 때의 경로 요약. 자금이 개인 지갑에서 거래소로 흐르므로 정거장 순서가 살 때와 반대다.
- * 예) 내 지갑 › BTC › 빗썸 › 원화
- */
-function sellRouteText(p: CheapestPathEntry & { _g: string }): string {
-  const isUsdt = p.transfer_coin === 'USDT';
-  const isLightning = p.global_exit_mode === 'lightning';
-  const provider = p.lightning_exit_provider;
-  const parts: string[] = ['내 지갑'];
-
-  // 라이트닝 경로도 지갑에서 스왑 서비스까지는 온체인 비트코인으로 보낸다
-  if (isLightning) {
-    parts.push('BTC');
-    parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'LN 스왑');
-    parts.push('라이트닝');
-  } else {
-    parts.push('BTC');
-  }
-
-  if (isUsdt) {
-    parts.push(fmtEx(p._g));
-    parts.push('USDT');
-    if (p.network) parts.push(formatNetworkLabel(p.network));
-  }
-
-  parts.push(fmtEx(p.korean_exchange));
-  parts.push('원화');
-  return parts.join(' › ');
 }
 
 function routeText(p: CheapestPathEntry & { _g: string }, mode: PathMode = 'buy'): string {

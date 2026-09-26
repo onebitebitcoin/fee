@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle, ArrowSquareOut, Ticket } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, Wrench, WarningCircle, ArrowSquareOut, Ticket, Wallet } from '@phosphor-icons/react';
 import { NetworkIcon } from '../../../components/NetworkIcon';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatNetworkLabel } from '../../../lib/networkIcons';
@@ -13,6 +13,7 @@ import { useExplorer } from '../ExplorerContext';
 import { buildReportQuery } from '../../board/reportTemplate';
 import { usesGlobalExchange } from '../pathMode';
 import { activeGates, gateSeverity, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
+import { sellRouteText } from '../sellRouteText';
 
 /** 경로 다이어그램의 한 칸 — 아이콘과 이름을 가진 정거장. */
 type RouteNode = { key: string; icon: ReactNode; label: string };
@@ -58,7 +59,7 @@ export function ResultStep() {
   const navigate = useNavigate();
   const {
     amountKrw, domestic, global, network, swapSvc, liveKimpTotal, liveUsdtKrw, usdtPremium, forexUsdKrw, displayReceived,
-    snapshotKimp, domesticBtcKrw, resultPath, altPaths, handleBack, reset,
+    snapshotKimp, domesticBtcKrw, resultPath, altPaths, conditionalAltPath, handleBack, reset,
     globalExitMethod, allData, mode, amountBtc, walletRegistered,
   } = useExplorer();
   const isSell = mode === 'sell';
@@ -639,33 +640,38 @@ export function ResultStep() {
                                 <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${medalColors[i] ?? 'bg-fill-secondary text-label-tertiary'}`}>
                                   {i + 1}
                                 </span>
-                                <div className="flex items-center gap-1 flex-wrap min-w-0">
-                                  <ExFavicon id={p.korean_exchange} size={16} />
-                                  <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
-                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
-                                  {(p.transfer_coin === 'USDT' || p.route_variant?.endsWith('via_global')) && p._g && (
-                                    <>
-                                      <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                      <ExFavicon id={p._g} size={16} />
-                                      <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
-                                    </>
-                                  )}
-                                  <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
-                                  {p.global_exit_mode === 'lightning' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__' ? (
-                                    // 스왑 서비스 경유 → 서비스 로고 (메인 경로 표시와 동일 규칙)
-                                    <ExFavicon id={p.lightning_exit_provider} size={12} />
-                                  ) : (
-                                    <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
-                                  )}
-                                  <span className="text-[10px] text-label-tertiary">
-                                    {p.global_exit_mode === 'lightning'
-                                      ? (p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__'
-                                          ? fmtEx(p.lightning_exit_provider)
-                                          : 'LN 스왑')
-                                      : formatNetworkLabel(p.global_exit_network || p.network)}
-                                  </span>
-                                </div>
+                                {isSell ? (
+                                  // 팔 때는 자금이 지갑에서 거래소로 흐르므로 추천 목록과 같은 요약 문구를 쓴다
+                                  <span className="text-[10px] text-label-secondary font-medium leading-relaxed min-w-0">{sellRouteText(p)}</span>
+                                ) : (
+                                  <div className="flex items-center gap-1 flex-wrap min-w-0">
+                                    <ExFavicon id={p.korean_exchange} size={16} />
+                                    <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p.korean_exchange)}</span>
+                                    <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                    <span className="text-[10px] text-label-tertiary">{p.transfer_coin === 'BTC' ? '비트코인' : p.transfer_coin}</span>
+                                    {(p.transfer_coin === 'USDT' || p.route_variant?.endsWith('via_global')) && p._g && (
+                                      <>
+                                        <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                        <ExFavicon id={p._g} size={16} />
+                                        <span className="text-[10px] text-label-secondary font-medium">{fmtEx(p._g)}</span>
+                                      </>
+                                    )}
+                                    <ArrowRight className="w-2.5 h-2.5 text-label-tertiary flex-shrink-0" />
+                                    {p.global_exit_mode === 'lightning' && p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__' ? (
+                                      // 스왑 서비스 경유 → 서비스 로고 (메인 경로 표시와 동일 규칙)
+                                      <ExFavicon id={p.lightning_exit_provider} size={12} />
+                                    ) : (
+                                      <NetworkIcon network={p.global_exit_mode === 'lightning' ? 'lightning' : (p.global_exit_network || p.network)} size={12} />
+                                    )}
+                                    <span className="text-[10px] text-label-tertiary">
+                                      {p.global_exit_mode === 'lightning'
+                                        ? (p.lightning_exit_provider && p.lightning_exit_provider !== '__direct__'
+                                            ? fmtEx(p.lightning_exit_provider)
+                                            : 'LN 스왑')
+                                        : formatNetworkLabel(p.global_exit_network || p.network)}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-xs font-semibold text-acc-red num">-{formatFeeKrw(p.total_fee_krw)}</p>
@@ -680,7 +686,14 @@ export function ResultStep() {
                               {!isCurrent && pathSavings < -100 && (
                                 <span className="text-acc-red font-semibold num">{formatFeeKrw(Math.abs(pathSavings))} 추가</span>
                               )}
-                              <span className="text-label-tertiary">수령 <span className="text-label-primary num font-medium">{formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats</span></span>
+                              <span className="text-label-tertiary">
+                                수령{' '}
+                                <span className="text-label-primary num font-medium">
+                                  {isSell
+                                    ? `₩${formatNumber(Math.round(p.krw_received ?? 0))}`
+                                    : `${formatNumber(Math.round((p.btc_received ?? 0) * SATS_PER_BTC))} sats`}
+                                </span>
+                              </span>
                             </div>
                           </div>
                         );
@@ -689,6 +702,36 @@ export function ResultStep() {
                       </motion.div>
                       )}
                     </AnimatePresence>
+                  </div>
+                );
+              })()}
+
+              {/* 조건부 절약 경로 (팔 때): 지갑 주소를 등록하면 바로 입금할 수 있는 더 싼 경로 */}
+              {conditionalAltPath && (() => {
+                const p = conditionalAltPath;
+                const savings = Math.round(resultPath.total_fee_krw - p.total_fee_krw);
+                const gate = activeGates(p, false).find(g => g.level === 'required');
+                return (
+                  <div className="rounded-2xl px-4 py-3 border border-acc-brand/30 bg-acc-brand/8 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Wallet className="w-3.5 h-3.5 text-acc-brand shrink-0" weight="fill" />
+                      <span className="text-[10px] font-semibold text-acc-brand">조건부 절약 경로</span>
+                    </div>
+                    <p className="text-[11px] font-semibold text-label-primary leading-relaxed">
+                      {fmtEx(p.korean_exchange)}에 비트코인 지갑 주소를 등록하면 바로 입금해서{' '}
+                      <span className="text-acc-green num">{formatFeeKrw(savings)}</span> 더 아낄 수 있어요
+                    </p>
+                    <p className="text-[10px] text-label-secondary">{sellRouteText(p)}</p>
+                    <div className="flex items-center gap-3 text-[10px]">
+                      <span className="text-acc-red font-semibold num">-{formatFeeKrw(p.total_fee_krw)}</span>
+                      <span className="text-label-tertiary">
+                        수령 <span className="text-label-primary num font-medium">₩{formatNumber(Math.round(p.krw_received ?? 0))}</span>
+                      </span>
+                    </div>
+                    {gate?.desc && <p className="text-[10px] text-label-tertiary leading-relaxed">{gate.desc}</p>}
+                    <p className="text-[10px] text-label-tertiary leading-relaxed">
+                      이미 등록했다면 첫 화면에서 '등록했어요'를 선택하세요. 이 경로도 일반 추천에 포함돼요.
+                    </p>
                   </div>
                 );
               })()}

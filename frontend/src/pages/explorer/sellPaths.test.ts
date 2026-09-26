@@ -3,7 +3,8 @@
 // 팔 때 마법사의 단계별 선택지·결과 경로는 sellWizard.test.ts 가 고정한다.
 import { describe, expect, it } from 'vitest';
 import { dedupAndSortPaths, filterRecommendedPaths, type RecommendedPath } from './recommend';
-import { computeCoinOptions, computeSwapServiceOptions } from './derivations';
+import { computeAltPaths, computeCoinOptions, computeConditionalAltPath, computeSwapServiceOptions } from './derivations';
+import { sellRouteText } from './sellRouteText';
 import type { AllData } from './constants';
 import type { CheapestPathEntry, CheapestPathResponse } from '../../types';
 
@@ -152,5 +153,87 @@ describe('computeSwapServiceOptions — 팔 때의 스왑 서비스', () => {
     const opts = computeSwapServiceOptions(paths, 'sell');
     expect(opts.map(o => o.name)).toEqual(['Boltz', 'Strike']);
     expect(opts[0].received).toBe(5_450_000);
+  });
+});
+
+describe('computeAltPaths — 팔 때 결과 화면의 더 싼 경로 제안', () => {
+  const gate = (level: 'blocked' | 'required' | 'unknown') => ({
+    kind: 'personal_wallet' as const, level, label: '', desc: '',
+  });
+  // 수수료 순으로 정렬된 추천 목록(dedupAndSortPaths 결과)을 흉내 낸다.
+  const upbitDirect = tagged(sell({
+    path_id: 'upbit-btc', transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'upbit',
+    network: 'Bitcoin', total_fee_krw: 2450, deposit_gates: [gate('blocked')],
+  }));
+  const bithumbDirect = tagged(sell({
+    path_id: 'bithumb-btc', transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'bithumb',
+    network: 'Bitcoin', total_fee_krw: 3023, deposit_gates: [gate('required')],
+  }));
+  const viaBinance = tagged(sell({ path_id: 'usdt-binance', total_fee_krw: 8195, deposit_gates: [gate('unknown')] }));
+  const viaOkx = tagged(sell({ path_id: 'usdt-okx', total_fee_krw: 8746 }), 'okx');
+  const sorted = [upbitDirect, bithumbDirect, viaBinance, viaOkx];
+
+  it('입금 불가·지갑 등록 필요 경로는 제안하지 않는다', () => {
+    const out = computeAltPaths(sorted, viaOkx, 'sell', false);
+    expect(out.map(p => p.path_id)).toEqual(['usdt-binance', 'usdt-okx']);
+  });
+
+  it('지갑 등록을 선언하면 등록 필요 경로는 다시 제안하지만 입금 불가 경로는 계속 뺀다', () => {
+    const out = computeAltPaths(sorted, viaOkx, 'sell', true);
+    expect(out.map(p => p.path_id)).toEqual(['bithumb-btc', 'usdt-binance', 'usdt-okx']);
+  });
+
+  it('살 때는 입금 관문과 무관하게 기존대로 상위 3개를 쓴다', () => {
+    const out = computeAltPaths(sorted, null, 'buy', false);
+    expect(out.map(p => p.path_id)).toEqual(['upbit-btc', 'bithumb-btc', 'usdt-binance']);
+  });
+});
+
+describe('computeConditionalAltPath — 지갑 등록을 조건으로 더 싼 경로', () => {
+  const gate = (level: 'blocked' | 'required' | 'unknown') => ({
+    kind: 'personal_wallet' as const, level, label: '지갑 등록 필요', desc: '',
+  });
+  const upbitDirect = tagged(sell({
+    path_id: 'upbit-btc', transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'upbit',
+    total_fee_krw: 2000, deposit_gates: [gate('blocked')],
+  }));
+  const bithumbDirect = tagged(sell({
+    path_id: 'bithumb-btc', transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'bithumb',
+    total_fee_krw: 2450, deposit_gates: [gate('required')],
+  }));
+  const coinoneDirect = tagged(sell({
+    path_id: 'coinone-btc', transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'coinone',
+    total_fee_krw: 5886, deposit_gates: [gate('required')],
+  }));
+  const current = sell({ path_id: 'usdt-okx', total_fee_krw: 8746 });
+  const sorted = [upbitDirect, bithumbDirect, coinoneDirect];
+
+  it('입금 불가 경로는 건너뛰고, 등록하면 쓸 수 있는 가장 싼 경로를 고른다', () => {
+    expect(computeConditionalAltPath(sorted, current, false)?.path_id).toBe('bithumb-btc');
+  });
+
+  it('이미 등록했다고 선언했으면 조건부 제안이 없다 (일반 제안에 들어간다)', () => {
+    expect(computeConditionalAltPath(sorted, current, true)).toBeNull();
+  });
+
+  it('현재 경로보다 싸지 않으면 제안하지 않는다', () => {
+    const cheapCurrent = sell({ path_id: 'cheap', total_fee_krw: 2000 });
+    expect(computeConditionalAltPath(sorted, cheapCurrent, false)).toBeNull();
+  });
+
+  it('현재 경로가 바로 그 경로면 제안하지 않는다', () => {
+    expect(computeConditionalAltPath(sorted, bithumbDirect, false)).toBeNull();
+  });
+});
+
+describe('sellRouteText — 팔 때 경로 요약', () => {
+  it('국내 직접 온체인: 지갑에서 국내 거래소로 바로 간다', () => {
+    const p = tagged(sell({ transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'bithumb' }));
+    expect(sellRouteText(p)).toBe('내 지갑 › BTC › 빗썸 › 원화');
+  });
+
+  it('해외 경유 라이트닝: 스왑 서비스와 해외 거래소, USDT 망을 차례로 거친다', () => {
+    const p = tagged(sell({ global_exit_mode: 'lightning', lightning_exit_provider: 'Strike', network: 'TRC20' }));
+    expect(sellRouteText(p)).toBe('내 지갑 › BTC › Strike › 라이트닝 › 바이낸스 › USDT › TRC20 › 빗썸 › 원화');
   });
 });

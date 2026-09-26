@@ -33,6 +33,7 @@ import {
   computeSwapServiceOptions,
   computeResultPath,
   computeAltPaths,
+  computeConditionalAltPath,
 } from './derivations';
 import {
   sellCoinOptions,
@@ -347,8 +348,13 @@ function useExplorerValue() {
     [isSell, allData, sellSel, domestic, coin, global, network, swapSvc, globalExitMethod, destination]);
 
   const altPaths = useMemo(
-    () => computeAltPaths(allRecommendedPaths, resultPath),
-    [allRecommendedPaths, resultPath]);
+    () => computeAltPaths(allRecommendedPaths, resultPath, mode, walletRegistered),
+    [allRecommendedPaths, resultPath, mode, walletRegistered]);
+
+  // 팔 때: 지갑 주소를 등록하면 쓸 수 있는 더 싼 경로(조건부 제안). 살 때는 없다.
+  const conditionalAltPath = useMemo(
+    () => mode === 'sell' ? computeConditionalAltPath(allRecommendedPaths, resultPath, walletRegistered) : null,
+    [allRecommendedPaths, resultPath, mode, walletRegistered]);
 
   // 결과 화면의 수령량 카운트업.
   // 살 때는 지갑에 도착하는 사토시, 팔 때는 계좌에 입금되는 원화를 센다.
@@ -723,6 +729,7 @@ function useExplorerValue() {
     lightningExitInfo,
     resultPath,
     altPaths,
+    conditionalAltPath,
     // ── 핸들러 ──
     handleSearch,
     handleBack,

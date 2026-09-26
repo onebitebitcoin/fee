@@ -9,6 +9,7 @@ import type { AllData, GlobalExchange } from './constants';
 import { GLOBAL_EXCHANGES, GLOBAL_INFO, bestByFee } from './constants';
 import type { CoinType, Destination } from './flow';
 import { isLightningPath, receivedAmount } from './pathMode';
+import { activeGates, gateSeverity, isPathDemoted } from './depositGate';
 
 export type PathWithG = CheapestPathEntry & { _g: string };
 
@@ -356,14 +357,47 @@ export function computeResultPath(
   return bestByFee(basePaths, 'buy');
 }
 
-/** 대안 경로 — 결과 경로와 동일 종착지의 상위 3개. */
+/**
+ * 대안 경로 — 결과 경로와 동일 종착지의 상위 3개.
+ *
+ * 팔 때는 국내 거래소가 입금을 받아주지 않거나(blocked) 지갑 등록을 마쳐야 하는(required) 경로를
+ * 제안에서 뺀다. 추천 목록은 같은 기준(isPathDemoted)으로 이런 경로를 아래로 내리는데, 결과 화면이
+ * 수수료만 보고 '더 절약 가능한 경로'로 권하면 실행할 수 없는 경로를 권하는 꼴이 된다.
+ * 대표적으로 개인 지갑에서 국내 거래소로 바로 보내는 BTC 직접 입금이 여기에 걸린다.
+ */
 export function computeAltPaths(
   allRecommendedPaths: PathWithG[],
   resultPath: CheapestPathEntry | null,
+  mode: PathMode = 'buy',
+  walletRegistered = false,
 ): PathWithG[] {
   if (!allRecommendedPaths.length) return [];
   const destFilter = (resultPath?.destination ?? 'personal') as Destination;
   return allRecommendedPaths
     .filter(p => (p.destination ?? 'personal') === destFilter)
+    .filter(p => mode !== 'sell' || !isPathDemoted(p, walletRegistered))
     .slice(0, 3);
+}
+
+/**
+ * 팔 때 '지갑 주소를 등록하면' 쓸 수 있는 더 싼 경로 하나.
+ *
+ * computeAltPaths 는 지금 바로 실행할 수 있는 경로만 제안한다. 그런데 지갑 등록(required)은
+ * 사용자가 한 번 거치면 풀리는 조건이라, 숨기기보다 조건을 붙여 알려 주는 편이 쓸모 있다.
+ * 등록할 수단 자체가 없는 경로(blocked)는 조건을 채울 방법이 없으므로 제안하지 않는다.
+ * 사용자가 이미 등록했다고 선언했으면 이 경로들은 일반 제안에 들어가므로 여기서는 null 이다.
+ */
+export function computeConditionalAltPath(
+  allRecommendedPaths: PathWithG[],
+  resultPath: CheapestPathEntry | null,
+  walletRegistered: boolean,
+): PathWithG | null {
+  if (!resultPath || walletRegistered) return null;
+  const isCurrent = (p: CheapestPathEntry) =>
+    !!p.path_id && !!resultPath.path_id && p.path_id === resultPath.path_id;
+  return allRecommendedPaths.find(p =>
+    !isCurrent(p) &&
+    gateSeverity(activeGates(p, false)) === 'required' &&
+    p.total_fee_krw < resultPath.total_fee_krw,
+  ) ?? null;
 }
