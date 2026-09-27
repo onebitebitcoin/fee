@@ -56,7 +56,7 @@ function useExplorerValue() {
   const [amount, setAmount]       = useState('100');
   const [unit, setUnit]           = useState<'만원' | '억원'>('만원');
   // 매도 입력 — 파는 수량과, 그 수량을 만들려고 개인 지갑에서 합칠 UTXO 개수.
-  // UTXO 개수가 늘면 트랜잭션 크기가 커져 온체인 채굴 수수료가 비례해 올라간다.
+  // UTXO 개수가 늘면 트랜잭션 크기가 커져 온체인 네트워크 수수료가 비례해 올라간다.
   const [amountBtcInput, setAmountBtcInput] = useState('0.05');
   const [btcUnit, setBtcUnit]     = useState<'BTC' | 'sats'>('BTC');
   const [walletUtxoCount, setWalletUtxoCount] = useState(1);

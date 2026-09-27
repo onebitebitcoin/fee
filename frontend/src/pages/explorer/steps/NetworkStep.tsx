@@ -106,7 +106,11 @@ export function NetworkStep() {
           );
         })}
       </div>
-      <p className="text-[10px] text-label-tertiary text-center px-2">Bitcoin 채굴 수수료(네트워크 수수료)와 별개로 거래소가 부과하는 고정 출금 수수료입니다</p>
+      <p className="text-[10px] text-label-tertiary text-center px-2">
+        {mode === 'sell'
+          ? '네트워크 수수료와 별개로 해외 거래소가 USDT 출금에 부과하는 고정 수수료입니다'
+          : 'Bitcoin 채굴 수수료(네트워크 수수료)와 별개로 거래소가 부과하는 고정 출금 수수료입니다'}
+      </p>
       {network && (
         <motion.button
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

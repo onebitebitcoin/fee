@@ -328,7 +328,7 @@ export function InputStep() {
                         <p className="text-xs font-semibold text-label-secondary">지갑 UTXO 개수</p>
                         <p className="text-[10px] text-label-tertiary mt-0.5 leading-relaxed">
                           이 금액을 만들려고 지갑에서 합치는 잔액 조각의 수입니다.
-                          조각이 많을수록 트랜잭션이 커져 채굴 수수료가 올라갑니다.
+                          조각이 많을수록 트랜잭션이 커져 네트워크 수수료가 올라갑니다.
                         </p>
                       </div>
                       <div className="seg-ctrl inline-flex items-center flex-shrink-0">

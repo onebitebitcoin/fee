@@ -95,10 +95,10 @@ export function BtcMethodStep() {
                   <div className="ios-card rounded-2xl p-4 text-xs space-y-2">
                     <p className="font-semibold text-label-primary">{isSell ? '온체인 전송이란?' : '온체인 출금이란?'}</p>
                     <p className="text-label-secondary">Bitcoin 블록체인에 직접 기록되는 방식입니다. 10분 내외 소요됩니다.</p>
-                    {/* 채굴 수수료를 누가 내는지가 방향에 따라 갈린다. 이 차이가 수수료 내역의 첫 항목을 만든다. */}
+                    {/* 네트워크 수수료를 누가 내는지가 방향에 따라 갈린다. 이 차이가 수수료 내역의 첫 항목을 만든다. */}
                     <p className="text-label-secondary">
                       {isSell
-                        ? '보내는 쪽이 개인 지갑이므로 채굴자 수수료를 지갑에서 직접 냅니다. 합치는 잔액 조각(UTXO)이 많을수록 트랜잭션이 커져 수수료가 올라갑니다.'
+                        ? '보내는 쪽이 개인 지갑이므로 네트워크 수수료를 지갑에서 직접 냅니다. 합치는 잔액 조각(UTXO)이 많을수록 트랜잭션이 커져 수수료가 올라갑니다.'
                         : '거래소가 고정 출금 수수료를 부과하며, 채굴자 수수료(온체인 네트워크 수수료)는 그 출금 수수료에 포함되어 있습니다.'}
                     </p>
                   </div>
