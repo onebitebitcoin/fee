@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { CaretRight, Funnel, Wrench, X, WarningCircle } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Funnel, Wrench, X, WarningCircle } from '@phosphor-icons/react';
 import { buildReportQuery } from '../../board/reportTemplate';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
@@ -15,9 +15,9 @@ import { usdtNetworkKeys, USDT_NETWORK_LABEL } from '../recommend';
 import { routeStops } from '../routeStops';
 import { activeGates, gateSeverity, isPathDemoted, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
-// 추천 목록에 보여줄 경로 수. 사람들은 위쪽 몇 개만 보고 고르므로 상위 5개로 충분하다.
-// 다른 거래소 조합을 찾고 싶으면 필터로 좁힌다.
-const TOP_N = 5;
+// 추천 목록을 한 번에 보여줄 경로 수. 사람들은 위쪽 몇 개만 보고 고르므로 5개씩 보여주고,
+// 더 보고 싶으면 '더보기'로 5개씩 늘린다.
+const PAGE_SIZE = 5;
 
 type PresetKey = 'no_disabled' | 'no_kyc_lightning' | 'no_lightning' |
   'bithumb_binance' | 'bithumb_okx' | 'upbit_binance' | 'upbit_okx';
@@ -86,7 +86,13 @@ export function RecommendationStep() {
 
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const visible = topRecommendedPaths.slice(0, TOP_N);
+  // 표시 개수를 '어느 목록에 대한 개수인지'와 함께 둔다. 필터가 바뀌어 목록이 새로 계산되면
+  // 저장된 목록과 달라지므로 자동으로 첫 페이지(5개)로 돌아간다. 필터 핸들러마다 초기화할 필요가 없다.
+  const [paging, setPaging] = useState({ list: topRecommendedPaths, count: PAGE_SIZE });
+  const visibleCount = paging.list === topRecommendedPaths ? paging.count : PAGE_SIZE;
+  const visible = topRecommendedPaths.slice(0, visibleCount);
+  const remaining = topRecommendedPaths.length - visible.length;
+  const showMore = () => setPaging({ list: topRecommendedPaths, count: visibleCount + PAGE_SIZE });
 
   // 필터 옵션: allRecommendedPaths 기준 (필터 전 전체)
   const availableExchanges = useMemo(() =>
@@ -415,7 +421,7 @@ export function RecommendationStep() {
         )}
       </AnimatePresence>
 
-      {/* 추천 경로 카드 (상위 TOP_N 개) */}
+      {/* 추천 경로 카드 (PAGE_SIZE 개씩) */}
       <div className="space-y-2">
         {(() => {
           // '최저' 배지는 실제로 실행할 수 있는 경로에만 붙인다.
@@ -437,7 +443,8 @@ export function RecommendationStep() {
                 key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}|${p.lightning_exit_provider ?? ''}`}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: p.disabled ? 0.4 : 1, y: 0 }}
-                transition={{ ...SPRING_SLOW, delay: i * 0.04 }}
+                // 더보기로 새로 붙은 카드도 첫 카드처럼 바로 나타나도록 페이지 안의 순서로 지연시킨다
+                transition={{ ...SPRING_SLOW, delay: (i % PAGE_SIZE) * 0.04 }}
                 onClick={() => handleSelectRecommendedPath(p)}
                 className={[
                   'w-full ios-card rounded-2xl px-4 py-3.5 text-left transition-colors space-y-2.5',
@@ -506,12 +513,17 @@ export function RecommendationStep() {
           </div>
         )}
 
-        {topRecommendedPaths.length > TOP_N && (
-          <p className="text-[11px] text-label-tertiary text-center pt-1">
-            전체 {topRecommendedPaths.length}개 중 상위 {TOP_N}개예요. 다른 조합은 필터로 찾아보세요.
-          </p>
-        )}
       </div>
+
+      {remaining > 0 && (
+        <button
+          onClick={showMore}
+          className="w-full py-3 rounded-2xl text-sm font-semibold text-label-secondary bg-fill-secondary flex items-center justify-center gap-1.5 hover:bg-fill-primary transition-colors cursor-pointer"
+        >
+          더보기 <CaretDown className="w-3.5 h-3.5" weight="bold" />
+          <span className="text-label-tertiary text-xs num">({remaining}개 남음)</span>
+        </button>
+      )}
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">
         처음으로
