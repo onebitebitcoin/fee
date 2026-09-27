@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { dedupAndSortPaths, filterRecommendedPaths, type RecommendedPath } from './recommend';
 import { computeAltPaths, computeCoinOptions, computeConditionalAltPath, computeSwapServiceOptions } from './derivations';
-import { sellRouteText } from './sellRouteText';
+import { routeStops, routeText } from './routeStops';
 import type { AllData } from './constants';
 import type { CheapestPathEntry, CheapestPathResponse } from '../../types';
 
@@ -226,14 +226,29 @@ describe('computeConditionalAltPath — 지갑 등록을 조건으로 더 싼 �
   });
 });
 
-describe('sellRouteText — 팔 때 경로 요약', () => {
+describe('routeText — 팔 때 경로 요약', () => {
   it('국내 직접 온체인: 지갑에서 국내 거래소로 바로 간다', () => {
     const p = tagged(sell({ transfer_coin: 'BTC', route_variant: 'btc_direct', korean_exchange: 'bithumb' }));
-    expect(sellRouteText(p)).toBe('내 지갑 › BTC › 빗썸 › 원화');
+    expect(routeText(p, 'sell')).toBe('내 지갑 › BTC › 빗썸 › 원화');
   });
 
   it('해외 경유 라이트닝: 스왑 서비스와 해외 거래소, USDT 망을 차례로 거친다', () => {
     const p = tagged(sell({ global_exit_mode: 'lightning', lightning_exit_provider: 'Strike', network: 'TRC20' }));
-    expect(sellRouteText(p)).toBe('내 지갑 › BTC › Strike › 라이트닝 › 바이낸스 › USDT › TRC20 › 빗썸 › 원화');
+    expect(routeText(p, 'sell')).toBe('내 지갑 › BTC › Strike › 라이트닝 › 바이낸스 › USDT › TRC20 › 빗썸 › 원화');
+  });
+});
+
+describe('routeStops — 카드에 그릴 정거장', () => {
+  it('거래소·스왑 서비스 정거장에만 로고 id 를 붙인다', () => {
+    const p = tagged(sell({ global_exit_mode: 'lightning', lightning_exit_provider: 'Strike', network: 'TRC20' }));
+    const withIcon = routeStops(p, 'sell').filter(s => s.iconId).map(s => s.iconId);
+    expect(withIcon).toEqual(['Strike', 'binance', 'bithumb']);
+  });
+
+  it('살 때는 국내 거래소에서 출발해 지갑에서 끝난다', () => {
+    const p = tagged(sell({ korean_exchange: 'upbit', network: 'TRC20' }));
+    const labels = routeStops(p, 'buy').map(s => s.label);
+    expect(labels[0]).toBe('업비트');
+    expect(labels[labels.length - 1]).toBe('지갑');
   });
 });

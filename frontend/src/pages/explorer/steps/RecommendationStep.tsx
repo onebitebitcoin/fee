@@ -1,21 +1,23 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { CaretDown, Funnel, Wrench, X, WarningCircle } from '@phosphor-icons/react';
+import { CaretRight, Funnel, Wrench, X, WarningCircle } from '@phosphor-icons/react';
 import { buildReportQuery } from '../../board/reportTemplate';
 import { fmtEx } from '../../../lib/exchangeNames';
-import { formatNetworkLabel } from '../../../lib/networkIcons';
 import { formatFeeKrw, formatPercent } from '../../../lib/formatBtc';
 import { fmtKst } from '../constants';
 import { SPRING_FAST, SPRING_SLOW } from '../constants';
 import { useExplorer } from '../ExplorerContext';
-import type { CheapestPathEntry, PathMode } from '../../../types';
+import { ExFavicon } from '../ui';
+import type { PathMode } from '../../../types';
 import { isLightningPath } from '../pathMode';
 import { usdtNetworkKeys, USDT_NETWORK_LABEL } from '../recommend';
-import { sellRouteText } from '../sellRouteText';
+import { routeStops } from '../routeStops';
 import { activeGates, gateSeverity, isPathDemoted, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
 
-const PAGE_SIZE = 15;
+// 추천 목록에 보여줄 경로 수. 사람들은 위쪽 몇 개만 보고 고르므로 상위 5개로 충분하다.
+// 다른 거래소 조합을 찾고 싶으면 필터로 좁힌다.
+const TOP_N = 5;
 
 type PresetKey = 'no_disabled' | 'no_kyc_lightning' | 'no_lightning' |
   'bithumb_binance' | 'bithumb_okx' | 'upbit_binance' | 'upbit_okx';
@@ -39,45 +41,6 @@ function presetsFor(mode: PathMode): { key: PresetKey; label: string }[] {
     { key: 'no_lightning',    label: '라이트닝 제외' },
     ...pairs,
   ];
-}
-
-function routeText(p: CheapestPathEntry & { _g: string }, mode: PathMode = 'buy'): string {
-  if (mode === 'sell') return sellRouteText(p);
-  const isUsdt = p.transfer_coin === 'USDT';
-  const isViaGlobal = p.route_variant?.endsWith('via_global') ?? false;
-  const isLightning = p.path_type === 'lightning_exit';
-  const isLnWallet = p.destination === 'lightning_wallet';  // LN 출금까지만(직접 수신)
-  const provider = p.lightning_exit_provider;
-  const parts: string[] = [fmtEx(p.korean_exchange)];
-
-  if (isUsdt) {
-    parts.push('USDT');
-    if (p.network) parts.push(formatNetworkLabel(p.network));
-    // 라이트닝 지갑 종착: 글로벌 거래소 자체 LN 출금 → "바이낸스 LN"으로 합침
-    parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
-  } else if (isViaGlobal) {
-    parts.push('BTC');
-    parts.push(isLightning && isLnWallet ? fmtEx(p._g) + ' LN' : fmtEx(p._g));
-    if (!isLightning && p.network) parts.push(formatNetworkLabel(p.network));
-  } else {
-    parts.push('BTC');
-    if (!isLightning && p.network) parts.push(formatNetworkLabel(p.network));
-  }
-
-  // 개인지갑 종착(LN 스왑 경유): 서비스명 표시, 없으면 "LN 스왑"으로 명시
-  if (isLightning && !isLnWallet) {
-    parts.push(provider && provider !== '__direct__' ? fmtEx(provider) : 'LN 스왑');
-  }
-
-  // 종착지: 온체인 지갑 vs 라이트닝 지갑을 명확히 구분
-  if (isLnWallet) {
-    parts.push('라이트닝 지갑');
-  } else if (isLightning) {
-    parts.push('온체인 지갑');
-  } else {
-    parts.push('지갑');
-  }
-  return parts.join(' › ');
 }
 
 function ToggleChip({
@@ -121,11 +84,9 @@ export function RecommendationStep() {
 
   const presets = useMemo(() => presetsFor(mode), [mode]);
 
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const visible = topRecommendedPaths.slice(0, visibleCount);
-  const hasMore = topRecommendedPaths.length > visibleCount;
+  const visible = topRecommendedPaths.slice(0, TOP_N);
 
   // 필터 옵션: allRecommendedPaths 기준 (필터 전 전체)
   const availableExchanges = useMemo(() =>
@@ -171,7 +132,6 @@ export function RecommendationStep() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-    setVisibleCount(PAGE_SIZE);
   }
 
   function toggleGlobalExchange(id: string) {
@@ -180,7 +140,6 @@ export function RecommendationStep() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-    setVisibleCount(PAGE_SIZE);
   }
 
   function toggleService(id: string) {
@@ -189,7 +148,6 @@ export function RecommendationStep() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-    setVisibleCount(PAGE_SIZE);
   }
 
   function toggleNetwork(key: string) {
@@ -198,7 +156,6 @@ export function RecommendationStep() {
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
-    setVisibleCount(PAGE_SIZE);
   }
 
   function clearFilters() {
@@ -209,7 +166,6 @@ export function RecommendationStep() {
     setExcludeOnchain(false);
     setExcludeLightning(false);
     setExcludeDisabled(false);
-    setVisibleCount(PAGE_SIZE);
   }
 
   function isPresetActive(key: PresetKey): boolean {
@@ -258,7 +214,6 @@ export function RecommendationStep() {
     setExcludeOnchain(false);
     setExcludeLightning(false);
     setExcludeDisabled(false);
-    setVisibleCount(PAGE_SIZE);
     switch (key) {
       case 'no_disabled':
         setExcludeDisabled(true);
@@ -361,7 +316,7 @@ export function RecommendationStep() {
                     {(['personal', 'lightning_wallet'] as const).map(d => (
                       <button
                         key={d}
-                        onClick={() => { setDestinationFilter(d); setVisibleCount(PAGE_SIZE); }}
+                        onClick={() => { setDestinationFilter(d); }}
                         className={[
                           'flex-1 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer',
                           destinationFilter === d
@@ -381,7 +336,7 @@ export function RecommendationStep() {
                 <div>
                   <p className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider mb-2">비활성화 경로</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <ToggleChip label="비활성화 제외" active={excludeDisabled} onClick={() => { setExcludeDisabled((o: boolean) => !o); setVisibleCount(PAGE_SIZE); }} />
+                    <ToggleChip label="비활성화 제외" active={excludeDisabled} onClick={() => { setExcludeDisabled((o: boolean) => !o); }} />
                   </div>
                 </div>
               )}
@@ -394,10 +349,10 @@ export function RecommendationStep() {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {hasOnchainPaths && (
-                      <ToggleChip label="온체인" active={excludeOnchain} onClick={() => { setExcludeOnchain(o => !o); setVisibleCount(PAGE_SIZE); }} />
+                      <ToggleChip label="온체인" active={excludeOnchain} onClick={() => { setExcludeOnchain(o => !o); }} />
                     )}
                     {hasLightningPaths && (
-                      <ToggleChip label="라이트닝" active={excludeLightning} onClick={() => { setExcludeLightning(o => !o); setVisibleCount(PAGE_SIZE); }} />
+                      <ToggleChip label="라이트닝" active={excludeLightning} onClick={() => { setExcludeLightning(o => !o); }} />
                     )}
                   </div>
                 </div>
@@ -460,109 +415,103 @@ export function RecommendationStep() {
         )}
       </AnimatePresence>
 
-      {/* Table */}
-      <div className="ios-card rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-2 border-b border-white/6">
-          <span className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider">#</span>
-          <span className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider">경로</span>
-          <span className="text-[10px] font-semibold text-label-quaternary uppercase tracking-wider text-right">수수료</span>
-        </div>
-
-        <div>
-          {(() => {
-            // '최저' 배지는 실제로 실행할 수 있는 경로에만 붙인다.
-            // 입금이 막힌 경로에 최저 배지를 달면 못 쓰는 경로를 권하는 셈이 된다.
-            const firstEnabledIdx = visible.findIndex(
-              p => !p.disabled && gateSeverity(activeGates(p, walletRegistered)) !== 'blocked',
-            );
-            const cheapestFee = firstEnabledIdx >= 0 ? visible[firstEnabledIdx].total_fee_krw : null;
-            return visible.map((p, i) => (
+      {/* 추천 경로 카드 (상위 TOP_N 개) */}
+      <div className="space-y-2">
+        {(() => {
+          // '최저' 배지는 실제로 실행할 수 있는 경로에만 붙인다.
+          // 입금이 막힌 경로에 최저 배지를 달면 못 쓰는 경로를 권하는 셈이 된다.
+          const firstEnabledIdx = visible.findIndex(
+            p => !p.disabled && gateSeverity(activeGates(p, walletRegistered)) !== 'blocked',
+          );
+          const cheapestFee = firstEnabledIdx >= 0 ? visible[firstEnabledIdx].total_fee_krw : null;
+          return visible.map((p, i) => {
+            const level = gateSeverity(activeGates(p, walletRegistered));
+            const isBest = i === firstEnabledIdx;
+            // 최저 대비 차액. 관문 때문에 아래로 내려간 경로는 수수료 순서가 아니므로
+            // 차액을 붙이면 음수가 '+'로 찍혀 더 싼 것처럼 읽힌다. 그래서 생략한다.
+            const diff = cheapestFee != null ? Math.round(p.total_fee_krw - cheapestFee) : 0;
+            const showDiff = !p.disabled && i > firstEnabledIdx && diff >= 1
+              && !isPathDemoted(p, walletRegistered);
+            return (
               <motion.button
                 key={`${p.korean_exchange}|${p.route_variant ?? ''}|${p._g}|${p.network}|${p.path_type ?? ''}|${p.lightning_exit_provider ?? ''}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: p.disabled ? 0.3 : 1 }}
-                transition={{ ...SPRING_SLOW, delay: Math.min(i, 6) * 0.03 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: p.disabled ? 0.4 : 1, y: 0 }}
+                transition={{ ...SPRING_SLOW, delay: i * 0.04 }}
                 onClick={() => handleSelectRecommendedPath(p)}
                 className={[
-                  'w-full grid grid-cols-[28px_1fr_auto] gap-x-3 px-4 py-3 text-left transition-colors',
+                  'w-full ios-card rounded-2xl px-4 py-3.5 text-left transition-colors space-y-2.5',
+                  isBest ? 'ring-1 ring-acc-brand/40' : '',
                   p.disabled ? '' : 'hover:bg-white/4 active:bg-white/6',
-                  i < visible.length - 1 ? 'border-b border-white/4' : '',
                 ].join(' ')}
               >
-                <span className={[
-                  'text-xs font-bold self-center',
-                  p.disabled
-                    ? 'text-label-quaternary'
-                    : i === firstEnabledIdx ? 'text-acc-brand' : i === firstEnabledIdx + 1 ? 'text-label-secondary' : i === firstEnabledIdx + 2 ? 'text-label-tertiary' : 'text-label-quaternary',
-                ].join(' ')}>
-                  {p.disabled
-                    ? <Wrench weight="regular" className="w-3 h-3 text-label-quaternary" />
-                    : i + 1}
-                </span>
-
-                <div className="min-w-0 self-center overflow-x-auto scrollbar-none">
-                  <div className="flex items-center gap-1.5">
-                    <p className={[
-                      'text-[12px] font-medium whitespace-nowrap',
-                      p.disabled ? 'text-label-quaternary' : 'text-label-primary',
-                    ].join(' ')}>
-                      {routeText(p, mode)}
-                    </p>
-                    {i === firstEnabledIdx && (
-                      <span className="text-[9px] font-bold bg-acc-green/15 text-acc-green px-1.5 py-0.5 rounded-full flex-shrink-0">최저</span>
-                    )}
-                    {(() => {
-                      const level = gateSeverity(activeGates(p, walletRegistered));
-                      if (!level) return null;
-                      return (
-                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${GATE_BADGE_CLASS[level]}`}>
-                          {GATE_BADGE[level]}
-                        </span>
-                      );
-                    })()}
-                    {/* 최저 대비 차액. 관문 때문에 아래로 내려간 경로는 수수료 순서가 아니므로
-                        차액을 붙이면 음수가 '+'로 찍혀 더 싼 것처럼 읽힌다. 그래서 생략한다. */}
-                    {!p.disabled && i > firstEnabledIdx && cheapestFee != null
-                      && !isPathDemoted(p, walletRegistered) && (
-                      <span className="text-[9px] text-label-quaternary num flex-shrink-0">
-                        +{formatFeeKrw(p.total_fee_krw - cheapestFee)}
-                      </span>
-                    )}
+                {/* 윗줄: 순위 · 배지 · 수수료 */}
+                <div className="flex items-center gap-2">
+                  <span className={[
+                    'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
+                    p.disabled
+                      ? 'bg-fill-secondary text-label-quaternary'
+                      : isBest ? 'bg-acc-brand text-white' : 'bg-fill-secondary text-label-secondary',
+                  ].join(' ')}>
+                    {p.disabled ? <Wrench weight="regular" className="w-3 h-3" /> : i + 1}
+                  </span>
+                  {isBest && (
+                    <span className="text-[10px] font-bold bg-acc-green/15 text-acc-green px-1.5 py-0.5 rounded-full">최저</span>
+                  )}
+                  {level && (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${GATE_BADGE_CLASS[level]}`}>
+                      {GATE_BADGE[level]}
+                    </span>
+                  )}
+                  <div className="ml-auto text-right flex-shrink-0">
+                    <span className={[
+                      'text-sm font-bold num',
+                      p.disabled ? 'text-label-quaternary' : 'text-acc-red',
+                    ].join(' ')}>-{formatFeeKrw(p.total_fee_krw)}</span>
+                    <span className="ml-1.5 text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</span>
                   </div>
                 </div>
 
-                <div className="text-right self-center flex-shrink-0">
-                  <p className={[
-                    'text-[12px] font-bold num',
-                    p.disabled ? 'text-label-quaternary' : 'text-acc-red',
-                  ].join(' ')}>-{formatFeeKrw(p.total_fee_krw)}</p>
-                  <p className="text-[10px] text-label-tertiary num">{formatPercent(p.fee_pct)}</p>
+                {/* 아랫줄: 전체 경로 (줄바꿈해서 한눈에). 화살표를 정거장 뒤에 붙여
+                    줄이 바뀌어도 새 줄이 화살표가 아니라 정거장 이름으로 시작하게 한다. */}
+                <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5">
+                  {(() => {
+                    const stops = routeStops(p, mode);
+                    return stops.map((stop, si) => (
+                      <span key={si} className="flex items-center gap-1">
+                        {stop.iconId && <ExFavicon id={stop.iconId} size={14} />}
+                        <span className={[
+                          'text-[12px] whitespace-nowrap',
+                          p.disabled ? 'text-label-quaternary'
+                            : stop.iconId ? 'font-semibold text-label-primary' : 'text-label-secondary',
+                        ].join(' ')}>{stop.label}</span>
+                        {si < stops.length - 1 && <CaretRight className="w-2.5 h-2.5 text-label-quaternary flex-shrink-0" weight="bold" />}
+                      </span>
+                    ));
+                  })()}
                 </div>
+
+                {showDiff && (
+                  <p className="text-[10px] text-label-tertiary num">최저보다 +{formatFeeKrw(diff)}</p>
+                )}
               </motion.button>
-            ));
-          })()}
+            );
+          });
+        })()}
 
-          {topRecommendedPaths.length === 0 && (
-            <div className="px-4 py-6 text-center">
-              <p className="text-sm text-label-tertiary">필터 조건에 맞는 경로가 없어요</p>
-              <button onClick={clearFilters} className="mt-2 text-xs text-acc-brand cursor-pointer">필터 초기화</button>
-            </div>
-          )}
-        </div>
+        {topRecommendedPaths.length === 0 && (
+          <div className="ios-card rounded-2xl px-4 py-6 text-center">
+            <p className="text-sm text-label-tertiary">필터 조건에 맞는 경로가 없어요</p>
+            <button onClick={clearFilters} className="mt-2 text-xs text-acc-brand cursor-pointer">필터 초기화</button>
+          </div>
+        )}
+
+        {topRecommendedPaths.length > TOP_N && (
+          <p className="text-[11px] text-label-tertiary text-center pt-1">
+            전체 {topRecommendedPaths.length}개 중 상위 {TOP_N}개예요. 다른 조합은 필터로 찾아보세요.
+          </p>
+        )}
       </div>
-
-      {hasMore && (
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={SPRING_FAST}
-          onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-          className="w-full py-3 rounded-2xl text-sm font-semibold text-label-secondary bg-fill-secondary border border-white/8 flex items-center justify-center gap-1.5 hover:bg-fill-primary transition-colors cursor-pointer"
-        >
-          더보기 <CaretDown className="w-3.5 h-3.5" />
-          <span className="text-label-tertiary text-xs">({topRecommendedPaths.length - visibleCount}개 남음)</span>
-        </motion.button>
-      )}
 
       <button onClick={handleBack} className="w-full py-2 text-sm text-label-tertiary hover:text-label-secondary transition-colors">
         처음으로

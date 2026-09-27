@@ -13,7 +13,7 @@ import { useExplorer } from '../ExplorerContext';
 import { buildReportQuery } from '../../board/reportTemplate';
 import { usesGlobalExchange } from '../pathMode';
 import { activeGates, gateSeverity, GATE_BADGE, GATE_BADGE_CLASS } from '../depositGate';
-import { sellRouteText } from '../sellRouteText';
+import { routeText } from '../routeStops';
 
 /** 경로 다이어그램의 한 칸 — 아이콘과 이름을 가진 정거장. */
 type RouteNode = { key: string; icon: ReactNode; label: string };
@@ -642,7 +642,7 @@ export function ResultStep() {
                                 </span>
                                 {isSell ? (
                                   // 팔 때는 자금이 지갑에서 거래소로 흐르므로 추천 목록과 같은 요약 문구를 쓴다
-                                  <span className="text-[10px] text-label-secondary font-medium leading-relaxed min-w-0">{sellRouteText(p)}</span>
+                                  <span className="text-[10px] text-label-secondary font-medium leading-relaxed min-w-0">{routeText(p, 'sell')}</span>
                                 ) : (
                                   <div className="flex items-center gap-1 flex-wrap min-w-0">
                                     <ExFavicon id={p.korean_exchange} size={16} />
@@ -721,7 +721,7 @@ export function ResultStep() {
                       {fmtEx(p.korean_exchange)}에 비트코인 지갑 주소를 등록하면 바로 입금해서{' '}
                       <span className="text-acc-green num">{formatFeeKrw(savings)}</span> 더 아낄 수 있어요
                     </p>
-                    <p className="text-[10px] text-label-secondary">{sellRouteText(p)}</p>
+                    <p className="text-[10px] text-label-secondary">{routeText(p, 'sell')}</p>
                     <div className="flex items-center gap-3 text-[10px]">
                       <span className="text-acc-red font-semibold num">-{formatFeeKrw(p.total_fee_krw)}</span>
                       <span className="text-label-tertiary">
