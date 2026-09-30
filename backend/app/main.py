@@ -4,6 +4,7 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +57,32 @@ def _serve_kill_switch_sw() -> Response:
         media_type='application/javascript',
         headers={'Cache-Control': 'no-store'},
     )
+
+
+# PWA 파일은 mimetypes 가 확장자를 모를 수 있어 Content-Type 을 직접 지정한다.
+# 서비스워커/매니페스트/index.html 은 브라우저가 매번 갱신 여부를 확인하도록 no-cache 로 응답한다.
+_PWA_MEDIA_TYPES = {
+    'app-sw.js': 'application/javascript',
+    'manifest.webmanifest': 'application/manifest+json',
+}
+_NO_CACHE = {'Cache-Control': 'no-cache'}
+
+
+def _frontend_file_response(dist_dir: Path, target: Path) -> FileResponse:
+    if target.name == 'index.html' and target.parent == dist_dir:
+        return FileResponse(target, headers=_NO_CACHE)
+    media_type = _PWA_MEDIA_TYPES.get(target.name) if target.parent == dist_dir else None
+    if media_type:
+        return FileResponse(target, media_type=media_type, headers=_NO_CACHE)
+    return FileResponse(target)
+
+
+def _resolve_dist_file(dist_dir: Path, full_path: str) -> Path | None:
+    """dist 하위의 실제 파일이면 resolve 된 경로를, 아니면(경로 조작 포함) None 을 반환한다."""
+    target = (dist_dir / full_path).resolve()
+    if target.is_file() and target.is_relative_to(dist_dir):
+        return target
+    return None
 
 
 def _warm_withdrawal_cache() -> None:
@@ -139,23 +166,23 @@ def create_app() -> FastAPI:
     for _sw_path in _KILL_SWITCH_SW_PATHS:
         app.add_api_route(f'/{_sw_path}', _serve_kill_switch_sw, methods=['GET'])
 
-    dist_dir = settings.frontend_dist_dir
+    dist_dir = settings.frontend_dist_dir.resolve()
     assets_dir = dist_dir / 'assets'
     if assets_dir.exists():
         app.mount('/assets', StaticFiles(directory=assets_dir), name='assets')
 
         @app.get('/')
         def serve_index() -> FileResponse:
-            return FileResponse(dist_dir / 'index.html')
+            return _frontend_file_response(dist_dir, dist_dir / 'index.html')
 
         @app.get('/{full_path:path}')
         def serve_frontend(full_path: str):
             if full_path.startswith('api/'):
                 return {'detail': 'Not Found'}
-            target = dist_dir / full_path
-            if target.exists() and target.is_file():
-                return FileResponse(target)
-            return FileResponse(dist_dir / 'index.html')
+            target = _resolve_dist_file(dist_dir, full_path)
+            if target:
+                return _frontend_file_response(dist_dir, target)
+            return _frontend_file_response(dist_dir, dist_dir / 'index.html')
     return app
 
 

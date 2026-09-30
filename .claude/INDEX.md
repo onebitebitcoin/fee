@@ -150,6 +150,10 @@ cd frontend && npm run test
 
 | 파일 | 역할 |
 |------|------|
+| `public/manifest.webmanifest` + `public/icons/` | **PWA 설치 메타데이터.** 이름·`display: standalone`·테마색 `#EEE8DC`, 아이콘 192/512/maskable-512 + iOS용 `apple-touch-icon.png`(180). `index.html` 이 manifest·theme-color·apple 메타를 링크한다. |
+| `public/app-sw.js` | **PWA 서비스워커.** 파일명을 `/app-sw.js` 로 둔 이유: `/sw.js` 등 흔한 이름은 백엔드가 옛 서비스워커 제거용 kill-switch 로 응답한다. 오래된 시세 화면을 막으려고 보수적으로 캐시한다 — 내비게이션 network-first(오프라인일 때만 캐시), `/assets/*` cache-first, 아이콘·매니페스트 network-first, `/api/` 는 가로채지 않는다. 캐시 구조를 바꾸면 `CACHE_VERSION` 을 올린다. |
+| `src/lib/pwa.ts` | 서비스워커 등록(`registerAppServiceWorker`, 프로덕션 빌드에서만) + `beforeinstallprompt` 보관/`promptInstall` + standalone·iOS Safari 판별 + 안내 닫음 기억(`pwa.installDismissed`). `main.tsx` 가 `listenInstallEvents()`/`registerAppServiceWorker()` 호출. `pwa.test.ts`(12케이스). |
+| `src/components/InstallPrompt.tsx` | `ExplorerPage` 헤더의 "앱 설치" 버튼. Chrome 계열은 네이티브 설치 프롬프트, iOS Safari 는 "공유 → 홈 화면에 추가" 안내. standalone 실행 중·설치 후·닫은 뒤에는 숨긴다. |
 | `src/pages/ExplorerPage.tsx` | **얇은 컨트롤러 (~90줄)**. `ExplorerProvider` + `ExplorerShell`(헤더/푸터) + `StepTimeline`(진행 타임라인) + `StepFrame`(현재 phase의 모션 래퍼). 실제 단계 UI는 `explorer/steps/*`에 위임. |
 | `src/pages/explorer/timeline.ts` | **마법사 진행 타임라인 순수 로직.** `timelinePhases(sel, current, mode)` — `flowStart(mode)`에서 시작해 `flowNext()`를 반복 적용해 실제로 거쳐온 단계 목록 산출(분기 규칙은 `flow.ts` 그래프 단일 기준, 여기서 재정의 안 함). `buildTimeline(sel, current, mode)` — 단계별 라벨/선택값(한글)/파비콘 id/상태(done·current) 생성. **`SELL_PHASE_LABEL` 이 뜻이 달라지는 단계만 라벨을 덮어쓴다(`출금 방식`→`전송 방식`, `이동 방식`→`매도 경로`), 매도 경로 값은 `SELL_COIN_LABEL`(`국내 직접`/`해외 경유`).** `timeline.test.ts`(13케이스). |
 | `src/pages/explorer/StepTimeline.tsx` | 마법사 상단 가로 진행 타임라인 UI(표시 전용). 완료 단계 체크 아이콘 + 거래소 파비콘 + 단계명/선택값 2줄 칩, 현재 단계는 브랜드 액센트로 강조. 단계 1개 이하면 렌더 안 함, 가로 스크롤 지원. |
@@ -307,3 +311,4 @@ Frontend (ExplorerPage.tsx + explorer/*)
 | 게시판 기능 | 백엔드 `board.py`(라우트)+`board_repository.py`(ORM)+`models.py`(BoardPost/BoardComment)+`core/security.py`(비번 해시 pbkdf2). 프론트 `pages/board/*`+`App.tsx`(라우팅)+`api.ts`(getBoardPosts 등)+`types.ts`(Board*). 공지 작성=AdminPage `board` 탭(`AdminNoticePanel`). |
 | 제보하기 링크 | `RecommendationStep`/`ResultStep`에서 `buildReportQuery()`로 `/board/new?template=report&...` 이동 → `BoardWritePage`가 `reportTemplate.ts`로 제목/본문 프리필. |
 | 게시판 진입점 | `ExplorerPage.tsx` 헤더의 "게시판" 링크(`/board`). |
+| PWA(앱 설치) | 프론트 `public/manifest.webmanifest`·`public/icons/`·`public/app-sw.js`·`src/lib/pwa.ts`·`components/InstallPrompt.tsx`. 백엔드 `main.py` `_frontend_file_response()` 가 `app-sw.js`(application/javascript)·`manifest.webmanifest`(application/manifest+json)·`index.html` 을 `Cache-Control: no-cache` 로 응답하고, `_resolve_dist_file()` 이 dist 밖 경로 조작을 막는다. 테스트 `tests/test_pwa_static.py`. |

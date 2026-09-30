@@ -7,6 +7,7 @@ import { SPRING_SLOW } from './explorer/constants';
 import { ExplorerProvider, useExplorer } from './explorer/ExplorerContext';
 import { STEP_REGISTRY } from './explorer/registry';
 import { StepTimeline } from './explorer/StepTimeline';
+import InstallPrompt from '../components/InstallPrompt';
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ function ExplorerShell() {
           </div>
 
           <div className="flex items-center gap-3">
+            <InstallPrompt />
             <Link
               to="/services"
               className="flex items-center gap-1 text-label-tertiary hover:text-label-secondary transition-colors"
