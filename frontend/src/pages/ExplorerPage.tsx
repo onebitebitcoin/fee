@@ -57,12 +57,12 @@ function ExplorerShell() {
         <div className="max-w-xl mx-auto px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="w-5 h-5" />
-            <span className="text-sm font-semibold text-label-primary tracking-tight">
+            <span className="hidden sm:inline text-sm font-semibold text-label-primary tracking-tight">
               수수료는 얼마나 들까
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 whitespace-nowrap">
             <InstallPrompt />
             <Link
               to="/services"
