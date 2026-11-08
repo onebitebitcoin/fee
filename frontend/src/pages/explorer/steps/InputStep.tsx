@@ -5,6 +5,8 @@ import { SPRING_FAST, fmtKst } from '../constants';
 import { ExFavicon } from '../ui';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
+import { BtcTrendSection } from '../BtcTrendSection';
+import { NewsKeywordsCard } from '../NewsKeywordsCard';
 import { api } from '../../../lib/api';
 import {
   filterDisabledWithdrawals,
@@ -239,9 +241,14 @@ export function InputStep() {
                         </div>
                       )}
                     </div>
+                    {/* 24시간 가격 추이 + 청산 규모 */}
+                    <BtcTrendSection />
                   </div>
                 </>
               )}
+
+              {/* 비트코인 뉴스 키워드 (my-news 집계) */}
+              <NewsKeywordsCard />
 
               {/* Hero: 방향 선택 + 금액/수량 입력 */}
               <div className="ios-card rounded-3xl p-6">

@@ -58,6 +58,8 @@ cd frontend && npm run test
 | `health.py` | `/health` | 헬스체크 |
 | `stats.py` | `/stats/*` | 접속 통계 |
 | `board.py` | `/board/*` | 게시판 게시글/댓글 CRUD. 일반/제보=닉네임+비밀번호(해시), 공지=admin `X-API-Key`. 검색(제목+내용)·페이지네이션·공지 상단고정(별도 반환). 비밀번호 검증 실패 403, 응답에 password 필드 미포함. |
+| `news.py` | `/news/*` | 비트코인 뉴스 키워드 순위(`GET /news/keywords`). my-news 가 같은 서버에서 10분마다 쓰는 `btc_keywords.json` 을 `services/news_keywords.py` 로 읽어 그대로 전달. 파일 없음/형식 오류 503, 1시간 넘게 갱신 안 되면 `stale: true`. |
+| `market/overview.py` | `/market/btc-24h` | 첫 화면 시세 카드 보강: `btc_trend_service`(바이낸스 1시간봉 24개, 5분 캐시) + `liquidation_service.hourly_summary`(DB 의 OKX 청산 시간별 합계). 가격 실패 시 502. |
 
 #### `backend/app/domain/`
 
@@ -111,6 +113,9 @@ cd frontend && npm run test
 | `kyc_registry.py` | 거래소/서비스별 KYC 상태 레지스트리. `resolve_exchange_asset_kyc_status()` 우선순위: DB `kyc_config`(거래소_자산 키) → 스크래핑 note 추론 → **`_STATIC_EXCHANGE_KYC`**(국내 5+해외 7 전부 `kyc` 고정 — 특금법/ToS 근거, DB에 개별 오버라이드 있으면 그쪽 우선). 라이트닝 서비스는 `resolve_service_kyc_status()` + `_STATIC_KYC`(서비스별 kyc/non_kyc). |
 | `notice_scraper.py` | 거래소 BTC/USDT 관련 공지 스크래핑. `fetch_notices_for_exchange(exchange, extra_keywords)` — 변경 감지 시 특정 거래소+키워드 타깃 탐색. **키워드 매칭은 `domain/notice_match.py`(SSoT)에 위임** — `_is_relevant`/`_is_relevant_for_binance`/`_keyword_in_title`는 얇은 위임 래퍼. `_binance_catalog_filter`도 `has_btc`/`has_usdt`/`FEE_KEYWORDS` 공유 사용. 관련 공지 0건이면 프론트(InputStep)가 링크 영역 자동 숨김. **거래소별 수집 방식: upbit/coinone/binance/bithumb 은 공개 JSON API(`requests`), korbit 은 페이지가 홈으로 리다이렉트되어 수집 불가(빈 목록 반환).** `fetch_bithumb_notices()` — `https://api.bithumb.com/v1/notices?count=20`(302 → feed-api). 응답은 객체로 감싸지 않은 **최상위 배열**이고 항목은 `categories`/`title`/`pc_url`/`published_at`/`modified_at`. **count 최대 20, 초과 시 기본값 5건으로 줄어듦. IP당 초당 1회 제한.** 시각은 시간대 표기 없는 한국 시간이라 `_parse_bithumb_datetime()`이 KST로 해석 후 naive UTC로 변환(모듈 규약, `_parse_iso`와 동일). **HTML 스크래핑(Scrapling)에서 API로 교체됨 — feed.bithumb.com 페이지가 데이터센터 IP에 403을 반환해 배포 서버에서 빗썸 공지가 0건이었고, 그 탓에 출금 중단 행의 사유가 공지 링크로 연결되지 않았다.** |
 | `mempool_service.py` | mempool.space API 연동 (Bitcoin 네트워크 수수료) |
+| `liquidation_service.py` | **BTC 선물 강제청산 수집·집계.** OKX 공개 API(BTC-USDT 무기한, 최근 기록만 제공)를 `liquidation_poll_loop` 가 1분마다 페이지 단위로 받아 `LiquidationEvent` 로 저장(`event_key` 유일 → 중복 무시), 48시간 넘은 행 삭제. `hourly_summary(db, now)` 는 24시간 버킷별 롱/숏 USD 합계와 `covered_from`(가장 오래된 기록) — 수집 전 시간은 0 이 아니라 null. 계약 1개=0.01 BTC. `main.py` lifespan 에서 `LIQUIDATION_POLL_ENABLED`(기본 true)일 때 기동. |
+| `btc_trend_service.py` | 바이낸스 BTCUSDT 1시간봉 24개 → `{points, open, last, high, low, change_pct}`. 변동률 기준은 첫 봉 시가. `_TtlCache` 300초. |
+| `news_keywords.py` | my-news 키워드 파일 읽기(`load_keywords`). 운영 컨테이너는 `docker-compose.yml` 이 `${MYNEWS_EXPORT_DIR:-/home/measly/lab/my-news/data/export}` 를 `/data/mynews` 로 읽기 전용 마운트한다(컨테이너→my-news 웹 네트워크 경로가 없음). 경로 설정 `MYNEWS_KEYWORDS_PATH`. |
 | `exchange_status_builder.py` | `/market/status` 응답 빌더 |
 | `live_market.py` | **MCP 도구 전용 파사드.** `mcp/server.py`가 단일 진입점으로 사용. market_core + market_paths 모든 함수/상수 re-export. 내부 백엔드 코드(market.py, crawl_service.py, exchanges.py)는 각 도메인 모듈을 직접 import — live_market.py를 경유하지 않음. |
 
@@ -145,6 +150,7 @@ cd frontend && npm run test
 | `ExchangeCautionInfo` | 어드민이 설정한 거래소별 유의 플래그 + 사유 (exchange_id PK, group, caution bool, caution_reason) |
 | `BoardPost` | 게시판 게시글 (category general/report/notice, title, content, nickname, password_hash/salt — 공지는 null) |
 | `BoardComment` | 게시글 댓글 (post_id FK CASCADE, nickname, password_hash/salt, content) |
+| `LiquidationEvent` | 선물 강제청산 한 건 (event_key unique, exchange, side long/short, usd, occurred_at index). 48시간 보관 |
 
 ### Frontend
 
@@ -176,6 +182,9 @@ cd frontend && npm run test
 | `src/pages/explorer/__fixtures__/cheapestAll.fixture.json` | 고정 입력 fixture (`/path-finder/cheapest-all` 실제 응답, amount_krw=1,000,000). 회귀 테스트 입력. |
 | `src/pages/explorer/__fixtures__/recommend.golden.json` | 검증된 기대 출력 (Playwright로 실제 UI와 27/27 일치 확인). `scripts/gen_recommend_golden.py`로 재생성. |
 | `src/pages/explorer/steps/*.tsx` | 단계별 독립 컴포넌트. 각자 `useExplorer()`로 필요한 값만 소비. InputStep/RecommendationStep/DomesticStep/GlobalStep/CoinStep/BtcMethodStep/NetworkStep/GlobalExitMethodStep/**DestinationStep**/SwapServiceStep/ResultStep. 체크리스트는 DomesticStep/GlobalStep에 인라인. `DestinationStep`: 라이트닝 출금 후 종착지(개인지갑=스왑 경유 / 라이트닝 지갑=직접 수신) 선택. `RecommendationStep`: **추천 경로를 `PAGE_SIZE`(5)개씩 카드로 보여주고 '더보기'로 5개씩 늘린다.** 표시 개수는 `paging{list, count}` 로 '어느 목록에 대한 개수인지'와 함께 저장해, 필터가 바뀌어 `topRecommendedPaths` 가 새로 계산되면 자동으로 5개로 돌아간다. 카드 윗줄은 순위·최저/입금 관문 배지·수수료, 아랫줄은 `routeStops` 정거장을 줄바꿈해 전체 경로를 한눈에 보여주고, 최저와 1원 이상 차이 날 때만 '최저보다 +₩X' 를 붙인다. 필터 패널의 거래소 짝 프리셋(`PRESET_PAIRS` + `presetsFor(mode)`)은 자금이 흐르는 순서대로 읽히므로 방향에 따라 화살표가 뒤집힌다(살 때 `빗썸 → 바이낸스`, 팔 때 `바이낸스 → 빗썸`). 방식 제외 섹션 라벨도 팔 때는 `전송 방식 제외`다 — 국내 거래소에서 출금하는 게 아니라 내 지갑에서 보내는 방식이기 때문이고, 타임라인의 `SELL_PHASE_LABEL` 과 같은 이유다. 팔 때만 `USDT 입금망 제외` 섹션이 붙는다. `NetworkStep`: 선택 가능한 망 아래에 `disabledNetworkOptions`(백엔드 `disabled_paths`)를 흐리게 나열하고 사유를 배지로 붙인다(출금 중단, `USDT 입금 미지원 네트워크`, `USDT 입금망 확인 필요`). 사유 설명은 배지 하나가 맡고, 공지를 찾았을 때만 그 아래 근거 링크를 덧붙인다 — 예전에는 공지가 없을 때 '빗썸 API 비활성'이라는 고정 문구를 뒀는데 거래소와 사유가 무엇이든 같은 문장이 나와 배지와 어긋났다. `InputStep`(첫 화면): 방문자수·마퀴·시세·**방향 세그먼트(살 때/팔 때)**·금액/수량입력·**네트워크 비활성 목록**. 매도일 때는 원화 금액 대신 BTC/sats 수량과 **지갑 UTXO 개수**(온체인 채굴 수수료를 좌우하는 입력값, 상한 20)를 받고, 원화 환산은 파는 곳이 국내 거래소이므로 국내 시세(`btcPrice.upbitKrw`) 기준으로 계산한다. 국내 시세를 못 받았으면 글로벌 시세로 대신하지 않고 불러오는 중 문구를 남긴다. 시세·김치 프리미엄 패널은 최초 `/market/kimp/live` 응답 전까지 `btcPriceLoading`(context) 기준 로딩 스피너("실시간 시세·김치 프리미엄 불러오는 중…") 표시 후 패널로 교체. 비활성 목록(`disabledNetworks.ts` 필터, 0개면 숨김)은 **중단 경과 시간(`disabled_since` → `formatDisabledDuration`)과 시작 시각**을 함께 표시하고, **중단 사유 문구 자체가 그 사유를 설명하는 공지 링크**(`resolveDisabledNoticeLink`)다. 공지를 못 찾으면 클릭 불가 문구로 남는다. 공지는 행의 `related_notices`가 우선이고 없을 때만 `networkChanges`(suspended)의 것으로 보완한다. 시작 시각은 `withdrawal-fees/latest`의 `disabled_since`가 우선이고 없을 때만 `networkChanges.detected_at`으로 보완한다(후자는 72시간 창 제한이 있어 장기 중단은 잡지 못함). 경과 시간 문구는 1분 간격 `setInterval`로 기준 시각(`nowSec`)을 갱신해 유지한다. (변경 공지사항 섹션은 비활성 목록으로 흡수·제거됨; `getNetworkChanges()`는 enrichment용으로 유지.) `ResultStep`: 히어로 수령량(살 때 sats / 팔 때 원화), **경로 다이어그램은 `RouteDiagram`(노드+엣지 배열)** — 방향은 호출부가 배열 순서로 정하므로 렌더러는 모드를 모른다. 살 때는 국내 거래소에서 출발해 개인 지갑에서 끝나고, 팔 때는 개인 지갑에서 출발해 원화 계좌에서 끝난다. |
+| `src/pages/explorer/BtcTrendSection.tsx` | 첫 화면 시세 카드 안 아래 구역. `/market/btc-24h` 5분마다 갱신. 24시간 가격 스파크라인 + 청산 롱/숏 합계·비율 막대, **시간별 청산 막대는 '시간별 보기'를 눌러야 펼침**. 수집 24시간 미만이면 'N시부터 기록' 표시. |
+| `src/pages/explorer/NewsKeywordsCard.tsx` | 첫 화면 비트코인 뉴스 키워드 카드. `/news/keywords` 5분마다. 실시간 검색어처럼 1~10위가 2.6초마다 한 줄씩 넘어가고, **누르면 순위 펼침**, 순위 행을 누르면 최신 기사 4개. 급상승=최근 6시간 2건 이상. stale 이면 '갱신 지연'. |
+| `src/pages/explorer/marketOverview.ts` | 위 두 카드의 순수 함수(fmtUsdCompact/sparkPoints/longShare/maxHourTotal/coveredHours/isSurging/parseNewsTime). 테스트 `marketOverview.test.ts`. |
 | `src/lib/api.ts` | API 클라이언트. `getTickers()`, `getCheapestPath()`, `getNetworkChanges()` (최근 네트워크 상태 변경 조회), `getWithdrawalFees()` (출금 수수료/활성 스냅샷, `WithdrawalFeesResponse`), `getExchangeStatus()`(`/market/status`), `getExchangeCapabilities()`(LN 입출금 지원), `getLightningSwapFees()`, `getCarfExchanges()`(`CarfExchangeInfo[]` 전체 필드) |
 | `src/types.ts` | 공유 타입 (`CheapestPathEntry`, `CheapestPathResponse`, `TickerRow`, `NetworkChange`, `NetworkChangeNotice`, `NetworkChangesResponse`) |
 | `src/lib/exchangeNames.ts` | 거래소 id → 표시명 매핑 (`fmtEx()`), 도메인 매핑(`getExchangeDomain`/`getFaviconUrl`), 라이트닝 서비스 설명(`getLightningServiceInfo`). **사명이 바뀐 거래소**는 `EXCHANGE_FORMER_NAMES` 에 예전 이름을 남기고 `fmtExFormer(id)` / `fmtExWithFormer(id)` 로 꺼낸다 — 코빗은 미래에셋 인수 후 **디지털엑스(Digital X)** 로 바뀌었고 도메인도 `digitalx.miraeasset.com` 이다. **거래소 id 는 `korbit` 을 그대로 쓴다**(백엔드 응답·DB·경로 계산이 모두 이 id 기준이라 바꾸면 연결이 끊긴다). 예전 이름은 서비스 검색(`filterServiceNodes`)과 상세 화면 제목에 쓰인다 — 이용자 대부분이 옛 이름으로 기억하므로 '코빗'으로 검색해도 찾아져야 한다. `exchangeNames.test.ts`(7케이스). |
@@ -230,6 +239,8 @@ cd frontend && npm run test
 | GET | `/market/network-changes/recent` | 최근 N시간(기본 24h) 네트워크 상태 변경(출금 정지/재개) + 관련 공지 | 없음 |
 | GET | `/market/withdrawal-limits/latest` | 국내 거래소 출금 한도 (크롤 데이터 + static fallback) | 없음 |
 | GET | `/market/carf-exchanges` | CARF 거래소 정보 | 없음 |
+| GET | `/market/btc-24h` | 24시간 가격 추이(바이낸스 1h) + OKX 청산 시간별 합계 | 가격만 300초 TTL |
+| GET | `/news/keywords` | 비트코인 뉴스 키워드 순위 (my-news 내보내기 파일) | 없음 (파일 10분 주기) |
 | POST | `/crawl-runs/trigger` | 수동 크롤링 트리거 | - |
 | GET | `/exchanges/caution` | 거래소별 유의 플래그 전체 조회 | 없음 |
 | PATCH | `/exchanges/caution/{exchange_id}` | 유의 플래그 업서트 (X-API-Key 헤더 필요) | - |

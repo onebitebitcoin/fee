@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     admin_api_key: str = '0000'
     frontend_dist_dir: Path = Field(default=FRONTEND_DIST_DIR)
     openai_api_key: Optional[str] = None
+    # my-news 가 내보내는 비트코인 뉴스 키워드 순위 파일. 운영 컨테이너는 이 경로로 읽기 전용 마운트한다.
+    mynews_keywords_path: Path = Path('/data/mynews/btc_keywords.json')
+    liquidation_poll_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

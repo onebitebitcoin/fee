@@ -413,3 +413,22 @@ export type BoardListResponse = {
   page: number;
   size: number;
 };
+
+// ── 첫 화면 시세 카드 보강 (GET /market/btc-24h) ──────────────────────────────
+export interface BtcTrendPoint { t: string; close: number }
+export interface LiquidationHour { t: string; long: number | null; short: number | null }
+export interface Btc24hResponse {
+  price: { source: string; points: BtcTrendPoint[]; open: number; last: number; high: number; low: number; change_pct: number };
+  liquidations: {
+    exchange: string;
+    hours: LiquidationHour[];
+    total_long_usd: number;
+    total_short_usd: number;
+    covered_from: string | null;
+  };
+}
+
+// ── 비트코인 뉴스 키워드 순위 (GET /news/keywords, my-news 내보내기) ─────────
+export interface NewsKeywordItem { title: string; src: string; url: string; at: string }
+export interface NewsKeyword { name: string; count: number; recent: number; items: NewsKeywordItem[] }
+export interface NewsKeywordsResponse { generated_at: string; total: number; rank: NewsKeyword[]; stale: boolean }

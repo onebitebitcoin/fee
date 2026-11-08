@@ -10,6 +10,8 @@ import type {
   ExchangeStatusResponse,
   LightningSwapFeeRow,
   LiveKimpResponse,
+  Btc24hResponse,
+  NewsKeywordsResponse,
   NetworkChangesResponse,
   TickerRow,
   WithdrawalRow,
@@ -101,6 +103,12 @@ export const api = {
 
   getLiveKimp: (): Promise<LiveKimpResponse> =>
     request('/api/v1/market/kimp/live'),
+
+  getBtc24h: (): Promise<Btc24hResponse> =>
+    request('/api/v1/market/btc-24h'),
+
+  getNewsKeywords: (): Promise<NewsKeywordsResponse> =>
+    request('/api/v1/news/keywords'),
 
   getExchangeVolumes: (): Promise<{
     volumes: Record<string, {

@@ -139,9 +139,16 @@ async def lifespan(app: FastAPI):
     loop.run_in_executor(executor, _warm_withdrawal_cache)
     crawl_task = asyncio.create_task(_auto_crawl_loop())
     kimp_task = asyncio.create_task(kimp_poll_loop(interval=10))
+    liq_task = None
+    if get_settings().liquidation_poll_enabled:
+        from backend.app.db.session import SessionLocal
+        from backend.app.services.liquidation_service import liquidation_poll_loop
+        liq_task = asyncio.create_task(liquidation_poll_loop(SessionLocal, interval=60))
     yield
     crawl_task.cancel()
     kimp_task.cancel()
+    if liq_task:
+        liq_task.cancel()
     executor.shutdown(wait=False)
 
 

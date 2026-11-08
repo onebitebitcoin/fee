@@ -316,3 +316,19 @@ class BoardComment(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     post: Mapped['BoardPost'] = relationship('BoardPost', back_populates='comments')
+
+
+class LiquidationEvent(Base):
+    """거래소 선물 강제청산 한 건. 첫 화면의 24시간 청산 규모를 시간별로 합산하는 원천이다.
+
+    OKX 공개 API 는 최근 기록만 돌려주므로 백그라운드가 1분마다 받아 쌓고, 같은 건을
+    두 번 받아도 `event_key`(시각·방향·수량·가격) 유일 제약으로 한 번만 남긴다.
+    """
+    __tablename__ = 'liquidation_events'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_key: Mapped[str] = mapped_column(String(96), nullable=False, unique=True)
+    exchange: Mapped[str] = mapped_column(String(16), nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)  # 'long' | 'short' — 청산된 포지션 방향
+    usd: Mapped[float] = mapped_column(Float, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

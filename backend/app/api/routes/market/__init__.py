@@ -8,7 +8,7 @@ from fastapi import APIRouter
 # kyc_registry 모듈을 패키지 네임스페이스에 노출 (테스트가 market.kyc_registry.* 를 monkeypatch).
 from backend.app.services import kyc_registry  # noqa: F401
 
-from backend.app.api.routes.market import kimp, path_finder, status, tickers
+from backend.app.api.routes.market import kimp, overview, path_finder, status, tickers
 from backend.app.api.routes.market._shared import (  # noqa: F401
     _cheapest_path_cache,
     _status_cache,
@@ -28,6 +28,7 @@ router.include_router(tickers.router)
 router.include_router(path_finder.router)
 router.include_router(status.router)
 router.include_router(kimp.router)
+router.include_router(overview.router)
 
 __all__ = [
     'router',

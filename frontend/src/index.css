@@ -275,3 +275,12 @@ body {
   background-size: 40px 40px;
   animation: caution-tape 2.4s linear infinite;
 }
+
+/* 뉴스 키워드 롤링 — 다음 순위가 아래에서 올라온다 */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(60%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[fadeUp_\.45s_ease-out\] { animation: none; }
+}
