@@ -1,4 +1,4 @@
-"""비트코인 뉴스 키워드 순위 — my-news 가 내보낸 파일을 그대로 전달한다."""
+"""비트코인 주요 이슈 순위 — my-news 가 내보낸 파일을 그대로 전달한다."""
 from fastapi import APIRouter, HTTPException
 
 from backend.app.core.config import get_settings

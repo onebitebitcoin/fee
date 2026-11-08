@@ -43,8 +43,13 @@ export function parseNewsTime(at: string): Date {
   return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(at) ? at : `${at}Z`);
 }
 
+/** 차트 양 끝 시각 — 한국 시간 '11.8 09시'. Intl 의 ko-KR 시 표기에는 이미 '시'가 붙으므로 숫자만 꺼내 조립한다. */
 export function fmtHourKst(iso: string): string {
-  return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Seoul' }).format(new Date(iso));
+  const parts = new Intl.DateTimeFormat('en-US', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Seoul',
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+  return `${get('month')}.${get('day')} ${get('hour')}시`;
 }
 
 export function fmtTimeKst(d: Date): string {

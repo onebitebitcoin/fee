@@ -145,3 +145,14 @@ export function resolveDisabledNoticeLink(
   if (url) return { label: '중단 공지', url, title };
   return null;
 }
+
+/** 첫 화면에서 접힌 상태로 보여 줄 비활성 네트워크 수. 나머지는 '더보기'로 펼친다. */
+export const DISABLED_PREVIEW_COUNT = 5;
+
+/** 비활성 시작 시각이 최근인 것부터. 시작 시각을 모르는 행은 맨 뒤로, 원래 순서를 유지한다. */
+export function sortLatestDisabledFirst<T>(rows: T[], sinceOf: (row: T) => number | null): T[] {
+  return rows
+    .map((row, i) => ({ row, i, since: sinceOf(row) }))
+    .sort((a, b) => (b.since ?? -Infinity) - (a.since ?? -Infinity) || a.i - b.i)
+    .map(x => x.row);
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coveredHours, fmtUsdCompact, isSurging, longShare, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
+import { coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
 
 describe('marketOverview', () => {
   it('달러를 짧게 쓴다', () => {
@@ -36,5 +36,10 @@ describe('marketOverview', () => {
     expect(parseNewsTime('2026-11-08T20:30:31').toISOString()).toBe('2026-11-08T20:30:31.000Z');
     expect(parseNewsTime('2026-11-08T20:30:31+00:00').toISOString()).toBe('2026-11-08T20:30:31.000Z');
     expect(parseNewsTime('2026-11-08T20:40:44.011Z').toISOString()).toBe('2026-11-08T20:40:44.011Z');
+  });
+
+  it('차트 시각은 날짜와 한 번만 붙은 시로 쓴다(한국 시간)', () => {
+    expect(fmtHourKst('2026-11-08T23:00:00+00:00')).toBe('11.9 08시');
+    expect(fmtHourKst('2026-11-08T00:00:00+00:00')).toBe('11.8 09시');
   });
 });

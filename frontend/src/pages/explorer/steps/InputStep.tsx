@@ -13,6 +13,8 @@ import {
   formatDisabledDuration,
   formatSuspensionReason,
   resolveDisabledNoticeLink,
+  DISABLED_PREVIEW_COUNT,
+  sortLatestDisabledFirst,
 } from '../disabledNetworks';
 import type { AccessStats, NetworkChange, PathMode, WithdrawalRow } from '../../../types';
 
@@ -63,6 +65,7 @@ export function InputStep() {
   const [disabledNetworks, setDisabledNetworks] = useState<WithdrawalRow[]>([]);
   const [refreshingDisabled, setRefreshingDisabled] = useState(false);
   const [kimpDetailOpen, setKimpDetailOpen] = useState(false);
+  const [disabledExpanded, setDisabledExpanded] = useState(false);
   // 중단 경과 시간 문구를 살아 있게 유지하려면 기준 시각이 흘러가야 한다 (1분 간격).
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
 
@@ -89,11 +92,14 @@ export function InputStep() {
 
   // suspended 변경 이력으로 비활성 행 보강 (언제부터 + 관련 공지). key: exchange|coin|network_label
   const suspendedByKey = new Map<string, NetworkChange>();
+  const sinceOfDisabled = (row: WithdrawalRow): number | null =>
+    row.disabled_since ?? suspendedByKey.get(`${row.exchange}|${row.coin}|${row.network_label}`)?.detected_at ?? null;
   for (const c of networkChanges) {
     if (c.change_type !== 'suspended') continue;
     const k = `${c.exchange}|${c.coin ?? ''}|${c.network ?? ''}`;
     if (!suspendedByKey.has(k)) suspendedByKey.set(k, c);
   }
+  const sortedDisabled = sortLatestDisabledFirst(disabledNetworks, sinceOfDisabled);
 
   const {
     mode, setMode,
@@ -208,7 +214,7 @@ export function InputStep() {
                           onClick={() => setKimpDetailOpen(o => !o)}
                           className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] font-medium text-acc-brand hover:opacity-80 transition-opacity"
                         >
-                          자세히
+                          김치 프리미엄 자세히
                           <CaretDown className={`w-2.5 h-2.5 transition-transform ${kimpDetailOpen ? 'rotate-180' : ''}`} weight="bold" />
                         </button>
                       )}
@@ -507,7 +513,7 @@ export function InputStep() {
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {disabledNetworks.map((row, i) => {
+                    {(disabledExpanded ? sortedDisabled : sortedDisabled.slice(0, DISABLED_PREVIEW_COUNT)).map((row, i) => {
                       const change = suspendedByKey.get(`${row.exchange}|${row.coin}|${row.network_label}`);
                       // 공지는 행에 직접 붙은 것(창 제한 없음)이 우선, 없으면 최근 변경 이력에서 보완.
                       const notice = row.related_notices?.find(n => n.url)
@@ -563,6 +569,16 @@ export function InputStep() {
                       );
                     })}
                   </div>
+                  {sortedDisabled.length > DISABLED_PREVIEW_COUNT && (
+                    <button
+                      onClick={() => setDisabledExpanded(o => !o)}
+                      aria-expanded={disabledExpanded}
+                      className="inline-flex items-center gap-0.5 mt-2 text-[10px] font-medium text-acc-brand hover:opacity-80 transition-opacity"
+                    >
+                      {disabledExpanded ? '접기' : `더보기 (${sortedDisabled.length - DISABLED_PREVIEW_COUNT}개)`}
+                      <CaretDown className={`w-2.5 h-2.5 transition-transform ${disabledExpanded ? 'rotate-180' : ''}`} weight="bold" />
+                    </button>
+                  )}
                 </div>
               )}
 

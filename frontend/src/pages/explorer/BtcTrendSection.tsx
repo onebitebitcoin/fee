@@ -55,8 +55,8 @@ export function BtcTrendSection() {
         </div>
         <Sparkline values={price.points.map(p => p.close)} up={price.change_pct >= 0} />
         <div className="flex justify-between text-[9px] text-label-quaternary num mt-0.5">
-          <span>{price.points.length ? `${fmtHourKst(price.points[0].t)}시` : ''}</span>
-          <span>{price.points.length ? `${fmtHourKst(price.points[price.points.length - 1].t)}시` : ''}</span>
+          <span>{price.points.length ? `${fmtHourKst(price.points[0].t)}` : ''}</span>
+          <span>{price.points.length ? `${fmtHourKst(price.points[price.points.length - 1].t)}` : ''}</span>
         </div>
       </div>
 
@@ -98,7 +98,6 @@ export function BtcTrendSection() {
           {covered < liq.hours.length && liq.covered_from
             ? ` · ${fmtTimeKst(new Date(liq.covered_from))}부터 기록(${covered}시간분)`
             : ''}
-          . 롱 청산이 많으면 가격이 떨어지며 롱 포지션이 강제로 정리됐다는 뜻입니다.
         </p>
       </div>
     </>
@@ -132,7 +131,7 @@ function LiquidationBars({ hours }: { hours: LiquidationHour[] }) {
     <div className="mt-2">
       <div className="flex items-end gap-[2px] h-14">
         {hours.map(h => {
-          const label = `${fmtHourKst(h.t)}시 ${h.long == null ? '기록 없음' : `롱 ${fmtUsdCompact(h.long)} · 숏 ${fmtUsdCompact(h.short ?? 0)}`}`;
+          const label = `${fmtHourKst(h.t)} ${h.long == null ? '기록 없음' : `롱 ${fmtUsdCompact(h.long)} · 숏 ${fmtUsdCompact(h.short ?? 0)}`}`;
           if (h.long == null) {
             return <div key={h.t} title={label} className="flex-1 h-[2px] rounded-sm bg-fill-tertiary" />;
           }
@@ -146,8 +145,8 @@ function LiquidationBars({ hours }: { hours: LiquidationHour[] }) {
         })}
       </div>
       <div className="flex justify-between text-[9px] text-label-quaternary num mt-0.5">
-        <span>{hours.length ? `${fmtHourKst(hours[0].t)}시` : ''}</span>
-        <span>{hours.length ? `${fmtHourKst(hours[hours.length - 1].t)}시` : ''}</span>
+        <span>{hours.length ? `${fmtHourKst(hours[0].t)}` : ''}</span>
+        <span>{hours.length ? `${fmtHourKst(hours[hours.length - 1].t)}` : ''}</span>
       </div>
     </div>
   );

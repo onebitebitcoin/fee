@@ -18,7 +18,7 @@ x-app-common: &app-common
     CRAWL_INTERVAL_MINUTES: ${CRAWL_INTERVAL_MINUTES:-60}
     MANUAL_CRAWL_ENABLED: ${MANUAL_CRAWL_ENABLED:-true}
     ADMIN_API_KEY: ${ADMIN_API_KEY}
-  # my-news(같은 서버)가 10분마다 내보내는 비트코인 뉴스 키워드 순위. 컨테이너에서 my-news 웹으로
+  # my-news(같은 서버)가 10분마다 내보내는 비트코인 주요 이슈 순위(btc_issues.json). 컨테이너에서 my-news 웹으로
   # 가는 네트워크 경로가 없어 파일로 받는다. 폴더째 마운트해야 원자적 rename 이 반영된다.
   volumes:
     - ${MYNEWS_EXPORT_DIR:-/home/measly/lab/my-news/data/export}:/data/mynews:ro

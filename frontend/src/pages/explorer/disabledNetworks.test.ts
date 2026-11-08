@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  sortLatestDisabledFirst,
   filterDisabledWithdrawals,
   formatDisabledDuration,
   formatSuspensionReason,
@@ -178,5 +179,12 @@ describe('resolveDisabledNoticeLink', () => {
 
   it('url 없는 공지만 있고 사유도 없으면 표시할 것이 없다', () => {
     expect(resolveDisabledNoticeLink(null, { title: '제목만 있는 공지', url: null })).toBeNull();
+  });
+});
+
+describe('sortLatestDisabledFirst', () => {
+  it('최근에 막힌 것부터, 시작 시각 모르는 행은 뒤로', () => {
+    const rows = [{ id: 'a', s: 100 }, { id: 'b', s: null }, { id: 'c', s: 300 }, { id: 'd', s: 200 }, { id: 'e', s: null }];
+    expect(sortLatestDisabledFirst(rows, r => r.s).map(r => r.id)).toEqual(['c', 'd', 'a', 'b', 'e']);
   });
 });

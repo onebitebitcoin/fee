@@ -1,5 +1,5 @@
-// 첫 화면 비트코인 뉴스 키워드 카드. 평소에는 실시간 검색어처럼 한 줄씩 넘어가고,
-// 누르면 1~10위 순위가 펼쳐진다. 순위를 누르면 그 키워드의 최신 기사가 나온다.
+// 첫 화면 비트코인 주요 이슈 카드. my-news 가 같은 사건 기사를 묶어 이름 붙인 순위를 보여 준다.
+// 평소에는 실시간 검색어처럼 한 줄씩 넘어가고, 누르면 1~10위가 펼쳐진다. 순위를 누르면 그 사건의 최신 기사가 나온다.
 import { useEffect, useState } from 'react';
 import { CaretDown, CaretRight } from '@phosphor-icons/react';
 import { api } from '../../lib/api';
@@ -38,7 +38,7 @@ export function NewsKeywordsCard() {
     return (
       <div className="ios-card rounded-2xl px-4 py-3">
         <p className={`text-[11px] text-center ${error ? 'text-acc-red' : 'text-label-tertiary'}`}>
-          {error ? `뉴스 키워드를 불러오지 못했습니다: ${error}` : '뉴스 키워드 불러오는 중…'}
+          {error ? `주요 이슈를 불러오지 못했습니다: ${error}` : '주요 이슈 불러오는 중…'}
         </p>
       </div>
     );
@@ -50,14 +50,14 @@ export function NewsKeywordsCard() {
   return (
     <div className="ios-card rounded-2xl px-4 py-3">
       <div className="flex items-baseline justify-between mb-2">
-        <p className="text-[12px] font-bold text-label-primary">비트코인 뉴스 키워드</p>
+        <p className="text-[12px] font-bold text-label-primary">비트코인 주요 이슈</p>
         <p className={`text-[10px] num ${data.stale ? 'text-acc-orange' : 'text-label-tertiary'}`}>
           {data.stale ? `갱신 지연 · ${updated} 기준` : `뉴스 ${data.total.toLocaleString('ko-KR')}건 · 24시간`}
         </p>
       </div>
 
       {rank.length === 0 ? (
-        <p className="text-[11px] text-label-tertiary text-center py-1">지난 24시간에 집계할 키워드가 없습니다.</p>
+        <p className="text-[11px] text-label-tertiary text-center py-1">지난 24시간에 여러 매체가 다룬 이슈가 없습니다.</p>
       ) : (
         <button
           onClick={() => setOpen(o => !o)}
@@ -70,8 +70,8 @@ export function NewsKeywordsCard() {
           {top && (
             <span key={top.name} className="flex items-center gap-2 min-w-0 flex-1 animate-[fadeUp_.45s_ease-out]">
               <span className="text-[13px] font-bold text-acc-brand num w-4 text-right">{(cur % rank.length) + 1}</span>
-              <span className="text-[13px] font-semibold text-label-primary flex-shrink-0">{top.name}</span>
-              <span className="text-[11px] text-label-tertiary truncate">{top.items[0]?.title ?? ''}</span>
+              <span className="text-[13px] font-semibold text-label-primary truncate">{top.name}</span>
+              <span className="text-[10px] text-label-tertiary num flex-shrink-0">{top.count}건</span>
             </span>
           )}
           <span className="flex items-center gap-0.5 text-[10px] font-medium text-acc-brand flex-shrink-0">
