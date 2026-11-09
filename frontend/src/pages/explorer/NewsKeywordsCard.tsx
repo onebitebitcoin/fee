@@ -52,7 +52,7 @@ export function NewsKeywordsCard() {
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-[12px] font-bold text-label-primary">비트코인 주요 이슈</p>
         <p className={`text-[10px] num ${data.stale ? 'text-acc-orange' : 'text-label-tertiary'}`}>
-          {data.stale ? `갱신 지연 · ${updated} 기준` : `뉴스 ${data.total.toLocaleString('ko-KR')}건 · 24시간`}
+          {data.stale ? `갱신 지연 · ${updated} 기준` : '최근 24시간'}
         </p>
       </div>
 
@@ -71,7 +71,6 @@ export function NewsKeywordsCard() {
             <span key={top.name} className="flex items-center gap-2 min-w-0 flex-1 animate-[fadeUp_.45s_ease-out]">
               <span className="text-[13px] font-bold text-acc-brand num w-4 text-right">{(cur % rank.length) + 1}</span>
               <span className="text-[13px] font-semibold text-label-primary truncate">{top.name}</span>
-              <span className="text-[10px] text-label-tertiary num flex-shrink-0">{top.count}건</span>
             </span>
           )}
           <span className="flex items-center gap-0.5 text-[10px] font-medium text-acc-brand flex-shrink-0">
@@ -97,7 +96,7 @@ function KeywordRow({ k, rank, max }: { k: NewsKeyword; rank: number; max: numbe
       <button
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
-        className="w-full grid grid-cols-[20px_1fr_auto_12px] items-center gap-2.5 py-2 text-left"
+        className="w-full grid grid-cols-[20px_1fr_12px] items-center gap-2.5 py-2 text-left"
       >
         <span className={`text-[14px] font-bold text-center num ${rank <= 3 ? 'text-acc-brand' : 'text-label-tertiary'}`}>{rank}</span>
         <span className="min-w-0">
@@ -109,7 +108,6 @@ function KeywordRow({ k, rank, max }: { k: NewsKeyword; rank: number; max: numbe
             <span className="block h-full rounded-full bg-acc-brand" style={{ width: `${(k.count / max) * 100}%` }} />
           </span>
         </span>
-        <span className="text-[11px] text-label-secondary num">{k.count}건</span>
         <CaretRight className={`w-3 h-3 text-label-quaternary transition-transform ${open ? 'rotate-90' : ''}`} weight="bold" />
       </button>
       {open && (
