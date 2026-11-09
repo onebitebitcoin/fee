@@ -45,14 +45,14 @@ export function NewsKeywordsCard() {
   }
 
   const top = rank[cur % Math.max(rank.length, 1)];
-  const updated = fmtTimeKst(parseNewsTime(data.generated_at));
+  const lastCrawled = fmtTimeKst(parseNewsTime(data.latest_at ?? data.generated_at));
 
   return (
     <div className="ios-card rounded-2xl px-4 py-3">
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-[12px] font-bold text-label-primary">비트코인 주요 이슈</p>
         <p className={`text-[10px] num ${data.stale ? 'text-acc-orange' : 'text-label-tertiary'}`}>
-          {data.stale ? `갱신 지연 · ${updated} 기준` : '최근 24시간'}
+          {data.stale ? `갱신 지연 · 마지막 수집 ${lastCrawled}` : '최근 24시간'}
         </p>
       </div>
 

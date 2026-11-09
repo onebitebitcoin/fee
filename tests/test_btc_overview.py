@@ -109,7 +109,23 @@ def test_load_keywords_flags_stale_and_rejects_bad_files(tmp_path):
         news_keywords.load_keywords(p, NOW)
     p.write_text(json.dumps({'generated_at': (NOW - timedelta(minutes=5)).isoformat(), 'total': 3, 'rank': []}))
     assert news_keywords.load_keywords(p, NOW)['stale'] is False
-    p.write_text(json.dumps({'generated_at': (NOW - timedelta(hours=3)).isoformat(), 'total': 3, 'rank': []}))
+    p.write_text(json.dumps({'generated_at': (NOW - timedelta(hours=4)).isoformat(), 'total': 3, 'rank': []}))
+    assert news_keywords.load_keywords(p, NOW)['stale'] is True
+
+
+def test_load_keywords_stale_follows_latest_article_not_file_time(tmp_path):
+    p = tmp_path / 'btc_issues.json'
+
+    def write(latest_hours_ago):
+        p.write_text(json.dumps({'generated_at': NOW.isoformat(), 'total': 3, 'rank': [],
+                                 'latest_at': (NOW - timedelta(hours=latest_hours_ago)).isoformat()}))
+
+    write(2)  # 수집 간격이 정상 범위(최대 1.9시간)를 조금 넘는 수준이면 지연이 아니다
+    assert news_keywords.load_keywords(p, NOW)['stale'] is False
+    write(4)  # 파일은 방금 만들어졌어도 새 기사가 4시간째 없으면 수집이 멈춘 것이다
+    assert news_keywords.load_keywords(p, NOW)['stale'] is True
+    p.write_text(json.dumps({'generated_at': NOW.isoformat(), 'total': 0, 'rank': [],
+                             'latest_at': '2026-11-08T20:00:00'}))  # 시간대 표기가 없으면 UTC
     assert news_keywords.load_keywords(p, NOW)['stale'] is True
 
 
