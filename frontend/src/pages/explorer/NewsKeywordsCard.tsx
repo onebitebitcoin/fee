@@ -114,7 +114,7 @@ function KeywordRow({ k, rank, max }: { k: NewsKeyword; rank: number; max: numbe
         <ul className="ml-[30px] mb-2 space-y-1.5">
           {k.items.map(it => (
             <li key={it.url}>
-              <a href={it.url} target="_blank" rel="noopener noreferrer" className="block text-[12px] leading-snug text-label-primary hover:text-acc-brand">
+              <a href={it.url} target="_blank" rel="noopener noreferrer" title={it.title_orig} className="block text-[12px] leading-snug text-label-primary hover:text-acc-brand">
                 {it.title}
               </a>
               <span className="text-[10px] text-label-tertiary num">{it.src} · {fmtTimeKst(parseNewsTime(it.at))}</span>

@@ -429,6 +429,6 @@ export interface Btc24hResponse {
 }
 
 // ── 비트코인 뉴스 키워드 순위 (GET /news/keywords, my-news 내보내기) ─────────
-export interface NewsKeywordItem { title: string; src: string; url: string; at: string }
+export interface NewsKeywordItem { title: string; title_orig?: string; src: string; url: string; at: string }
 export interface NewsKeyword { name: string; count: number; recent: number; items: NewsKeywordItem[] }
 export interface NewsKeywordsResponse { generated_at: string; latest_at?: string | null; window_hours?: number; total: number; rank: NewsKeyword[]; stale: boolean }
