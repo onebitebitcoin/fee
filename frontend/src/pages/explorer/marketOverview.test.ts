@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
+import { coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxIssueCount, windowLabel, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
 
 describe('marketOverview', () => {
   it('달러를 짧게 쓴다', () => {
@@ -41,5 +41,15 @@ describe('marketOverview', () => {
   it('차트 시각은 날짜와 한 번만 붙은 시로 쓴다(한국 시간)', () => {
     expect(fmtHourKst('2026-11-08T23:00:00+00:00')).toBe('11.9 08시');
     expect(fmtHourKst('2026-11-08T00:00:00+00:00')).toBe('11.8 09시');
+  });
+  it('주요 이슈 막대 기준은 1위가 아니라 가장 많은 기사 수다', () => {
+    const k = (name: string, count: number) => ({ name, count, recent: 0, items: [] });
+    expect(maxIssueCount([k('새 사건', 3), k('큰 사건', 40), k('기타', 5)])).toBe(40);
+    expect(maxIssueCount([])).toBe(1);
+  });
+
+  it('집계 범위 문구는 내보낸 window_hours 를 따르고, 없으면 24시간이다', () => {
+    expect(windowLabel(12)).toBe('최근 12시간');
+    expect(windowLabel(undefined)).toBe('최근 24시간');
   });
 });

@@ -38,6 +38,16 @@ export function isSurging(k: NewsKeyword): boolean {
   return k.recent >= 2;
 }
 
+/** 순위는 최근 기사에 가중치를 둬서 1위가 기사 수 최대가 아닐 수 있다. 막대 길이는 가장 많은 기사 수를 기준으로 잡는다. */
+export function maxIssueCount(rank: NewsKeyword[]): number {
+  return Math.max(1, ...rank.map(k => k.count));
+}
+
+/** 내보내기 파일의 집계 범위(window_hours). 이 필드가 없던 예전 파일은 24시간 집계였다. */
+export function windowLabel(hours: number | null | undefined): string {
+  return `최근 ${hours ?? 24}시간`;
+}
+
 /** my-news 의 crawled_at 은 시간대 표기가 빠진 경우가 있다. 빠졌으면 UTC 로 읽는다. */
 export function parseNewsTime(at: string): Date {
   return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(at) ? at : `${at}Z`);

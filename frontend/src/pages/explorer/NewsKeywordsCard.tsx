@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { CaretDown, CaretRight } from '@phosphor-icons/react';
 import { api } from '../../lib/api';
 import type { NewsKeyword, NewsKeywordsResponse } from '../../types';
-import { fmtTimeKst, isSurging, parseNewsTime } from './marketOverview';
+import { fmtTimeKst, isSurging, maxIssueCount, parseNewsTime, windowLabel } from './marketOverview';
 
 const REFRESH_MS = 5 * 60 * 1000;
 const ROLL_MS = 2600;
@@ -52,12 +52,12 @@ export function NewsKeywordsCard() {
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-[12px] font-bold text-label-primary">비트코인 주요 이슈</p>
         <p className={`text-[10px] num ${data.stale ? 'text-acc-orange' : 'text-label-tertiary'}`}>
-          {data.stale ? `갱신 지연 · 마지막 수집 ${lastCrawled}` : '최근 24시간'}
+          {data.stale ? `갱신 지연 · 마지막 수집 ${lastCrawled}` : windowLabel(data.window_hours)}
         </p>
       </div>
 
       {rank.length === 0 ? (
-        <p className="text-[11px] text-label-tertiary text-center py-1">지난 24시간에 여러 매체가 다룬 이슈가 없습니다.</p>
+        <p className="text-[11px] text-label-tertiary text-center py-1">{windowLabel(data.window_hours)} 동안 여러 매체가 다룬 이슈가 없습니다.</p>
       ) : (
         <button
           onClick={() => setOpen(o => !o)}
@@ -82,7 +82,7 @@ export function NewsKeywordsCard() {
 
       {open && (
         <ol className="mt-1">
-          {rank.map((k, i) => <KeywordRow key={k.name} k={k} rank={i + 1} max={rank[0].count} />)}
+          {rank.map((k, i) => <KeywordRow key={k.name} k={k} rank={i + 1} max={maxIssueCount(rank)} />)}
         </ol>
       )}
     </div>
