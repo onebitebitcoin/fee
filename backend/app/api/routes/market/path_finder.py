@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db import repositories
 from backend.app.db.session import get_db
+from backend.app.domain.crawl_gate import evaluate_crawl_gate, without_exchanges
 from backend.app.domain.market_core import GROUPS
 from backend.app.domain.paths_buy import find_cheapest_path_from_snapshot_rows
 from backend.app.domain.paths_sell import find_cheapest_sell_path_from_snapshot_rows
@@ -24,6 +25,11 @@ from backend.app.api.routes.market.kimp import _current_usdt_krw_rate
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+BLOCKED_MESSAGE = (
+    '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. '
+    '수동 크롤링을 다시 실행하세요.'
+)
 
 
 @router.get('/path-finder/cheapest')
@@ -54,37 +60,12 @@ def get_cheapest_path(
         network_rows = repositories.list_network_status_for_run(db, latest_run.id) if latest_run else []
         lightning_swap_rows = repositories.list_lightning_swap_fees_for_run(db, latest_run.id) if latest_run else []
         crawl_errors = repositories.list_crawl_errors_for_run(db, latest_run.id) if latest_run else []
-        blocking_errors = []
-        if latest_run:
-            blocking_errors = [
-                {
-                    'exchange': row.exchange,
-                    'coin': row.coin,
-                    'stage': row.stage,
-                    'error_message': row.error_message,
-                    'created_at': int(row.created_at.timestamp()) if row.created_at else None,
-                }
-                for row in crawl_errors
-                if row.stage in {'withdrawal', 'ticker'} and (
-                    row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', global_exchange.lower()} or row.exchange is None
-                )
-            ]
-            legacy_rows = [row for row in withdrawal_rows if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs']
-            if legacy_rows:
-                blocking_errors.extend([
-                    {
-                        'exchange': row.exchange,
-                        'coin': row.coin,
-                        'stage': 'withdrawal',
-                        'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                        'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
-                    }
-                    for row in legacy_rows
-                ])
-        if blocking_errors:
+        gate = evaluate_crawl_gate(crawl_errors, withdrawal_rows, global_exchange)
+        ticker_rows = without_exchanges(ticker_rows, gate.excluded_exchanges)
+        if gate.blocking_errors:
             return {
-                'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
-                'errors': blocking_errors,
+                'error': BLOCKED_MESSAGE,
+                'errors': gate.blocking_errors,
                 'last_run': {'id': latest_run.id, 'status': latest_run.status, 'completed_at': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None} if latest_run else None,
                 'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
             }
@@ -120,6 +101,7 @@ def get_cheapest_path(
             )
         if payload.get('error'):
             raise HTTPException(status_code=503, detail=payload['error'])
+        payload['excluded_korean_exchanges'] = gate.excluded_summary()
         return _enrich_path_payload_with_kyc(payload, global_exchange)
 
     return _cheapest_path_cache.get_or_compute(_cache_key, _compute)
@@ -151,50 +133,18 @@ def _compute_cheapest_all(
     notice_rows = repositories.get_all_notices_by_exchange(db)
     exchange_notices = _build_notice_lookup(notice_rows)
 
-    legacy_rows = [
-        row for row in withdrawal_rows
-        if row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax'} and row.source == 'official_docs'
-    ]
-
     global_exchanges = list(GROUPS['global'])
     # USDT 매수·매도 leg를 김프 평가와 동일한 한국 USDT/KRW 환율로 계산 (환율 차이 아티팩트 제거)
     usdt_krw_rate = _current_usdt_krw_rate()
 
     by_global: dict[str, object] = {}
     for gex in global_exchanges:
-        # 이 거래소에 해당하는 blocking errors 계산
-        blocking_errors: list[dict] = []
-        if latest_run:
-            blocking_errors = [
-                {
-                    'exchange': row.exchange,
-                    'coin': row.coin,
-                    'stage': row.stage,
-                    'error_message': row.error_message,
-                    'created_at': int(row.created_at.timestamp()) if row.created_at else None,
-                }
-                for row in crawl_errors
-                if row.stage in {'withdrawal', 'ticker'} and (
-                    row.exchange in {'upbit', 'bithumb', 'korbit', 'coinone', 'gopax', gex.lower()}
-                    or row.exchange is None
-                )
-            ]
-            if legacy_rows:
-                blocking_errors.extend([
-                    {
-                        'exchange': row.exchange,
-                        'coin': row.coin,
-                        'stage': 'withdrawal',
-                        'error_message': '정적 fallback 기반 과거 스냅샷입니다. 최신 스크래핑을 다시 실행하세요.',
-                        'created_at': int(row.recorded_at.timestamp()) if row.recorded_at else None,
-                    }
-                    for row in legacy_rows
-                ])
-
-        if blocking_errors:
+        gate = evaluate_crawl_gate(crawl_errors, withdrawal_rows, gex)
+        gex_ticker_rows = without_exchanges(ticker_rows, gate.excluded_exchanges)
+        if gate.blocking_errors:
             by_global[gex] = {
-                'error': '최신 스크래핑에 실패했거나 정적 fallback 기반 데이터가 포함되어 있어 최적 경로를 계산할 수 없습니다. 수동 크롤링을 다시 실행하세요.',
-                'errors': blocking_errors,
+                'error': BLOCKED_MESSAGE,
+                'errors': gate.blocking_errors,
                 'last_run': _serialize_run(latest_run),
                 'latest_scraping_time': int(latest_run.completed_at.timestamp()) if latest_run and latest_run.completed_at else None,
             }
@@ -210,7 +160,7 @@ def _compute_cheapest_all(
                     wallet_utxo_count=wallet_utxo_count,
                     global_exchange=gex,
                     latest_run=latest_run,
-                    ticker_rows=ticker_rows,
+                    ticker_rows=gex_ticker_rows,
                     withdrawal_rows=withdrawal_rows,
                     network_rows=network_rows,
                     lightning_swap_rows=lightning_swap_rows,
@@ -223,7 +173,7 @@ def _compute_cheapest_all(
                     amount_krw=amount_krw,
                     global_exchange=gex,
                     latest_run=latest_run,
-                    ticker_rows=ticker_rows,
+                    ticker_rows=gex_ticker_rows,
                     withdrawal_rows=withdrawal_rows,
                     network_rows=network_rows,
                     lightning_swap_rows=lightning_swap_rows,
@@ -232,6 +182,7 @@ def _compute_cheapest_all(
             if payload.get('error'):
                 by_global[gex] = payload
             else:
+                payload['excluded_korean_exchanges'] = gate.excluded_summary()
                 enriched = _enrich_path_payload_with_kyc(payload, gex)
                 by_global[gex] = _enrich_disabled_paths_with_notices(enriched, exchange_notices)
         except Exception as exc:

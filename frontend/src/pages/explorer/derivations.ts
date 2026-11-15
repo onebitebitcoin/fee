@@ -48,6 +48,18 @@ export function computeKoreaVolumeMap(allData: AllData | null): Record<string, n
   return m;
 }
 
+/** 수집 실패로 계산에서 빠진 국내 거래소 — 이미 선택지로 보이는 거래소는 뺀다. */
+export function computeExcludedDomestic(allData: AllData | null, shownExchanges: string[]): string[] {
+  const shown = new Set(shownExchanges);
+  const excluded = new Set<string>();
+  for (const res of Object.values(allData?.byGlobal ?? {})) {
+    for (const item of res.excluded_korean_exchanges ?? []) {
+      if (!shown.has(item.exchange)) excluded.add(item.exchange);
+    }
+  }
+  return [...excluded];
+}
+
 /** 국내 거래소 옵션 — 거래소별 최저 수수료 + 거래량 내림차순. */
 export function computeDomesticOptions(
   allData: AllData | null,

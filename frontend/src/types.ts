@@ -59,7 +59,7 @@ export type CrawlErrorRow = {
   coin?: string | null;
   stage: string;
   error_message: string;
-  created_at?: string | null;
+  created_at?: number | string | null;
 };
 
 export type SuspendedNetwork = {
@@ -219,7 +219,14 @@ export type CheapestPathResponse = {
   last_run?: CrawlRun | null;
   lightning_swap_services?: string[];
   errors?: CrawlErrorRow[];
+  /** 수집 실패로 이번 계산에서 빠진 국내 거래소와 그 사유 */
+  excluded_korean_exchanges?: ExcludedKoreanExchange[];
   error?: string;
+};
+
+export type ExcludedKoreanExchange = {
+  exchange: string;
+  errors: CrawlErrorRow[];
 };
 
 export type AccessStats = {

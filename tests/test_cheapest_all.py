@@ -277,3 +277,60 @@ def test_warm_cheapest_path_cache_populates_cache(monkeypatch):
 
     market._cheapest_path_cache.clear()
     Base.metadata.drop_all(bind=engine)
+
+
+def test_cheapest_all_excludes_failed_korean_exchange_instead_of_blocking(monkeypatch):
+    """국내 거래소 한 곳(gopax)의 시세 수집이 실패해도 전체를 막지 않고 그 거래소만 제외한다."""
+    from backend.app.api.routes import market
+    from backend.app.db.models import CrawlError
+
+    engine, TestingSessionLocal = make_test_session()
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    db = TestingSessionLocal()
+    crawl_run = CrawlRun(status='partial_success', usd_krw_rate=1400.0)
+    db.add(crawl_run)
+    db.commit()
+    db.refresh(crawl_run)
+    _seed_db(db, crawl_run.id)
+    db.add_all([
+        CrawlError(crawl_run_id=crawl_run.id, exchange='gopax', stage='ticker', error_message='Gopax 오류: 404'),
+        # 실패한 거래소의 시세 행이 남아 있어도 경로 계산에 쓰이면 안 된다
+        TickerSnapshot(
+            crawl_run_id=crawl_run.id, exchange='gopax', pair='BTC/KRW', market_type='spot',
+            currency='KRW', price=1.0, maker_fee_pct=0.0, taker_fee_pct=0.0, usd_krw_rate=1400.0,
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    monkeypatch.setattr('backend.app.api.routes.market.kyc_registry.get_kyc_registry', lambda force_refresh=False: {})
+    market._cheapest_path_cache.clear()
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    response = client.get('/api/v1/market/path-finder/cheapest-all?amount_krw=1000000&mode=buy')
+    single = client.get('/api/v1/market/path-finder/cheapest?amount_krw=1000000&mode=buy&global_exchange=binance')
+    app.dependency_overrides.clear()
+    market._cheapest_path_cache.clear()
+    Base.metadata.drop_all(bind=engine)
+
+    assert response.status_code == 200
+    binance_entry = response.json()['by_global']['binance']
+    assert 'error' not in binance_entry
+    assert binance_entry['best_path'] is not None
+    assert all(p['korean_exchange'] != 'gopax' for p in binance_entry['all_paths'])
+    excluded = binance_entry['excluded_korean_exchanges']
+    assert [e['exchange'] for e in excluded] == ['gopax']
+    assert excluded[0]['errors'][0]['error_message'] == 'Gopax 오류: 404'
+
+    assert single.status_code == 200
+    single_payload = single.json()
+    assert 'error' not in single_payload
+    assert [e['exchange'] for e in single_payload['excluded_korean_exchanges']] == ['gopax']

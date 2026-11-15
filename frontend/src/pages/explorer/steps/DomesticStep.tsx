@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, Globe, Warning, CaretDown } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Globe, Warning, WarningCircle, CaretDown } from '@phosphor-icons/react';
 import { fmtEx } from '../../../lib/exchangeNames';
 import { getDomesticGates } from '../../../lib/gatemanRegistry';
 import { DOMESTIC_INFO, SPRING_FAST, SPRING_SLOW } from '../constants';
 import { ExFavicon, GatemanPanel, OptionCard } from '../ui';
 import { useExplorer } from '../ExplorerContext';
+import { computeExcludedDomestic } from '../derivations';
 
 export function DomesticStep() {
   const [showChecklist, setShowChecklist] = useState(false);
@@ -17,6 +18,7 @@ export function DomesticStep() {
     scrollToStepEnd, snapshotKimp, koreaVolumeMap, domesticOptions, liveRegistry, handleBack, handleNext,
     cautionMap, carfMap,
   } = useExplorer();
+  const excludedDomestic = computeExcludedDomestic(allData, domesticOptions.map(o => o.exchange));
   return (
     <>
               <div>
@@ -83,6 +85,24 @@ export function DomesticStep() {
                     </motion.div>
                   );
                 })}
+                {excludedDomestic.map((exchange, i) => (
+                  <motion.div key={exchange}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...SPRING_SLOW, delay: (domesticOptions.length + i) * 0.04 }}>
+                    <div className="rounded-2xl border border-fill-tertiary bg-fill-secondary/40 p-3.5 opacity-60">
+                      <div className="flex items-center gap-2.5">
+                        <ExFavicon id={exchange} size={22} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-label-secondary">{fmtEx(exchange)}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <WarningCircle className="w-3 h-3 text-acc-red flex-shrink-0" weight="fill" />
+                            <p className="text-[11px] text-acc-red">시세를 불러오지 못해 이번 계산에서 제외했어요</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
               {domestic && (() => {
                 const info = DOMESTIC_INFO[domestic];
