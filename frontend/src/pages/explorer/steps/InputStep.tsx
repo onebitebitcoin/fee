@@ -248,7 +248,7 @@ export function InputStep() {
                         </div>
                       )}
                     </div>
-                    {/* 24시간 가격 추이 + 청산 규모 */}
+                    {/* 24시간 가격 추이 + 선물 시장 신호 */}
                     <BtcTrendSection />
                   </div>
                 </>

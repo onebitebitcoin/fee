@@ -1,13 +1,10 @@
-// 첫 화면 시세 카드 안쪽 아래 구역: 지난 24시간 가격 추이, 청산 규모, 선물 시장 신호.
-// 시간별 청산 막대는 "시간별 보기"를 눌렀을 때만 펼친다.
+// 첫 화면 시세 카드 안쪽 아래 구역: 지난 24시간 가격 추이와 선물 시장 신호.
 // 선물 신호는 숫자보다 판정 한 단어(롱 과열, 매수 유입 등)를 크게 보여 줘서 처음 보는 사람도 바로 읽게 한다.
 import { useEffect, useState } from 'react';
-import { CaretDown } from '@phosphor-icons/react';
 import { api } from '../../lib/api';
-import type { Btc24hResponse, DerivativesSummary, LiquidationHour } from '../../types';
+import type { Btc24hResponse, DerivativesSummary } from '../../types';
 import {
-  coveredHours, fmtHourKst, fmtTimeKst, fmtUsdCompact, fundingGaugePos, fundingReading, longShare, maxHourTotal,
-  positionReading, signedPct, sparkPoints, type SignalTone,
+  fmtHourKst, fundingGaugePos, fundingReading, positionReading, signedPct, sparkPoints, type SignalTone,
 } from './marketOverview';
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -16,7 +13,6 @@ const usd = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
 export function BtcTrendSection() {
   const [data, setData] = useState<Btc24hResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hourlyOpen, setHourlyOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -38,9 +34,7 @@ export function BtcTrendSection() {
     );
   }
 
-  const { price, liquidations: liq } = data;
-  const share = longShare(liq.total_long_usd, liq.total_short_usd);
-  const covered = coveredHours(liq.hours);
+  const { price } = data;
 
   return (
     <>
@@ -60,47 +54,6 @@ export function BtcTrendSection() {
           <span>{price.points.length ? `${fmtHourKst(price.points[0].t)}` : ''}</span>
           <span>{price.points.length ? `${fmtHourKst(price.points[price.points.length - 1].t)}` : ''}</span>
         </div>
-      </div>
-
-      <div className="col-span-2 h-px bg-separator" />
-      <div className="col-span-2">
-        <div className="flex items-baseline justify-between mb-1.5">
-          <p className="text-[10px] text-label-tertiary">24시간 청산 규모</p>
-          <p className="text-[10px] text-label-secondary font-semibold num">
-            {fmtUsdCompact(liq.total_long_usd + liq.total_short_usd)}
-          </p>
-        </div>
-        <div className="flex justify-between text-[11px] mb-1">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm bg-acc-red" />롱 <b className="num">{fmtUsdCompact(liq.total_long_usd)}</b>
-          </span>
-          <span className="flex items-center gap-1.5">
-            숏 <b className="num">{fmtUsdCompact(liq.total_short_usd)}</b><span className="w-2 h-2 rounded-sm bg-acc-green" />
-          </span>
-        </div>
-        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-fill-tertiary">
-          {share != null && (
-            <>
-              <div className="h-full bg-acc-red" style={{ width: `${share}%` }} />
-              <div className="h-full bg-acc-green" style={{ width: `${100 - share}%` }} />
-            </>
-          )}
-        </div>
-        <button
-          onClick={() => setHourlyOpen(o => !o)}
-          aria-expanded={hourlyOpen}
-          className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] font-medium text-acc-brand hover:opacity-80 transition-opacity"
-        >
-          시간별 보기
-          <CaretDown className={`w-2.5 h-2.5 transition-transform ${hourlyOpen ? 'rotate-180' : ''}`} weight="bold" />
-        </button>
-        {hourlyOpen && <LiquidationBars hours={liq.hours} />}
-        <p className="text-[9px] text-label-quaternary mt-1 leading-relaxed">
-          OKX BTC 무기한 기준
-          {covered < liq.hours.length && liq.covered_from
-            ? ` · ${fmtTimeKst(new Date(liq.covered_from))}부터 기록(${covered}시간분)`
-            : ''}
-        </p>
       </div>
 
       <div className="col-span-2 h-px bg-separator" />
@@ -170,32 +123,5 @@ function Sparkline({ values, up }: { values: number[]; up: boolean }) {
       <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       <circle cx={lx} cy={ly} r="2.5" fill={color} />
     </svg>
-  );
-}
-
-function LiquidationBars({ hours }: { hours: LiquidationHour[] }) {
-  const max = maxHourTotal(hours) || 1;
-  return (
-    <div className="mt-2">
-      <div className="flex items-end gap-[2px] h-14">
-        {hours.map(h => {
-          const label = `${fmtHourKst(h.t)} ${h.long == null ? '기록 없음' : `롱 ${fmtUsdCompact(h.long)} · 숏 ${fmtUsdCompact(h.short ?? 0)}`}`;
-          if (h.long == null) {
-            return <div key={h.t} title={label} className="flex-1 h-[2px] rounded-sm bg-fill-tertiary" />;
-          }
-          const total = h.long + (h.short ?? 0);
-          return (
-            <div key={h.t} title={label} className="flex-1 flex flex-col justify-end" style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
-              <div className="bg-acc-green rounded-t-sm" style={{ flexGrow: h.short ?? 0 }} />
-              <div className="bg-acc-red rounded-b-sm" style={{ flexGrow: h.long }} />
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-between text-[9px] text-label-quaternary num mt-0.5">
-        <span>{hours.length ? `${fmtHourKst(hours[0].t)}` : ''}</span>
-        <span>{hours.length ? `${fmtHourKst(hours[hours.length - 1].t)}` : ''}</span>
-      </div>
-    </div>
   );
 }

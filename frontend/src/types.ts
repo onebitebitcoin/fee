@@ -434,16 +434,8 @@ export type BoardListResponse = {
 
 // ── 첫 화면 시세 카드 보강 (GET /market/btc-24h) ──────────────────────────────
 export interface BtcTrendPoint { t: string; close: number }
-export interface LiquidationHour { t: string; long: number | null; short: number | null }
 export interface Btc24hResponse {
   price: { source: string; points: BtcTrendPoint[]; open: number; last: number; high: number; low: number; change_pct: number };
-  liquidations: {
-    exchange: string;
-    hours: LiquidationHour[];
-    total_long_usd: number;
-    total_short_usd: number;
-    covered_from: string | null;
-  };
   /** 바이낸스 BTCUSDT 무기한 펀딩비·미결제약정. 받지 못하면 null 이고 derivatives_error 에 이유가 온다. */
   derivatives: DerivativesSummary | null;
   derivatives_error: string | null;

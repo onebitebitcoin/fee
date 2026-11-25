@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     # my-news 가 내보내는 비트코인 주요 이슈(같은 사건 기사 묶음) 순위 파일. 운영 컨테이너는 읽기 전용 마운트한다.
     mynews_keywords_path: Path = Path('/data/mynews/btc_issues.json')
-    liquidation_poll_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,30 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { fundingGaugePos, fundingReading, positionReading, signedPct, coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxIssueCount, windowLabel, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
+import { fundingGaugePos, fundingReading, positionReading, signedPct, fmtHourKst, isSurging, maxIssueCount, windowLabel, parseNewsTime, sparkPoints } from './marketOverview';
 
 describe('marketOverview', () => {
-  it('달러를 짧게 쓴다', () => {
-    expect(fmtUsdCompact(14_146_951)).toBe('$14.1M');
-    expect(fmtUsdCompact(836_401)).toBe('$836K');
-    expect(fmtUsdCompact(2_500_000_000)).toBe('$2.5B');
-    expect(fmtUsdCompact(12)).toBe('$12');
-  });
-
   it('스파크라인 좌표는 고가가 위(0), 저가가 아래(1)', () => {
     expect(sparkPoints([10, 20, 15])).toEqual([{ x: 0, y: 1 }, { x: 0.5, y: 0 }, { x: 1, y: 0.5 }]);
     expect(sparkPoints([5, 5])).toEqual([{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }]);
     expect(sparkPoints([])).toEqual([]);
-  });
-
-  it('롱 청산 비중과 시간별 최대치는 기록 없는 시간을 건너뛴다', () => {
-    expect(longShare(75, 25)).toBe(75);
-    expect(longShare(0, 0)).toBeNull();
-    const hours = [
-      { t: 'a', long: null, short: null },
-      { t: 'b', long: 100, short: 50 },
-      { t: 'c', long: 10, short: 0 },
-    ];
-    expect(maxHourTotal(hours)).toBe(150);
-    expect(coveredHours(hours)).toBe(2);
   });
 
   it('급상승은 최근 6시간 기사 2건 이상', () => {
