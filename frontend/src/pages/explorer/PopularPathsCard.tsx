@@ -1,4 +1,4 @@
-// 첫 화면 '많이 쓰는 경로 TOP 5'. 업비트·빗썸 ↔ 바이낸스·OKX 로 짠 간결한 경로 중 지금 쓸 수 있는 것만 보여 준다.
+// 첫 화면 '가장 저렴한 경로 TOP 5'. 업비트·빗썸 ↔ 바이낸스·OKX 로 짠 간결한 경로 중 지금 쓸 수 있는 것만 보여 준다.
 // 고르는 규칙은 백엔드(domain/popular_paths.py)에 있고, 이 카드는 방향(살 때/팔 때)에 맞는 목록을 그린다.
 // 평소에는 주요 이슈 카드처럼 1~5위가 한 줄씩 넘어가고, 누르면 순위 전체가 펼쳐진다.
 import { useEffect, useState } from 'react';
@@ -46,7 +46,7 @@ export function PopularPathsCard({ mode }: PopularPathsCardProps) {
   return (
     <div className="ios-card rounded-2xl px-4 py-3">
       <div className="flex items-baseline justify-between mb-2">
-        <p className="text-[12px] font-bold text-label-primary">많이 쓰는 경로 TOP 5</p>
+        <p className="text-[12px] font-bold text-label-primary">가장 저렴한 경로 TOP 5</p>
         {data && <p className="text-[10px] text-label-tertiary num">{popularBasisLabel(data)}</p>}
       </div>
 
@@ -60,7 +60,7 @@ export function PopularPathsCard({ mode }: PopularPathsCardProps) {
           {open && (
             <>
               <p className="text-[10px] text-label-tertiary mt-2 leading-relaxed">
-                업비트·빗썸, 바이낸스·OKX 만 거치는 간결한 경로입니다. 네트워크 점검으로 막힌 경로는 뺐습니다.
+                업비트·빗썸, 바이낸스·OKX 만 거치는 간결한 경로 중 지금 쓸 수 있는 경로를 수수료가 싼 순서로 보여 줍니다. 네트워크 점검으로 막힌 경로는 뺐습니다.
               </p>
         <ol>
           {data.paths.map((p, i) => {

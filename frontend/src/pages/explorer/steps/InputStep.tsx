@@ -498,7 +498,7 @@ export function InputStep() {
                 </motion.button>
               </div>
 
-              {/* 많이 쓰는 경로 TOP 5 (위의 방향 선택을 따른다) */}
+              {/* 가장 저렴한 경로 TOP 5 (위의 방향 선택을 따른다) */}
               <PopularPathsCard mode={mode} />
 
               {/* 네트워크 비활성 목록 (출금 중단된 BTC/USDT 네트워크) */}

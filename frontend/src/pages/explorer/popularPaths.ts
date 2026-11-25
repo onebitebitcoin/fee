@@ -1,4 +1,4 @@
-// 첫 화면 '많이 쓰는 경로' 카드의 표시 규칙. 어떤 경로를 넣을지는 백엔드(domain/popular_paths.py)가 정한다.
+// 첫 화면 '가장 저렴한 경로' 카드의 표시 규칙. 어떤 경로를 넣을지는 백엔드(domain/popular_paths.py)가 정한다.
 import type { PopularPathEntry, PopularPathsResponse } from '../../types';
 import { routeStops, type RouteStop } from './routeStops';
 

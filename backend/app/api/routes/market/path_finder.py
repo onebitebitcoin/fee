@@ -263,7 +263,7 @@ def get_cheapest_path_all(
     )
 
 
-# 첫 화면 '많이 쓰는 경로'의 기준 금액. 살 때 100만원은 캐시 워밍 프리셋에 들어 있다.
+# 첫 화면 '가장 저렴한 경로'의 기준 금액. 살 때 100만원은 캐시 워밍 프리셋에 들어 있다.
 POPULAR_BUY_AMOUNT_KRW = 1_000_000
 POPULAR_SELL_AMOUNT_BTC = 0.01
 

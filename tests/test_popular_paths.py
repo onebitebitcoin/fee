@@ -1,4 +1,4 @@
-"""첫 화면 '많이 쓰는 경로 TOP 5' 선정 규칙."""
+"""첫 화면 '가장 저렴한 경로 TOP 5' 선정 규칙."""
 from backend.app.domain.popular_paths import select_popular_paths
 
 
