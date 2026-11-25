@@ -7,6 +7,7 @@ import { fmtEx } from '../../../lib/exchangeNames';
 import { useExplorer } from '../ExplorerContext';
 import { BtcTrendSection } from '../BtcTrendSection';
 import { NewsKeywordsCard } from '../NewsKeywordsCard';
+import { PopularPathsCard } from '../PopularPathsCard';
 import { api } from '../../../lib/api';
 import {
   filterDisabledWithdrawals,
@@ -496,6 +497,9 @@ export function InputStep() {
                   내 경로 찾기
                 </motion.button>
               </div>
+
+              {/* 많이 쓰는 경로 TOP 5 (위의 방향 선택을 따른다) */}
+              <PopularPathsCard mode={mode} />
 
               {/* 네트워크 비활성 목록 (출금 중단된 BTC/USDT 네트워크) */}
               {disabledNetworks.length > 0 && (

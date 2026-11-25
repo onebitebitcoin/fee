@@ -107,6 +107,9 @@ export const api = {
   getBtc24h: (): Promise<Btc24hResponse> =>
     request('/api/v1/market/btc-24h'),
 
+  getPopularPaths: (mode: import('../types').PathMode): Promise<import('../types').PopularPathsResponse> =>
+    request(`/api/v1/market/path-finder/popular?mode=${mode}`),
+
   getNewsKeywords: (): Promise<NewsKeywordsResponse> =>
     request('/api/v1/news/keywords'),
 

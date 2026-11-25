@@ -12,6 +12,7 @@ from backend.app.domain.crawl_gate import evaluate_crawl_gate, without_exchanges
 from backend.app.domain.market_core import GROUPS
 from backend.app.domain.paths_buy import find_cheapest_path_from_snapshot_rows
 from backend.app.domain.paths_sell import find_cheapest_sell_path_from_snapshot_rows
+from backend.app.domain.popular_paths import select_popular_paths
 from backend.app.domain.route_inspect import inspect_all as _inspect_all
 from backend.app.api.routes.market._shared import (
     _build_notice_lookup,
@@ -260,6 +261,43 @@ def get_cheapest_path_all(
             wallet_utxo_count=wallet_utxo_count,
         ),
     )
+
+
+# 첫 화면 '많이 쓰는 경로'의 기준 금액. 살 때 100만원은 캐시 워밍 프리셋에 들어 있다.
+POPULAR_BUY_AMOUNT_KRW = 1_000_000
+POPULAR_SELL_AMOUNT_BTC = 0.01
+
+
+@router.get('/path-finder/popular')
+def get_popular_paths(
+    mode: str = Query('buy', pattern='^(buy|sell)$'),
+    db: Session = Depends(get_db),
+) -> dict:
+    """업비트·빗썸 ↔ 바이낸스·OKX 로 짠 간결한 경로 중 지금 쓸 수 있는 것을 수수료 순으로 5개.
+
+    기준 금액의 cheapest-all 결과(같은 캐시 키)를 그대로 재사용한다. 방문·경로 탐색 카운트는 올리지 않는다
+    — 첫 화면이 열릴 때마다 불리므로 세면 경로 탐색 통계가 부풀어 오른다.
+    """
+    latest_run = repositories.get_latest_successful_run(db)
+    run_id = latest_run.id if latest_run else None
+    amount_btc = POPULAR_SELL_AMOUNT_BTC if mode == 'sell' else None
+    cache_key = f"all:{mode}:{POPULAR_BUY_AMOUNT_KRW}:{amount_btc}:1:{run_id}"
+    result = _cheapest_path_cache.get_or_compute(
+        cache_key,
+        lambda: _compute_cheapest_all(
+            db, mode=mode, amount_krw=POPULAR_BUY_AMOUNT_KRW, amount_btc=amount_btc, wallet_utxo_count=1,
+        ),
+    )
+    paths = select_popular_paths(result.get('by_global') or {}, mode)
+    if not paths:
+        raise HTTPException(status_code=503, detail='지금 쓸 수 있는 경로를 계산하지 못했습니다. 잠시 뒤 다시 시도해 주세요.')
+    return {
+        'mode': mode,
+        'amount_krw': POPULAR_BUY_AMOUNT_KRW if mode == 'buy' else None,
+        'amount_btc': amount_btc,
+        'paths': paths,
+        'latest_scraping_time': result.get('latest_scraping_time'),
+    }
 
 
 @router.get('/path-finder/inspect')

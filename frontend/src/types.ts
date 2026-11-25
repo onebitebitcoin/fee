@@ -182,6 +182,17 @@ export type CheapestPathEntry = {
   usd_krw_rate?: number | null;
 };
 
+/** 첫 화면 '많이 쓰는 경로'. global_exchange 가 null 이면 해외 거래소를 거치지 않는 BTC 직접 경로다. */
+export type PopularPathEntry = CheapestPathEntry & { global_exchange: string | null };
+
+export type PopularPathsResponse = {
+  mode: PathMode;
+  amount_krw: number | null;
+  amount_btc: number | null;
+  paths: PopularPathEntry[];
+  latest_scraping_time: number | null;
+};
+
 export type DisabledCheapestPathEntry = {
   korean_exchange: string;
   transfer_coin: string;
