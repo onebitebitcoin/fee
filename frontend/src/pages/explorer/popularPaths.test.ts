@@ -27,6 +27,6 @@ describe('popularStops', () => {
     };
     const stops = popularStops(p, 'buy');
     expect(stops.map(s => s.iconId).filter(Boolean)).toEqual(['bithumb']);
-    expect(stops.at(-1)?.label).toBe('지갑');
+    expect(stops[stops.length - 1].label).toBe('지갑');
   });
 });
