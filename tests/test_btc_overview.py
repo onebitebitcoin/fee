@@ -12,7 +12,7 @@ from backend.app.db.base import Base
 from backend.app.db.models import LiquidationEvent
 from backend.app.db.session import get_db
 from backend.app.main import app
-from backend.app.services import btc_trend_service, liquidation_service, news_keywords
+from backend.app.services import btc_trend_service, derivatives_service, liquidation_service, news_keywords
 
 NOW = datetime(2026, 11, 9, 7, 30, tzinfo=timezone.utc)
 
@@ -132,6 +132,7 @@ def test_load_keywords_stale_follows_latest_article_not_file_time(tmp_path):
 def test_btc_24h_api(session_factory, mocker):
     mocker.patch.object(btc_trend_service, 'get_btc_24h_trend',
                         return_value={'source': 'binance', 'points': [], 'change_pct': -1.5})
+    mocker.patch.object(derivatives_service, 'get_derivatives_summary', side_effect=RuntimeError('451'))
 
     def override():
         db = session_factory()
@@ -149,6 +150,42 @@ def test_btc_24h_api(session_factory, mocker):
     body = r.json()
     assert body['price']['change_pct'] == -1.5
     assert len(body['liquidations']['hours']) == 24 and body['liquidations']['covered_from'] is None
+    # 선물 신호가 실패해도 가격·청산은 나가고, 실패 이유를 따로 알린다
+    assert body['derivatives'] is None and body['derivatives_error'] == '451'
+
+
+def test_parse_funding_converts_to_percent():
+    out = derivatives_service.parse_funding({'lastFundingRate': '0.00007817', 'nextFundingTime': 1795593600000})
+    assert out['funding_rate_pct'] == pytest.approx(0.007817)
+    assert out['next_funding_time'].startswith('2026-11-')
+
+
+def test_parse_open_interest_compares_btc_amount_oldest_to_newest():
+    rows = [  # 바이낸스가 순서를 보장하지 않아도 시각 순으로 맞춘다
+        {'timestamp': 3, 'sumOpenInterest': '110', 'sumOpenInterestValue': '7000000'},
+        {'timestamp': 1, 'sumOpenInterest': '100', 'sumOpenInterestValue': '5000000'},
+        {'timestamp': 2, 'sumOpenInterest': '105', 'sumOpenInterestValue': '6000000'},
+    ]
+    out = derivatives_service.parse_open_interest(rows)
+    assert out == {'oi_btc': 110.0, 'oi_usd': 7000000.0, 'oi_change_pct': pytest.approx(10.0)}
+    with pytest.raises(ValueError):
+        derivatives_service.parse_open_interest(rows[:1])
+
+
+def test_derivatives_summary_merges_both_calls():
+    derivatives_service._cache._store.clear()
+
+    def fake_get(url, params):
+        if url == derivatives_service.BINANCE_PREMIUM:
+            return {'lastFundingRate': '0.0001', 'nextFundingTime': 1795593600000}
+        assert params['limit'] == 25
+        return [{'timestamp': 1, 'sumOpenInterest': '100', 'sumOpenInterestValue': '1'},
+                {'timestamp': 2, 'sumOpenInterest': '98', 'sumOpenInterestValue': '1'}]
+
+    out = derivatives_service.get_derivatives_summary(fake_get)
+    derivatives_service._cache._store.clear()
+    assert out['source'] == 'binance'
+    assert out['funding_rate_pct'] == pytest.approx(0.01) and out['oi_change_pct'] == pytest.approx(-2.0)
 
 
 def test_btc_24h_api_reports_price_failure(mocker):

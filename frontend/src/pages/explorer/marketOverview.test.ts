@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxIssueCount, windowLabel, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
+import { fundingGaugePos, fundingReading, positionReading, signedPct, coveredHours, fmtHourKst, fmtUsdCompact, isSurging, longShare, maxIssueCount, windowLabel, maxHourTotal, parseNewsTime, sparkPoints } from './marketOverview';
 
 describe('marketOverview', () => {
   it('달러를 짧게 쓴다', () => {
@@ -51,5 +51,31 @@ describe('marketOverview', () => {
   it('집계 범위 문구는 내보낸 window_hours 를 따르고, 없으면 24시간이다', () => {
     expect(windowLabel(12)).toBe('최근 12시간');
     expect(windowLabel(undefined)).toBe('최근 24시간');
+  });
+
+  it('펀딩비로 롱·숏 쏠림을 판정한다', () => {
+    expect(fundingReading(0.05)).toEqual({ label: '롱 과열', tone: 'warn' });
+    expect(fundingReading(0.01)).toEqual({ label: '균형', tone: 'flat' });
+    expect(fundingReading(-0.005).label).toBe('숏 우세');
+    expect(fundingReading(-0.02).label).toBe('숏 과열');
+  });
+
+  it('펀딩비 막대 점은 ±0.05% 에서 양 끝에 붙는다', () => {
+    expect(fundingGaugePos(0)).toBe(50);
+    expect(fundingGaugePos(0.2)).toBe(100);
+    expect(fundingGaugePos(-0.2)).toBe(0);
+  });
+
+  it('미결제약정과 가격 방향을 묶어 포지션 흐름을 읽는다', () => {
+    expect(positionReading(0.5, 3).label).toBe('관망');
+    expect(positionReading(3, 1).label).toBe('매수 유입');
+    expect(positionReading(3, -1).label).toBe('매도 유입');
+    expect(positionReading(-3, 1).label).toBe('숏 청산 반등');
+    expect(positionReading(-3, -1)).toEqual({ label: '롱 정리', tone: 'down' });
+  });
+
+  it('부호를 붙인다', () => {
+    expect(signedPct(0.0078, 3)).toBe('+0.008%');
+    expect(signedPct(-2.345, 1)).toBe('-2.3%');
   });
 });

@@ -65,3 +65,36 @@ export function fmtHourKst(iso: string): string {
 export function fmtTimeKst(d: Date): string {
   return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Seoul' }).format(d);
 }
+
+/** 선물 신호 한 줄 판정. tone 은 색을 고른다: up 초록(매수 쪽), down 빨강(매도 쪽), warn 주황(과열), flat 기본색. */
+export type SignalTone = 'up' | 'down' | 'warn' | 'flat';
+export interface SignalReading { label: string; tone: SignalTone }
+
+/** 펀딩비(8시간, %) → 롱·숏 쏠림. 평소 기준값은 +0.01% 근처다. 쏠림이 심하면 반대 방향 청산이 몰리기 쉬워 과열만 경고색을 쓴다. */
+export const FUNDING_HOT_PCT = 0.03;
+export function fundingReading(ratePct: number): SignalReading {
+  if (ratePct >= FUNDING_HOT_PCT) return { label: '롱 과열', tone: 'warn' };
+  if (ratePct <= -0.01) return { label: '숏 과열', tone: 'warn' };
+  if (ratePct < 0) return { label: '숏 우세', tone: 'flat' };
+  return { label: '균형', tone: 'flat' };
+}
+
+/** 펀딩비 막대의 점 위치(0~100). ±0.05% 를 양 끝으로 자른다. */
+export function fundingGaugePos(ratePct: number): number {
+  const clamped = Math.max(-0.05, Math.min(0.05, ratePct));
+  return ((clamped + 0.05) / 0.1) * 100;
+}
+
+/** 미결제약정 변화와 가격 방향을 묶어 읽는다. 변화가 1% 미만이면 포지션이 거의 그대로다. */
+export const OI_FLAT_PCT = 1;
+export function positionReading(oiChangePct: number, priceChangePct: number): SignalReading {
+  if (Math.abs(oiChangePct) < OI_FLAT_PCT) return { label: '관망', tone: 'flat' };
+  const up = priceChangePct >= 0;
+  if (oiChangePct > 0) return up ? { label: '매수 유입', tone: 'up' } : { label: '매도 유입', tone: 'down' };
+  return up ? { label: '숏 청산 반등', tone: 'up' } : { label: '롱 정리', tone: 'down' };
+}
+
+/** 부호를 붙인 퍼센트. */
+export function signedPct(v: number, digits: number): string {
+  return `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`;
+}

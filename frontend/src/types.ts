@@ -444,6 +444,17 @@ export interface Btc24hResponse {
     total_short_usd: number;
     covered_from: string | null;
   };
+  /** 바이낸스 BTCUSDT 무기한 펀딩비·미결제약정. 받지 못하면 null 이고 derivatives_error 에 이유가 온다. */
+  derivatives: DerivativesSummary | null;
+  derivatives_error: string | null;
+}
+export interface DerivativesSummary {
+  source: string;
+  funding_rate_pct: number;
+  next_funding_time: string;
+  oi_btc: number;
+  oi_usd: number;
+  oi_change_pct: number;
 }
 
 // ── 비트코인 뉴스 키워드 순위 (GET /news/keywords, my-news 내보내기) ─────────

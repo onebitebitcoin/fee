@@ -1,11 +1,13 @@
-// 첫 화면 시세 카드 안쪽 아래 구역: 지난 24시간 가격 추이와 청산 규모.
+// 첫 화면 시세 카드 안쪽 아래 구역: 지난 24시간 가격 추이, 청산 규모, 선물 시장 신호.
 // 시간별 청산 막대는 "시간별 보기"를 눌렀을 때만 펼친다.
+// 선물 신호는 숫자보다 판정 한 단어(롱 과열, 매수 유입 등)를 크게 보여 줘서 처음 보는 사람도 바로 읽게 한다.
 import { useEffect, useState } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 import { api } from '../../lib/api';
-import type { Btc24hResponse, LiquidationHour } from '../../types';
+import type { Btc24hResponse, DerivativesSummary, LiquidationHour } from '../../types';
 import {
-  coveredHours, fmtHourKst, fmtTimeKst, fmtUsdCompact, longShare, maxHourTotal, sparkPoints,
+  coveredHours, fmtHourKst, fmtTimeKst, fmtUsdCompact, fundingGaugePos, fundingReading, longShare, maxHourTotal,
+  positionReading, signedPct, sparkPoints, type SignalTone,
 } from './marketOverview';
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -100,6 +102,52 @@ export function BtcTrendSection() {
             : ''}
         </p>
       </div>
+
+      <div className="col-span-2 h-px bg-separator" />
+      <div className="col-span-2">
+        {data.derivatives
+          ? <DerivativesSignals d={data.derivatives} priceChangePct={price.change_pct} />
+          : <p className="text-[10px] text-acc-red text-center">선물 신호를 불러오지 못했습니다{data.derivatives_error ? `: ${data.derivatives_error}` : ''}</p>}
+      </div>
+    </>
+  );
+}
+
+const TONE_CLASS: Record<SignalTone, string> = {
+  up: 'text-acc-green',
+  down: 'text-acc-red',
+  warn: 'text-acc-orange',
+  flat: 'text-label-primary',
+};
+
+function DerivativesSignals({ d, priceChangePct }: { d: DerivativesSummary; priceChangePct: number }) {
+  const funding = fundingReading(d.funding_rate_pct);
+  const flow = positionReading(d.oi_change_pct, priceChangePct);
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div title="롱이 많으면 롱이 숏에게, 숏이 많으면 숏이 롱에게 8시간마다 수수료를 냅니다">
+          <p className="text-[10px] text-label-tertiary">롱·숏 쏠림</p>
+          <p className={`text-[15px] font-bold ${TONE_CLASS[funding.tone]}`}>{funding.label}</p>
+          <div className="relative h-1.5 mt-1 rounded-full bg-fill-primary">
+            <span
+              className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-label-primary ring-2 ring-sys-card"
+              style={{ left: `${fundingGaugePos(d.funding_rate_pct)}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[9px] text-label-quaternary mt-0.5">
+            <span>숏</span><span className="num">펀딩비 {signedPct(d.funding_rate_pct, 3)}</span><span>롱</span>
+          </div>
+        </div>
+        <div title="선물에 열려 있는 포지션의 양이 24시간 동안 늘었는지 줄었는지를 가격 방향과 함께 봅니다">
+          <p className="text-[10px] text-label-tertiary">포지션 흐름</p>
+          <p className={`text-[15px] font-bold ${TONE_CLASS[flow.tone]}`}>{flow.label}</p>
+          <p className="text-[10px] text-label-secondary num mt-0.5">
+            포지션 {signedPct(d.oi_change_pct, 1)} · 가격 {signedPct(priceChangePct, 1)}
+          </p>
+        </div>
+      </div>
+      <p className="text-[9px] text-label-quaternary mt-1">바이낸스 BTC 무기한 · 24시간 기준</p>
     </>
   );
 }
