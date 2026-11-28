@@ -13,6 +13,7 @@ from backend.app.domain.market_paths import get_network_status
 from backend.app.services.lightning_scraper import get_all_lightning_swap_fees
 from backend.app.services.notice_scraper import get_all_notices, fetch_notices_for_exchange
 from backend.app.services.volume_service import fetch_exchange_volumes
+from backend.app.services.withdrawal_alert import notify_withdrawal_changes
 from backend.app.db import repositories
 
 # 지연 임포트: 순환 참조 방지용 (실제 호출은 run_full_crawl 내에서)
@@ -89,6 +90,11 @@ class CrawlService:
             self.db.add(crawl_run)
             self.db.commit()
             self.db.refresh(crawl_run)
+        if crawl_run.status != 'failed':
+            try:
+                notify_withdrawal_changes(self.db, crawl_run.id)
+            except Exception as exc:
+                logger.warning('출금 상태 알림 처리 실패: %s', exc)
         return crawl_run
 
     def _fetch_exchange_data(self, usd_krw_rate: float) -> dict[str, dict]:

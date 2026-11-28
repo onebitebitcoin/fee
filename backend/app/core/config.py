@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     admin_api_key: str = '0000'
     frontend_dist_dir: Path = Field(default=FRONTEND_DIST_DIR)
     openai_api_key: Optional[str] = None
+    # 출금 상태 변경 알림. 둘 중 하나라도 비어 있으면 보내지 않는다
+    telegram_bot_token: str = ''
+    telegram_chat_id: str = ''
     # my-news 가 내보내는 비트코인 주요 이슈(같은 사건 기사 묶음) 순위 파일. 운영 컨테이너는 읽기 전용 마운트한다.
     mynews_keywords_path: Path = Path('/data/mynews/btc_issues.json')
 

@@ -54,21 +54,26 @@ def list_network_status_for_run(db: Session, crawl_run_id: int) -> list[NetworkS
     return list(db.scalars(stmt))
 
 
-def get_prev_run_network_status(db: Session, crawl_run_id: int) -> list[NetworkStatusSnapshot]:
-    """현재 crawl_run_id 이전의 가장 최근 성공 크롤 실행의 NetworkStatusSnapshot 목록 반환.
-
-    이전 크롤이 없으면 빈 리스트 반환.
-    """
-    prev_run = db.scalar(
-        select(CrawlRun)
+def get_prev_success_run_id(db: Session, crawl_run_id: int) -> int | None:
+    """crawl_run_id 이전의 가장 최근 성공 크롤 실행 id. 없으면 None."""
+    return db.scalar(
+        select(CrawlRun.id)
         .where(CrawlRun.id < crawl_run_id)
         .where(CrawlRun.status.in_(['success', 'partial_success']))
         .order_by(desc(CrawlRun.id))
         .limit(1)
     )
-    if prev_run is None:
+
+
+def get_prev_run_network_status(db: Session, crawl_run_id: int) -> list[NetworkStatusSnapshot]:
+    """현재 crawl_run_id 이전의 가장 최근 성공 크롤 실행의 NetworkStatusSnapshot 목록 반환.
+
+    이전 크롤이 없으면 빈 리스트 반환.
+    """
+    prev_run_id = get_prev_success_run_id(db, crawl_run_id)
+    if prev_run_id is None:
         return []
-    return list_network_status_for_run(db, prev_run.id)
+    return list_network_status_for_run(db, prev_run_id)
 
 
 def list_crawl_errors_for_run(db: Session, crawl_run_id: int, stage: str | None = None) -> list[CrawlError]:
